@@ -55,8 +55,9 @@ views shaped like the hub's typed tables, and the one change four digits force o
 built** (16 Oct 2026): the look (*UI pass 3: the look* below), icons v3, charts v3 and the data layer; Home, its board of widgets, the
 gallery and the feeds (*UI pass 3: Home and its widgets* below). **The owner looked** (17 Oct 2026: *"looking for a more finished
 product"*, then *"different types of card layouts but organised … Same for … the action rows"*): the card family was drawn on a canvas
-and is specified, `docs/UI_PASS_3.md` §24, step **U2R** (*UI pass 3: the card family* below). U2R is built next, then a second stop;
-U3 waits on it.
+and specified, `docs/UI_PASS_3.md` §24, step **U2R**, and **U2R is built** (20 Oct 2026; *UI pass 3: the card family* below): one
+skeleton, seven card types, five action rows, a card exactly its size's height on a board packed dense, money short on a board,
+figures in Geist, Home's verdict a flat masthead. **The build stops again for the owner to look** (§1a's calls 13–20); U3 waits on it.
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -128,7 +129,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 92 modules, ~74,200 lines total.
+Split-file PWA. 92 modules, ~75,300 lines total.
 
 ```
 split/
@@ -137,7 +138,7 @@ split/
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More), the blank state (`uiBlankHtml`); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~2,800 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More), the blank state (`uiBlankHtml`); money on a board (`inrCard`, `inrFigHtml`: ₹66,476 · ₹3.50 L · ₹1.24 Cr, the exact amount its title); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~2,840 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters (~750 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
@@ -161,7 +162,7 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
 ├── quote.js           ← Quotations: Office → Sales → Quotations, a number at issue, revisions, the reprice moves, the printed quotation (~990 lines)
-├── charts.js          ← Reusable SVG charts (charts v3): line, bar, pie, ranked bars, and the eight of UI pass 3 (diverging, histogram, dots, scatter with `chartFit`, heat, dumbbell, stack to 100%, ring); a card's sparkline, meter and day on one bar; a colour by its slot (`seriesSlot`), never its rank; a table behind every boxed chart (~1,280 lines)
+├── charts.js          ← Reusable SVG charts (charts v3): line, bar, pie, ranked bars, and the eight of UI pass 3 (diverging, histogram, dots, scatter with `chartFit`, heat, dumbbell, stack to 100%, ring); a card's sparkline, meter and day on one bar; a colour by its slot (`seriesSlot`), never its rank; a table behind every boxed chart; a card's chart bare (`opts.bare`, drawn at the card's own pixels) and its small bars (`chartMiniBars`) (~1,290 lines)
 ├── staff.js           ← Floor → People: Attendance (Day · Week · Month), the Roster and its import, extra hours; each view led by its verdict (~2,630 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
@@ -206,9 +207,9 @@ split/
 ├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
 ├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
 ├── flow.js            ← The flow thread: turnaround targets and payment terms, a challan wanted by a day, the tasks they raise, the flow on Floor's Overview and a client's page (~360 lines)
-├── today.js           ← Home: the day card (the greeting, the clock on the minute, the shift, one sentence), the board's toolbar, Home left and arrived (the clock and the live widgets stopped and started); Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) (~660 lines)
-├── widgets.js         ← The widget framework (UI pass 3 §7, design §6.33): `wdgDefine`, a widget's card and its states (`uiBlankHtml`), its fit (`wdgFit`: the parts it can do without, then its last rows, *N more: Show all*), the board, arranging (drag, keys, sizes, remove), the gallery, the presets by role, the layout per person and layout (`sep_inv_layout`) (~820 lines)
-├── widgetcards.js     ← The widgets (`WIDGET_DEFS`), Money, Office, Floor, People, Market, Analysis and the questions, each reading the function its screen draws with; a question's story without its tiles and charts (`wcStoryBrief`) (~1,520 lines)
+├── today.js           ← Home: the masthead (`homeMastHtml`: the greeting, one sentence, the clock on the minute, the general shift before, during and after it; flat, never folded), the board's toolbar, Home left and arrived (the clock and the live widgets stopped and started); Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) (~690 lines)
+├── widgets.js         ← The card family's framework (UI pass 3 §7, §24; design §6.33–§6.35): `wdgDefine` (a type required), one skeleton (`wdgCardHtml`: head, figure, verdict, body, Act, Source) and its states (`uiBlankHtml`), the five action rows (Open, Choose, More, Act, Source), the seven types' builders (`wdgLedgerHtml`, `wdgDocketRowHtml`, `wdgPlantRowHtml`, `wdgSeatsHtml`, `wdgMovesHtml`, `wdgWireHtml`, `wdgTrayHtml`, …), the fit (`wdgFit`: the parts it can do without, then each column's and the list's last rows, More or a Ledger's rest line), a bare chart drawn into the room left, the board (fixed rows packed dense; `wdgPlace` and its slots while arranging), arranging (drag, keys, sizes, remove), the gallery, the presets by role, the layout per person and layout (`sep_inv_layout`) (~1,370 lines)
+├── widgetcards.js     ← The widgets (`WIDGET_DEFS`), each of its type (UI pass 3 §24f): Money, Office, Floor, People, Market, Analysis and the questions, each reading the function its screen draws with and handing its figures to its type's builders; a question's story without its tiles and charts (`wcStoryBrief`) (~1,710 lines)
 ├── feeds.js           ← The world outside: the news and the weather from the owner's feeds Worker (`S.feedsCfg.url`, a copy on the device, never in the book), Tata Motors' months and the models followed (`S.market`), the plant's calendar; what the widgets read (`feedNews`, `feedWeather`, `mktTataLatest`…) (~1,270 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -260,7 +261,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,030 tests, both layouts
+pnpm exec playwright test          # 2,063 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -268,7 +269,19 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 `playwright.config.ts` reads; unset everywhere else. The suite takes about 27 minutes on
 a CI runner's two workers (26.6 on 10 Oct 2026, 1,734 tests; the job allows 45, since the apt step behind Chromium's
 install has taken 5 on its own) — don't read a slow run as a hang. ⚠ It has grown: 38.0 minutes on 16 Oct 2026 at 2,030
-tests (a run with 37 failing, some at their timeouts), so the 45 is close; split the job or raise it before it cuts a run off.
+tests (a run with 37 failing, some at their timeouts), and 27 on 20 Oct at 2,030 with one failing, so the 45 is close on a red
+run; split the job or raise it before it cuts a run off.
+
+**CI's browser draws text about 0.5% wider than this sandbox's** (Chromium 147 against 141; U2R, 20 Oct 2026): a fit that passes
+here by a hair can wrap there (two labels on Performance did). Before pushing a change near a measured limit, measure it again with
+`* { letter-spacing: 0.005em }` laid over the page; that reproduced CI's figure to the pixel.
+
+⚠ **In this sandbox a page now and then stops answering just after it loads** (20 Oct 2026, cause not found): about one test in
+1,500 to 2,000, in full runs and in a loop of 1,500 boots alike. Nothing paints after the shell, the test times out, and closing it
+reports *Object with guid response@… was not bound in the connection* (the trace recorder waits on a snapshot the page never takes,
+so the navigation's answer comes after the context has closed). The page does not answer the debugger either, so it is blocked
+outside JavaScript. It came with the fonts routed and without them, and has not shown on CI. Run that one test again before reading
+the failure as yours.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
@@ -564,7 +577,7 @@ where available / 10. We shall discuss this."* P210.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 903 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715; 14 Oct 2026, the QA chain: `inv-fig-info` added and `inv-dialog-body` styled, `inv-token-on` and `inv-token-add` deleted: 715; 15 Oct 2026, the knowledge base's second edition (KB2-1): 61 `inv-kb-*` for the three modes, notices, At a glance, the kind icons, the Library's shelves and cards, the desk and its context, notes: 776; 16 Oct 2026, recounted before UI pass 3 at 781 (KB2-1's QA had added `inv-kb-close`, `-ctx-door`, `-ctx-n`, `-lib-head`, `-shelf-wide` uncounted), then U1: the blank state's seven `inv-blank*` and the switch `inv-switch`: 789; icons v3's `inv-ico-tint`, `-bold`, `-mark`, `-mark-lg`, `-mark-tile`, `-mark-brass` added and `inv-side-mark` deleted: 794; charts v3's 53 `inv-chart-*` (the slots, the status series, the heat ramp, the new builders' parts, the table) added and the old colour classes `inv-chart-c0…c7`, `-cx`, `-s0`, `-s7` deleted: 836; U2, Home and its widgets: the widget's 27 `inv-widget-*`, the board's `inv-wboard`, `-foot`, `inv-wgrid`, `-blank` and `inv-wdg-dragging`, the gallery's 8 `inv-gallery*`, the day card's 3 `inv-homeday-*`, the market's 9 `inv-mkt-*`, the weather's 9 `inv-wx-*`, the pair picker's `inv-corr-pick`, `-picks`, the share bar's `inv-sharebar`, `-part` and the toast's action `inv-toast-act`, `-btn`: 903); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 996 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715; 14 Oct 2026, the QA chain: `inv-fig-info` added and `inv-dialog-body` styled, `inv-token-on` and `inv-token-add` deleted: 715; 15 Oct 2026, the knowledge base's second edition (KB2-1): 61 `inv-kb-*` for the three modes, notices, At a glance, the kind icons, the Library's shelves and cards, the desk and its context, notes: 776; 16 Oct 2026, recounted before UI pass 3 at 781 (KB2-1's QA had added `inv-kb-close`, `-ctx-door`, `-ctx-n`, `-lib-head`, `-shelf-wide` uncounted), then U1: the blank state's seven `inv-blank*` and the switch `inv-switch`: 789; icons v3's `inv-ico-tint`, `-bold`, `-mark`, `-mark-lg`, `-mark-tile`, `-mark-brass` added and `inv-side-mark` deleted: 794; charts v3's 53 `inv-chart-*` (the slots, the status series, the heat ramp, the new builders' parts, the table) added and the old colour classes `inv-chart-c0…c7`, `-cx`, `-s0`, `-s7` deleted: 836; U2, Home and its widgets: the widget's 27 `inv-widget-*`, the board's `inv-wboard`, `-foot`, `inv-wgrid`, `-blank` and `inv-wdg-dragging`, the gallery's 8 `inv-gallery*`, the day card's 3 `inv-homeday-*`, the market's 9 `inv-mkt-*`, the weather's 9 `inv-wx-*`, the pair picker's `inv-corr-pick`, `-picks`, the share bar's `inv-sharebar`, `-part` and the toast's action `inv-toast-act`, `-btn`: 903; 20 Oct 2026, U2R, the card family: 103 added (the seven types' parts, `inv-ledger-*`, `inv-docket-*`, `inv-plant-*`, `inv-plate`, `inv-reading`, `inv-seat*`, `inv-crew-*`, `inv-brief-*`, `inv-wire-*`, `inv-tray*`, `inv-meter-key*`; the action rows' `inv-btn-tint`, `inv-seg-choose`, `inv-widget-act`, `-src`, `-choose`, `-refresh`, `-more-btn`, `-dot`; the masthead's ten `inv-mast*`; money's `inv-cur`, `inv-widget-sign`; the head's `inv-widget-ico`, `-say`, `-ctl-name`; the columns `inv-widget-cols`, `-col`; the slots `inv-wgrid-slot`, `-say`; the small bars' eight `inv-minibar*`; `inv-chart-bare`, `inv-corr-pair`, `inv-corr-picks-sm`, `inv-gallery-text`, `inv-wc-moves`) and 10 retired (`inv-homeday-clock`, `-shift`, `-wx`, `inv-widget-chip`, `-credit`, `-part`, `-parts`, `-parts-2`, `-parts-3`, `-rows`): 996); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -588,7 +601,7 @@ document the interface is built on** — tokens, theme, density, navigation, eve
 is assembled, and the migration plan. Read it before touching `styles.css` or a render function; a UI
 change that needs something it does not define amends it in the same PR. Its design rules DR-1…DR-8 carry
 the weight of the hard rules above (colour means status; one accent for interaction; one primary button per
-view; figures mono and right-aligned; sentence case; a card lifts, a well sinks, a layer floats (UI pass 3; no shadows on content until then); components, not one-offs; status
+view; figures tabular and right-aligned (Geist since U2R; identifiers mono); sentence case; a card lifts, a well sinks, a layer floats (UI pass 3; no shadows on content until then); components, not one-offs; status
 is a dot or badge plus a word).
 
 **Step 1 of the migration is built (26 Sep 2026):** the v2.0 tokens with three palettes (Teal default,
@@ -776,33 +789,32 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
   Planner). `?tab=pageHome&v=home` is the default; an old `v=pulse` (an address, a saved step, `sep_inv_ws_last`) lands on Home
   (`NAV_REDIRECTS`), and `invGoPulse` is kept as an alias of `invGoHome`, which the rail's mark and the brand open. Search finds Home
   (`G H`) and Needs you apart; signing in lands on Home (Mine for a person with a face, as before).
-- **The day card leads** (`homeDayCardHtml`, today.js; a verdict card): *Good morning, <name> · Friday, 16 October*, the clock and the
-  general shift's end as its figure (`[data-home-clock]`, `[data-home-shift]`; *General shift ends 5:00 PM · 3 h 2 min*), one sentence
-  in its tone (cash below zero within 14 days, red tasks, a line half down, the month's pace against last month, else *Nothing needs
-  you now*), two facts, **Open Needs you · N** and *Make today's report* for a role that opens Reports. **The clock ticks on the
-  minute** (`homeClockStart` / `homeClockStop`), touching only the two texts, and stops when Home is left or hidden; the day card is
-  drawn again when the day turns (`_homeDrawnDay`). Shut on the phone to its head, open on the desktop.
+- **The masthead leads** (`homeMastHtml`, today.js, since U2R; U2 drew a day card, a verdict card shut on the phone): *Good morning,
+  <name> · Friday, 16 October*, one sentence in its tone (cash below zero within 14 days, red tasks, a line half down, the month's pace
+  against last month, else *Nothing needs you now*), up to two more facts and the weather now, **Open Needs you** and *Make today's
+  report* for a role that opens Reports, the clock and the general shift (`[data-home-clock]`, `[data-home-shift]`). **The clock ticks
+  on the minute** (`homeClockStart` / `homeClockStop`), touching only its texts and the shift's track, and stops when Home is left or
+  hidden; the masthead is drawn again when the day turns (`_homeDrawnDay`). Flat and never folded (*The card family* below).
 - **One toolbar row** (`[data-home-toolbar]`): the period (`MTD · QTD · YTD · All`, the one `_statsPeriod`), **Customise** (an icon
   on the phone) and More (*Make a report*, *Open Stats*, *Reset Home*). Then **the board** (`#homeBoard`), then its foot, *Add a widget
   · N to choose from*. Needs you is unchanged in what it holds (`#homeNeeds`).
-- **The framework** (`widgets.js`, design §6.33) holds no widget's arithmetic: `wdgDefine({id, title, q, section, sizes, needs, go,
-  live, feed, card, data(ctx), draw(d, size, ctx), foot, after, act, change})`, the card (a hero coded in the tone `data` gives), the
-  states through `uiBlankHtml` (`empty`, `early`, `notset`, `offline`, `loading`, `error`), the board, arranging, the gallery, the
+- **The framework** (`widgets.js`, design §6.33) holds no widget's arithmetic: `wdgDefine({id, title, short, q, section, type, sizes,
+  needs, go, live, feed, card, choose, data(ctx), draw(d, size, ctx), viz, more, actRow, source, after, act, change})` (U2R's: `foot`
+  retired for `actRow` and `source`), the card (one skeleton of its type, *The card family* below), the states through `uiBlankHtml` (`empty`, `early`, `notset`, `offline`, `loading`, `error`), the board, arranging, the gallery, the
   presets and the layout store. **A button inside a card names its widget with `data-wid`**; `data-w` is the card's alone. An action
   the framework does not know goes to the widget's `act(action, btn, card)`, a change in the card (or in a dialog carrying
   `data-wdg-for`) to its `change(el, card, board)`, and `feed: true` draws it again when a news or weather copy lands. A widget's
   own options are kept with the layout (`wdgOpts`, `wdgOptsPut`: `corr`'s pair).
   **A widget never throws its board down**: one that throws draws its error state and reports once a session. `wdgFromHero(o)` takes
-  a hero's options, so a figure Pulse drew is drawn from the same function (`homeMtdOpts`, `homeUnbilledOpts`, `homeRecentOpts`,
-  `attHomeOpts`, `finHomeOpts`, `zincCardOpts`, `ghCardOpts`, `whyHeroOpts`, `statsOverviewOpts`, `paceCardOpts`, `todoHomeOpts`),
+  a hero's options, so a figure Pulse drew is drawn from the same function (`finHomeOpts`, `whyHeroOpts`, `statsOverviewOpts`,
+  `todoHomeOpts`; `homeMtdOpts`, `ghCardOpts` and `paceCardOpts` are read directly; U2R retired the rest with the cards they drew),
   and `wdgMemo(key, fn)` keeps a widget's figures until the book, the period or the person changes.
-- **Three sizes with a cap each** (Small 10rem, Medium 26rem, Large 40rem; Medium and Large 30rem on the phone): the size decides
-  what is drawn, and a list that would pass its cap lets go of its last rows (`wdgFit`, `data-wdg-cut`) and says *N more: Show all*.
-  Before any row, the parts a widget can do without go, all together (`WDG_FIT_OPT`: a tile's line of the months before, a part
-  marked `data-wdg-opt`), so a crore month never cuts Month to date; a widget's sparkline in a tile is a quarter lower on the phone.
-  The board's columns come from its own width (12 from 60rem, 6 from 36rem, 2 under it): a Small spans 3 (one of two on the phone),
-  a Medium 6, a Large the row; packed in the layout's order (`uiMasonry`: rows of `--masonry-row` with no row gap, a card spanning
-  its height and the gap under it, `uiMasonryPack`; the board's own gap rule is outranked on a packed grid).
+- **Three sizes, each a fixed height** (since U2R; U2 capped them at 10, 26 and 40rem and let a card be as tall as what it held): the
+  size decides what is drawn, and what will not fit lets go (`wdgFit`): first the parts a widget can do without, all together
+  (`WDG_FIT_OPT`: a tile's line of the months before and the words under its figure, a part marked `data-wdg-opt`, a chart's key), so a
+  crore month never cuts Month to date; then a list's last rows, its More (*N more challans*) or a Ledger's rest line saying how many.
+  The board's columns come from its own width (12 from 60rem, 6 from 36rem, 2 under it): a Small spans 3 (one of two on the phone), a
+  Medium 6, a Large the row; rows of `--wdg-row`, packed dense (*The card family* below).
 - **Who sees a widget** is its `needs` (`page` by `grdSees`, `money`, `wages`, `perm`, `owner`, `when`; `wdgSees`): a widget a role
   may not see is in no gallery and on no board, and a layout naming one keeps it and skips it at draw. A door a role cannot follow
   is drawn as text.
@@ -815,13 +827,13 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
 - **The gallery** (`wdgGalleryOpen`, a dialog): the sections as chips (All, Money, Office, Floor, People, Market, Analysis,
   Questions; one with nothing the role may see left out), each widget a card with its live preview at its first size (drawn as it
   comes into view, `IntersectionObserver`), its title, question and sizes, and **Add to Home** or *On Home* with Remove. Added, it
-  goes to the end of the layout on screen and of the other layout at its first size. **Every preview is one height, drawn or not**
-  (`--wdg-cap-s`): a preview drawn as it came into view grew from 48 to 160 px, and the cards under it jumped while scrolling. A
+  goes to the end of the layout on screen and of the other layout at its first size (or, from a slot's *Add here*, at the slot). **Every
+  preview is one height, drawn or not** (one row, `--wdg-row`, since U2R): a preview drawn as it came into view grew from 48 to 160 px, and the cards under it jumped while scrolling. A
   chip, a board, an Add or a Remove swaps the gallery's parts inside the dialog (`wdgGalleryRedraw`), never the dialog: a dialog
   replaced replays its slide-in, so every tap slid the sheet up again. The previews drawn stay drawn, the list stays where it was,
   and the focus goes to the card's other button (P223).
-- **Presets by role** (`WDG_PRESETS`): Owner (the owner, or the guard off), Office, Floor (a supervisor or a floor ID); a widget the
-  role cannot see is left out when the preset is drawn. Any change makes the layout the person's own; **Reset** goes back.
+- **Presets by role** (`WDG_PRESETS`): Owner (the owner, or the guard off), Office, Supervisor (since U2R) and Floor, each packing with
+  no hole (§24i); a widget the role cannot see is left out when the preset is drawn. Any change makes the layout the person's own; **Reset** goes back.
 - **Where a layout is kept** (`sep_inv_layout`, localStorage: `{v: 1, people: {<ID or '-'>: {home: {preset, desk, phone, opts}}}}`):
   one per person and per layout (the desktop's and the phone's sizes differ), never in the book, a backup, a push, a merge or the
   change log; at S1 it goes to the hub as the person's `prefs` (`docs/SERVER.md`). A device's Pulse layout is moved once
@@ -858,7 +870,7 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
   `/weather` (MET Norway, at the plant's place to two decimals). The app asks when Home is drawn and on the minute while it shows,
   only for a copy over 30 minutes old, never offline, hidden, under test (unless a spec sets `window.__sepFeedsOn`) or twice within
   the minute (`tried`, kept on the device). The copy is the device's (`sep_inv_feeds`), never the book's; a landing is a `sep-feeds`
-  event, which the day card and every `feed: true` widget redraw on. **Tata's figures and the plant's calendar are the book's**
+  event, which the masthead and every `feed: true` widget redraw on. **Tata's figures and the plant's calendar are the book's**
   (`S.market`: the months typed in the Tata dialog, the days the plant is shut, the models followed, a weather day a day; in the
   change log and the merge, the weather quiet in both); a headline's figure or day is offered, never applied. To-do `mktTata` asks
   for last month's figures from the 2nd. Settings → Connections → News and weather, and the guide *Setting up: the news and weather*
@@ -870,24 +882,52 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
 - Fixtures: `openHome`, `openNeeds`, `openPulse` (puts Pulse's widgets on the board at Large for the person signed in, then draws
   Home), `openWidget(page, id)`, `withWidgets(page, list)`; a spec reading a widget puts it on the board first.
 
-### UI pass 3: the card family (U2R, specified 17 Oct 2026, not built)
-`docs/UI_PASS_3.md` §24 (owner, 17 Oct 2026, after U2's stop; the canvas *Home card types*, answered *"Write the spec"*, taken as the
-canvas approved with its four calls as proposed). What a builder of U2R needs to know before opening §24:
-- **One skeleton** for every card on a board, in one order: head (Open; Choose at Large), figure, verdict, body (More at its list's
-  end), Act, Source. **Seven types**, each a surface and the parts only it draws: Ledger (money; warm `--ty-ledger`), Docket (documents
-  in motion), Plant (lines and machines; cool `--ty-plant`), Crew (people), Briefing (the questions), Outside (the world outside; no
-  Act), Tools (starting things). **Five action rows**: Open (the head), Choose (a segmented control in the head), More (the list's last
-  row), Act (one tinted `inv-btn-tint`, one text button at most), Source (the last line; only Refresh and a feed's credit are links).
-- **The four calls**: salience follows severity (quiet, an amber top edge, a red edge and tint; no wash); figures in Geist with
-  tabular figures, Geist Mono only for identifiers (DR-4, app-wide); money on a board short (`inrCard`: ₹66,476, ₹3.50 L, ₹1.24 Cr,
-  the exact figure its `title`; a Ledger's lines whole rupees that add up; a rate keeps its paise); a card exactly its size's height
-  (`--wdg-row`), the board packed dense, holes shown as slots while arranging.
-- **Corners** 14 / 10 / 8 px (`--r-card`, `--r-tile` for every well, `--r-ctl`), the phone's bar `--r-bar`. The day card becomes a
-  flat **masthead**. Four **presets**, each packing with no hole for its role's default pages (a Supervisor's of its own).
-- **Geist under test**: the fonts and their OFL licence in `tests/fixtures/fonts/`, routed in the fixtures, in their own commit before
-  anything else, so heights and titles are measured in the real face.
+### UI pass 3: the card family (U2R)
+`docs/UI_PASS_3.md` §24 (owner, 17 Oct 2026, after U2's stop: *"different types of card layouts but organised, so maybe a financial
+card layout looks and feels different than an industrial one. Same for anything that we are putting under one label, like the action
+rows"*; the canvas *Home card types*, answered *"Write the spec"*, taken as approved with its four calls as proposed). Built 20 Oct
+2026; design §6.33–§6.36. P235 (the skeleton), P236 (the action rows), P237 (heights, packing, the fit), P238 (money and figures),
+P239 (the masthead); the specs that read U2's cards rewritten to the same fact where it now lives (§21), never weakened. **The build
+stops here for the owner to look**, with §1a's calls 13–20.
+- **One skeleton** for every card on a board (`wdgCardHtml`), in one order: head (Open, the whole head; the Choose at its right where
+  offered, under it on the phone), figure, verdict, detail, the type's parts (More at a list's end), Act, Source. A card is no longer a
+  hero: `<section class="inv-widget" data-w data-size data-type data-tone data-state>`.
+- **Seven types** (`type`, required by `wdgDefine`, with a `short` title wherever a Small is allowed), each a surface and the parts
+  only it draws, through the builders in widgets.js (no widget writes a row's markup of its own): Ledger (money; warm `--ty-ledger`;
+  `wdgLedgerHtml`: whole rupees on dotted leaders, the total ruled only where the lines add up, a cut list's rest line with their sum),
+  Docket (documents in motion; `wdgDocketRowHtml`, the state as steps, `wdgDocketStagesHtml`), Plant (lines and machines; cool
+  `--ty-plant`; `wdgPlantRowHtml`, nameplates, readings, gauges), Crew (people; `wdgSeatsHtml`, `wdgCrewRowHtml`), Briefing (the
+  questions; the answer as a sentence, `wdgMovesHtml`, `wdgWhenRowHtml`), Outside (the world outside; `wdgWireHtml`; never edged, no
+  Act), Tools (starting things; `wdgTrayHtml`).
+- **Five action rows**: Open (the head); Choose (`choose: {def, opts, at}`: a segmented control `inv-seg-choose`, the pick kept with the
+  layout, `opts.<id>.choose`); More (the list's last row, *5 more challans*, from the list's `data-wdg-list data-noun`); Act (`actRow`:
+  one tinted `inv-btn-tint`, one text button at most); Source (`source`: the last line, its only links Refresh and a feed's credit). A
+  move's tap opens its dialog (`advMoveOpen`), where *Add to my list* is.
+- **The four calls, as built**: salience follows severity (quiet; amber a 3 px inset top edge, `--tone-edge`; red the edge and
+  `--card-danger`; no wash); figures in Geist with tabular figures app-wide (`--ff-num`), Geist Mono and `slashed-zero` only for
+  identifiers (`inv-id`, a nameplate, a dateline), DR-4 amended; money on a board short (`inrCard`, `inrFigHtml`; a sentence's amounts
+  `wdgShortMoney` / `wdgShortMoneyIn`, the exact text its `title`; a Ledger's lines whole rupees; a rate keeps its paise; every other
+  screen keeps the paise); a card exactly its size's height (`--wdg-row` 172 px, 168 on the phone; `--wdg-gap`), the board packed
+  dense, and while arranging packing off with each hole a slot (`wdgPlace`, `inv-wgrid-slot`, **Add here**).
+- **What the fit has to know** (`wdgFit`; each a bug met on the way): what a card can do without goes first, all together (a tile's
+  words under its figure but never its change, a chart's key); columns side by side are fitted each on its own, and a column left with
+  only its caption goes; the room a card does not fill stands between what it says and what it shows (the first part after the
+  figure, verdict, detail or answer takes the slack; in columns laid out side by side the first column takes none, or it grew past its
+  row and the wrong rows were cut); a row's own action never wraps; a list with nothing to chart says so (`noViz`) and draws its
+  picture instead. A sentence shortened in drawn HTML is replaced in its text node, never wrapped in a span (inside a flex `inv-dot`
+  a span split the sentence into columns).
+- **A bare chart** (`opts.bare`) is drawn into the room the card leaves, after the fit, at the room's own pixels (`viz(d, size, {w,
+  h})`), so every label renders at 11 px or more; a Small's picture is `chartMiniBars`, a meter, the seats or the tray.
+- **Corners** 14 / 10 / 8 / 7 px (`--r-card`, `--r-tile` for every well, `--r-ctl`, `--r-seg`), the phone's bar `--r-bar` 22. The day
+  card is the flat **masthead** (`homeMastHtml`, design §6.36): never folded, 148 px on the desktop, the shift said before, during and
+  after it. Four **presets** (Owner, Office, Supervisor, Floor), each packing with no hole on both layouts, packing on or off; the
+  phone's Owner leaves out Do first, Turnaround and Days to pay (`phoneOut`), Home 3.92 phone screens on the long book (4.17 with Do
+  first alone out, over I10's four; §1a-14, the owner's call).
+- **Geist under test**: the fonts and their OFL licence in `tests/fixtures/fonts/`, served by the test server in place of Google's
+  stylesheet (`tests/e2e/server.mjs` names `fonts.css` in every page it serves, so a second window draws in Geist too, and no request
+  is intercepted), so heights and titles are measured in the real face; `geistReady(page)` (p235-family.fixture.ts) waits for both
+  faces before a measure.
 - **The book does not change**; a widget's Choose is kept with the layout (`opts`), `prefs` on the hub at S1.
-- §1a's calls 13–20 say where the spec departs from or goes past the canvas, for the owner at U2R's stop. P235–P239 are U2R's specs.
 
 ## Business Domain
 

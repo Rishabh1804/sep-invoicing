@@ -58,54 +58,8 @@ function zincAgeDays() {
   return Math.max(0, isoDaysBetween(isoOf(new Date(z.updatedAt)), localDateStr()));
 }
 
-/* The zinc rate as a hero's options (Home's zinc widget, widgetcards.js; Pulse's card until UI pass 3): the landed rate a kg, the
-   market's last refreshes as a line (S.zinc.lmeHistory, landed at the uplift and premium set now, as the price trend draws it),
-   coded warning once the rate is out of date; the derivation under it. renderZincCard redraws the widget where it stands. */
+/* Home's zinc widget (widgetcards.js, an Outside card) drawn again where it stands, after a refresh or a rate set. */
 function renderZincCard() { if (typeof wdgRefresh === 'function') wdgRefresh('zinc'); }
-function zincCardOpts() {
-  var z = getZinc();
-  var landed = zincLandedRate();
-  var refresh = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>';
-
-  if (landed == null) {
-    // Adding the key does not fetch anything by itself, so the empty state has
-    // to carry the Refresh button too. Without it, setting a key left the card
-    // still asking for a key and no way to act on it.
-    var hasKey = !!getMetalsKey();
-    return { tone: 'neutral', eyebrow: '<span>Zinc</span>', title: 'No rate recorded', none: true,
-      sub: hasKey ? 'Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
-        : 'Set it in Settings, or add a metals.dev API key there to pull it from the market.',
-      attrs: ' data-card="zinc"', foot: hasKey ? refresh : '' };
-  }
-
-  var age = zincAgeDays();
-  var stale = age == null || age > ZINC_STALE_DAYS;
-  var ageText = age == null ? 'never updated'
-    : age === 0 ? 'updated today'
-    : 'updated ' + age + ' day' + (age !== 1 ? 's' : '') + ' ago';
-  // The market's last 30 refreshes, landed as a bill is priced (zinc.js zincTrend's rule), oldest first.
-  var hist = z.lmeHistory || {}, days = Object.keys(hist).sort().slice(-30), up = z.upliftPct || 0, prem = z.premiumPerKg || 0;
-  var line = days.length >= 3 ? chartSpark(days.map(function(d) { return gstRound(hist[d] * (1 + up / 100) + prem); }), { labels: days.map(function(d) { return formatDate(d); }), unit: 'rate', dot: true,
-    title: 'Landed zinc at each refresh: ' + days.slice(-6).map(function(d) { return formatDate(d) + ' ' + formatCurrency(gstRound(hist[d] * (1 + up / 100) + prem)); }).join(' · ') }) : '';
-
-  var body = '<div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(landed)) + '</div></div>' +
-    '<div class="inv-tile"><div class="inv-tile-label">' + (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
-    '<div class="inv-tile-value inv-tile-value-sm">' + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
-    '<div class="inv-row inv-row-auto"><span class="inv-row-main">' +
-    // Show the whole derivation when the figure was uplifted from LME, so an
-    // estimate never reads as a quoted MCX price.
-    (z.basis === 'lme'
-      ? '<span class="inv-row-meta inv-row-wrap">LME ' + formatCurrency(z.ratePerKg) +
-        ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' + formatCurrency(zincMcxRate()) + '</span>'
-      : '') +
-    '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
-    // Two facts (the tab map, TM6): when, and where from (the service, the field it was read from in brackets).
-    escHtml(ageText + (stale ? ', may be out of date' : '')) + (z.source ? ' · ' + escHtml(String(z.source).replace(/^(.*?) · (.*)$/, '$1 ($2)')) : '') + '</span></span></span></div>';
-  return { tone: stale ? 'warning' : '', eyebrow: '<span>Zinc</span><span class="inv-panel-count">' + escHtml(ageText) + '</span>',
-    title: 'Landed a kg', fig: figWrapHtml(escHtml(formatCurrency(landed))), sub: escHtml((z.basis === 'lme' ? 'MCX est. ' : 'MCX ') + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + ' premium'),
-    viz: line, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh, age: ageText, stale: stale };
-}
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the
    payload is read for a zinc figure in several plausible places, and if none

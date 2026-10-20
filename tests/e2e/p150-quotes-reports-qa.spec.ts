@@ -15,8 +15,9 @@ async function openPulse(p: Page, ...qs: string[]) {
   const all = p.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
   await all.click();
   await expect(all).toHaveAttribute('aria-pressed', 'true');
-  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its story and its moves.
-  for (const k of qs) await expect(p.locator(`[data-tdy-q="${k}"] [data-tdy-story]`)).toHaveCount(1);
+  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its answer and its moves
+  // since U2R, its story the dialog its head opens.
+  for (const k of qs) await expect(p.locator(`[data-tdy-q="${k}"] [data-tdy-ans]`)).toHaveCount(1);
 }
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

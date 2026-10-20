@@ -22,20 +22,24 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     // App already lands on Home; renderHome() is called on init. Confirm explicit return.
     await expect(page.locator('#pageHome.inv-page-active')).toBeVisible();
 
-    const recent = page.locator('#recentInvoices');
-    await expect(recent).toBeVisible();
+    // The card's blank state since UI pass 3 (§6.32): its icon and its words; the way to the first invoice is the card's Act (U2R
+    // §24e: a blank state's action is the Act's tinted button).
+    const recent = page.locator('#homeBoard [data-w="recent"]');
+    const blank = recent.locator('.inv-blank');
+    await expect(blank).toBeVisible();
 
-    // Positive: icon is present and sized via the .inv-empty-icon class.
-    await expect(recent.locator('svg.inv-empty-icon')).toBeVisible();
+    // Positive: icon is present, the blank state's own.
+    await expect(blank.locator('.inv-blank-icon svg')).toBeVisible();
     // Positive: copy present.
-    await expect(recent).toContainText('No invoices yet');
+    await expect(blank).toContainText('No invoices yet');
     // Positive: CTA present with the correct action + text.
-    const cta = recent.locator('button[data-action="invCreateNew"]', { hasText: 'Create your first invoice' });
+    const cta = recent.locator('.inv-widget-act button[data-action="invCreateNew"]', { hasText: 'Create your first invoice' });
     await expect(cta).toBeVisible();
+    await expect(cta).toHaveClass(/inv-btn-tint/);
 
     // Regression guard: the pre-P3 shape was ONLY a muted text line with no SVG icon.
     // If someone ever reverts the icon, this test fails.
-    await expect(recent.locator('svg')).toHaveCount(1);
+    await expect(blank.locator('svg')).toHaveCount(1);
   });
 
   test('on a new device (the Owner preset) the recent invoices are Needs you’s, and Add’s Invoice opens the form', async ({ page }) => {
@@ -54,7 +58,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     await loadAppWithState(page, emptyState());
     await openWidget(page, 'recent');
 
-    const cta = page.locator('#recentInvoices button[data-action="invCreateNew"]');
+    const cta = page.locator('#homeBoard [data-w="recent"] .inv-widget-act button[data-action="invCreateNew"]');
     await expect(cta).toBeVisible();
     await cta.click();
 
@@ -96,6 +100,10 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     await expect(recent.locator('svg.inv-empty-icon')).toHaveCount(0);
     await expect(recent.locator('button[data-action="invCreateNew"]')).toHaveCount(0);
     await expect(recent).not.toContainText('Create your first invoice');
+    // The card holds no blank state, and its Act offers a new invoice, not the first one (U2R).
+    const card = page.locator('#homeBoard [data-w="recent"]');
+    await expect(card.locator('.inv-blank')).toHaveCount(0);
+    await expect(card).not.toContainText('Create your first invoice');
   });
 
 });

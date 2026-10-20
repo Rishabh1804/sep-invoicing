@@ -10,7 +10,8 @@
    HR"). The off-white of 26 Sep (#f8fafa, lightness 98%) still read as white beside the coloured cards, so every light fill is
    a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.92 (UI pass 3 took it a step down, so a card stands
    off it). Paper is the one exception (§8). --text-3 is a step darker in light since UI pass 3, so it reads at 4.5:1 in a well on
-   the page too (P180). Nothing but the aliases below reads a --c-* token. */
+   the page too (P180). Nothing but the aliases below reads a --c-* token. The card family's two type surfaces (UI pass 3 §24d): a
+   Ledger warmer and a shade under the card, a Plant cooler and a shade more, each the palette's card moved by Zinc's own step. */
 :root, :root[data-palette="zinc"] {
   --c-bg: light-dark(#e1e6eb, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
   --c-surface-2: light-dark(#dfe3e9, #1c2126); --c-surface-3: light-dark(#d5dbe1, #242a30);
@@ -20,6 +21,7 @@
   --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
   --c-accent-deep: light-dark(#704b08, #b98f3f);
   --c-edge: light-dark(rgb(20 25 30 / 0.06), rgb(237 240 243 / 0.08));
+  --c-ty-ledger: light-dark(#f3f0e9, #1b1a16); --c-ty-plant: light-dark(#eaeff4, #121920);
 }
 :root[data-palette="teal"] {
   --c-bg: light-dark(#dee7e9, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
@@ -30,6 +32,7 @@
   --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
   --c-accent-deep: light-dark(#085650, #41a296);
   --c-edge: light-dark(rgb(16 40 48 / 0.06), rgb(236 242 242 / 0.08));
+  --c-ty-ledger: light-dark(#f0f1e8, #191b14); --c-ty-plant: light-dark(#e7f0f3, #101a1e);
 }
 :root[data-palette="terracotta"] {
   --c-bg: light-dark(#eae4db, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
@@ -40,12 +43,16 @@
   --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
   --c-accent-deep: light-dark(#863a1d, #c57553);
   --c-edge: light-dark(rgb(40 30 20 / 0.06), rgb(243 240 234 / 0.08));
+  --c-ty-ledger: light-dark(#fbefdd, #221c10); --c-ty-plant: light-dark(#f2eee8, #191b1b);
 }
 
 :root {
   /* Faces (§3.4). Printed documents pin their own below — the UI face never reaches paper. */
   --ff-base: 'Geist', system-ui, 'Segoe UI', sans-serif;
   --ff-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+  /* A figure's face (UI pass 3 §24l, DR-4): Geist with tabular figures, every digit one width, so a column still lines up. Geist
+     Mono is for identifiers only (a document's number, a code, a nameplate), each with its slashed zero. */
+  --ff-num: var(--ff-base);
 
   /* Type sizes (§3.4). */
   --fs-11: 0.6875rem; --fs-12: 0.75rem; --fs-13: 0.8125rem; --fs-14: 0.875rem; --fs-16: 1rem;
@@ -84,6 +91,11 @@
      card's own fill sunk. Never lighter than what it sits in, so never white (HR-9). */
   --edge: var(--c-edge); --accent-deep: var(--c-accent-deep);
   --well: light-dark(rgb(20 25 30 / 0.05), rgb(0 0 0 / 0.22));
+  /* The card family (§24c, §24d): a Ledger's and a Plant's surface, and the red tint a card in danger takes in place of its type's
+     (the danger's background in the card, 70% in light and 78% in dark); amber and red draw a top edge of this width. */
+  --ty-ledger: var(--c-ty-ledger); --ty-plant: var(--c-ty-plant);
+  --card-danger: light-dark(color-mix(in oklab, var(--danger-bg) 70%, var(--surface)), color-mix(in oklab, var(--danger-bg) 78%, var(--surface)));
+  --tone-edge: 0.1875rem;
 
   /* Status tones, shared by every palette. */
   --danger: light-dark(#b42318, #f38b81); --danger-bg: light-dark(#fdecea, #3a1916);
@@ -99,10 +111,15 @@
   --lift-2: 0 0.125rem 0.25rem light-dark(rgb(20 25 30 / 0.08), rgb(0 0 0 / 0.45)), 0 0.875rem 1.875rem light-dark(rgb(20 25 30 / 0.12), rgb(0 0 0 / 0.40));
   --press-1: inset 0 0.0625rem 0.1875rem light-dark(rgb(20 25 30 / 0.14), rgb(0 0 0 / 0.45));
   --press-2: inset 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.10), rgb(0 0 0 / 0.35));
-  --r-card: 1.125rem; --r-tile: 0.875rem; --r-ctl: 0.75rem; --r-key: 1rem;
-  /* A segmented control's pressed pill (36px in a 44px track on the approved board) and a switch's track and knob (§3b). */
-  --r-seg: 0.5625rem; --switch-w: 3.25rem; --switch-h: 1.875rem; --switch-knob: 1.5rem;
-  --fs-28: 1.75rem; --fs-36: 2.25rem; --fs-48: 3rem;
+  /* Corners (U2R, §24b): a card 14px, a well (a field, the search, a segmented track, a tile in a card) 10px, a button and a menu 8px,
+     the phone's floating bar its own rounder 22px. */
+  --r-card: 0.875rem; --r-tile: 0.625rem; --r-ctl: 0.5rem; --r-key: 1rem; --r-bar: 1.375rem;
+  /* A segmented control's pressed pill (the track's corner less its inset, so the two curves are one) and a switch's track and
+     knob (§3b). */
+  --r-seg: 0.4375rem; --switch-w: 3.25rem; --switch-h: 1.875rem; --switch-knob: 1.5rem;
+  --fs-26: 1.625rem; --fs-28: 1.75rem; --fs-30: 1.875rem; --fs-44: 2.75rem;
+  /* A key on a tray (Tools, §24d): lifted a step off its sunk tray. */
+  --lift-key: 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.10), rgb(0 0 0 / 0.45)), 0 0.125rem 0.375rem light-dark(rgb(20 25 30 / 0.06), rgb(0 0 0 / 0.30));
 
   /* Series (§3d): which thing a line or bar is, in this order and never by rank; validated for colour blindness in both
      themes (16 Oct 2026). How much (a heat map): one blue, light to dark; dark mode from dim to bright. */
@@ -116,9 +133,19 @@
   /* Today's cards: a card in a deck at least this wide (a deck of small cards, `data-deck-sm`, the narrower: a unit of the plant);
      a sparkline's and a meter's height; a step's node; the small row a packed grid counts in. */
   --deck-min: 15rem; --deck-min-sm: 9rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
-  /* A widget's cap by its size (UI pass 3 §7b), so no layout lets one run a screen long (the phone's Medium and Large one cap); the
-     chip holding its section's icon. */
-  --wdg-cap-s: 10rem; --wdg-cap-m: 26rem; --wdg-cap-l: 40rem; --wdg-cap-phone: 30rem; --wdg-chip: 1.75rem;
+  /* A board's row and gap (U2R, §24b, §24h): a card is exactly its size's height, rows of 172px and a 16px gap on a board of 6 or 12
+     columns, 168px and 12px on the phone's 2 (rem, so a larger text setting gives larger rows); a card's sides, and on a phone's
+     Small; its head; Home's masthead on the desktop. */
+  --wdg-row-wide: 10.75rem; --wdg-gap-wide: 1rem; --wdg-row-narrow: 10.5rem; --wdg-gap-narrow: 0.75rem;
+  --wdg-row: var(--wdg-row-wide); --wdg-gap: var(--wdg-gap-wide); --wdg-pad: 1rem; --wdg-pad-sm: 0.875rem; --wdg-head-h: 2.75rem;
+  --mast-h: 9.25rem;
+  /* A card's parts (§24b, §24d): the rupee in a figure at 0.62em and raised, a sign before it at 0.8em; a headline's dateline; a row's
+     own action on the desktop; a key on a tray (a phone's Small holds two, taller); a Crew row's area name; a pipeline stage's least
+     width; a dated row's day. */
+  --cur-scale: 0.62em; --cur-raise: 0.38em; --sign-scale: 0.8em; --fs-10-5: 0.65625rem; --row-btn-h: 1.75rem;
+  --tray-key-h: 3.625rem; --tray-key-h-sm: 5.75rem; --crew-name-w: 6rem; --stage-min: 5.5rem; --brief-day-w: 3.25rem;
+  /* The least room a bare chart keeps where a card stacks its columns (the phone's Large); a Small card's bars (chartMiniBars). */
+  --wdg-viz-min: 4.5rem; --minibars-h: 2.25rem;
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
@@ -156,12 +183,18 @@
   --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
 }
 
+/* Paper keeps its figures as it printed them (UI pass 3 §17 I12, §24l): a figure there stays in the document's own mono face, and
+   its zeros slashed, though the screens moved figures to Geist and kept the slashed zero for identifiers alone. */
+:is(.inv-print-body, .inv-rpt-doc, .inv-sr-doc, .inv-qt-doc, .inv-ps-sheet, .inv-idc-sheet, .inv-ck-sheet, .inv-as-page, .inv-qc-page, .inv-cn-doc, .inv-print-invoice, .inv-qr) {
+  --ff-num: var(--ff-mono); font-variant-numeric: slashed-zero tabular-nums lining-nums;
+}
+
 /* Focus (§3.6): every interactive element. */
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-family: var(--ff-base); font-size: 100%; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: slashed-zero tabular-nums lining-nums; }
+html { font-family: var(--ff-base); font-size: 100%; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: tabular-nums lining-nums; }
 body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--nav-space) + var(--sp-16)); }
 input, select, textarea, button { font-family: inherit; font-size: var(--fs-14); }
 
@@ -211,7 +244,7 @@ body.inv-desktop .inv-topbar-trail:empty { display: none; }
   position: fixed; left: var(--nav-gap); right: var(--nav-gap); bottom: max(var(--nav-gap), env(safe-area-inset-bottom)); z-index: var(--z-bar);
   display: flex; align-items: stretch; height: var(--nav-h); padding: 0 var(--sp-4);
   max-width: calc(var(--max-w) - var(--nav-gap) - var(--nav-gap)); margin: 0 auto;
-  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-2);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-bar); box-shadow: var(--lift-2);
 }
 body:not(.inv-desktop)::after {
   content: ''; position: fixed; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-bar) - 1); pointer-events: none;
@@ -257,7 +290,7 @@ body:not(.inv-desktop)::after {
    the segment's own clip lets show --seg-inset round it; the track's clip keeps it inside the well. */
 .inv-seg {
   display: flex; width: 100%; max-width: 100%; padding: 0 var(--sp-2);
-  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-tile);
   background: var(--well); box-shadow: var(--press-1); overflow: hidden;
 }
 .inv-seg-btn {
@@ -889,7 +922,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
    hairlines; the axes and every word recessive, in text tokens, never in a series colour. A drawing is in its own viewBox units,
    sized by CSS, and its marks scale with it. */
 .inv-chart-grid { stroke: var(--border); stroke-width: var(--hair); }
-.inv-chart-grid-label, .inv-chart-axis { font-size: var(--plot-fs-axis); fill: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-grid-label, .inv-chart-axis { font-size: var(--plot-fs-axis); fill: var(--text-3); font-family: var(--ff-num); }
 .inv-chart-axis-title, .inv-chart-mark-label { font-size: var(--plot-fs-axis); fill: var(--text-2); font-family: var(--ff-base); }
 .inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
 
@@ -929,6 +962,11 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 /* A wider screen gets a taller frame: the same series, more room between
    gridlines, and labels that stop colliding. */
 :is(body.inv-tablet, body.inv-desktop) .inv-chart-svg { max-height: var(--plot-h-wide); }
+/* A chart in a card is bare (docs/UI_PASS_3.md §24d): drawn at the card's own pixels, so nothing caps its height and every label it
+   draws reads at 11px or more. */
+:is(.inv-chart-svg, .inv-chart-heat).inv-chart-bare, :is(body.inv-tablet, body.inv-desktop) .inv-chart-svg.inv-chart-bare { max-height: none; margin: 0; }
+.inv-chart-bare :is(.inv-chart-grid-label, .inv-chart-axis, .inv-chart-axis-title, .inv-chart-mark-label, .inv-chart-ring-sub) { font-size: var(--fs-11); }
+.inv-chart-bare .inv-chart-centre { font-size: var(--fs-13); }
 
 /* Lines 2, round; the area under a line a wash of its colour; a band (a forecast's range, the period on show) a lighter one. */
 :is(.inv-chart-line, .inv-chart-path) { fill: none; stroke: var(--ink, var(--series-1)); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
@@ -962,7 +1000,7 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: var(--rule); }
 :is(.inv-chart-dot, .inv-chart-pt).inv-chart-read-on, .inv-chart-read-on .inv-chart-pt { stroke: var(--text-1); stroke-width: calc(var(--rule) * 2); }
 .inv-chart-datum.inv-chart-read-on .inv-chart-hit { fill: var(--text-1); fill-opacity: 0.06; }
-.inv-chart-centre { font-size: var(--plot-fs-centre); font-weight: 600; fill: var(--text-1); stroke: none; font-family: var(--ff-mono); pointer-events: none; }
+.inv-chart-centre { font-size: var(--plot-fs-centre); font-weight: 600; fill: var(--text-1); stroke: none; font-family: var(--ff-num); pointer-events: none; }
 
 /* The box (§5): the drawing, the table behind it, the readout line. A tap writes a datum's figure into the readout (a phone has
    no hover); Table swaps the drawing for the table and back. */
@@ -1038,7 +1076,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-fill-info { fill: var(--info-mark); }
 .inv-chart-ranked-fill-neutral { fill: var(--text-3); }
 .inv-chart-ranked-mark { fill: var(--text-1); stroke: none; opacity: 0.55; }
-.inv-chart-ranked-sub { font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-ranked-sub { font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-num); }
 
 /* Rows on one scale (chartDots, chartDumbbell): a row a thing, its name, the track, its figure at the row's end. The rows' tracks
    are one column (a subgrid), so a value sits at one place on every row and a mark's rule runs straight down; a row is its
@@ -1057,7 +1095,7 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-rail { stroke: var(--border); stroke-width: var(--hair); }
 .inv-chart-dumb-rule { stroke: var(--text-3); stroke-width: var(--rule); }
 .inv-chart-dumb-a { stroke: var(--text-2); stroke-width: var(--rule); }
-.inv-chart-scale { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-scale { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-num); }
 .inv-chart-scale-ends { display: flex; justify-content: space-between; gap: var(--sp-8); }
 
 /* A heat map: a cell a day at its natural size, shrinking to the box on a narrow one. A ring: one share on a well track. */
@@ -1474,7 +1512,7 @@ button.inv-token:hover { background: var(--surface-3); }
 .inv-search {
   display: flex; align-items: center; gap: var(--sp-8); flex: 1 1 var(--search-min); min-width: 0;
   min-height: var(--ctl-h); padding: 0 var(--sp-12);
-  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-1); color: var(--text-2);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-1); color: var(--text-2);
 }
 .inv-search:focus-within { border-color: var(--accent); box-shadow: var(--press-1), var(--focus-ring); }
 .inv-search svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
@@ -1539,7 +1577,7 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
 .inv-panel-title {
   font-size: var(--fs-14); font-weight: 600; line-height: 1.4; color: var(--text-1);
 }
-.inv-panel-count { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
+.inv-panel-count { font-family: var(--ff-num); font-size: var(--fs-12); color: var(--text-3); font-weight: 400; }
 /* A panel's qualifier after its title ("worst first", "by invoice date"). */
 .inv-panel-title > .inv-note { font-weight: 400; }
 /* A card's total in its head (labour, a payout): the figure the card adds up to. */
@@ -1590,7 +1628,7 @@ button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
 }
 .inv-tile-value {
-  overflow-wrap: anywhere; font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
+  overflow-wrap: anywhere; font-family: var(--ff-num); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--text-1);
 }
 body.inv-desktop .inv-tile-value { font-size: var(--fs-22); }
 .inv-tile-sub { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-2); }
@@ -1730,7 +1768,7 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-table tbody tr:hover td { background: var(--surface-2); }
 .inv-table tr.inv-row-selected td { background: var(--accent-soft); }
 .inv-table tfoot td { font-weight: 600; border-bottom: none; border-top: var(--hair) solid var(--border); }
-.inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
+.inv-num { font-family: var(--ff-num); text-align: right; white-space: nowrap; }
 /* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
 .inv-num-pos { color: var(--ok); }
 /* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). Info is over a mark, not short of
@@ -1741,7 +1779,7 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-fig-info { color: var(--info); }
 .inv-num-neg { color: var(--danger); }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
-.inv-id { font-family: var(--ff-mono); white-space: nowrap; }
+.inv-id { font-family: var(--ff-mono); white-space: nowrap; font-variant-numeric: slashed-zero tabular-nums; }
 /* A label that is one token to the reader (a month, a date) and must not break across lines. */
 .inv-nowrap { white-space: nowrap; }
 .inv-table-check { width: var(--sp-32); }
@@ -1762,7 +1800,7 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-table .inv-btn-link:hover { color: var(--accent); }
 .inv-cell {
   display: flex; align-items: center; justify-content: center; min-height: var(--ctl-h-sm);
-  border-radius: var(--r-sm); font-family: var(--ff-mono); font-size: var(--fs-12);
+  border-radius: var(--r-sm); font-family: var(--ff-num); font-size: var(--fs-12);
 }
 .inv-cell-ok { background: var(--ok-bg); color: var(--ok); }
 .inv-cell-warning { background: var(--warning-bg); color: var(--warning); font-weight: 600; }
@@ -1789,7 +1827,7 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-table-grid thead th[aria-current="date"] { color: var(--accent); }
 .inv-table-grid [data-sun] { background: var(--bg); }
 .inv-table-grid tfoot td, .inv-table-grid tfoot th { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
-.inv-table-grid-date { display: block; font-family: var(--ff-mono); }
+.inv-table-grid-date { display: block; font-family: var(--ff-num); }
 button.inv-cell { width: 100%; min-width: var(--touch); min-height: var(--ctl-h); gap: var(--sp-2); border: none; cursor: pointer; font-weight: 600; }
 button.inv-cell.inv-cell-empty { background: var(--surface); box-shadow: inset 0 0 0 var(--hair) var(--border); }
 button.inv-cell:hover { box-shadow: inset 0 0 0 var(--hair) var(--text-3); }
@@ -1813,7 +1851,7 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
   background: var(--surface-2); border-top: var(--hair) solid var(--border); font-size: var(--fs-13);
 }
 .inv-selbar-count { font-weight: 600; }
-.inv-selbar-sum { font-family: var(--ff-mono); color: var(--text-2); }
+.inv-selbar-sum { font-family: var(--ff-num); color: var(--text-2); }
 
 /* §6.13 Status: dot + word, and the soft badge. */
 .inv-dot { display: inline-flex; align-items: center; gap: var(--sp-6); color: var(--text-2); font-size: var(--fs-13); white-space: nowrap; }
@@ -1887,17 +1925,17 @@ body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd)
 /* A field is a well (UI pass 3, §3b): sunk into what it sits in, its fine edge --edge; focused, the accent edge and the ring. A
    select's open list is drawn on the surface, never on the well's veil. */
 .inv-input, .inv-select, .inv-textarea {
-  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background-color: var(--well); box-shadow: var(--press-1); color: var(--text-1);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-tile); background-color: var(--well); box-shadow: var(--press-1); color: var(--text-1);
   font-size: var(--fs-14); transition: border-color var(--dur-1);
 }
 .inv-select option { background-color: var(--surface); color: var(--text-1); }
 .inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: var(--textarea-h); }
 /* A message pasted as sent: kept in its own shape, one line per line. */
-.inv-textarea-mono { font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
+.inv-textarea-mono { font-variant-numeric: slashed-zero tabular-nums; font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
 :is(.inv-input, .inv-select, .inv-textarea):focus { outline: none; border-color: var(--accent); box-shadow: var(--press-1), var(--focus-ring); }
 /* A field that shows a figure it will not take is flat: nothing to fill. */
 .inv-input[readonly] { background: var(--surface-2); color: var(--text-2); box-shadow: none; }
-.inv-input-num { font-family: var(--ff-mono); text-align: right; }
+.inv-input-num { font-family: var(--ff-num); text-align: right; }
 .inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
 body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr)); }
 .inv-actionbar {
@@ -1912,7 +1950,7 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-actionbar-total { flex: 1 1 0; min-width: min-content; }
 .inv-actionbar-total + * { margin-left: auto; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
-.inv-actionbar-value { font-family: var(--ff-mono); font-size: var(--fs-18); font-weight: 600; white-space: nowrap; }
+.inv-actionbar-value { font-family: var(--ff-num); font-size: var(--fs-18); font-weight: 600; white-space: nowrap; }
 /* A tick box and its words on one line, the whole line its touch target (a To-do rule, auto backup). */
 .inv-field-check {
   display: flex; align-items: center; gap: var(--sp-8); min-height: var(--touch); margin-bottom: 0;
@@ -1947,7 +1985,7 @@ body.inv-desktop .inv-lines-head {
 }
 body.inv-desktop .inv-line { padding-top: var(--sp-6); padding-bottom: var(--sp-6); }
 body.inv-desktop :is(.inv-line-num, .inv-line-rm, .inv-line-part, .inv-line-amt) { grid-column: auto; grid-row: auto; }
-body.inv-desktop .inv-line-num { font-family: var(--ff-mono); }
+body.inv-desktop .inv-line-num { font-family: var(--ff-num); }
 body.inv-desktop .inv-line-num::before { content: none; }
 body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
 body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--hair); height: var(--hair); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -1969,7 +2007,7 @@ body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--h
 /* A line's verdict (rate, weight): the dot and its word, then the working in mono. The field it
    judges carries the verdict too, so a Check reads on the Rate box itself. */
 .inv-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-8); }
-.inv-verdict-text { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-2); }
+.inv-verdict-text { font-family: var(--ff-num); font-size: var(--fs-12); color: var(--text-2); }
 .inv-input[data-verdict="check"] { border-color: var(--danger); background-color: var(--danger-bg); }
 .inv-input[data-verdict="decimal"] { border-color: var(--warning); background-color: var(--warning-bg); }
 .inv-input[data-verdict="unit"] { border-color: var(--warning); }
@@ -1985,7 +2023,7 @@ body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--h
 body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); margin: 0 0 var(--sp-12); font-size: var(--fs-12); color: var(--text-3); }
 .inv-kbd {
   display: inline-block; min-width: var(--sp-20); padding: 0 var(--sp-4); margin-right: var(--sp-2); text-align: center;
-  font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-2);
+  font-family: var(--ff-mono); font-variant-numeric: slashed-zero tabular-nums; font-size: var(--fs-11); color: var(--text-2);
   background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-sm);
 }
 /* A panel that folds (Optional details): the head is the summary; closed, only the head shows. */
@@ -2113,7 +2151,7 @@ ul.inv-note { padding-left: var(--sp-16); }
 .inv-quote {
   margin-bottom: 0;
   padding: var(--sp-6) var(--sp-8); border-radius: var(--r-sm); background: var(--surface-2);
-  font-family: var(--ff-mono); font-size: var(--fs-12); line-height: 1.45; color: var(--text-1); white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: var(--ff-mono); font-variant-numeric: slashed-zero tabular-nums; font-size: var(--fs-12); line-height: 1.45; color: var(--text-1); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 /* A fold opened by a link-like summary ("Message text"). */
 summary.inv-summary { display: inline-block; list-style: none; font-size: var(--fs-12); }
@@ -2197,7 +2235,7 @@ summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-rin
 /* The eyebrow sits on the fill's strongest corner, where --text-3 falls under 4.5:1 (§3.10): its count reads --text-2. */
 .inv-hero-eyebrow .inv-panel-count { color: var(--text-2); }
 .inv-hero-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; color: var(--text-1); }
-.inv-hero-fig { font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--hero-tone); text-align: right; overflow-wrap: anywhere; }
+.inv-hero-fig { font-family: var(--ff-num); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--hero-tone); text-align: right; overflow-wrap: anywhere; }
 body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-fig .inv-tile-of { color: var(--text-2); }
 .inv-hero-sub { grid-column: 1 / -1; min-width: 0; font-size: var(--fs-13); line-height: 1.4; color: var(--text-2);
@@ -2294,7 +2332,7 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
 .inv-deck-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
 .inv-deck-word { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inv-deck-fig { font-family: var(--ff-mono); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
+.inv-deck-fig { font-family: var(--ff-num); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
 .inv-deck-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .inv-deck-main::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-card); }
 /* A card that is not itself a door (a move: its button is at its foot). */
@@ -2323,7 +2361,7 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-step-node {
   position: relative; z-index: 1; display: grid; place-items: center; width: var(--step-node); height: var(--step-node);
   border-radius: var(--r-full); border: var(--rule) solid color-mix(in oklab, var(--tone) 30%, var(--border)); background: color-mix(in oklab, var(--tone-bg) 60%, var(--surface)); color: var(--text-2);
-  font-family: var(--ff-mono); font-size: var(--fs-12); font-weight: 600;
+  font-family: var(--ff-num); font-size: var(--fs-12); font-weight: 600;
 }
 .inv-step-node svg { width: var(--sp-12); height: var(--sp-12); }
 .inv-step[data-state="in"] .inv-step-node { background: var(--ok); border-color: var(--ok); color: var(--surface); }
@@ -2548,7 +2586,7 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
 /* The recovery code, shown once: large, mono, and taken whole by one tap. */
 .inv-guard-code {
   padding: var(--sp-12); border-radius: var(--r-lg); background: var(--surface-2); text-align: center;
-  font-family: var(--ff-mono); font-size: var(--fs-22); font-weight: 600; user-select: all; overflow-wrap: anywhere;
+  font-family: var(--ff-mono); font-variant-numeric: slashed-zero tabular-nums; font-size: var(--fs-22); font-weight: 600; user-select: all; overflow-wrap: anywhere;
 }
 /* A door this ID may not open (grdApplyDoors): gone from the bars, the sidebar, the tab rows, Add and Pulse. */
 [data-grd-off] { display: none !important; }
@@ -2636,7 +2674,7 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 /* A step is its numeral in the accent, mono, and its text; no row box, no tick box. */
 .inv-kb-steps { margin: 0 0 var(--sp-12); padding-left: var(--sp-32); }
 .inv-kb-steps > li { margin-bottom: var(--sp-10); padding-left: var(--sp-4); }
-.inv-kb-steps > li::marker { color: var(--accent); font-family: var(--ff-mono); font-weight: 600; }
+.inv-kb-steps > li::marker { color: var(--accent); font-family: var(--ff-num); font-weight: 600; }
 /* A notice: the one place colour fills the page (DR-1), its icon and its word first. */
 .inv-kb-notice { display: flex; align-items: flex-start; gap: var(--sp-10); margin: 0 0 var(--sp-12); padding: var(--sp-10) var(--sp-12);
   border-radius: var(--r-md); border-left: var(--rule) solid var(--tone); background: var(--tone-bg); color: var(--text-1); font-size: var(--fs-14); line-height: 1.5; }
@@ -2831,7 +2869,7 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-wstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-10); margin-top: var(--sp-4); width: 100%; }
 .inv-wstat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-4); min-width: 0; font-size: var(--fs-12); }
 .inv-wstat-k { color: var(--text-3); white-space: nowrap; }
-.inv-wstat-v { font-family: var(--ff-mono); color: var(--text-2); white-space: nowrap; }
+.inv-wstat-v { font-family: var(--ff-num); color: var(--text-2); white-space: nowrap; }
 /* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
 body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }
@@ -2923,112 +2961,348 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 @media (prefers-reduced-motion: reduce) { .inv-switch, .inv-switch::before { transition: none; } }
 
 
-/* ===== WIDGETS AND THE BOARD (docs/UI_PASS_3.md §7; widgets.js) =====
-   A widget is a card answering one question: a hero card's look (lifted, a card's corners, coded in its tone), its head the
-   section's icon, the title and the door to its screen. A board is a grid whose columns come from its own width: 12 from 60rem, 6
-   from 36rem, 2 under (the phone); a Small spans a quarter of the desktop's (3 of 12, 3 of 6, 1 of 2), a Medium half, a Large the
-   row. Height follows content, packed with no gap in the layout's order (uiMasonry), and capped by size. */
+/* ===== WIDGETS AND THE BOARD (docs/UI_PASS_3.md §7, §24; widgets.js) =====
+   The card family (U2R, §24): every card on a board is one frame drawn in one order: its head (the door to its screen, the Choose
+   at Large), the figure, the verdict (its lamp and its words), the body (its type's parts, More at its list's end), the Act and the
+   Source. A card is quiet while all is well: its type's surface, a hairline edge, lifted; amber adds a top edge, red the edge and a
+   red tint in place of the surface (§24c). A board is a grid of fixed rows packed dense, a card exactly its size's height (§24h); its
+   columns come from its own width: 12 from 60rem, 6 from 36rem, 2 under (the phone). */
 .inv-wboard { container: wboard / inline-size; margin-bottom: var(--gap); }
-.inv-wgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
-.inv-wgrid > * { grid-column: span 2; min-width: 0; }
-.inv-wgrid > [data-size="s"] { grid-column: span 1; }
+.inv-wgrid {
+  --wdg-row: var(--wdg-row-narrow); --wdg-gap: var(--wdg-gap-narrow);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: var(--wdg-row); grid-auto-flow: row dense;
+  gap: var(--wdg-gap);
+}
+/* A size's area (§24b): on the phone's two columns a Small 1 × 1, a Medium 2 × 2, a Large 2 × 3; on six a Small 3 × 1 and the rest
+   6 × 2; on twelve a Medium 6 × 2 and a Large the row × 2. The start is the grid's, so arranging can set it (--wdg-r, --wdg-c). */
+.inv-wgrid > :is(.inv-widget, .inv-widget-ph, .inv-wgrid-slot) { min-width: 0; min-height: 0; grid-column-end: span 2; grid-row-end: span 2; }
+.inv-wgrid > [data-size="s"] { grid-column-end: span 1; grid-row-end: span 1; }
+.inv-wgrid > [data-size="l"] { grid-row-end: span 3; }
 .inv-wgrid > .inv-wgrid-blank { grid-column: 1 / -1; }
 @container wboard (min-width: 36rem) {
-  .inv-wgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .inv-wgrid > * { grid-column: span 6; }
-  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+  .inv-wgrid { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(--wdg-gap-wide); grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .inv-wgrid > :is(.inv-widget, .inv-widget-ph, .inv-wgrid-slot) { grid-column-end: span 6; }
+  .inv-wgrid > [data-size="s"] { grid-column-end: span 3; }
+  .inv-wgrid > [data-size="l"] { grid-row-end: span 2; }
 }
 @container wboard (min-width: 60rem) {
   .inv-wgrid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-  .inv-wgrid > * { grid-column: span 12; }
-  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
-  .inv-wgrid > [data-size="m"] { grid-column: span 6; }
+  .inv-wgrid > [data-size="l"] { grid-column-end: span 12; }
 }
-.inv-wgrid > .inv-widget { margin-bottom: 0; }
-/* The card: its parts arranged by its own width (each widget a container), its height capped by its size. */
-.inv-widget { container: widget / inline-size; display: flex; flex-direction: column; overflow: clip; overflow-clip-margin: var(--sp-4);
-  max-height: var(--wdg-cap-m); }
-.inv-widget[data-size="s"] { max-height: var(--wdg-cap-s); }
-.inv-widget[data-size="l"] { max-height: var(--wdg-cap-l); }
-body:not(.inv-desktop) .inv-widget:not([data-size="s"]) { max-height: var(--wdg-cap-phone); }
-.inv-widget-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; padding: var(--sp-8) var(--sp-12) var(--sp-4); }
-.inv-widget-chip { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--wdg-chip); height: var(--wdg-chip);
-  border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-1); color: var(--text-2); }
-.inv-widget-chip svg { width: var(--sp-16); height: var(--sp-16); }
-.inv-widget-door { display: inline-flex; align-items: center; gap: var(--sp-4); flex: 1 1 auto; min-width: 0; min-height: var(--ctl-h-sm);
-  padding: 0; border: none; background: none; font: inherit; color: var(--text-2); text-align: left; }
-button.inv-widget-door { cursor: pointer; color: var(--accent-soft-text); border-radius: var(--r-ctl); }
+
+/* The card (§24b, §24c). */
+.inv-widget {
+  --wdg-px: var(--wdg-pad); --wdg-part-gap: var(--sp-6);
+  container: widget / inline-size; position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  overflow: clip; overflow-clip-margin: var(--sp-4);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-card); background: var(--surface); box-shadow: var(--lift-1); color: var(--text-1);
+}
+.inv-widget[data-size="s"] { --wdg-part-gap: calc(var(--sp-4) + var(--hair)); }
+body:not(.inv-desktop) .inv-widget[data-size="s"] { --wdg-px: var(--wdg-pad-sm); }
+.inv-widget[data-type="ledger"] { background: var(--ty-ledger); }
+.inv-widget[data-type="plant"] { background: var(--ty-plant); }
+.inv-widget[data-tone="warning"] { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
+.inv-widget[data-tone="danger"] { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
+/* Its head: the section's icon, the title (the short one at Small) and the chevron where the head opens its screen, which is the
+   whole head; the Choose at its right at Large on the desktop, under it at the card's width on the phone (§24e). */
+.inv-widget-head { flex: none; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; height: var(--wdg-head-h); padding: 0 var(--wdg-px); }
+.inv-widget-ico { flex: none; display: inline-flex; color: var(--text-2); --ico-tint: var(--text-2); }
+.inv-widget-ico svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-door { display: inline-flex; align-items: center; gap: var(--sp-4); flex: 1 1 auto; align-self: stretch; min-width: 0;
+  padding: 0; border: none; background: none; font: inherit; color: var(--text-1); text-align: left; }
+button.inv-widget-door { cursor: pointer; border-radius: var(--r-ctl); }
 button.inv-widget-door:hover .inv-widget-title { text-decoration: underline; }
 button.inv-widget-door:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.inv-widget-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-12); font-weight: 600; }
-.inv-widget-chev { flex-shrink: 0; width: var(--sp-16); height: var(--sp-16); }
-.inv-widget-body { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 var(--sp-12) var(--sp-12); }
-.inv-widget-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12) var(--sp-12); }
-/* What a widget says: its figure in its tone, its line (at most 60 characters), a few words under it, its chart. */
-.inv-widget-fig { font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.15;
-  color: var(--hero-tone); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.inv-widget-fig .inv-tile-of { font-size: var(--fs-14); color: var(--text-2); }
-.inv-widget-line { margin-top: var(--sp-2); font-size: var(--fs-14); font-weight: 600; line-height: 1.3; color: var(--text-1); }
-.inv-widget-sub { margin-top: var(--sp-2); font-size: var(--fs-12); line-height: 1.35; color: var(--text-2); }
-/* A Small says a figure and a line inside its 10rem: the line at most two lines and the words one, an ellipsis cutting the rest (the
-   whole in its title, uiOverflowCues), so a long client name never runs the card past its cap. */
-.inv-widget[data-size="s"] .inv-widget-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  text-overflow: ellipsis; }
-.inv-widget[data-size="s"] .inv-widget-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.inv-widget-viz { margin-top: var(--sp-8); min-width: 0; }
-.inv-widget-rows { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
-.inv-widget-body > .inv-tiles { margin-top: var(--sp-8); margin-bottom: 0; }
-/* A screen's hero sheet inside a widget runs to the card's edges, as in a hero's body. */
-.inv-widget-body > .inv-hero-sheet { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; }
-.inv-widget-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
-.inv-widget-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: var(--sp-8) 0 0; border-radius: 0; }
-.inv-widget-foot:empty { display: none; }
-/* What a widget let go of to fit its size (wdgFit): how many more, and its screen's door. */
-.inv-widget-more { display: flex; align-items: center; padding-top: var(--sp-4); }
+.inv-widget-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 600; color: var(--text-1); }
+.inv-widget-chev { flex: none; width: var(--sp-16); height: var(--sp-16); color: var(--text-3); }
+.inv-seg.inv-seg-choose { flex: none; width: auto; display: inline-flex; }
+.inv-seg-choose .inv-seg-btn { flex: 1 1 0; padding: 0 var(--sp-8); font-size: var(--fs-12); }
+body.inv-desktop .inv-seg-choose .inv-seg-btn { flex: 0 1 auto; min-height: var(--sp-24); padding: 0 var(--sp-8); }
+.inv-widget-choose { flex: none; padding: 0 var(--wdg-px) var(--sp-6); }
+.inv-widget-choose > .inv-seg.inv-seg-choose { display: flex; width: 100%; }
+/* Its body: the parts 6px apart (5 on a Small), the last 14px from the card's foot where no foot follows. The room a card does not
+   fill is one space, between what it says and what it shows: what it shows (or a Small's picture, data-wdg-push) stands at the body's
+   foot, a bare chart taking the room that is left (data-wdg-viz). */
+.inv-widget-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--wdg-part-gap); padding: 0 var(--wdg-px);
+  overflow: clip; overflow-clip-margin: var(--sp-4); }
+.inv-widget-body:last-child { padding-bottom: calc(var(--sp-12) + var(--sp-2)); }
+.inv-widget-body > * { flex: none; min-width: 0; margin: 0; }
+.inv-widget-body > :is(.inv-widget-fig, .inv-widget-line, .inv-widget-sub, .inv-brief-ans) + :not(.inv-widget-fig, .inv-widget-line, .inv-widget-sub, .inv-brief-ans, [data-wdg-cut]),
+.inv-widget-body > [data-wdg-push] { margin-top: auto; }
+.inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex: 1 1 0; min-height: 0; overflow: hidden; }
 .inv-widget-body [data-wdg-cut] { display: none !important; }
-/* The board's foot: the door to the gallery, centred under the widgets. */
-.inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
-.inv-widget-body > .inv-blank { margin: 0; }
-/* Quick actions in a widget follow the card, not the window: three across with each label under its icon, six across from 40rem. */
-.inv-widget[data-w] .inv-btn-grid { margin-bottom: 0; }
-.inv-widget[data-w] .inv-btn-grid > .inv-btn { min-width: 0; }
-@container widget (min-width: 40rem) { .inv-widget[data-w] .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-@container widget (max-width: 13rem) { .inv-widget-fig { font-size: var(--fs-19); } }
-/* A widget's parts by its width: stacked under 18rem, side by side to 36rem, in columns over it. */
-.inv-widget-parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-12); }
-@container widget (min-width: 18rem) { .inv-widget-parts { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; } }
-@container widget (min-width: 36rem) { .inv-widget-parts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); align-items: start; } }
-/* Arranging (§7e): the handle, the place, the size and Remove ride over the head; a widget lifted follows the pointer while a
-   placeholder of its size keeps its room. */
+/* The figure 28px (26 on a Small, 24 on a phone's Small), in Geist's tabular figures; a unit after it 13px, the rupee raised and
+   small, a sign before it at 0.8em (§24b, §24l). In --text-1 unless the card judges it (figHtml's tone). */
+.inv-widget-fig { min-width: 0; font-family: var(--ff-num); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.1;
+  color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-widget[data-size="s"] .inv-widget-fig { font-size: var(--fs-26); }
+body:not(.inv-desktop) .inv-widget[data-size="s"] .inv-widget-fig { font-size: var(--fs-24); }
+.inv-widget-fig .inv-unit { margin-left: var(--sp-4); font-size: var(--fs-13); font-weight: 500; letter-spacing: normal; color: var(--text-2); }
+.inv-widget-fig .inv-tile-of { font-size: var(--fs-14); color: var(--text-2); }
+.inv-cur { margin-right: var(--hair); font-size: var(--cur-scale); font-weight: 600; vertical-align: var(--cur-raise); color: var(--text-2); }
+.inv-widget-sign { margin-right: var(--hair); font-size: var(--sign-scale); }
+/* The verdict: its lamp and its words, 13px, two lines at most (wdgFit gives the whole its title); a detail line under it. */
+.inv-widget-line { min-width: 0; }
+.inv-dot.inv-widget-say { position: relative; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  padding-left: calc(var(--dot) + var(--sp-6)); white-space: normal; font-size: var(--fs-13); font-weight: 500; line-height: 1.3; color: var(--text-1); }
+.inv-dot.inv-widget-say::before { position: absolute; left: 0; top: calc(0.5lh - var(--dot) / 2); }
+.inv-widget-sub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: var(--fs-12); line-height: 1.35; color: var(--text-2); }
+.inv-widget[data-size="s"] .inv-widget-sub { -webkit-line-clamp: 1; }
+.inv-widget-cap { font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+.inv-widget-body > .inv-blank { padding: 0; }
+/* A Small's blank is one line beside its mark (§7c): never its mark over its words. */
+.inv-widget[data-size="s"] .inv-blank-sm { flex-wrap: nowrap; align-items: flex-start; }
+.inv-widget[data-size="s"] .inv-blank-sm .inv-blank-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* A tile's words in a card: two lines at most, the whole its title (wdgFit). */
+.inv-widget-body .inv-tile-sub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* More (§24e): the list's last row, in its rhythm, 12px semibold, a chevron at its end; 44px on the phone. */
+.inv-widget-more { display: flex; align-items: center; }
+.inv-widget-more-btn { display: inline-flex; align-items: center; gap: var(--sp-4); min-height: var(--sp-24); padding: 0; border: none; background: none;
+  font: inherit; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); text-align: left; }
+button.inv-widget-more-btn { cursor: pointer; border-radius: var(--r-ctl); }
+button.inv-widget-more-btn:hover { color: var(--text-1); text-decoration: underline; }
+button.inv-widget-more-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+body:not(.inv-desktop) .inv-widget-more-btn { min-height: var(--touch); }
+/* The foot: the Act (one tinted button, at most one text button), then the Source, the card's last line (§24e). */
+.inv-widget-foot { flex: none; display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-8) var(--wdg-px) calc(var(--sp-12) + var(--sp-2)); }
+.inv-widget-act { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-16); }
+body.inv-desktop .inv-widget-act > .inv-btn-tint { min-height: var(--sp-32); }
+.inv-widget-act > .inv-btn-tint { padding: 0 var(--sp-12); font-size: var(--fs-13); }
+.inv-widget-act > .inv-btn-link { font-size: var(--fs-13); }
+body:not(.inv-desktop) .inv-widget-act > .inv-btn { min-height: var(--touch); }
+.inv-widget-src { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; font-size: var(--fs-11); line-height: 1.4; color: var(--text-3); }
+.inv-widget-src > .inv-widget-dot { white-space: pre; }
+.inv-widget-src > .inv-btn-link { min-height: 0; font-size: var(--fs-11); font-weight: 600; }
+.inv-widget-refresh { white-space: nowrap; }
+body:not(.inv-desktop) .inv-widget-src[data-refresh] { min-height: var(--touch); }
+body:not(.inv-desktop) .inv-widget-src > .inv-btn-link { min-height: var(--touch); }
+/* The tinted button (design §6.3): the accent's soft fill and text, an inset ring of the accent at a quarter; not the view's
+   primary (DR-3). A row's own action is the small one, 28px on the desktop. */
+.inv-btn-tint { background: var(--accent-soft); border-color: transparent; color: var(--accent-soft-text); font-weight: 600;
+  box-shadow: inset 0 0 0 var(--hair) color-mix(in oklab, var(--accent) 24%, transparent); }
+.inv-btn-tint:hover { background: color-mix(in oklab, var(--accent) 12%, var(--accent-soft)); }
+.inv-btn-tint:active { background: color-mix(in oklab, var(--accent) 20%, var(--accent-soft)); box-shadow: none; }
+.inv-btn-tint:focus-visible { box-shadow: var(--focus-ring), inset 0 0 0 var(--hair) color-mix(in oklab, var(--accent) 24%, transparent); }
+body.inv-desktop .inv-btn-tint.inv-btn-sm { min-height: var(--row-btn-h); padding: 0 var(--sp-10); font-size: var(--fs-12); }
+
+/* The types' parts (§24d), drawn by widgets.js's builders. */
+/* Ledger: amounts on dotted leaders, right-aligned; a total ruled once above and twice below; a cut list's rest and its sum. */
+.inv-ledger { display: flex; flex-direction: column; min-width: 0; }
+.inv-ledger-line { display: flex; align-items: baseline; gap: var(--sp-6); width: 100%; min-width: 0; min-height: var(--sp-24); padding: var(--sp-2) 0;
+  border: none; background: none; font: inherit; font-size: var(--fs-13); color: var(--text-1); text-align: left; }
+button.inv-ledger-line { cursor: pointer; border-radius: var(--r-ctl); }
+button.inv-ledger-line:hover .inv-ledger-label { text-decoration: underline; }
+button.inv-ledger-line:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+body:not(.inv-desktop) button.inv-ledger-line { min-height: var(--touch); padding: var(--sp-12) 0; }
+.inv-ledger-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-ledger-meta { margin-left: var(--sp-6); font-size: var(--fs-12); color: var(--text-2); }
+.inv-ledger-lead { flex: 1 1 var(--sp-16); min-width: var(--sp-12); align-self: baseline; border-bottom: var(--rule) dotted var(--border); }
+.inv-ledger-amt { flex: none; font-family: var(--ff-num); font-weight: 600; text-align: right; white-space: nowrap; }
+.inv-ledger-total { margin-top: var(--sp-2); padding-top: var(--sp-4); border-top: var(--hair) solid var(--text-2); }
+.inv-ledger-total .inv-ledger-label { font-weight: 600; }
+.inv-ledger-total .inv-ledger-amt { padding-bottom: var(--hair); border-bottom: calc(var(--hair) * 3) double var(--text-2); }
+.inv-ledger-rest .inv-ledger-label { font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+.inv-ledger-rest .inv-widget-chev { align-self: center; }
+.inv-meter-key { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-8); }
+.inv-meter-key-item { display: flex; flex-direction: column; gap: var(--hair); min-width: 0; }
+.inv-meter-key-item > .inv-dot { font-size: var(--fs-11); }
+.inv-meter-key-amt { font-family: var(--ff-num); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
+/* Docket: a row read across like a register: the number in Geist Mono, the party, the amount and the state as steps; the stages as
+   one strip in a well, the stage the card leads with lifted. */
+.inv-docket { display: flex; flex-direction: column; min-width: 0; }
+.inv-docket-row { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; border-top: var(--hair) solid var(--border); }
+.inv-docket-main { flex: 1 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--sp-8);
+  min-width: 0; min-height: var(--row-h); padding: var(--sp-4) 0; border: none; background: none; font: inherit; color: inherit; text-align: left; }
+button.inv-docket-main { cursor: pointer; border-radius: var(--r-ctl); }
+button.inv-docket-main:hover .inv-row-title { text-decoration: underline; }
+button.inv-docket-main:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-docket-num { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
+.inv-docket-party { display: flex; flex-direction: column; min-width: 0; }
+:is(.inv-docket-party, .inv-plant-what, .inv-brief-when-text) > .inv-row-title { font-size: var(--fs-13); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(.inv-docket-party, .inv-plant-what, .inv-brief-when-text) > .inv-row-meta { font-size: var(--fs-12); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-docket-end { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); }
+.inv-docket-amt { font-family: var(--ff-num); font-size: var(--fs-13); font-weight: 600; white-space: nowrap; }
+.inv-docket-steps { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.inv-docket-pip { width: var(--sp-6); height: var(--sp-4); border-radius: var(--r-full); background: var(--border); }
+.inv-docket-pip[data-pip="done"] { background: var(--text-3); }
+.inv-docket-pip[data-pip="at"] { width: var(--sp-16); background: var(--text-2); }
+.inv-docket-pip[data-pip="at"][data-tone="ok"] { background: var(--ok-mark); }
+.inv-docket-pip[data-pip="at"][data-tone="info"] { background: var(--info-mark); }
+.inv-docket-pip[data-pip="at"][data-tone="warning"] { background: var(--warning-mark); }
+.inv-docket-pip[data-pip="at"][data-tone="danger"] { background: var(--danger-mark); }
+.inv-docket-stages { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-4); padding: var(--sp-4);
+  border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-1); }
+.inv-docket-stage { display: flex; flex-direction: column; align-items: flex-start; gap: var(--hair); min-width: 0; padding: var(--sp-6) var(--sp-8);
+  border: none; border-radius: var(--r-ctl); background: none; font: inherit; color: inherit; text-align: left; }
+button.inv-docket-stage { cursor: pointer; }
+button.inv-docket-stage:hover { background: color-mix(in oklab, var(--surface) 50%, transparent); }
+button.inv-docket-stage:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-docket-stage[data-lead] { background: var(--surface); box-shadow: var(--lift-1), inset 0 0 0 var(--hair) var(--edge); }
+.inv-docket-stage-label { max-width: 100%; font-size: var(--fs-11); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-docket-stage-n { font-family: var(--ff-num); font-size: var(--fs-18); font-weight: 600; line-height: 1.1; }
+.inv-docket-stage-amt { font-family: var(--ff-num); font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
+.inv-docket-stage > .inv-dot { max-width: 100%; white-space: normal; font-size: var(--fs-11); line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+@container widget (max-width: 32rem) {
+  .inv-docket-stages { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
+  .inv-docket-stage { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; align-content: center; column-gap: var(--sp-8); }
+  .inv-docket-stage > .inv-dot { display: none; }
+  .inv-docket-stage-n { font-size: var(--fs-14); }
+}
+/* On the phone a stage is a target: a row of the strip is never under --touch (§24e). */
+body:not(.inv-desktop) button.inv-docket-stage { min-height: var(--touch); }
+/* Plant: a line or unit a row: its lamp ringed in its tone, its nameplate, what it runs, its reading and a gauge under it. */
+.inv-plant { display: flex; flex-direction: column; min-width: 0; }
+.inv-plant-row { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: var(--sp-6) 0; border-top: var(--hair) solid var(--border); }
+.inv-plant-main { display: flex; align-items: center; gap: var(--sp-8); width: 100%; min-width: 0; padding: 0; border: none; background: none;
+  font: inherit; color: inherit; text-align: left; }
+button.inv-plant-main { cursor: pointer; border-radius: var(--r-ctl); }
+button.inv-plant-main:hover .inv-row-title { text-decoration: underline; }
+button.inv-plant-main:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+body:not(.inv-desktop) button.inv-plant-main { min-height: var(--touch); }
+.inv-plant-lamp { flex: none; gap: 0; }
+/* A lamp ringed in its tone (an outline, never a shadow: DR-6): a line's or a unit's, and the masthead's sentence's. */
+:is(.inv-plant-lamp, .inv-mast-say) { --lamp: var(--text-3); }
+:is(.inv-plant-lamp, .inv-mast-say).inv-dot-ok { --lamp: var(--ok-mark); }
+:is(.inv-plant-lamp, .inv-mast-say).inv-dot-info { --lamp: var(--info-mark); }
+:is(.inv-plant-lamp, .inv-mast-say).inv-dot-warning { --lamp: var(--warning-mark); }
+:is(.inv-plant-lamp, .inv-mast-say).inv-dot-danger { --lamp: var(--danger-mark); }
+:is(.inv-plant-lamp, .inv-mast-say)::before { background: var(--lamp); outline: var(--hair) solid var(--lamp); outline-offset: var(--hair); }
+.inv-plate { flex: none; padding: var(--hair) var(--sp-6); border: var(--hair) solid var(--edge); border-radius: var(--r-sm); background: var(--well);
+  box-shadow: var(--press-2); font-family: var(--ff-mono); font-size: var(--fs-11); font-weight: 600; font-variant-numeric: slashed-zero tabular-nums;
+  color: var(--text-1); white-space: nowrap; }
+.inv-plant-what { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.inv-plant-end { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: var(--hair); }
+.inv-plant-end > .inv-dot { font-size: var(--fs-11); }
+.inv-reading { font-family: var(--ff-num); font-size: var(--fs-14); font-weight: 600; color: var(--text-1); white-space: nowrap; }
+.inv-reading > .inv-unit { font-size: var(--fs-11); color: var(--text-2); }
+.inv-plant-gauge { display: block; min-width: 0; }
+/* Crew: a seat a hand the day needs, filled when on site, ringed in the warning's mark when short and the info's for a hand over. */
+.inv-crew { display: flex; flex-direction: column; min-width: 0; }
+.inv-seats { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); min-width: 0; }
+.inv-seat { box-sizing: border-box; width: var(--sp-10); height: var(--sp-10); border: var(--rule) solid var(--text-2); border-radius: var(--r-full); background: var(--text-2); }
+.inv-seat[data-seat="short"] { border-color: var(--warning-mark); background: transparent; }
+.inv-seat[data-seat="over"] { border-color: var(--info-mark); background: transparent; }
+.inv-crew-row { display: flex; align-items: center; gap: var(--sp-8); width: 100%; min-width: 0; min-height: var(--sp-32); padding: var(--sp-2) 0;
+  border: none; border-top: var(--hair) solid var(--border); background: none; font: inherit; color: inherit; text-align: left; }
+button.inv-crew-row { cursor: pointer; }
+button.inv-crew-row:hover .inv-crew-name { text-decoration: underline; }
+button.inv-crew-row:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
+body:not(.inv-desktop) button.inv-crew-row { min-height: var(--touch); }
+.inv-crew-name { flex: 0 0 var(--crew-name-w); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 600; }
+.inv-crew-row > .inv-seats { flex: 1 1 auto; }
+.inv-crew-row > .inv-dot { flex: none; font-size: var(--fs-12); }
+.inv-crew-away { font-size: var(--fs-12); color: var(--text-2); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* Briefing: the answer as a sentence, facts on a line, moves as rows ending in their one action (at Large as cards in wells),
+   dated rows led by their day in a small well. */
+.inv-brief-ans { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font-size: var(--fs-19); font-weight: 600; line-height: 1.25; color: var(--text-1); }
+.inv-widget[data-size="s"] .inv-brief-ans { -webkit-line-clamp: 2; font-size: var(--fs-17); }
+.inv-widget[data-size="l"] .inv-brief-ans { font-size: var(--fs-22); }
+.inv-brief-facts { font-size: var(--fs-12); color: var(--text-2); }
+/* A question's story on its card (Medium): its sentences at the card's sides, three lines each at most (the whole its title, wdgFit),
+   the last letting go first. */
+.inv-brief-story { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.inv-brief-story .inv-panel-body { padding: 0; }
+.inv-brief-story [data-story-say] > .inv-dot { position: relative; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  padding-left: calc(var(--dot) + var(--sp-6)); white-space: normal; font-size: var(--fs-13); line-height: 1.35; color: var(--text-1); }
+.inv-brief-story [data-story-say] > .inv-dot::before { position: absolute; left: 0; top: calc(0.5lh - var(--dot) / 2); }
+.inv-brief-facts b { font-weight: 600; color: var(--text-1); }
+.inv-brief-moves, .inv-brief-list { display: flex; flex-direction: column; min-width: 0; }
+.inv-brief-move { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; padding: var(--sp-4) 0; border-top: var(--hair) solid var(--border); }
+.inv-brief-move-main { flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; gap: var(--hair); min-width: 0; min-height: var(--sp-32);
+  padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-ctl); }
+.inv-brief-move-main:hover .inv-brief-move-say { text-decoration: underline; }
+.inv-brief-move-main:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+body:not(.inv-desktop) .inv-brief-move-main { min-height: var(--touch); }
+.inv-dot.inv-brief-move-say { position: relative; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  padding-left: calc(var(--dot) + var(--sp-6)); white-space: normal; font-size: var(--fs-13); font-weight: 500; line-height: 1.3; color: var(--text-1); }
+.inv-dot.inv-brief-move-say::before { position: absolute; left: 0; top: calc(0.5lh - var(--dot) / 2); }
+.inv-brief-move-worth { padding-left: calc(var(--dot) + var(--sp-6)); font-size: var(--fs-12); color: var(--text-2); }
+.inv-brief-movecards { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
+@container widget (min-width: 40rem) { .inv-brief-movecards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.inv-brief-movecard { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-8); min-width: 0; padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-2); }
+.inv-brief-movecard > .inv-brief-move-main { width: 100%; }
+.inv-brief-movecard .inv-brief-move-worth { padding-left: 0; }
+.inv-brief-worth { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-4); max-width: 100%; font-family: var(--ff-num); font-size: var(--fs-17); font-weight: 600; }
+.inv-brief-worth > .inv-unit { font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
+.inv-brief-when { display: flex; align-items: center; gap: var(--sp-10); width: 100%; min-width: 0; min-height: var(--sp-32); padding: var(--sp-4) 0;
+  border: none; border-top: var(--hair) solid var(--border); background: none; font: inherit; color: inherit; text-align: left; }
+button.inv-brief-when { cursor: pointer; }
+button.inv-brief-when:hover .inv-row-title { text-decoration: underline; }
+button.inv-brief-when:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
+body:not(.inv-desktop) button.inv-brief-when { min-height: var(--touch); }
+.inv-brief-day { flex: none; min-width: var(--brief-day-w); padding: var(--sp-2) var(--sp-6); border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2);
+  font-family: var(--ff-num); font-size: var(--fs-11); font-weight: 600; color: var(--text-2); text-align: center; white-space: nowrap; }
+.inv-brief-day[data-today] { background: var(--accent-soft); color: var(--accent-soft-text); box-shadow: none; }
+.inv-brief-when-text { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.inv-brief-when > .inv-dot { flex: none; font-size: var(--fs-12); }
+/* Outside: headlines with their dateline, each opening its article. */
+.inv-wire { display: flex; flex-direction: column; min-width: 0; }
+.inv-wire-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head ext" "date ext"; column-gap: var(--sp-8); row-gap: var(--hair);
+  min-width: 0; padding: var(--sp-6) 0; border-top: var(--hair) solid var(--border); color: var(--text-1); text-decoration: none; }
+a.inv-wire-item:hover .inv-wire-head { text-decoration: underline; }
+a.inv-wire-item:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
+.inv-wire-head { grid-area: head; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: var(--fs-13); font-weight: 500; line-height: 1.3; }
+.inv-wire-dateline { grid-area: date; min-width: 0; font-family: var(--ff-mono); font-size: var(--fs-10-5); font-variant-numeric: slashed-zero tabular-nums; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-wire-ext { grid-area: ext; align-self: center; width: var(--sp-16); height: var(--sp-16); color: var(--text-3); }
+/* Tools: keys on a sunk tray, three across (six from 40rem of card; a phone's Small holds two), the icon in the accent over its word. */
+.inv-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-6); padding: var(--sp-6); border-radius: var(--r-tile);
+  background: var(--well); box-shadow: var(--press-1); }
+@container widget (min-width: 40rem) { .inv-tray { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.inv-tray-key { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4); min-width: 0; min-height: var(--tray-key-h);
+  padding: var(--sp-6) var(--sp-4); border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--lift-key);
+  font: inherit; font-size: var(--fs-12); font-weight: 500; color: var(--text-1); text-align: center; cursor: pointer; }
+.inv-tray-key svg { width: 20px; height: 20px; color: var(--accent); }
+.inv-tray-key > span { max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: anywhere; }
+.inv-tray-key:hover { background: var(--surface-2); }
+.inv-tray-key:active { box-shadow: none; }
+.inv-tray-key:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--lift-key); }
+body:not(.inv-desktop) .inv-widget[data-size="s"] .inv-tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body:not(.inv-desktop) .inv-widget[data-size="s"] .inv-tray-key { min-height: var(--tray-key-h-sm); }
+
+/* Arranging (§7e, §24h): packing is off and every card and hole stands where wdgPlace puts it; a hole is a slot, a dashed well that
+   says what it has room for, with Add here. Each card's controls stand in its head's place: the handle, its name and place, its
+   sizes and Remove. A widget lifted follows the pointer while a placeholder of its size keeps its room. */
+.inv-wboard[data-arranging] .inv-wgrid { grid-auto-flow: row; }
+.inv-wboard[data-arranging] .inv-wgrid > :is(.inv-widget, .inv-widget-ph, .inv-wgrid-slot) { grid-row-start: var(--wdg-r, auto); grid-column-start: var(--wdg-c, auto); }
 .inv-wboard[data-arranging] .inv-widget { outline: var(--rule) dashed color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: calc(-1 * var(--rule)); }
-/* While arranging a widget is as tall as it needs: its controls take a row, and nothing is let go of under them. */
-body .inv-wboard[data-arranging] .inv-widget[data-size] { max-height: none; }
-.inv-widget-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); padding: var(--sp-8) var(--sp-8) 0 var(--sp-12); }
-.inv-widget-remove { margin-left: auto; }
-.inv-widget-handle { display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch);
+.inv-wboard[data-arranging] .inv-widget > .inv-widget-head, .inv-wboard[data-arranging] .inv-widget > .inv-widget-choose { display: none; }
+.inv-widget-ctl { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); padding: var(--sp-6) var(--sp-6) var(--sp-4); }
+.inv-widget-ctl-name { flex: 1 1 var(--sp-32); display: flex; flex-direction: column; min-width: 0; }
+.inv-widget-ctl-name > .inv-widget-title { font-size: var(--fs-12); }
+.inv-widget-remove { flex: none; }
+.inv-widget-handle { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch);
   border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--lift-1); color: var(--text-2);
   cursor: grab; touch-action: none; }
 .inv-widget-handle:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--lift-1); }
 .inv-widget-handle svg { width: var(--sp-16); height: var(--sp-16); }
-.inv-widget-place { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
-.inv-widget-sizes { width: auto; flex-shrink: 0; }
+.inv-widget-place { font-family: var(--ff-num); font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
+.inv-seg.inv-widget-sizes { width: auto; display: inline-flex; flex: none; }
 .inv-widget-sizes .inv-seg-btn { flex: 0 0 auto; padding: 0 var(--sp-6); }
-.inv-widget-lifted { position: fixed; left: var(--drag-x); top: var(--drag-y); width: var(--drag-w); z-index: var(--z-dialog); margin: 0;
+body.inv-desktop .inv-widget-sizes .inv-seg-btn { padding: 0 var(--sp-6); }
+@container widget (max-width: 16rem) { .inv-widget-ctl > .inv-widget-sizes { order: 1; } }
+.inv-widget-lifted { position: fixed; left: var(--drag-x); top: var(--drag-y); width: var(--drag-w); height: var(--drag-h); z-index: var(--z-dialog); margin: 0;
   box-shadow: var(--lift-2); pointer-events: none; opacity: 0.94; }
-.inv-widget-ph { min-height: var(--ph-h); border: var(--rule) dashed var(--edge); border-radius: var(--r-card); background: var(--well); }
+.inv-widget-ph { border: var(--rule) dashed var(--edge); border-radius: var(--r-card); background: var(--well); }
 body.inv-wdg-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
-/* The gallery (§7f): the categories as chips, each widget a card with its live preview at its first size. */
+.inv-wgrid-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-8); padding: var(--sp-12);
+  border: var(--rule) dashed var(--edge); border-radius: var(--r-card); background: var(--well); text-align: center; }
+.inv-wgrid-slot-say { font-size: var(--fs-13); font-weight: 500; color: var(--text-2); }
+/* The gallery (§7f): the categories as chips, each widget a card with its live preview, one row of the board tall, the card drawn at
+   its own size's height under it and faded where the preview stops, so a preview drawn as it comes into view moves nothing. */
 .inv-gallery-chips { display: flex; flex-shrink: 0; gap: var(--sp-6); overflow-x: auto; padding: var(--sp-8) 0; scrollbar-width: none; }
-.inv-gallery { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+.inv-gallery { --wdg-row: var(--wdg-row-narrow); --wdg-gap: var(--wdg-gap-narrow);
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
   gap: var(--gap); align-content: start; padding: var(--sp-4) 0 var(--sp-12); }
+body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(--wdg-gap-wide); }
 .inv-gallery-card { display: flex; flex-direction: column; gap: var(--sp-8); min-width: 0; padding: var(--sp-12); border: var(--hair) solid var(--edge);
   border-radius: var(--r-card); background: var(--surface-2); }
-/* A preview shows the widget's top, fading where the card stops, so a cut reads as a glimpse rather than a break. */
-/* A preview is one height, drawn or not (a Small widget's cap), so a preview drawn as it comes into view moves no card under the
-   finger, and the list drawn again after an Add puts every card back where it stood. */
-.inv-gallery-preview { pointer-events: none; height: var(--wdg-cap-s); overflow: hidden; border-radius: var(--r-card);
+.inv-gallery-preview { pointer-events: none; height: var(--wdg-row); overflow: hidden; border-radius: var(--r-card);
   mask-image: linear-gradient(to bottom, var(--text-1) calc(100% - var(--sp-32)), transparent); }
-.inv-gallery-preview > .inv-widget { margin: 0; box-shadow: none; }
+.inv-gallery-preview > .inv-widget { height: calc(var(--wdg-row) * 2 + var(--wdg-gap)); box-shadow: none; }
+.inv-gallery-preview > .inv-widget[data-size="s"] { height: var(--wdg-row); }
+.inv-gallery-text { min-width: 0; }
 .inv-gallery-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-gallery-q { margin: var(--sp-2) 0 0; font-size: var(--fs-13); line-height: 1.35; color: var(--text-2); }
 .inv-gallery-sizes { margin: var(--sp-2) 0 0; font-size: var(--fs-12); color: var(--text-3); }
@@ -3038,100 +3312,122 @@ body.inv-wdg-dragging { user-select: none; -webkit-user-select: none; cursor: gr
 .inv-toast-btn { min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-ctl); background: none;
   font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
 .inv-toast-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-/* Home's day card (§8b): its figure is the clock, ticking on the minute; under it when the general shift ends; the weather now. */
-.inv-homeday-clock { display: block; font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.05;
-  color: var(--text-1); font-variant-numeric: tabular-nums; }
-body.inv-desktop .inv-homeday-clock { font-size: var(--fs-48); }
-/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. */
+/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. The board's foot: the door
+   to the gallery, centred under the widgets. */
 [data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
-.inv-homeday-shift { display: block; margin-top: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
-.inv-homeday-wx { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-13); color: var(--text-2); }
-.inv-homeday-wx svg { width: var(--sp-20); height: var(--sp-20); }
-/* widgets · money and office (U2d): each widget's own parts, after this line. */
-/* A chart in the cash and gst widgets keeps to the card's cap (§7b): at its natural aspect and no taller than seven tenths of a
-   plot, so the figure, its lines, the chart and its readout fit a Medium's 30rem on the phone, where the card's width binds first;
-   on the desktop's 26rem a Medium has room for eight tenths, and its labels read a size larger for it; a Large's chart, and one
-   beside its rows, a plot's. */
-.inv-widget:is([data-w="cash"], [data-w="gst"]) .inv-chart-svg { max-height: calc(var(--plot-h) * 0.7); }
-body.inv-desktop .inv-widget[data-size="m"]:is([data-w="cash"], [data-w="gst"]) .inv-chart-svg { max-height: calc(var(--plot-h) * 0.8); }
-.inv-widget[data-size="l"]:is([data-w="cash"], [data-w="gst"]) .inv-chart-svg { max-height: var(--plot-h); }
-/* A chart and the rows it rests on (cash's What it rests on, dtp's other clients, gst's notes), [data-wcm-cols]: under it on a narrow
-   card, its side [data-wcm-side] running to the card's edges as a sheet in a card does; beside it from 40rem, to the card's right
-   edge. The grid spans the card's inside with its own padding, so the side reaches the edges inside the grid's box, never past it. */
-.inv-widget [data-wcm-cols] { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); margin: 0 calc(-1 * var(--sp-12)); padding: 0 var(--sp-12); }
-.inv-widget [data-wcm-side] { margin: 0 calc(-1 * var(--sp-12)); }
-@container widget (min-width: 40rem) {
-  .inv-widget [data-wcm-cols] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--sp-16); align-items: start; }
-  .inv-widget [data-wcm-side] { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0 0; }
+.inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
+/* Home's masthead (§24j): its verdict drawn flat under the top bar, no fill, no edge, no lift, a hairline under it; never folded.
+   On the desktop the date, the sentence, the facts and the act down its left and the clock at its right over the shift and a track
+   of the shift gone (148px tall); on the phone the clock at the sentence's right and the rest at the masthead's width. */
+.inv-mast { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "date time" "say time" "facts time" "act time";
+  align-content: center; align-items: center; column-gap: var(--sp-24); row-gap: var(--sp-6); min-height: var(--mast-h); margin: 0 0 var(--gap);
+  padding: var(--sp-12) var(--sp-4) var(--sp-16); border-bottom: var(--hair) solid var(--border); }
+.inv-mast-date { grid-area: date; margin: 0; min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+.inv-mast-say.inv-dot { grid-area: say; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-8); min-width: 0; margin: 0;
+  white-space: normal; font-size: var(--fs-22); font-weight: 600; line-height: 1.25; color: var(--text-1); }
+.inv-mast-say.inv-dot::before { align-self: center; width: var(--sp-10); height: var(--sp-10); }
+.inv-mast-count { font-size: var(--fs-14); font-weight: 500; color: var(--text-2); }
+.inv-mast-facts { grid-area: facts; display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); min-width: 0; margin: 0; padding: 0; list-style: none; }
+.inv-mast-facts > li { min-width: 0; font-size: var(--fs-13); }
+.inv-mast-facts > li.inv-dot { white-space: normal; color: var(--text-1); }
+.inv-mast-act { grid-area: act; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-16); margin-top: var(--sp-2); }
+body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); padding: 0 var(--sp-12); font-size: var(--fs-13); }
+.inv-mast-act > .inv-btn-link { font-size: var(--fs-13); }
+.inv-mast-time { grid-area: time; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-6); text-align: right; }
+.inv-mast-clock { font-family: var(--ff-num); font-size: var(--fs-44); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1; color: var(--text-1); white-space: nowrap; }
+.inv-mast-clock > .inv-unit { margin-left: var(--sp-2); font-size: var(--fs-17); font-weight: 500; letter-spacing: normal; color: var(--text-2); }
+.inv-mast-shift { display: inline-flex; flex-direction: column; align-items: stretch; gap: var(--sp-4); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
+.inv-mast-track { display: block; height: var(--sp-4); border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-2); overflow: hidden; }
+.inv-mast-track::before { content: ''; display: block; width: calc(var(--shift-done, 0) * 100%); height: 100%; border-radius: inherit; background: var(--text-3); }
+.inv-mast-track[hidden] { display: none; }
+body:not(.inv-desktop) .inv-mast { grid-template-areas: "date date" "say time" "facts facts" "act act"; column-gap: var(--sp-12); min-height: 0; padding: var(--sp-8) 0 var(--sp-12); }
+body:not(.inv-desktop) .inv-mast-say.inv-dot { font-size: var(--fs-19); }
+body:not(.inv-desktop) .inv-mast-time { align-self: start; gap: var(--sp-2); }
+body:not(.inv-desktop) .inv-mast-clock { font-size: var(--fs-30); }
+body:not(.inv-desktop) .inv-mast-clock > .inv-unit { font-size: var(--fs-13); }
+body:not(.inv-desktop) .inv-mast-act > .inv-btn { min-height: var(--touch); }
+/* Columns at Large (wdgColsHtml, §24d): stacked under 36rem of card, where the last rows of the last column let go first; side by side
+   from 36rem, each column as tall as the room left and fitted on its own (wdgFit), what it holds standing at its foot (the room a card
+   does not fill is one space, §24h); three from 60rem, two from 36rem, where the part marked to give way (data-col-drop) is left out. */
+.inv-widget-cols { display: contents; }
+.inv-widget-col { flex: none; display: flex; flex-direction: column; gap: var(--wdg-part-gap); min-width: 0; }
+.inv-widget-body > :is(.inv-widget-fig, .inv-widget-line, .inv-widget-sub) + .inv-widget-cols > :first-child { margin-top: auto; }
+.inv-widget-cols > .inv-widget-viz[data-wdg-viz], .inv-widget-col > .inv-widget-viz[data-wdg-viz] { flex: 1 1 0; min-height: var(--wdg-viz-min); overflow: hidden; }
+.inv-widget-cols > [data-col-drop] { display: none; }
+@container widget (min-width: 36rem) {
+  .inv-widget-body > .inv-widget-cols { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
+    gap: var(--sp-12) var(--sp-24); }
+  .inv-widget-cols > .inv-widget-col { min-height: 0; justify-content: safe flex-end; overflow: clip; overflow-clip-margin: var(--sp-4); }
+  .inv-widget-cols > .inv-widget-viz[data-wdg-viz], .inv-widget-col > .inv-widget-viz[data-wdg-viz] { min-height: 0; }
+  /* Side by side, a column fills its row: the foot's push is the stacked layout's alone (an auto margin let a grid item grow past it). */
+  .inv-widget-body > .inv-widget-cols > :is(.inv-widget-col, .inv-widget-viz):first-child { margin-top: 0; }
 }
-/* The owed widget's key under its age bar: a band a dot and its words, set apart as a legend's items are, wrapping whole. */
-.inv-widget [data-wcm-ages] { display: flex; flex-wrap: wrap; column-gap: var(--sp-12); row-gap: var(--sp-4); }
-
-/* widgets · floor and people (U2d): each widget's own parts, after this line. */
-/* Production, the last day: its body keeps its height over the hero's foot, so what runs past the size's cap reaches the card's
-   edge, where the board lets go of the last rows (the fit reads the card; a body that shrank ran under the foot unseen). */
-.inv-widget[data-w="prodday"] > .inv-widget-body { flex-shrink: 0; }
-/* The floor now: its figure is the heads on site in their own judge's colour (the card is coded by the worst of what it holds, a
-   line's efficiency among it, and a red line must not paint a full crew red). */
-.inv-widget[data-w="floornow"] .inv-widget-fig { color: var(--text-1); }
-/* A chart in a Medium widget is drawn a step shorter, so the figure, its line and the chart sit inside the size's cap. */
-.inv-widget:is([data-w="risk"], [data-w="attweek"])[data-size="m"] .inv-chart-svg { max-height: calc(var(--plot-h) * 0.75); }
-/* Plated each day: the calendar is drawn at its cells' own size, which reads small in a wide card; there it is drawn larger. */
+@container widget (min-width: 60rem) {
+  .inv-widget-body > .inv-widget-cols[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .inv-widget-cols > .inv-widget-col[data-col-drop] { display: flex; }
+  .inv-widget-cols > .inv-widget-viz[data-col-drop] { display: block; }
+}
+.inv-widget-col > .inv-widget-cap, .inv-widget-body > .inv-widget-cap { margin: 0; }
+/* A screen's rows in a card (Needs you's tasks, the period's plated row): the card's sides are its own, so a row runs to them; the
+   first row's rule is the card's. */
+.inv-widget-body :is(.inv-row, .inv-panel-flush > .inv-panel-head) { padding-left: 0; padding-right: 0; }
+.inv-widget-body .inv-brief-list > .inv-row:first-child { border-top: none; }
+button.inv-row > .inv-widget-chev { flex: none; align-self: center; }
+/* A party's register row: no number, so the party leads (a client's turnaround, a stage's step). */
+.inv-docket-main[data-nonum] { grid-template-columns: minmax(0, 1fr) auto; }
+/* A row's own one action keeps its width and its one line: the row's words give way first. */
+:is(.inv-docket-row, .inv-plant-head, .inv-brief-move, .inv-brief-movecard) > :is(.inv-btn, a.inv-btn) { flex: none; white-space: nowrap; }
+/* A row of the Plant type with its own one action: the action at the head's end, the gauge under both. */
+.inv-plant-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.inv-plant-head > .inv-plant-main { flex: 1 1 auto; }
+/* Tiles in a card: the card's surface around them, no strip margin of their own (the card's part gap is the space); two across on a
+   narrow card, four from 30rem of card (a set of three, three), whatever the window. */
+.inv-widget-body .inv-tiles, body.inv-desktop .inv-widget-body .inv-tiles { margin-bottom: 0; gap: var(--sp-8); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inv-widget-body .inv-tile { padding: var(--sp-8) var(--sp-10); }
+.inv-widget-body .inv-tiles.inv-tiles-3, body.inv-desktop .inv-widget-body .inv-tiles.inv-tiles-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @container widget (min-width: 30rem) {
-  .inv-widget[data-w="heat"] .inv-chart-heat { width: auto; height: calc(var(--plot-h) * 0.75); }
+  .inv-widget-body .inv-tiles, body.inv-desktop .inv-widget-body .inv-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inv-widget-body .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: auto; }
 }
-/* Line efficiency: a line's meter under its words and its end, across the row, so the lines' meters line up; the note on the lines
-   with no rounds counted under them. */
-.inv-widget [data-wc-eff] { flex-wrap: wrap; row-gap: var(--sp-4); }
-.inv-widget [data-wc-eff] > .inv-meter { flex: 1 0 100%; }
-.inv-widget [data-wc-eff-bare] { margin-top: var(--sp-8); }
-/* Overtime by area, Large: the overtime and the EXTRA side by side in two equal columns where the card has the room. */
-@container widget (min-width: 18rem) {
-  .inv-widget[data-w="ot"] .inv-widget-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-}
-
-/* widgets · market, analysis and what's coming (U2d): each widget's own parts, after this line. */
-/* A widget's caption over a part of it (the plant's week, a chart, the headlines): the eyebrow's look, sentence case. */
-.inv-widget-cap { margin: var(--sp-8) 0 var(--sp-4); font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
-.inv-widget-credit { min-width: 0; }
+/* A Tools card's tray fills the body: its keys share the room (§24h: never a strip of empty card under the last line). */
+.inv-widget[data-type="tools"] .inv-widget-body > .inv-tray:first-child { flex: 1 1 auto; grid-auto-rows: 1fr; }
+/* Small bars (chartMiniBars): a Small card's picture, the card's width at a fixed height. */
+.inv-minibars { display: block; width: 100%; height: var(--minibars-h); overflow: visible; }
+.inv-minibar { fill: var(--text-3); }
+/* A bar's whole slot reads its title, not only the bar's ink (charts v3: a hit target larger than the mark). */
+.inv-minibar-slot { pointer-events: bounding-box; }
+.inv-minibar[data-tone="ok"] { fill: var(--ok-mark); }
+.inv-minibar[data-tone="info"] { fill: var(--info-mark); }
+.inv-minibar[data-tone="warning"] { fill: var(--warning-mark); }
+.inv-minibar[data-tone="danger"] { fill: var(--danger-mark); }
+.inv-minibar-base { fill: var(--border); }
+.inv-minibar-hatch { stroke: var(--text-2); stroke-width: var(--hair); vector-effect: non-scaling-stroke; }
+.inv-minibar-hatch-info { stroke: var(--info-mark); }
+.inv-minibar-hatch-warning { stroke: var(--warning-mark); }
+.inv-minibar-hatch-danger { stroke: var(--danger-mark); }
+/* A list of moves in a dialog (a question's every move, Do first's ten): the rows at the dialog's sides. */
+.inv-wc-moves .inv-brief-move:first-child { border-top: none; }
 /* The weather now as a figure, its icon beside the temperature; the next 12 hours as small wells, a thunder hour in its warning and a
    wet one in info (the plant's week's look). */
-.inv-wx-fig { display: flex; align-items: center; gap: var(--sp-6); }
+.inv-wx-fig { display: inline-flex; align-items: center; gap: var(--sp-6); }
 .inv-wx-fig .inv-wx-ico { flex: none; width: var(--sp-24); height: var(--sp-24); }
 .inv-wx-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp-4); }
 @container widget (min-width: 32rem) { .inv-wx-hours { grid-template-columns: repeat(12, minmax(0, 1fr)); } }
 .inv-wx-hour { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-4) var(--sp-2);
-  border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); }
+  border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); }
 .inv-wx-hour[data-tone="warning"] { background: var(--warning-bg); color: var(--warning); box-shadow: none; }
 .inv-wx-hour[data-tone="info"] { background: var(--info-bg); color: var(--info); box-shadow: none; }
 .inv-wx-hour-t { font-size: var(--fs-11); white-space: nowrap; }
-.inv-wx-hour-c { font-size: var(--fs-12); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.inv-wx-hour-c { font-family: var(--ff-num); font-size: var(--fs-12); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .inv-wx-hour[data-tone] .inv-wx-hour-c { color: inherit; }
-/* Tata at Large: its three parts stacked, two side by side (the headlines under them) from 36rem, three across from 60rem. */
-.inv-widget-parts-3 { grid-template-columns: minmax(0, 1fr); align-items: start; margin-top: var(--sp-8); }
-@container widget (min-width: 36rem) {
-  .inv-widget-parts-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-  .inv-widget-parts-3 > :last-child { grid-column: 1 / -1; }
-}
-@container widget (min-width: 60rem) {
-  .inv-widget-parts-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .inv-widget-parts-3 > :last-child { grid-column: auto; }
-}
-/* With no chart (the phone), its two parts are two across from 36rem, the headlines beside the figures. */
-@container widget (min-width: 36rem) { .inv-widget-parts-2 > :last-child { grid-column: auto; } }
-.inv-widget-part { min-width: 0; }
-.inv-widget-part > .inv-widget-rows { margin-left: 0; margin-right: 0; }
-.inv-widget-part > .inv-tiles { margin-top: 0; }
-/* The pair a "Does one move the other?" asks about: two pickers on a row, each as wide as the row allows. */
-.inv-corr-picks { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-8); }
+/* The pair a "Does one move the other?" asks about: two pickers on a row, each as wide as the row allows; in a card's head at Large,
+   compact and labelled for a screen reader alone; at Medium one button naming the pair. */
+.inv-corr-picks { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .inv-corr-pick { flex: 1 1 12rem; min-width: 0; margin: 0; }
 .inv-corr-pick .inv-select { width: 100%; }
-/* At Medium the dots are drawn a step shorter, so the pair, its words and the chart sit inside the card's cap at any width. */
-.inv-widget[data-w="corr"][data-size="m"] .inv-chart-svg { max-height: calc(var(--plot-h) * 0.7); }
-/* A tile's line of the months before, in a widget on the phone: Large has Medium's room there (30rem), so the line is drawn a
-   quarter lower and closer to its figure (a crore month's tiles had run Month to date past its cap). */
-body:not(.inv-desktop) .inv-widget .inv-tile-viz { margin-top: var(--sp-4); }
-body:not(.inv-desktop) .inv-widget .inv-tile-viz .inv-spark { height: calc(var(--spark-h) * 0.75); }
+.inv-corr-picks-sm { flex: 0 1 auto; flex-wrap: nowrap; gap: var(--sp-6); }
+.inv-corr-picks-sm > .inv-corr-pick { flex: 0 1 11rem; }
+.inv-corr-pair { flex: 0 1 auto; min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A kilo's cost as one bar of 100%, each part in its own colour (seriesSlot 'cost'), a gap between parts, in a well. */
 .inv-sharebar { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; background: var(--well); box-shadow: var(--press-1); }
 .inv-sharebar-part { fill: var(--ink); }
@@ -3156,7 +3452,7 @@ body:not(.inv-desktop) .inv-widget .inv-tile-viz .inv-spark { height: calc(var(-
 .inv-mkt-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-4); }
 .inv-mkt-day {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-6) var(--sp-2);
-  border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); text-align: center;
+  border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); text-align: center;
 }
 .inv-mkt-day[data-tone="warning"] { background: var(--warning-bg); color: var(--warning); box-shadow: none; }
 .inv-mkt-day[data-tone="info"] { background: var(--info-bg); color: var(--info); box-shadow: none; }

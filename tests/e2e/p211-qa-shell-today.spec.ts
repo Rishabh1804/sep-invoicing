@@ -36,15 +36,6 @@ function priced(nova: [number, number], orion: [number, number]): SepState {
   s.invNextNum = 3;
   return s;
 }
-/* The colour the app's info tone resolves to, read off its own badge. */
-const infoColour = (page: Page) => page.evaluate(() => {
-  const p = document.createElement('span');
-  p.className = 'inv-badge inv-badge-info';
-  document.body.appendChild(p);
-  const c = getComputedStyle(p).color;
-  p.remove();
-  return c;
-});
 
 test.describe('P211: the shell, navigation, More and Filter, the change log', () => {
   test('A1-3: a turnaround or terms change is logged under its Settings section, in words', async ({ page }) => {
@@ -197,10 +188,10 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await openStatsTab(page, 'clients');
     await expect(page.locator('#statsMargin [data-margin-net] .inv-fig-warning')).toHaveText('8.30');
     await openPulse(page);
+    // A Briefing card since U2R: its tone said by the card, its answer's price in the warning's tone.
     const q = page.locator('[data-tdy-q="clients"]');
-    await expect(q).toHaveClass(/inv-hero-warning/);
-    await expect(q.locator('[data-story-say] .inv-dot-warning')).toHaveCount(1);
-    await expect(q.locator('.inv-meter-warning')).toHaveCount(1);
+    await expect(q).toHaveAttribute('data-tone', 'warning');
+    await expect(q.locator('[data-tdy-ans] .inv-fig-warning')).toHaveCount(1);
     // The clients ranked by tonnage are the question's own story, opened from the widget's head (UI pass 3, U2: the card holds
     // the answer and its sentence; its bars and tiles are a tap away).
     await q.locator('.inv-widget-door').click();
@@ -208,19 +199,25 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await expect(open.locator('.inv-chart-ranked-fill-warning')).toHaveCount(1);
     await expect(open.locator('.inv-chart-ranked-fill-danger')).toHaveCount(0);
     await expect(open.locator('[data-story-say] .inv-dot-warning')).toHaveCount(1);
+    await page.locator('[data-tdy-q-open="clients"] [data-action="invCloseOverlay"]').first().click();
+    // At Small the card's picture is the plant's share by client, the account under the cost in the warning's tone.
+    await page.evaluate(() => { const w = window as any; ['desk', 'phone'].forEach((l: string) => w.wdgItemsPut('home', l, [['q-clients', 's']])); w.renderHome(); });
+    await expect(page.locator('#homeBoard [data-tdy-q="clients"][data-size="s"] .inv-meter-warning')).toHaveCount(1);
   });
 
   test('A7-15: a loss within 5% of the live cost is a warning on Home, on Stats’ Cost and Trends, and on the report', async ({ page }) => {
     // ₹8,750 for 1,050 kg: ₹8.33/kg against ₹8.56, 2.7% under.
     await loadAppWithState(page, priced([1000, 8.3], [50, 9]));
     await openPulse(page);
-    await expect(page.locator('#statsOverview')).toHaveClass(/inv-hero-warning/);
+    // A card of the family since U2R: its tone said by the card, the answer's figure in its tone.
+    await expect(page.locator('#statsOverview')).toHaveAttribute('data-tone', 'warning');
     const money = page.locator('[data-tdy-q="money"]');
-    await expect(money).toHaveClass(/inv-hero-warning/);
-    await expect(money.locator('[data-story-say] .inv-dot-warning')).toHaveCount(1);
-    // Its tiles are the question's own story, opened from the widget's head (UI pass 3, U2).
+    await expect(money).toHaveAttribute('data-tone', 'warning');
+    await expect(money.locator('[data-tdy-ans] .inv-fig-warning')).toHaveCount(1);
+    // Its tiles and its story's sentence are the question's own story, opened from the widget's head (UI pass 3, U2).
     await money.locator('.inv-widget-door').click();
     await expect(page.locator('[data-tdy-q-open="money"] .inv-tile-warning')).toHaveCount(2);
+    await expect(page.locator('[data-tdy-q-open="money"] [data-story-say] .inv-dot-warning')).toHaveCount(1);
     await page.locator('[data-tdy-q-open="money"] [data-action="invCloseOverlay"]').first().click();
     await openStatsTab(page, 'cost');
     const contrib = page.locator('#statsVerdict .inv-tile', { has: page.locator('.inv-tile-label', { hasText: 'Contribution' }) });
@@ -289,11 +286,17 @@ test.describe('P211: the price against the cost, judged one way', () => {
     // Five on VAT A1 against the four the day needs: one over.
     s.shiftNeeds = { [day]: { 'vat-a1': 4 } };
     await loadAppWithState(page, s);
-    const info = await infoColour(page);
     await openWidget(page, 'attendance');
-    const fig = page.locator('[data-w="atttoday"] [data-alloc="vat-a1"] .inv-fig-info');
-    await expect(fig).toHaveText('5/4');
-    expect(await fig.evaluate(el => getComputedStyle(el).color)).toBe(info);
+    // A Crew card since U2R: the area a row, its seats against the day's number, one ringed in the info's mark for the hand over,
+    // and its word in the info tone.
+    const row = page.locator('[data-w="atttoday"] [data-alloc="vat-a1"]');
+    await expect(row).toHaveAttribute('data-tone', 'info');
+    await expect(row.locator('.inv-seats')).toHaveAttribute('aria-label', '5 of 4');
+    await expect(row.locator('.inv-dot-info')).toHaveText('1 over');
+    const over = row.locator('.inv-seat[data-seat="over"]');
+    await expect(over).toHaveCount(1);
+    const mark = await page.evaluate(() => { const d = document.createElement('i'); d.style.color = 'var(--info-mark)'; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; });
+    expect(await over.evaluate(el => getComputedStyle(el).borderTopColor)).toBe(mark);
     // The day's report: the heads a day in the paper's own blue.
     await g(page, `rptSet('daily', '${day}')`);
     await switchTab(page, 'pageReports');

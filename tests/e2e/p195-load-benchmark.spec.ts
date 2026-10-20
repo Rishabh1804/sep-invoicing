@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loadAppWithState, todayIso } from './fixtures';
-import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixture';
+import { type Load, longBook, measureLoad, walkMap } from './load-fixture';
 
 // P195: the cognitive-load benchmark's instrument (docs/TAB_MAP.md §3b, I10, TM1 item 12; owner, 8–9 Oct 2026: "survey all the
 // screens to make sure the app is up to the mark for our cognitive load benchmark", then the tab map built to it). Every screen
@@ -121,7 +121,6 @@ test('every screen of the map is within its load budget on the long book', async
   test.setTimeout(300_000);
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
-  await pinFace(page);
   await page.clock.install({ time: new Date(todayIso() + 'T11:30:00') });
   await loadAppWithState(page, longBook());
   const seen: Record<string, Load> = {};

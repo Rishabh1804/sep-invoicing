@@ -173,7 +173,12 @@ test.describe('P194: TM6b, the period to date', () => {
     await loadAppWithState(page, longBook());
     const marked = (where: string) => expect.poll(() => page.locator('.inv-page-active .inv-chart-todate').count(), where).toBeGreaterThan(0);
     await openPulse(page);
-    await marked('Pulse’s sparklines');
+    // Home's cards mark it where they draw a period still running (U2R, §24f): Month to date's small bars at Small, this month
+    // hatched and lighter, its bar's title saying "to date".
+    await page.evaluate(() => { const w = window as any; ['desk', 'phone'].forEach((l: string) => w.wdgItemsPut('home', l, [['mtd', 's'], ['q-money', 's']])); w.renderHome(); });
+    await marked('Home’s small bars');
+    await expect(page.locator('#homeBoard [data-w="mtd"] .inv-minibar.inv-chart-todate')).toHaveCount(1);
+    await expect(page.locator('#homeBoard [data-w="mtd"] .inv-minibar-slot:has(.inv-chart-todate) title')).toContainText('to date');
     await switchTab(page, 'pageStats');
     await page.locator('[data-action="invStatsTab"][data-tab="trends"]').click();
     await marked('Trends');

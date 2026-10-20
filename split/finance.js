@@ -322,12 +322,13 @@ function finFromSlices(from) {
   return out;
 }
 /* GST due against paid month by month, grouped bars, the month running drawn to date: the months are GST's own (I8). `g`, those
-   months as finGstByMonth reads them, oldest first. The Overview's panel and Home's gst widget (widgetcards.js) draw it. */
-function finGstMonthsChart(months, g) {
+   months as finGstByMonth reads them, oldest first. The Overview's panel and Home's gst widget (widgetcards.js) draw it; the widget
+   passes `extra` (bare at the room its card leaves, chartStack's own options). */
+function finGstMonthsChart(months, g, extra) {
   return chartStack(months.map(function(m) { return insMonthLabel(m) + (months.length > 12 ? " '" + m.slice(2, 4) : ''); }), [
     { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }), slot: 1 },
     { label: 'Paid', values: g.map(function(r) { return r.paid; }), slot: 2 }
-  ], { mode: 'group', ariaLabel: 'GST due and paid', keys: months, toDate: finMonthToDate(months, 'invoices') });
+  ], Object.assign({ mode: 'group', ariaLabel: 'GST due and paid', keys: months, toDate: finMonthToDate(months, 'invoices') }, extra || {}));
 }
 /* GST due against paid over the range, a chart: the months themselves are GST's own (I8). */
 function finGstChartHtml(months, cls) {

@@ -307,6 +307,8 @@ function advQSmooth(ctx) {
   moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
   // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): how many things could stop the plant, coded by how soon.
   var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
+    // The answer as one sentence (U2R §24f: a question's Small), its count in its tone.
+    ans: moves.length ? figHtml(String(moves.length), uiTone(worst === 'ok' ? 'info' : worst)) + (moves.length === 1 ? ' thing could stop the plant' : ' things could stop the plant') : 'Nothing stands in the way',
     // No words under the figure: the story's sentence under it names the same things (Home's widget draws both).
     sub: '',
     viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
@@ -790,6 +792,27 @@ function advMovesDeckHtml(moves, listKey, n, word) {
   var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
   return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
+/* A move's own dialog (§24e, U2R): what it says, what it is worth and what that rests on, its action (the dialog's one primary) and
+   Add to my list (On your list once it is). A tap on a move in a card, anywhere but its action, opens it: the card's row ends in its
+   action alone, so Add to my list is here. The same keys and refs as the row, so its buttons act as the row's do; its action shuts
+   the dialog on the way (todoGo). */
+function advMoveOpen(key, ref) {
+  var mv = (ref && _advRows[ref]) || _advMoves[key];
+  if (!mv) { showToast('That move has changed: open the card again', 'warning'); return; }
+  var r = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"', k = ' data-key="' + escHtml(mv.key) + '"';
+  var w = mv.worth && mv.worth.amount > 0.005 ? mv.worth : null, sign = w && w.sign < 0 ? '−' : '+';
+  var worth = w ? '<div class="inv-row inv-row-2" data-adv-worth title="' + escHtml(sign + formatCurrency(w.amount)) + '"><span class="inv-row-main"><span class="inv-row-title">What it is worth</span>' +
+    (advWorthLabel(w) ? '<span class="inv-row-meta">' + escHtml(advWorthLabel(w)) + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end inv-num">' + figHtml(escHtml(sign + inrCard(w.amount).text), w.sign < 0 ? 'danger' : 'ok') + '</span></div>' : '';
+  var body = '<div class="inv-panel inv-panel-flush" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
+    '<div class="inv-row inv-row-auto"><span class="inv-row-lead">' + todoGlyph(mv.tone) + '</span><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' +
+    escHtml(mv.say) + '</span>' + (mv.basis ? '<span class="inv-row-meta inv-row-wrap" data-adv-basis>' + escHtml(mv.basis) + '</span>' : '') + '</span></div>' + worth + '</div>';
+  var act = mv.href ? '<a class="inv-btn inv-btn-primary" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-primary" data-action="invAdvGo"' + k + r + '>' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = advListedKeys()[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invAdvTask"' + k + r + '>Add to my list</button>';
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="What you can do" data-adv-dialog>' + dialogHeadHtml('What you can do') + body +
+    '<div class="inv-dialog-foot">' + add + act + '</div></div>', { dismiss: true });
+}
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */
@@ -808,6 +831,12 @@ function advAddTask(key, ref) {
     if (go && document.activeElement === document.body) { try { go.focus({ preventScroll: true }); } catch (e) { /* focus is a courtesy */ } }
   });
   if (typeof todoRefreshViews === 'function') todoRefreshViews();
+  // Every card on a board holding the move is drawn again, so its row reads On your list (U2R: the row ends in its action alone).
+  var seen = {};
+  document.querySelectorAll('.inv-wboard .inv-widget [data-adv-move]').forEach(function(m) {
+    var card = m.closest('.inv-widget'), id = card && card.dataset.w;
+    if (id && m.getAttribute('data-adv-move') === key && !seen[id] && typeof wdgRefresh === 'function') { seen[id] = true; wdgRefresh(id); }
+  });
   showToast('Added to your list');
 }
 

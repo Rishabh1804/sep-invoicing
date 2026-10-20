@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, waitForBoot, emptyState, noSeedIM, todayIso, answerAsk, openNeeds, withWidgets, switchTab } from './fixtures';
+import { loadAppWithState, waitForBoot, emptyState, noSeedIM, todayIso, answerAsk, openNeeds, withWidgets, switchTab, toolbarMore, toolbarMoreLabels } from './fixtures';
 import { longBook } from './load-fixture';
 import { sweepState } from './sweep-fixture';
 import { withUsers, unlock, lockNow, PINS, guardBook } from './p140-guard.fixture';
@@ -47,51 +47,59 @@ test.describe('P223 Home and its board (phone)', () => {
     await expect(page.locator('#homeDash [data-home-day]')).toBeVisible();
   });
 
-  test('the day card: the greeting with the ID’s first name, the clock ticking on the minute, the shift’s end, and what leads in its tone', async ({ page }) => {
+  test('the masthead: the greeting, the clock ticking on the minute, the shift’s end, and what leads in its tone; a report from the toolbar’s More', async ({ page }) => {
     await page.clock.install({ time: new Date(todayIso() + 'T09:42:10') });
     await loadAppWithState(page, emptyBook());
+    // U2R (§24j): the day card is the masthead, flat and never folded; the phone says the shift short and draws no track (P239).
     const card = page.locator('#homeDash [data-home-day]');
     const day = await page.evaluate(() => { const n = new Date(); return n.toLocaleDateString('en-IN', { weekday: 'long' }) + ', ' + n.getDate() + ' ' + n.toLocaleDateString('en-IN', { month: 'long' }); });
     await expect(card).toContainText('Good morning · ' + day);
     await expect(card.locator('[data-home-clock]')).toHaveText('9:42 AM');
-    await expect(card.locator('[data-home-shift]')).toHaveText('General shift ends 5:00 PM · 7 h 18 min');
-    // Nothing needs the owner on an empty book: the card says so, in ok.
+    await expect(card.locator('[data-home-shift]')).toHaveText('Shift ends 5:00 PM');
+    // Nothing needs the owner on an empty book: the masthead says so, in ok.
     await expect(card).toContainText('Nothing needs you now');
-    await expect(card).toHaveClass(/inv-hero-ok/);
-    // On the minute: the two texts change and nothing else on the page is drawn again.
+    await expect(card).toHaveAttribute('data-tone', 'ok');
+    await expect(card.locator('.inv-mast-say')).toHaveClass(/inv-dot-ok/);
+    // On the minute: the clock changes and nothing else on the page is drawn again.
     const before = await page.evaluate(() => document.querySelectorAll('#homeDash *').length);
     await page.clock.runFor(60000);
     await expect(card.locator('[data-home-clock]')).toHaveText('9:43 AM');
-    await expect(card.locator('[data-home-shift]')).toHaveText('General shift ends 5:00 PM · 7 h 17 min');
+    await expect(card.locator('[data-home-shift]')).toHaveText('Shift ends 5:00 PM');
     expect(await page.evaluate(() => document.querySelectorAll('#homeDash *').length)).toBe(before);
     // Left, the clock stops; back, it is set at once.
     await switchTab(page, 'pageRegister');
     expect(await g(page, '_homeClockT')).toBeNull();
-    // The two links: Needs you with its count, and today's report.
     await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
+    await expect(card.locator('[data-home-clock]')).toHaveText('9:43 AM');
+    // The Act: Needs you. On the phone the masthead carries no report; the toolbar’s More makes one of the period Home shows.
     await expect(card.locator('[data-home-needs]')).toContainText('Open Needs you');
-    await card.locator('[data-action="invHomeReport"]').click();
+    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
+    await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
-    await expect.poll(() => where(page)).toEqual(['pageReports', 'daily/' + todayIso()]);
+    await expect.poll(() => where(page)).toEqual(['pageReports', 'monthly/' + todayIso().slice(0, 8) + '01']);
   });
 
-  test('the day card leads with what is red, in danger, with the ID’s name; a role without Reports has no report link', async ({ page }) => {
+  test('the masthead leads with what is red, in danger, with the ID’s name; a role without Reports has no report to make', async ({ page }) => {
     await page.clock.install({ time: new Date(todayIso() + 'T15:05:00') });
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     await unlock(page, 'U-own', PINS.owner);
     const card = page.locator('#homeDash [data-home-day]');
     await expect(card).toContainText('Good afternoon, Asha · ');
-    await expect(card.locator('[data-home-shift]')).toHaveText('General shift ends 5:00 PM · 1 h 55 min');
+    await expect(card.locator('[data-home-shift]')).toHaveText('Shift ends 5:00 PM');
     // A red task leads: the stock line out on the guard's book.
     await g(page, `S.stock.entries.push({ id: 'u1', itemId: 'N', kind: 'used', qty: 12, date: localDateStr(), at: Date.now() }); saveState(); renderHome()`);
     await expect(card).toContainText(/things? needs? you now/);
-    await expect(card).toHaveClass(/inv-hero-danger/);
-    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(1);
+    await expect(card).toHaveAttribute('data-tone', 'danger');
+    await expect(card.locator('.inv-mast-say')).toHaveClass(/inv-dot-danger/);
+    // The phone's masthead carries no report (§24j); the owner makes one from the toolbar's More, the office cannot.
+    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
+    expect(await toolbarMoreLabels(page)).toContain('Make a report');
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
     await expect(card).toContainText('Good afternoon, Chitra · ');
     await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
+    expect(await toolbarMoreLabels(page)).not.toContain('Make a report');
   });
 
   test('the board is two columns on the phone: a Small spans one, a Medium and a Large the row', async ({ page }) => {
@@ -257,10 +265,11 @@ test.describe('P223 Home and its board (phone)', () => {
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     await unlock(page, 'U-own', PINS.owner);
-    expect(await ids(page)).toEqual(['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'turn', 'dtp', 'q-smooth', 'dofirst']);
+    // The presets are U2R's (§24i), each packing with no hole; the phone's Owner leaves out Do first, Turnaround and Days to pay.
+    expect(await ids(page)).toEqual(['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'atttoday', 'q-smooth']);
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
-    expect(await ids(page)).toEqual(['needs', 'unbilled', 'pipe', 'recent', 'quote', 'tata']);
+    expect(await ids(page)).toEqual(['needs', 'quick', 'unbilled', 'quote', 'weather', 'pipe', 'recent', 'tata', 'coming']);
     await page.locator('[data-home-foot] [data-action="invWdgGallery"]').click();
     const seen = await page.evaluate(() => Array.from(document.querySelectorAll('[data-gallery-w]')).map(c => (c as HTMLElement).dataset.galleryW));
     for (const id of ['money', 'cash', 'owed', 'dtp', 'gst', 'mtd', 'q-money', 'dofirst', 'why', 'figures', 'zinc', 'prodday', 'floornow', 'atttoday', 'sync'])
@@ -269,7 +278,7 @@ test.describe('P223 Home and its board (phone)', () => {
     await page.keyboard.press('Escape');
     await lockNow(page);
     await unlock(page, 'U-sup', PINS.super);
-    expect(await ids(page)).toEqual(['floornow', 'prodday', 'atttoday', 'risk', 'weather', 'eff', 'stockdays', 'attweek', 'ot', 'tata']);
+    expect(await ids(page)).toEqual(['floornow', 'eff', 'prodday', 'atttoday', 'risk', 'weather', 'stockdays', 'attweek', 'ot', 'tata']);
   });
 
   test('a layout is the person’s, kept on the device: two people keep two; it never reaches the book, a push or the change log', async ({ page }) => {
@@ -290,7 +299,7 @@ test.describe('P223 Home and its board (phone)', () => {
     expect(await ids(page)).toEqual(mine);
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
-    expect(await ids(page)).toEqual(['needs', 'unbilled', 'pipe', 'recent', 'quote', 'tata']);
+    expect(await ids(page)).toEqual(['needs', 'quick', 'unbilled', 'quote', 'weather', 'pipe', 'recent', 'tata', 'coming']);
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
     expect(await ids(page)).toEqual(mine);
@@ -310,9 +319,9 @@ test.describe('P223 Home and its board (phone)', () => {
     });
     await loadAppWithState(page, sweepState());
     const list = await ids(page);
-    const preset = ['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'turn', 'dtp', 'q-smooth', 'dofirst'];
+    const preset = ['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'atttoday', 'q-smooth'];
     expect(list.slice(0, preset.length)).toEqual(preset);
-    expect(list.slice(preset.length)).toEqual(['quick', 'needs', 'atttoday', 'unbilled', 'stockdays', 'sync', 'zinc']);
+    expect(list.slice(preset.length)).toEqual(['quick', 'needs', 'unbilled', 'stockdays', 'sync', 'zinc']);
     // Pulse's own record is left as it was: an older build in another window still reads it.
     expect(JSON.parse(await page.evaluate(() => localStorage.getItem('sep_inv_home')!)).order[3]).toBe('todo');
     expect((await stored(page)).people['-'].home.from).toBe('pulse');

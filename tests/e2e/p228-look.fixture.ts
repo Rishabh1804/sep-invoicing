@@ -49,6 +49,13 @@ export function lookSuite(layout: 'phone' | 'desktop') {
       const tile = await well('#homeTiles .inv-tile', 'a tile in a card');
       expect(tile.radius, 'a tile’s corners').toBe(parseFloat(await token(page, '--r-tile', 'border-top-left-radius')));
       expect(tile.fill === veil || /gradient/.test(tile.image), 'a tile is the well, or a well of its tone').toBe(true);
+      // A meter is a Small's picture since U2R (§24f: a question's vital at Small), so one question is put on the board at Small.
+      await page.evaluate(() => {
+        const w = window as any;
+        ['desk', 'phone'].forEach((lay: string) => w.wdgItemsPut('home', lay, w.wdgItems('home', lay).map((x: string[]) => x[0] === 'q-clients' ? ['q-clients', 's'] : x)));
+        w.renderHome();
+      });
+      await page.locator('#homeBoard [data-w="q-clients"][data-size="s"]').waitFor();
       const meter = await well('#pageHome svg.inv-meter', 'a meter');
       expect(meter.radius).toBeGreaterThan(0);
       expect(await page.locator('#pageHome .inv-meter-track').first().evaluate(el => getComputedStyle(el).fill)).toBe(veil);
@@ -65,7 +72,8 @@ export function lookSuite(layout: 'phone' | 'desktop') {
       await switchTab(page, 'pageCreate');
       const field = await well('#pageCreate .inv-input', 'a field');
       expect(field.fill).toBe(veil);
-      expect(field.radius).toBe(parseFloat(await token(page, '--r-ctl', 'border-top-left-radius')));
+      // Every well has a tile's corners since U2R (§24b: a field, the search and a segmented track moved from --r-ctl to --r-tile).
+      expect(field.radius).toBe(parseFloat(await token(page, '--r-tile', 'border-top-left-radius')));
       await switchTab(page, 'pageRegister');
       // Measured at rest: focused, a well carries the shared ring outside it as well (§3b).
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -117,7 +125,10 @@ export function lookSuite(layout: 'phone' | 'desktop') {
         if (layout === 'phone') {
           const bar = await boxOf(page, '.inv-navbar');
           expect(layers(bar.shadow).length, `${scheme} the bar floats as a card`).toBe(2);
-          expect(bar.radius).toBe(rCard);
+          // The phone's bar has its own corners since U2R (§24b: --r-bar, rounder than a card's).
+          const rBar = parseFloat(await token(page, '--r-bar', 'border-top-left-radius'));
+          expect(bar.radius).toBe(rBar);
+          expect(rBar).toBeGreaterThan(rCard);
         }
         // The one primary: the accent running to a step deeper, lifted further than a card.
         const prim = await boxOf(page, '#pageCreate .inv-btn-primary');

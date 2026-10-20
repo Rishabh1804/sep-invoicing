@@ -207,13 +207,15 @@ test.describe('P128: Stats', () => {
       inv(2, monthDay(-1, new Date(todayIso() + 'T00:00:00').getDate()), [{ part: 'PART Y1', unit: 'KG', qty: 100, rate: 12 }])];
     invs[0].clientName = evil; invs[1].clientName = 'QUIET OTHER CO';
     await loadAppWithState(page, book([client(1, evil, 'weight', 2), client(2, 'QUIET OTHER CO', 'weight', 12)], invs));
-    // The questions are Pulse's since the tab map (TM2b).
+    // The questions are Home's widgets since UI pass 3; the card answers in a sentence and its head opens the whole story (U2R).
     await openPulse(page);
-    const story = page.locator('[data-tdy-q="clients"]');
+    await expect(page.locator('[data-tdy-q="clients"] [data-tdy-ans]')).toContainText('<img src=x');
+    await page.locator('#homeBoard [data-tdy-q="clients"] [data-action="invWdgGo"]').click();
+    const story = page.locator('[data-tdy-q-open="clients"]');
     await expect(story.locator('[data-story-say]')).toHaveCount(2);
     await expect(story.locator('[data-story-say]').first()).toContainText('<img src=x');
     await expect(story.locator('[data-story-say]').last()).toContainText('<img src=x');
-    await expect(page.locator('#pageHome [data-p128-xss]')).toHaveCount(0);
+    await expect(page.locator('[data-p128-xss]')).toHaveCount(0);
     expect(await g(page, 'window.__p128')).toBeUndefined();
   });
 

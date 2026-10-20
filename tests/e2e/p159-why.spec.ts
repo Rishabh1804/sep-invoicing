@@ -101,11 +101,15 @@ test.describe('P159 why it moved', () => {
       inv('A1', 1, '2026-10-05', 100, 9), inv('B1', 2, '2026-10-06', 300, 20)] }));
     await openPulse(page);
     const why = page.locator('#statsWhy');
-    await expect(why.locator('[data-why="real"]')).toContainText('₹15.00 → ₹17.25/kg');
+    // A Briefing card since U2R: the causes as statement lines under their caption, the change ruled under them with its sign.
+    await expect(why.locator('.inv-widget-cap').first()).toHaveText('Realisation, ₹15.00 → ₹17.25/kg');
+    await expect(why.locator('[data-why="real"]')).toHaveAttribute('title', /₹15\.00 → ₹17\.25\/kg/);
     await expect(why.locator('[data-why="real"]')).toContainText('+₹2.25/kg');
     await expect(why.locator('[data-why-cause="mix"]')).toHaveCount(2);
     await expect(why.locator('[data-why-early]')).toHaveCount(0);
-    await expect(page.locator('[data-tdy-q="changed"]')).toContainText('Realisation rose ₹2.25/kg against same days last month');
+    // What changed? says it in its story, which its head opens whole.
+    await page.locator('#homeBoard [data-tdy-q="changed"] [data-action="invWdgGo"]').click();
+    await expect(page.locator('[data-tdy-q-open="changed"] [data-tdy-story]')).toContainText('Realisation rose ₹2.25/kg against same days last month');
   });
 
   test('a month under ten working days in is said to be early', async ({ page }) => {

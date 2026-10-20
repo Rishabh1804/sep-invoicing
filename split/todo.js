@@ -638,7 +638,7 @@ function todoHomeOpts(n) {
   return { tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
     eyebrow: '<span>To-do</span>' + (ranked.length ? '<span class="inv-panel-count">' + ranked.length + '</span>' : ''),
     title: escHtml(!ranked.length ? 'Nothing due' : groups.now ? todoPlural(groups.now, 'thing needs', 'things need') + ' you now' : todoPlural(ranked.length, 'task') + ' open, none urgent'),
-    fig: money && worth > 0.005 ? figWrapHtml(escHtml(formatCurrency(gstRound(worth)))) : '',
+    fig: money && worth > 0.005 ? inrFigHtml(gstRound(worth)) : '', rows: rows,
     sub: escHtml([groups.week ? groups.week + ' this week' : '', groups.later ? groups.later + ' to know' : ''].filter(Boolean).join(' · ')),
     viz: meter, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>', open: ranked.length, now: groups.now,
     foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' };

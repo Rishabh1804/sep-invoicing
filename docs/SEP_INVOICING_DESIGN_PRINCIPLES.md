@@ -57,10 +57,10 @@ And the v2.0 rules, which carry the same weight:
 |----|------|
 | DR-1 | **Colour means status.** Only the status tones (§3.3) may colour text, dots or fills that convey state. Never colour alone: a tone always travels with a word or a symbol. |
 | DR-2 | **One accent, for interaction.** `--accent` marks the primary action, the current selection, the active tab/nav item, focus, links, and the current period in a chart. Nothing else: it never marks a status (good or bad) or a series (UI pass 3, §3d). *One against the rest* (the period on show, or the thing picked, in the accent beside what it is set against in `--series-other`) is the accent marking what is selected. |
-| DR-3 | **One primary button per view.** Everything else is secondary, ghost or link. |
+| DR-3 | **One primary button per view.** Everything else is secondary, ghost or link; on a board's card, tinted (`inv-btn-tint`, §6.35, from U2R), which is not a primary: a board has none. |
 | DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. **From UI pass 3's U2R** (owner, 17 Oct 2026, call 2; `docs/UI_PASS_3.md` §24l): a figure is Geist with tabular figures (`--ff-num`), still right-aligned; only an identifier stays Geist Mono. |
 | DR-5 | **Sentence case everywhere** — titles, labels, buttons, column heads, tabs. No uppercase letter-spaced labels. |
-| DR-6 | **A card lifts, a well sinks, a layer floats; nothing else casts a shadow** (UI pass 3, 16 Oct 2026, amending 8 Oct's tile lift). A card (a panel, a hero, a card in a deck, the phone's bar, a chip, a button) is lifted off what it sits on by `--lift-1` (`--lift-2` for the one primary and a card being moved); a well (a field, a search, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card) is sunk into it by `--press-1` or `--press-2`; a layer (a menu, a dialog, a toast) floats on `--shadow-pop` or `--shadow-dialog`. A row, a hero's sheet, a head and a table's cell cast nothing. In dark a card is lifted by a lighter surface and its fine edge (`--edge`) more than by its shadow (§3.3). |
+| DR-6 | **A card lifts, a well sinks, a layer floats; nothing else casts a shadow** (UI pass 3, 16 Oct 2026, amending 8 Oct's tile lift). A card (a panel, a hero, a widget, a card in a deck, the phone's bar, a chip, a button) is lifted off what it sits on by `--lift-1` (`--lift-2` for the one primary and a card being moved; a key on a tray by `--lift-key`, from U2R); a well (a field, a search, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card) is sunk into it by `--press-1` or `--press-2`; a layer (a menu, a dialog, a toast) floats on `--shadow-pop` or `--shadow-dialog`. A row, a hero's sheet, a head and a table's cell cast nothing. In dark a card is lifted by a lighter surface and its fine edge (`--edge`) more than by its shadow (§3.3). |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |
 | DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, `inv-fig-info` for a figure over its mark, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). **A coded card and a status badge carry the tone's icon as well** (UI pass 3, §3d: `done` for ok, `alert` for warning, `cancel` for danger, `info`); a dot and the word stay where the row has no room. **From U2R** (call 1, §24c) a card on a board says its tone with its lamp and its words and, from amber, its top edge; the tone's icon stays on a status badge and a notice. |
 | DR-9 | **Every screen is one of four kinds, assembled one way for its kind** (the tab map, `docs/TAB_MAP.md` §3e; owner, 9 Oct 2026: *"UI still feels inconsistent to me"*). An **overview** leads with its heroes; a **work screen** with its verdict card (§6.28), then one toolbar row, what needs the owner, the list, the rest folded, and a row ends in its figure and status or one action; a **document** is paper fitted to the screen; a **form** is its fields and its action bar. A screen declares its kind (`data-screen`, `SCREEN_KINDS` in tabs.js) and P197 holds it to the kind's anatomy; its boxes wear only the closed list of looks (§6.28). |
@@ -281,12 +281,14 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 ### 3.6 Radius, elevation, motion, layers
 
-- Radius (UI pass 3, the same on both layouts; **from U2R** `--r-card` 14 px, `--r-tile` 10 px for every well, `--r-ctl` 8 px,
-  `--r-seg` 7 px and the phone's bar its own `--r-bar` 22 px, `docs/UI_PASS_3.md` §24b): `--r-card 1.125rem (18)` a card (a panel, a hero, a deck card, the phone's bar, a
-  dialog's corners) · `--r-tile 0.875rem (14)` a tile, a PIN box · `--r-ctl 0.75rem (12)` a field, a select, a button, a segmented
-  control's track, the search, a menu · `--r-seg 0.5625rem (9)` a segmented control's pressed pill · `--r-key 1rem (16)` a keypad's
-  key · `--r-full` a chip, a badge, a dot, a switch · `--r-toast` (half a line's height and the padding over it) the toast: a pill on one line, a rounded box when it wraps. `--r-sm 0.25rem (4)`, `--r-md`, `--r-lg` and `--r-xl` stay for what
-  they draw now (a tick box, a cell, a callout, a token, the sign-in card until U8) and are not used for a card.
+- Radius (UI pass 3, the same on both layouts; U2R set the values, `docs/UI_PASS_3.md` §24b): `--r-card 0.875rem (14)` a card (a
+  panel, a hero, a deck card, a widget, a dialog's corners) · `--r-bar 1.375rem (22)` the phone's floating bar · `--r-tile 0.625rem
+  (10)` every well: a tile, a field, a select, the search, a segmented control's track, a PIN box, a tray · `--r-ctl 0.5rem (8)` a
+  button, a menu, a key on a tray, a row's press target · `--r-seg 0.4375rem (7)` a segmented control's pressed pill (the track's
+  corner less its inset, so the two curves are one) · `--r-key 1rem (16)` a keypad's key · `--r-full` a chip, a badge, a dot, a
+  switch · `--r-toast` (half a line's height and the padding over it) the toast: a pill on one line, a rounded box when it wraps.
+  `--r-sm 0.25rem (4)`, `--r-md`, `--r-lg` and `--r-xl` stay for what they draw now (a tick box, a cell, a callout, a token, the
+  sign-in card until U8) and are not used for a card.
 - Elevation (DR-6): **a card lifts** by `--lift-1` (two shadows, a tight one under the edge and a wide one under the card: 6–7%
   tinted in light, 32–40% black in dark) and `--lift-2` (the same, further: the one primary, a card being moved, the phone's bar);
   **a well sinks** by `--press-1` (a field, a track, a PIN box: one inset shadow, 14% light, 45% dark) and `--press-2` (a tile in a
@@ -571,10 +573,13 @@ its verdict card (§6.28), and P197 fails a screen that draws a page-head line.
 border, lifted by `--lift-1` — the default) · `inv-btn-ghost`
 (transparent with a hairline border: a lighter secondary, never bare text, which reads as a label) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
 for the final button of a confirm dialog) · `inv-btn-link` (accent
-text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block`.
+text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block` · `inv-btn-tint` (U2R, §6.35: a card's Act and a
+row's own action on a board: `--accent-soft` fill, `--accent-soft-text`, an inset ring of the accent, no lift; 32 px on the desktop,
+28 as `inv-btn-sm`, 44 on the phone; never a view's primary).
 `inv-btn-grid` lays launch buttons out, three across with each label under its icon. In a dialog (Add's By hand) it is five
-across on the desktop. In a widget (Home's quick actions) it follows the card, not the window (UI pass 3): six across once the card
-is 40rem wide. The window's rule (one row on the desktop) set six across in a half-board card, and the labels had no room.
+across on the desktop. In a widget (Home's quick actions) the keys are a tray (`inv-tray`, §6.34, from U2R) that follows the card,
+not the window: six across once the card is 40rem wide. The window's rule (one row on the desktop) had set six across in a
+half-board card, and the labels had no room.
 Height `--ctl-h`, radius `--r-ctl`, `--t-body` 500 (primary 600). A button is a small card (UI pass 3): it lifts, a ghost and a link
 cast nothing, pressed it sinks back to its card, and focus keeps the shared ring over its lift. Replaces `inv-stk-btn*`, `inv-stk-tool`,
 `inv-stk-back`, `inv-link-btn`, `inv-quick-action`, `inv-header-btn`, `inv-overlay-close`,
@@ -929,6 +934,13 @@ lets a tap through to the datum under it.
   the tile's figure drawn, not a chart, and has none.
 - The frame's sizes are `--plot-h`, `--plot-h-wide`, `--plot-fs-axis`, `--plot-fs-centre` (the `--chart-*` tokens are retired).
   P227 holds it.
+- **A chart in a card is bare** (U2R, `docs/UI_PASS_3.md` §24d): `opts.bare` draws it with no box, readout line or *Table*
+  (`inv-chart-bare`), each datum keeping its `<title>` with its exact figure, and with `opts.w` and `opts.h` its `viewBox` is the
+  room's own pixels (`_chartWH`), so every label renders at 11 px or more; the card's Open reaches the screen behind, which keeps the
+  boxed chart and its table. **`chartMiniBars(bars, opts)`** is a Small card's picture, as a sparkline is a tile's: a bar a period at
+  the card's width and a fixed height (`--minibars-h`), no axis, each bar's `<title>` its label and figure; a bar in a status tone
+  (`inv-minibar[data-tone]`), a period to date lighter, a hatch across a bar or its whole slot (`inv-minibar-hatch-<tone>`: the
+  forecast's thunder hours).
 
 ### 6.18 Callout and empty state — `inv-callout`, `inv-empty`
 - `inv-callout-info|warning|danger|neutral`: tone bg + tone text, `--r-lg`, leading icon, `--t-body`.
@@ -1070,6 +1082,8 @@ screen stands, and nothing else leads it (no page-head line, no strip of tiles, 
   `button.inv-tile` keeping `aria-pressed`; a factor's `badge` (`[tone, word]`) says beside its label what its figure is not
   (*99% weighed*, *net of notes*, *below cost*): certainty as a badge (§6.27), never a sentence under the card;
 - `links`, up to **two**, in its foot; `body`, more of the card.
+- **Home's verdict is not a card** (U2R): it is the masthead (§6.36), drawn flat on the page with the same parts (the sentence in its
+  tone, its facts, its Act), and P197 reads it as Home's verdict.
 - `foldFacts`: a card of facts alone (no factors, no body) is a plain card, its facts always shown; with `foldFacts` the facts
   go under its line, so on the phone it shuts to the line like any other (owner, 13 Oct 2026, of the cards Challans → Invoiced,
   Knowledge → Training and Troubleshoot gained: *"B"*, fold them shut on the phone).
@@ -1091,23 +1105,29 @@ px), at the density the walk runs in. These are the app's looks and there are no
 fails P197, and a new one is listed here and on `LOOKS` in the same change, with what wears it. **Regenerated by UI pass 3** (U1, 16
 Oct 2026) from the census on both layouts over the long book (`LOOKS_DUMP` writes every look the walk sees with what wears it), the
 Planner board's two lane rules kept from the owner's book: the old corners (r6, r8, r10) collapsed into the card's, the tile's and
-the control's, and the tile's lift into a well, 41 looks to 35:
+the control's, and the tile's lift into a well, 41 looks to 35. **Regenerated again by the card family** (U2R, 20 Oct 2026), from the
+census of the map's screens and of every widget at every size, each preset and the random boards on three books (P224 writes its
+own dump), on the phone and the desktop at 1280 and 1024 px: a card's corners r18 to r14 and every well's to r10 (§3.6), and the card
+family's parts named (§6.33–§6.36), 36 looks to 46:
 
 | Look | What wears it |
 |---|---|
-| `fill edge:all1 r18 lift p16/12`, `fill edge:all1 r18 lift p0/0` | a panel (§6.8), padded and flush: a card |
-| `grad edge:all1 r18 lift p0/0` | a hero card (§6.21) and the verdict card, coded in its tone |
-| `grad edge:all1 r18 lift p12/12` | a card in a deck (§6.22) |
-| `fill edge:all1 r14 well p10/12` | a tile (§6.9): a well |
-| `grad edge:all1 r14 well p10/12` | a tile in a coded card that names a tone: a well of its tone |
-| `fill edge:all1 r12 well p0/12` | a search (§6.7): a well |
-| `fill edge:all1 r12 well p0/2` | a segmented control's track (§6.5): a well |
+| `fill edge:all1 r14 lift p16/12`, `fill edge:all1 r14 lift p0/0` | a panel (§6.8), padded and flush: a card; a widget on a board (§6.33), its salience an inset top edge |
+| `grad edge:all1 r14 lift p0/0` | a hero card (§6.21) and the verdict card, coded in its tone |
+| `grad edge:all1 r14 lift p12/12` | a card in a deck (§6.22) |
+| `fill edge:all1 r10 well p10/12`, `fill edge:all1 r10 well p8/10` | a tile (§6.9): a well; in a widget a step tighter |
+| `grad edge:all1 r10 well p10/12` | a tile in a coded card that names a tone: a well of its tone |
+| `fill edge:all1 r10 well p0/12` | a search (§6.7): a well |
+| `fill edge:all1 r10 well p0/2` | a segmented control's track (§6.5), a widget's Choose (§6.35) too: a well |
+| `fill edge:none r10 well p6/6`, `fill edge:none r10 well p4/4`, `fill edge:none r10 well p10/12` | the Tools card's tray, a Docket's stages, a move's card in a Briefing at Large (§6.34): wells |
 | `nofill edge:none r0 well p0/0` | a tab row (§6.4): its rule, an inset line |
-| `nofill edge:T1 r0 flat p0/0` | a hero's sheet (§6.21): only its head rule |
-| `nofill edge:B1 r0 flat p10/12`, `nofill edge:B1 r0 flat p8/12` | a flush panel's head; a row at its density (`inv-row-auto`) |
+| `nofill edge:B1 r0 flat p12/4`, `nofill edge:B1 r0 flat p8/0` | the masthead (§6.36): flat, a hairline under it, on the desktop and the phone |
+| `nofill edge:T1 r0 flat p0/0` | a hero's sheet (§6.21): only its head rule; a Docket's row, a rule over each |
+| `nofill edge:T1 r0 flat p6/0`, `nofill edge:T1 r0 flat p2/0`, `nofill edge:T1 r0 flat p4/0` | a Plant card's row, a Crew card's row, a Briefing's move and the total ruled under a Ledger (§6.34) |
+| `nofill edge:B1 r0 flat p10/12`, `nofill edge:B1 r0 flat p8/12` | a flush panel's head; a row at its density (`inv-row-auto`, in a widget `p8/0`) |
 | `nofill edge:B1 r0 flat p16/12` | a panel's body |
 | `nofill edge:B1 r0 flat p12/12` | a strip of tiles in a flush panel (`inv-tiles-flush`) |
-| `nofill edge:B1 r0 flat p6/12`, `nofill edge:B1 r0 flat p6/28`, `nofill edge:B1 r0 flat p8/28` | a row (§6.10), the left padding wider under its parent; a table's cell at the row's padding |
+| `nofill edge:B1 r0 flat p6/12`, `nofill edge:B1 r0 flat p6/0`, `nofill edge:B1 r0 flat p6/28`, `nofill edge:B1 r0 flat p8/28` | a row (§6.10), in a widget its card's body padding its sides, the left padding wider under its parent; a table's cell at the row's padding |
 | `fill edge:B1 r0 flat p0/12` | a group's head (`inv-row-group`, a table's group row), a table's head cell |
 | `nofill edge:B1 r0 flat p0/12` | a table's cell: a figure, a word |
 | `fill edge:B1 r0 flat p0/0`, `nofill edge:B1 r0 flat p0/0` | the lines under an opened row (`inv-row-children`), on the page colour or a card's |
@@ -1165,55 +1185,156 @@ fetched, `aria-busy`), its icon in a well's disc (`inv-blank-icon`; an error's i
 chart's empty box) and one action (`inv-blank-act`). Never a zero standing for unknown. U7 replaces every screen's own empty text
 with it.
 
-### 6.33 Widget and board — `wdgDefine` (widgets.js), `inv-widget`, `inv-wgrid` (UI pass 3, §7)
-**U2R rebuilds the widget as the card family** (owner, 17 Oct 2026; `docs/UI_PASS_3.md` §24: one skeleton, seven card types, five
-action rows, fixed heights and a packed board, the masthead). This section is rewritten, and §6.34 (card types), §6.35 (action rows)
-and §6.36 (the masthead) are added, when U2R is built; until then it describes U2 as built.
-
-A **widget** answers one question in a card; a **board** is a grid of widgets that each person arranges (Home from U2, Stats from U3).
-- **The card is a hero** (`<section class="inv-widget inv-hero inv-hero-<tone>" data-w data-size data-tone data-state>`), coded in
-  the tone its `data` gives (§3.3 *Fills*), so a widget lifts and fills as every hero does. Its head is the section's icon in a well's
-  chip (`inv-widget-chip`), the title as its eyebrow and the door's chevron (`inv-widget-door`; a role that cannot follow the door
-  reads the title as text). Under it the body (`inv-widget-body`): a figure (`inv-widget-fig`), a line in its tone (`inv-widget-line`,
-  at most 60 characters), a sub line, a chart or meter (`inv-widget-viz`), rows (`inv-widget-rows`); its links in the foot
-  (`inv-hero-foot`). Built from a hero's options by `wdgFromHero`, so a figure Pulse's card drew is drawn once.
-- **Three sizes, each with a cap**: Small (`s`, a figure and its line), Medium (`m`, with a chart or a short list), Large (`l`, with
-  what it rests on). Small at most `--wdg-cap-s` (10rem) tall, Medium `--wdg-cap-m` (26rem), Large `--wdg-cap-l` (40rem); on the
-  phone Medium and Large `--wdg-cap-phone` (30rem). A list that would pass its cap lets go of its last rows (`wdgFit`, `data-wdg-cut`)
-  and says *N more: Show all*, its door; nothing is cut mid-row. Before any row, the parts the widget can do without go, all together
-  (`WDG_FIT_OPT`): a tile's line of the months before (its change line says it in words) and whatever the widget marks
-  `data-wdg-opt` (a question's story at Large, so its moves keep their room). A sheet, or a list of moves, whose rows all went goes
-  with them, its head too. In a widget on the phone a tile's sparkline is a quarter lower and closer to its figure.
-- **The board** (`inv-wboard` holding `inv-wgrid`) takes its columns from its own width: 12 from 60rem, 6 from 36rem, 2 under it.
-  A Small spans 3 (one of 2 on the phone), a Medium 6 (the row on the phone), a Large 12 (6 at six columns). Heights follow content,
-  packed in the layout's order by `uiMasonry` (§6.25): rows of `--masonry-row` with no row gap, each card spanning its own height and
-  the column gap under it, so cards stand one gap apart whatever their heights. Under the board, its foot: *Add a widget · N to
-  choose from*.
-- **States, one set** (§6.32): `ok` draws the body; `empty`, `early`, `notset`, `offline`, `loading` and `error` draw `uiBlankHtml`
-  at the widget's size, never a blank card and never a zero standing for unknown. A widget that throws draws `error` and the board
-  goes on.
-- **Arranging is a layer** (Customise, then Done; Back and Escape leave it): each card shows its controls over its head
-  (`inv-widget-ctl`: the handle `inv-widget-handle`, its place *3 of 11*, its sizes as an `inv-seg`, Remove), the toolbar Add a widget,
-  Reset and Done (the one primary). A mouse drags at once, a finger after a 250 ms hold within 8 px; the lifted card takes `--lift-2`
-  (`inv-widget-lifted`) over a placeholder of its size (`inv-widget-ph`). The handle's keys move it too (← ↑ → ↓, Home, End), said in
-  an `aria-live` line.
+### 6.33 The card and the board — `wdgDefine` (widgets.js), `inv-widget`, `inv-wgrid` (UI pass 3, §7, §24)
+A **widget** answers one question in a card; a **board** is a grid of widgets each person arranges (Home from U2, Stats from U3).
+**U2R made every card on a board one family** (owner, 17 Oct 2026: *"different types of card layouts but organised, so maybe a
+financial card layout looks and feels different than an industrial one. Same for anything that we are putting under one label, like
+the action rows"*; `docs/UI_PASS_3.md` §24): one skeleton (here), seven types (§6.34) and five action rows (§6.35); Home's verdict is
+the masthead (§6.36).
+- **One skeleton, in one order, at every size and of every type** (`wdgCardHtml`): `<section class="inv-widget" data-w data-size
+  data-type data-tone data-state>`, no longer a hero. Its **head** (`inv-widget-head`, 44 px, `--wdg-head-h`): the section's icon
+  alone (`inv-widget-ico`), the door (`inv-widget-door`: the title `inv-widget-title`, the `short` title at Small, and the chevron
+  `inv-widget-chev` where the role can follow it), and the Choose at its right where offered (on the phone under the head at the
+  card's width, `inv-widget-choose`). Its **body** (`inv-widget-body`): the figure (`inv-widget-fig`), the verdict (`inv-widget-line`:
+  its lamp and its words, `inv-widget-say`, two lines at most), the detail (`inv-widget-sub`), then the type's parts, a list ending in
+  its More, and the room for its bare chart (`inv-widget-viz`). Its **foot** (`inv-widget-foot`): the Act, then the Source, the card's
+  last line. A part a card has no use for is left out; the others never change places (P235 reads the order on every card).
+- **The frame**: the type's surface (§6.34), a hairline (`--edge`), `--lift-1`, `--r-card` (14 px); 16 px at the sides (`--wdg-pad`;
+  `--wdg-pad-sm`, 14, on a phone's Small), the body's parts 6 px apart. The title 13 px semibold in `--text-1` (it is not a button of
+  its own, so never in the accent); the figure 28 px semibold in `--ff-num` (26 at Small, 24 on a phone's Small), its unit
+  `inv-unit`, its rupee raised and small (`inv-cur`), a sign before it at 0.8 em (`inv-widget-sign`); the verdict 13 px medium, the
+  detail 12 px `--text-2`, the Source 11 px `--text-3`. Colour is status only: the lamp, the figure where the card judges it, and
+  from amber the edge; the accent only on what can be pressed.
+- **Salience follows severity** (§24c): neutral, ok and info are quiet on the type's surface; warning adds a 3 px top edge in
+  `--warning-mark`, an inset shadow along the top (`--tone-edge`) that follows the corners and takes no room; danger adds the edge in
+  `--danger-mark` and the red tint `--card-danger` in place of the surface. A card's tone is the worst of what it holds that is the
+  plant's to act on; an Outside card is never edged or tinted (info at most); a card in a blank state is neutral. Never colour alone:
+  the lamp stands beside the words (DR-8). A hero elsewhere keeps its wash until U7 (`docs/UI_PASS_3.md` §14a).
+- **Fixed heights, packed dense** (§24h): rows of `--wdg-row` (10.75rem, 172 px) a `--wdg-gap` (1rem) apart on a board of 12 or 6
+  columns, 10.5rem (168 px) and 0.75rem on the phone's 2. A Small is one row (3 of 12 columns, 3 of 6, 1 of 2), a Medium two (6 of
+  12, the row at 6 and on the phone), a Large two across the row, three on the phone. A card fills its area and nothing runs past it.
+  The grid packs dense (`grid-auto-flow: row dense`): a later card moves up into a hole an earlier one left, and the DOM keeps the
+  layout's order, so the tab order and a screen reader read the order arranged. The columns come from the board's own width (12
+  from 60rem, 6 from 36rem, 2 under it). Under the board, its foot: *Add a widget · N to choose from*.
+- **The fit** (`wdgFit`, measured on the card laid out): first what the card can do without, all together (`WDG_FIT_OPT`: a part
+  marked `data-wdg-opt`, a tile's line of the months before and the words under its figure, never its change; a chart's key); then
+  columns that stand side by side, each on its own; then the list's last rows one at a time (`WDG_FIT_ROWS`), the More row saying how
+  many and a Ledger's rest line their sum. A column left with only its caption goes, and so does a list whose rows all went. A
+  verdict or detail past its lines keeps its whole text as its `title`. Nothing is cut halfway (P224, P237).
+- **One space**: the room a card does not fill stands between what it says and what it shows (the first part after the figure,
+  verdict, detail or a Briefing's answer takes the slack above it); a Small's picture is pushed to its foot (`data-wdg-push`). Never
+  a strip of empty card under the last line.
+- **Columns at Large** (`wdgColsHtml(parts, {drop})`: `inv-widget-cols`, `inv-widget-col`, a column's caption `inv-widget-cap`):
+  three from 60rem of card, two from 36rem (`data-col-drop` the part that gives way), stacked under it.
+- **A chart in a card is bare** (`opts.bare`): no box, readout or *Table*, each datum keeping its `<title>`. It is drawn into the
+  room the card leaves once the fit is done (`viz(d, size, {w, h})`), its `viewBox` in the room's own pixels, so every label renders
+  at 11 px or more (P235); a room under 48 × 20 px is left empty, since the verdict says what the chart shows. `vizAt` names the sizes
+  that draw one, `noViz` a reading with none. The small pictures a Small holds are `chartMiniBars` (`inv-minibars`: a bar a month or
+  an hour, toned, the period to date and a window hatched), a meter or gauge (`chartMeter`), the seats (§6.34) and the tray.
+- **Money on a board is short** (§24k): `inrCard(v)` (*₹66,476 · ₹3.50 L · ₹1.24 Cr*, every step through `gstRound`) and
+  `inrFigHtml(v)` (its parts drawn as a figure), the exact amount the element's `title`; a sentence's amounts through `wdgShortMoney`,
+  or in drawn HTML `wdgShortMoneyIn`, the whole sentence its title. A rate keeps its paise, a chart keeps `formatInrShort`, a
+  Ledger's lines are whole rupees (§6.34). Every other screen keeps the paise.
+- **States, one set** (§6.32): `ok` draws the body; `empty`, `early`, `notset`, `offline`, `loading` and `error` draw `uiBlankHtml` at
+  the card's size (a Small's on one line), never a blank card and never a zero standing for unknown. The blank's one action is the
+  Act's tinted button from Medium, an error's *Report it* its text button. A widget that throws draws `error` and the board goes on.
+- **Arranging is a layer** (Customise, then Done; Back and Escape leave it): packing goes off and each card stands where
+  `wdgPlace(items, cols)` places it (`--wdg-r`, `--wdg-c`), **each hole a slot** (`inv-wgrid-slot`: a dashed well, *Room for a Small*,
+  and **Add here**, which opens the gallery and puts the widget picked at the slot). Each card shows its controls over its head
+  (`inv-widget-ctl`: the handle `inv-widget-handle`, its place *3 of 11*, its sizes as an `inv-seg`, Remove). A mouse drags at once, a
+  finger after a 250 ms hold within 8 px; the lifted card takes `--lift-2` (`inv-widget-lifted`) over a placeholder (`inv-widget-ph`).
+  The handle's keys move it too (← ↑ → ↓, Home, End), said in an `aria-live` line.
 - **The gallery** (`inv-gallery`, a dialog): the sections as chips, each widget a card (`inv-gallery-card`) with its live preview at
-  its first size (`inv-gallery-preview`, drawn as it comes into view), its title, question and sizes, and **Add to Home** or *On Home*
-  with Remove. A widget a role may not see is in no gallery and on no board. A preview is one height, drawn or not (a Small widget's
-  cap), so drawing one moves no card under the finger. A tap that changes the gallery swaps its parts inside the dialog, never the
-  dialog: a dialog replaced replays its entrance.
-- **A widget's own controls**: a button inside a card names its widget with `data-wid` (`data-w` is the card's alone). An action
-  the framework does not know goes to that widget's `act(action, btn, card)`, a change inside the card (or in a dialog naming it,
-  `data-wdg-for`) to its `change(el, card, board)`; a widget with `feed: true` is drawn again when a news or weather copy lands
-  (`sep-feeds`). A control that is a choice, not typed work (`corr`'s two pickers), carries `data-nodirty`.
-- **Rules**: a widget reads its screen's own functions and the views (§6 of UI pass 3), never a second arithmetic; its words are a
-  line, never a paragraph (P195's blocks); its colour is its tone's, never a series colour standing for good or bad.
+  its first size, one row tall drawn or not (`inv-gallery-preview`), its title, question and sizes, and **Add to Home** or *On Home*
+  with Remove. A widget a role may not see is in no gallery and on no board. A tap that changes the gallery swaps its parts inside the
+  dialog, never the dialog.
+- **The presets** (`WDG_PRESETS`, §24i): Owner, Office, Supervisor and Floor, each drawn from what its role sees, each packing with
+  no hole on both layouts, packing on or off. On the phone a Small stays Small and the rest is Medium, and the Owner's leaves out
+  *Do first*, *Turnaround* and *Days to pay* (`phoneOut`) to keep Home within four phone screens (3.92 on the long book; 4.17 with
+  Do first alone left out).
+- **A widget's own controls**: a button inside a card names its widget with `data-wid` (`data-w` is the card's alone); an action the
+  framework does not know goes to the widget's `act`, a change inside the card (or in a dialog naming it, `data-wdg-for`) to its
+  `change`; `feed: true` draws it again when a news or weather copy lands (`sep-feeds`). A Choose is a choice, not typed work, and
+  carries `data-nodirty`. Nothing is focused when a board is drawn: opening Home's board skips the first-control focus every other
+  screen gets (`switchTab`'s step 8), since a ring on its first card read as a card pressed; Tab starts there all the same.
+- **Rules**: a widget reads its screen's own functions and the views (§6 of UI pass 3), never a second arithmetic, and hands its
+  figures to its type's builders (§6.34): no widget writes a row's markup of its own. Its words are a line, never a paragraph (P195's
+  blocks); its colour is its tone's, never a series colour standing for good or bad.
+
+### 6.34 Card types — `type` on `wdgDefine`, `data-type`, the builders (widgets.js; UI pass 3, §24d)
+A type is a card's surface and the parts only it draws; it never changes the skeleton (§6.33). A widget names its type (`wdgDefine`
+refuses one without, and a Small with no `short` title) and hands its figures to the type's builders, which are presentation only.
+
+| Type | Surface | Its widgets | What only it draws |
+|---|---|---|---|
+| **Ledger** · money | warm, `--ty-ledger` | `money`, `cash`, `owed`, `dtp`, `gst`, `mtd`, `pace`, `clientprice`, `kilo`, `zincpaid`, `figures` | `wdgLedgerHtml(lines, total, o)`, `inv-ledger`: a line (`inv-ledger-line`: the label and its meta `inv-ledger-meta`, a dotted leader `inv-ledger-lead`, the amount `inv-ledger-amt` at the right) in whole rupees (`wdgRs`), each line's exact amount its title; the total (`inv-ledger-total`, ruled once above and twice below) drawn only where the lines add up to it, to half a rupee a line; a cut list's rest (`inv-ledger-rest`: its count and their sum). `o.rate` makes a ledger of rates, to the paisa with its unit (`data-rate`). The age bar's key (`wdgMeterKeyHtml`, `inv-meter-key`). |
+| **Docket** · documents in motion | the card's | `unbilled`, `recent`, `pipe`, `turn`, `quote` | `wdgDocketRowHtml(o)`, `inv-docket-row`: the number in Geist Mono (`inv-docket-num inv-id`; a party's row has none, `data-nonum`), the party and its meta, then the amount (`inv-docket-amt`) and the state as steps (`inv-docket-steps`: a pip a state, those passed, the one it stands at in the tone of its age, those to come), or an end of its own, then the row's own action. `wdgDocketStagesHtml(stages)`: the pipeline's stages as one strip in a well (`inv-docket-stages`, `inv-docket-stage`, the stage it leads with lifted; a stage a row on a card under 32rem). |
+| **Plant** · lines and machines | cool, `--ty-plant` | `floornow`, `prodday`, `eff`, `heat`, `risk`, `powercuts`, `stockdays` | `wdgPlantRowHtml(o)`, `inv-plant-row`: the lamp ringed in its tone (`inv-plant-lamp`, an outline, never a shadow), the nameplate (`inv-plate`: the name as the app writes it, in Geist Mono in a small well), what it runs and its meta, the reading and its unit (`inv-reading`), a word, the gauge under it with its mark (`inv-plant-gauge`), its own action. The day strip, 6 AM to 6 AM (`chartDayStrip`). |
+| **Crew** · people | the card's | `atttoday`, `attweek`, `ot` | `wdgSeatsHtml(o)`, `inv-seats`: a seat a hand the day needs (`inv-seat`, `data-seat`: on, short ringed in `--warning-mark`, over ringed in `--info-mark`); `wdgCrewRowHtml(o)`, `inv-crew-row`: an area, its seats and its word; who is away by name (`inv-crew-away`); weeks as bars against the 90% gate, the week to date hatched. |
+| **Briefing** · the questions | the card's | `q-smooth`, `q-money`, `q-clients`, `q-plant`, `q-cash`, `q-changed`, `dofirst`, `why`, `coming`, `needs`, `corr` | the answer as a sentence (`inv-brief-ans`: 19 px semibold, 17 at Small, 22 at Large), facts on one line (`inv-brief-facts`), a question's story without its tiles and charts (`inv-brief-story`); `wdgMovesHtml(moves, large)`: the moves as rows (`inv-brief-move`: its lamp, its sentence, its worth and what it rests on, its action small and tinted), at Large as cards in wells three across from 40rem of card (`inv-brief-movecard`, the worth `inv-brief-worth`); `wdgWhenRowHtml(o)`, `inv-brief-when`: a dated row led by its day in a small well (`inv-brief-day`, *Today* in the accent's soft colour); a list of rows (`inv-brief-list`). |
+| **Outside** · the world outside | the card's; never edged or tinted | `tata`, `weather`, `zinc` | `wdgWireHtml(items)`, `inv-wire-item`: a headline (`inv-wire-head`, two lines at most) and its dateline (`inv-wire-dateline`, Geist Mono), an `a` to the article in a new tab with `noopener noreferrer`, its link https or http only; Tata's figures (`inv-mkt-*`); the hours ahead (`inv-wx-*`). No Act; the Source always shown, with its Refresh and the feed's credit. |
+| **Tools** · starting things | the card's | `quick`, `sync` | `wdgTrayHtml(keys)`, `inv-tray`: keys on a sunk tray (`inv-tray-key`: the card's surface lifted by `--lift-key`, `--r-ctl`, the icon in the accent over its word), three across, six from 40rem of card, two on a phone's Small. No figure. |
+
+- **The two surfaces are tokens per palette** (`--c-ty-ledger`, `--c-ty-plant`, read only through `--ty-ledger` and `--ty-plant`),
+  each over the page by 0.027 to 0.035 OKLab L in light and 0.033 to 0.042 in dark, every text tier at 4.5:1 or more on each and in a
+  well on each (P180, every palette).
+- **A Small holds one picture at most** (§24b): small bars, a meter or a gauge, the seats, or the tray; never a list, a More, a
+  Choose, a text button or a Source.
+
+### 6.35 Action rows — Open, Choose, More, Act, Source (widgets.js; UI pass 3, §24e)
+Everything a card lets a person do is one of five rows, each with one look and one place. P236 holds every card at every size, on
+the long and the empty book.
+
+| Row | Where | Looks |
+|---|---|---|
+| **Open** | the head: the whole head is the target (`inv-widget-door`), the chevron after the title says so | no button repeats it; a role that cannot follow it reads the head as text, with no chevron |
+| **Choose** (`choose: {def, opts, label, at, html}`) | at the sizes the widget offers it (`at`, Large unless it says), a small segmented control at the head's right (`inv-seg inv-seg-choose`); on the phone under the head at the card's width (`inv-widget-choose`); never at the foot | 24 px pills in a well on the desktop, 44 px on the phone. Picked, the card alone is drawn again and the pick is kept with the layout (`opts.<id>.choose`, per person); `corr`'s pair is its own (`html`) |
+| **More** | the list's last row, in its rhythm (`inv-widget-more`, `data-wdg-more`), or a Ledger's rest line | *5 more challans*, its noun from the list's `data-noun`; 12 px semibold `--text-2` and a chevron. It opens the rest on the screen behind (`invWdgMore`), or the widget's dialog (`more`) where that screen is not the list's |
+| **Act** (`actRow` → `{tint, text}`) | after the body, before the Source (`inv-widget-act`) | one tinted button (`inv-btn-tint`) and at most one text button (`inv-btn-link`); none at Small but the tinted one a widget lets it keep (`actSmall`: the backup's) |
+| **Source** (`source` → `{facts, refresh, credit, parts}`) | the card's last line, always (`inv-widget-src`) | 11 px `--text-3`, its facts parted by a middle dot (`inv-widget-dot`); its only links are Refresh (`inv-widget-refresh`) and a feed's credit, in a new tab; never at Small |
+
+- **The tinted button** (`inv-btn-tint`, §6.3): `--accent-soft` fill, `--accent-soft-text`, an inset ring of the accent; 32 px on the
+  desktop (28 for a row's own, `inv-btn-sm`), 44 px on the phone. It is not a view's primary: a board has none (DR-3).
+- **What a body may hold that can be pressed**: its items, each opening what it names (a row, a tile, a stage, a key, a headline, a
+  chart's row), and a row's own one action (`wdgRowActHtml`: small and tinted, or a link where it is one, a call). Never a secondary,
+  ghost or primary button or a chip in a card, and never a second door to the screen the head opens.
+- **A press** is the item's own action (`action`, `attrs`) or a jump to one of `todoGo`'s kinds (`jump`, drawn as `invWdgGoTo` with
+  `data-go`), which shuts a dialog on the way (`wdgPressAttrs`).
+- **A move** (Briefing) ends in its one action; a tap anywhere else on it opens **the move's dialog** (`advMoveOpen`, advice.js): its
+  sentence, its worth and what the worth rests on, its action the one primary, and **Add to my list** (*On your list* once it is). A
+  question's Medium card keeps *Add to my list* as its Act's text button, for its first move, which is the Act's tinted one. A move on
+  the owner's list says *On your list* in its meta wherever it is drawn (`wdgMoveListedHtml`), and the cards holding it are drawn again
+  when it is added. An insight's own moves in *What changed?*'s story are drawn the same way (`wcStoryBrief`).
+- **On the phone** every Act button, row action, More row, Choose segment and pipeline stage is 44 px tall (a tick box's target is the
+  label it sits in), and a Source holding a Refresh is a 44 px line.
+
+### 6.36 The masthead — `homeMastHtml` (today.js), `inv-mast` (UI pass 3, §24j)
+Home's verdict, drawn flat on the page under the top bar: never a card and never folded. No fill, edge or lift; a hairline under it;
+`--mast-h` (9.25rem, 148 px) on the desktop, as tall as it needs on the phone. `<header class="inv-mast" data-home-day data-verdict
+data-tone>`, its parts in one order (P239):
+- **the date** (`inv-mast-date`): *Good afternoon, <name> · Saturday, 17 October*, 12 px semibold `--text-2`;
+- **the sentence** (`inv-mast-say`): its lamp and the verdict, the first of `homeDayFacts` that holds (the forecast under zero, red
+  tasks, a line half down, the month's pace, else *Nothing needs you now*), 22 px semibold (19 on the phone), at most 60 characters;
+  on the desktop *· 23 open* after it (`inv-mast-count`) where it counts tasks;
+- **the facts** (`inv-mast-facts`): up to two more, then the weather now where the feed is set, each led by its lamp or icon; none,
+  and the list is left out;
+- **the Act** (`inv-mast-act`): **Open Needs you** tinted (`data-home-needs`; *· 23* after it on the phone), and *Make today's report*
+  as text for a role that opens Reports;
+- **the time** (`inv-mast-time`): the clock (`inv-mast-clock`, `[data-home-clock]`: *2:30* and *PM*, 44 px, 30 on the phone) and the
+  general shift (`inv-mast-shift`, `[data-home-shift]`): before it *General shift starts 8:30 AM · in 50 min*, during it *General
+  shift ends 5:00 PM · 2 h 30 min left* over a track of the shift gone (`inv-mast-track`, `[data-home-track]`, `--shift-done`), after
+  it *The general shift has ended* and no track; on the phone *Shift starts 8:30 AM*, *Shift ends 5:00 PM*, *The shift has ended*, and
+  no track.
+- **The tick** (`homeClockStart`, `homeClockStop`: on the minute while Home shows, stopped when it is left or hidden) sets the clock's
+  text, the shift's text and the track's `--shift-done`, nothing else. A task ticked on the board draws the masthead again in place
+  (`homeDayRefresh`), and so does the day turning.
+- On the phone the sentence and the clock stand in Home's first 200 px: the six-second test.
 
 ## 7. How each screen is assembled
 
 | Screen | Phone | Desktop |
 |---|---|---|
-| Home → Home | the day card (§8b of UI pass 3): the greeting and the date as its eyebrow, the clock ticking on the minute and the shift's end as its figure, the weather now where the feed is set, one sentence in its tone (the forecast under zero, red tasks, a line half down, the month's pace, else *Nothing needs you now*), two facts, **Open Needs you · N** and *Make today's report* where the role opens Reports; shut on the phone to its head · one toolbar row: the period (`MTD · QTD · YTD · All`, one with Stats), **Customise** (an icon on the phone), More (*Make a report*, *Open Stats*, *Reset Home*) · the board (§6.33): the widgets the person arranged, two columns, a Small one, a Medium or Large the row · the board's foot, *Add a widget · N to choose from* | the same, open; the board twelve columns from 60rem (a Small 3, a Medium 6, a Large the row), six from 36rem; Customise a word |
+| Home → Home | the masthead (§6.36; the day card until U2R), flat and never folded: the greeting and the date, the sentence with its lamp, up to two facts and the weather now, **Open Needs you · N** (tinted), the clock and *Shift ends 5:00 PM* · one toolbar row: the period (`MTD · QTD · YTD · All`, one with Stats), **Customise** (an icon on the phone), More (*Make a report*, *Open Stats*, *Reset Home*) · the board (§6.33): two columns, a Small one column and one row, a Medium the row and two rows, a Large the row and three, packed dense; each card of its type (§6.34), its rows the five (§6.35) · the board's foot, *Add a widget · N to choose from* | the masthead 148 px: *· N open* after the sentence, *Make today's report* beside Open Needs you, the shift over its track; the board twelve columns from 60rem (a Small 3 × 1 row, a Medium 6 × 2, a Large 12 × 2), six from 36rem (a Medium and a Large the row); Customise a word |
 | Home → Needs you | the day's inputs as a hero (*N of 5 in*, a meter, the next due) opening to steps (§6.23), each with its Paste or Photo, then WhatsApp · the tasks as three heroes, **Now** (red or amber, open, its worth), **This week** and **Later** (folded to a line naming what is in them), each a deck of cards with the move at the foot · the recent invoices as a hero (the latest and its figure) opening to rows with their print buttons · the tasks' stack opens with the To-do's toolbar (the add field, **Add** the view's one primary, Details) and ends in Snoozed and Done, each a fold shut, then *Learnt from your answers* (the tab map, TM2a: the To-do page joined it) | the tasks across the top, the inputs, *Floor now* (a tile per line and Power) and the recent invoices packed under them (§6.25), three across from 100rem |
 | Power | view tabs Cuts · Causes · Load & bills · Case (the tab map, TM4e; its Overview went: the month, its cost and a year at this rate are Cuts' card and Floor's Power hero) · each view its own toolbar (§1a-12): Cuts **Enter a cut**, Import history under More; Causes none; Load & bills **Edit load**; Case **Print the case** with Options' figures · **Cuts**: the verdict (the month's cuts and what they cost; a year at this rate, the dark hours and the days recorded its facts; the month, its cost, the year and the load its factors; danger while an approved load is not billed) · *To look at*: the load approved and not yet billed first, in red, then the cuts to complete (no time back, or a recent one with no reason) with **Complete** at a row's end · the cuts by month, the newest open: a cut one line, its day and why as the title, two facts (its clock; how long, or the length it is costed at while it has no time back), its damage and where it fell at its end, opening to why it went and what the damage is made of, a fact a row · *Cuts by month* and *When they come* folded after them · **Causes**: the verdict (the costliest cause, kept to the card's 60 characters by `uiVerdictFit`; with a reason, from the grid, in the plant and the costliest its factors, **coloured only once three cuts stand behind a tile**, with fewer plain, with its count); the cuts to complete a link to Cuts · what causes them, `chartRankedBars` by what each cost, two facts a bar, coded by where it starts (danger: in the plant three times in 30 days; warning: in the plant; info: the grid; neutral: not placed) · where they hit, a tile per station in the plant's order, its line two facts (the last 30 days and what they cost; the hours dark and the units in its title) · what brings it back, fastest first · the lists of reasons and fixes, **Edit** for the owner · **Load & bills**: the verdict (the load billed against the load approved, the penalty since approval; danger while the approved load is not on the bill; billed at, approved, the peak and the penalty its factors, the owner's note in its body) · each bill one line (its month, its units and peak; its amount at its end) that opens to its details, a fact a row, and **Details** · the penalty by bill folded · **Case**: the document (`.inv-sr-doc`) in an `inv-rpt-sheet`, laid out at the sheet's width and fitted to the screen (`paperFit`) · the cut a dialog (§6.16): *Power in at* (a time field, or the record's time read-only), *Why it went* and *What brought it back* each a field over `inv-chip`s of the list (the most used first, filtered as typed) with what it will be saved as said under it (*Saved as …*, *Read as … · Keep as new*, *New: …* with where it starts as an `inv-seg`), *Where it hit* a `<select>` of the whole plant, the stations and their units | the same, panels two across; the case at life size where the sheet fits |
 | Office → Pipeline | an overview (§6.28; the tab map, TM5a): the verdict card naming the stage the page opens on in its own words and tone (*12 challans waiting · oldest 9 days*), with no figure (the stage's tile has its amount), the worst other stage running late its one fact · one toolbar row (**Create invoice**) · the stages as coded tiles (§6.26), two across, each its count, its amount and how long its oldest has waited in its age tone, plain with nothing to judge; one holding anything opens its list (`aria-pressed`) · the open stage's list: awaiting invoice a row a client (two facts, its oldest a line in its tone, **Create invoice** at its end) opening to its challans, an invoice state a row an invoice · how long dispatch takes, under the stages | the stages a column the pane's width (`.inv-pipe-rail`) beside the open stage's list (`#pipeList`), each scrolling inside itself |

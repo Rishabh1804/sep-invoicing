@@ -38,7 +38,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U1 | Foundations: the look's tokens (lift, wells, radii, dark elevation), the default palette, icons v3, the chart builders and the table behind every chart, the blank states, the data layer (§3–§6) | Built, 16 Oct 2026 (P226, P227, P228) |
 | U2 | Home and its widgets: the door renamed, the day card with its clock and weather, Pulse folded in, the widget grid, sizes, arranging, the gallery, presets by role; the feeds Worker and its client; Tata's figures and the plant's calendar (§7–§9) | Built, 16 Oct 2026 (P223, P224, P225): every widget §7d marks U2; the Worker is the owner's to deploy (§9e) |
 | ⏸ | **Stop: the owner looks** at Home and the gallery on the phone and the desktop, in both themes (§1a-1) | Looked, 17 Oct 2026: *"looking for a more finished product"*; the card family drawn on a canvas and approved (*"Write the spec"*) |
-| U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026 |
+| U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026; built, 20 Oct 2026 (P235–P239; design §6.33–§6.36): every widget in its type, the grep checklist empty |
 | ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–20 | |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
@@ -124,6 +124,9 @@ exactly as they do. The server's own steps (S0–S5) keep their track; only the 
     Owner's gains *Attendance* at Small, as the canvas drew it.
 14. **The phone's Owner preset leaves out Do first** if Home measures over four phone screens (I10's cap for Home). By the canvas's own
     heights the Owner's phone Home is about 4.4 screens with it and 3.9 without; each question's card carries the same moves.
+    *As built (20 Oct 2026):* with Do first alone left out Home measured **4.17** phone screens on the long book, still over the cap,
+    so the phone's Owner preset leaves out **Turnaround** and **Days to pay** as well (both slow to move, each a tap away on Floor's
+    Overview and Money → Receivables): **3.92**. The owner may prefer another pair left out, or Home's cap raised for the phone.
 15. **A chart in a card is bare**: no readout line and no *Table* button (the canvas drew none). The table is on the screen behind,
     which the card's head opens, and the card's verdict says what the chart shows.
 16. **The recent invoices keep their Print at each row's end**, which the canvas did not draw: four taps to print a recent invoice was
@@ -1328,7 +1331,7 @@ TAB_MAP's I1–I11 hold, with these words for this pass:
 - **I10. Measured, never longer.** P195 measures every screen; a step lowers its screens' budgets to its measure and never raises one.
   **Home's dashboard** is new: its budget is set at U2's measure with the Owner preset on the long book, and may not exceed Pulse's 4
   phone screens. U2R's fixed heights may lengthen it: the phone's Owner preset then leaves out Do first (§24i, §1a-14), and Home's
-  budget is set at U2R's measure, never over 4.
+  budget is set at U2R's measure, never over 4. *As built:* Do first, Turnaround and Days to pay left out, 3.92 (§1a-14).
 - **I11. One look.** Home's dashboard joins `ONE_LOOK` as an overview; Stats' two views (U3) as work screens; P197 holds them.
 - **I12. Paper does not move.** P228 records the computed style of every element under each paper root (the invoice, the test
   certificate, the credit note, the sales register, the quotation, the statement, the pay slip, the attendance and stock sheets, the
@@ -1403,7 +1406,10 @@ the grep checklist's output, anything decided differently and why).
 
 1. **Geist under test first** (its own commit, §24m): the fonts and their licence in `tests/fixtures/fonts/`, routed in the fixtures;
    the suite run on it before anything else moves. A spec that moves with the real face is read and rewritten to the same fact in
-   Geist, never loosened; the commit says which and why.
+   Geist, never loosened; the commit says which and why. *As built:* the routes were later replaced by the test server serving the
+   app's pages with the stylesheet named as `tests/fixtures/fonts/fonts.css` (`tests/e2e/server.mjs`), so no request is intercepted
+   and a second window draws in Geist too. A rare stall had been put down to the routes (about one test in a thousand timed out,
+   ending in *Object with guid response@… was not bound*); it came back without them, so it was not theirs (CLAUDE.md, *Tests*).
 2. **Tokens** (styles.css's block): the corners (`--r-card`, `--r-tile`, `--r-ctl`, `--r-seg`) and `--r-bar`, the wells moved from
    `--r-ctl` to `--r-tile` (the segmented track, the search, a field, the weather's hours, the market's days); the type surfaces per
    palette (`--c-ty-ledger`, `--c-ty-plant`, aliases `--ty-ledger`, `--ty-plant`); `--card-danger`; `--tone-edge`; `--wdg-row`,
@@ -1548,7 +1554,7 @@ From the survey of 16 Oct 2026 (the fixtures and the 76 files that open Pulse or
 13. **Fonts in a public repository**: Geist and Geist Mono are under the SIL Open Font License 1.1, which permits it with its text
     beside them; under 200 KB, under `tests/` only (the app keeps loading them from Google Fonts).
 14. **Home grows on the phone** with fixed heights: measured by P195; the phone's Owner preset leaves out Do first if it would pass
-    four screens (§24i).
+    four screens (§24i). *As built:* it did pass them with Do first alone out (4.17); Turnaround and Days to pay went too (3.92).
 
 ## 23. Builder protocol
 
@@ -1935,7 +1941,8 @@ Small and everything else is Medium (as U2).
   hole; packing fills what it can and Customise shows the rest.
 - **The phone's Owner preset leaves out `dofirst`** if Home measures over four phone screens on the long book (I10's cap for Home;
   each question's Act and Large cards carry the same moves). By the canvas's own heights the Owner's phone Home is about 4.4 screens
-  with it and 3.9 without; P195 decides, and the step reports both (§1a-14).
+  with it and 3.9 without; P195 decides, and the step reports both (§1a-14). *As built:* 4.17 with `dofirst` alone out, so `turn` and
+  `dtp` are out on the phone too (`phoneOut: ['dofirst', 'turn', 'dtp']`): 3.92.
 - A device on a preset follows the new one; a layout of the person's own is kept (§7g).
 
 ### 24j. The masthead (§8b, amended)

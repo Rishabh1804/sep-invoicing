@@ -259,11 +259,11 @@ function finForecast(days) {
 }
 
 /* The forecast drawn: the balance every third day with its P25–P75 band, the zero rule where it dips (the Overview's forecast and
-   Home's cash widget, widgetcards.js). */
-function finForecastChart(fc) {
+   Home's cash widget, widgetcards.js, which passes `extra`: bare at the room its card leaves, chartLines' own options). */
+function finForecastChart(fc, extra) {
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   return chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
-    { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
+    Object.assign({ band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' }, extra || {}));
 }
 function finForecastHtml() {
   var fc = finForecast(60);

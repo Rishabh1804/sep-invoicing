@@ -1,4 +1,6 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
 import { loadAppWithState, emptyState, noSeedIM } from './fixtures';
 import { longBook, census, LOOKS } from './load-fixture';
 import { bigSweepState, sweep, problems, type Stop } from './sweep-fixture';
@@ -11,7 +13,8 @@ import { withUsers, unlock, lockNow, PINS, guardBook } from './p140-guard.fixtur
 // characters, an error drawn; the screen on everything P76's sweep and P197's looks fail on.
 
 const BOOKS: Array<[string, () => any]> = [['long', longBook], ['empty', () => ({ ...emptyState(), incomingMaterial: noSeedIM() })], ['crore', bigSweepState]];
-const PRESETS = ['owner', 'office', 'floor'];
+// Every preset (U2R, §24i: Owner, Office, Supervisor and Floor), each as its role would see it with the guard off.
+const PRESETS = ['owner', 'office', 'supervisor', 'floor'];
 
 /* The board drawn again with this layout for the person on the device (as arranging writes it). */
 export async function drawBoard(page: Page, list: Array<[string, string]>) {
@@ -64,11 +67,13 @@ export async function walkWidgets(page: Page, layout: string) {
   const bad: string[] = [];
   const stops: Stop[] = [];
   let drawn = 0;
+  const seen: Record<string, string[]> = {};
   const check = async (where: string) => {
     bad.push(...await widgetProblems(page, where));
     stops.push(await sweep(page, where));
     const c = await census(page);
     c.looks.filter(l => !LOOKS.includes(l)).forEach(l => bad.push(where + ': a box look not on LOOKS: ' + l + ' (' + (c.wears[l] || []).join(', ') + ')'));
+    for (const l of c.looks) for (const w of c.wears[l] || []) if (!(seen[l] = seen[l] || []).includes(w)) seen[l].push(w);
     drawn += await page.locator('#homeBoard .inv-widget').count();
   };
   for (const [book, make] of BOOKS) {
@@ -97,6 +102,9 @@ export async function walkWidgets(page: Page, layout: string) {
       await check(`${layout} ${book} random arrangement ${seed}`);
     }
   }
+  // LOOKS_DUMP=<dir> writes every look the boards wore with what wears it (P197's dump for the map's screens): how LOOKS is
+  // regenerated after a step changes what a card wears.
+  if (process.env.LOOKS_DUMP) fs.writeFileSync(path.join(process.env.LOOKS_DUMP, 'looks-widgets-' + test.info().project.name + '-' + layout.replace(/\W+/g, '_') + '.json'), JSON.stringify(seen, null, 1) + '\n');
   return { errs, bad: bad.concat(problems(stops, { cutMeta: false })), drawn };
 }
 

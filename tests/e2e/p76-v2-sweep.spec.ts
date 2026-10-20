@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadAppWithState, openPulse } from './fixtures';
+import { loadAppWithState, openPulse, openStatsTab, openVerdict } from './fixtures';
 import { sweepState, bigSweepState, walkPages, walkDialogs, problems, sweep, type Stop } from './sweep-fixture';
 
 // P76: design system step 4, the clean-up. Every screen, every view tab on it and every dialog, on the phone, in
@@ -45,27 +45,42 @@ test('a crore in a tile breaks after a comma group, and a cut meta line keeps it
   // (figWrapHtml), its last group and paise kept whole; the sweep's brokenFigures reads every tile the same way.
   await loadAppWithState(page, bigSweepState());
   await openPulse(page);
-  const lines = await page.evaluate(() => {
-    const el = document.getElementById('mtdRevenue')!;
+  /* The lines a figure is drawn on, read character by character from where each one lands: a character more than half a line
+     below the top of the line it would join starts the next (the rupee sign is raised on a board's figure, §24k, so its top is
+     not the line's). */
+  const linesOf = (sel: string) => page.evaluate(sel => {
+    const el = document.querySelector(sel)!;
+    const lh = parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.2;
     const out: string[] = [];
-    let top = -1;
+    let lineTop = -Infinity;
     const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n = tw.nextNode(); n; n = tw.nextNode()) {
       for (let i = 0; i < n.textContent!.length; i++) {
         const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
-        const t = Math.round(r.getClientRects()[0].top);
-        if (t > top + 2) { out.push(''); top = t; }
+        const rect = r.getClientRects()[0];
+        if (!rect || !rect.width) continue;
+        if (rect.top - lineTop > lh * 0.6) { out.push(''); lineTop = rect.top; } else lineTop = Math.min(lineTop, rect.top);
         out[out.length - 1] += n.textContent![i];
       }
     }
     return out;
-  });
+  }, sel);
+  // On Home's board money is short since U2R (§24k): the crore month reads ₹10.46 Cr on one line, its exact amount the title.
+  const home = await linesOf('#mtdRevenue');
+  expect(home.length).toBe(1);
+  expect(home[0]).toMatch(/^₹\d{1,2}\.\d\dCr$/);
+  await expect(page.locator('#mtdRevenue [title]')).toHaveAttribute('title', /^₹\d{1,2},\d\d,\d\d,\d{3}\.\d\d$/);
+  // The exact crore in a tile is Stats → Trends' revenue, and it breaks only after a comma group.
+  await openStatsTab(page, 'trends');
+  await openVerdict(page);
+  const lines = await linesOf('#statsHeadline [data-tile="revenue"] .inv-tile-value');
   expect(lines.join('')).toMatch(/^₹\d{1,2},\d\d,\d\d,\d{3}\.\d\d$/);
   expect(lines.length).toBeGreaterThan(1);
   for (const l of lines.slice(0, -1)) expect(l).toMatch(/,$/);
   expect(lines[lines.length - 1]).toMatch(/^\d{3}\.\d\d$/);
   // Recent invoices: the date leads the meta line, so an 80-character name cannot push it out of sight, and the cut
   // line carries its full text. They are Needs you's since the tab map (TM2c hides Pulse's widget in every preset).
+  await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
   await page.locator('#wsTabs [data-v="needs"]').click();
   const meta = page.locator('#homeNeeds [data-card="recent"] .inv-row-meta', { hasText: 'ALPHA FORGINGS AND HEAVY' }).first();
   await expect(meta).toHaveText(/^\d\d \w{3} \d{4} · ALPHA/);

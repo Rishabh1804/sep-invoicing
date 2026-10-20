@@ -116,8 +116,10 @@ function devRow(id) {
 function devRegistered() { if (!devGuardOn()) return false; var r = devRow(); return !!(r && !r.removedAt); }
 function devRemovedRow() { if (!devGuardOn()) return null; var r = devRow(); return r && r.removedAt ? r : null; }
 function devWhen(ts) { return ts ? formatDate(isoOf(new Date(ts))) : '—'; }
-function devRemovedText(r) {
-  return 'This device was removed by ' + (devUserName(r.removedBy) || 'the owner') + ' on ' + devWhen(r.removedAt) + ': ' +
+function devRemovedText(r) { return 'This device was removed ' + devRemovedWhy(r); }
+/* Who removed it, when and why ('by … on …: …'): the sentence's tail, and the Home card's detail under its verdict. */
+function devRemovedWhy(r) {
+  return 'by ' + (devUserName(r.removedBy) || 'the owner') + ' on ' + devWhen(r.removedAt) + ': ' +
     (String(r.removeReason || '').replace(/[.\s]+$/, '') || 'no reason recorded') + '.';
 }
 /* Why this device may not push or pull ('' when it may). The guard off: always ''. */

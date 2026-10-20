@@ -221,6 +221,9 @@ test("Home's month to date is net of credit notes, and says so", async ({ page }
     clientId: 1, invoiceIds: ['INV-1'], taxableValue: 200, createdAt: 1 }];
   await loadAppWithState(page, s);
   await openPulse(page);
-  await expect(page.locator('#mtdRevenue')).toContainText('9,800.00');
-  await expect(page.locator('#mtdRevenueSub')).toContainText('net of ₹200.00 in credit notes');
+  // Money on a board is short since U2R, its exact amount its title (§24k).
+  await expect(page.locator('#mtdRevenue')).toHaveText('₹9,800');
+  await expect(page.locator('#mtdRevenue [title]')).toHaveAttribute('title', '₹9,800.00');
+  await expect(page.locator('#mtdRevenueSub')).toContainText('net of ₹200 in credit notes');
+  await expect(page.locator('#mtdRevenueSub [title]')).toHaveAttribute('title', '₹200.00');
 });

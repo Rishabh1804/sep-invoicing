@@ -10,21 +10,33 @@ function _kbg(id, title, summary, screens, body, extra) {
 var KB_APP_GUIDES = [
   _kbg('today', 'Using the app: Home', 'The dashboard, your widgets, and what needs you now', ['pageHome'],
     'Home is the first screen. It has 2 views: **Home**, the dashboard, and **Needs you**. After them are its Insights: Stats, Reports and the Planner.\n\n' +
-    '# The day card\n- The day card is at the top of Home. It shows the greeting, the date and the time. The time changes each minute.\n' +
-    '- Under the time, the card shows when the general shift ends.\n- The sentence of the card is the first item that needs you: a cash low point, red tasks, a line that is half down, or the pace of the month.\n' +
+    '# The masthead\n- The masthead is at the top of Home. It shows the greeting, the date and the time. The time changes each minute.\n' +
+    '- Under the time, it shows when the general shift starts or ends. Before 5:00 PM, a bar shows how much of the shift is gone.\n' +
+    '- The sentence is the first item that needs you: a cash low point, red tasks, a line that is half down, or the pace of the month.\n' +
     '- To see all your tasks, tap **Open Needs you**. To make the report of today, tap **Make today’s report**.\n\n' +
-    '# The widgets\n- Under the day card is the period (**MTD**, **QTD**, **YTD**, **All**). Stats uses the same period.\n' +
-    '- Under the period are the widgets. Each widget answers 1 question. To open the screen of a widget, tap its title.\n' +
-    '- A widget with nothing to show tells you what records it. A widget that is too long for its size shows how many more rows there are. To see all of them, tap **Show all**.\n\n' +
-    '# The world outside and the analysis\n- **Tata Motors, Jamshedpur** shows the figures of the month that you typed from the release of Tata. To type a month, tap the title of the widget. It also shows the week of the plant and the headlines.\n' +
+    '# Read a widget\n- Under the masthead is the period (**MTD**, **QTD**, **YTD**, **All**). Stats uses the same period. Under the period are the widgets.\n' +
+    '- Each widget answers 1 question. Its title is at the top. To open the screen of the widget, tap its title.\n' +
+    '- Under the title is the figure, then a sentence with a dot. The colour of the dot tells you if the figure is good.\n' +
+    '- A widget is quiet when all is well. An amber line at its top means: examine it soon. A red line and a red tint mean: act now.\n' +
+    '- Money on Home is short: ₹3.50 L is 3.5 lakh, ₹1.24 Cr is 1.24 crore. To see the full amount, point to it or hold it.\n' +
+    '- A list that is too long for its widget shows how many more rows there are. To see all of them, tap that last row.\n' +
+    '- Under the list is the action of the widget, for example **Place the 23 receipts**. A row can also have its own action, for example **Print**.\n' +
+    '- The small line at the bottom tells you where the figures come from. For the news, the weather and zinc, tap **Refresh** to get them again.\n' +
+    '- Some large widgets let you choose what they show, for example **By client** or **By age**. Your choice stays.\n\n' +
+    '# The questions and the moves\n- Each question widget answers in 1 sentence. A large question widget also shows the moves that you can make.\n' +
+    '- To see what a move is worth and why, tap the move. To keep it as a task, tap **Add to my list**.\n' +
+    '- **Do first** shows the moves that are worth most, across all the questions.\n\n' +
+    '# The world outside and the analysis\n- **Tata Motors, Jamshedpur** shows the figures of the month that you typed from the release of Tata. To type a month, tap the title of the widget.\n' +
+    '- Large, it also shows the week of the plant and the headlines. To see the headlines of 1 model only, choose the model at its top.\n' +
     '- **Weather at the plant** shows the weather now and the next 12 hours. After 30 days, it also shows the cut days that had rain.\n' +
     '- The news and the weather come from the feeds Worker. Until the Worker is set up, these widgets say so. To set it up, read **Setting up: the news and weather**.\n' +
-    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap **Change the pair**. The widget shows a pattern, not proof that one figure causes the other.\n' +
+    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap the pair at its top. The widget shows a pattern, not proof.\n' +
     '- **What’s coming** shows the next events, soonest first. For example: cash below zero, a stock line that runs out, or the next challan of a client.\n\n' +
     '# Arrange the widgets\n1. Tap **Customise**.\n2. To move a widget, drag its handle. On a phone, hold the handle for a moment, then drag it.\n' +
     '3. To move a widget with the keys, select its handle. Then push an arrow key, Home or End.\n4. To change the size of a widget, tap **S**, **M** or **L**.\n' +
-    '5. To remove a widget, tap **×**. To get it back, tap **Undo** in the message.\n6. When you are done, tap **Done**.\n' +
-    '- To add a widget, tap **Add a widget**. Tap a type, then tap **Add to Home** on the widget.\n' +
+    '5. To remove a widget, tap **×**. To get it back, tap **Undo** in the message.\n6. To fill an empty space, tap **Add here** in it. Then tap **Add here** on a widget.\n7. When you are done, tap **Done**.\n' +
+    '- To add a widget at the end, tap **Add a widget**. Tap a type, then tap **Add to Home** on the widget.\n' +
+    '- When you are not arranging, a later widget moves up into an empty space that fits it. The order you set stays the same.\n' +
     '- NOTE: **Reset** puts back the widgets of your role on this screen. It asks you first. The other screen keeps its widgets.\n' +
     '- Your arrangement is yours, and it stays on this device. The phone and the computer each keep their own arrangement.\n\n' +
     '# Needs you\n- The day’s 5 inputs are the in-time roll, the pickling loads, the stock message, the production records and the out-time roll. Each input shows **in**, **late** or **not yet**.\n' +
@@ -33,7 +45,9 @@ var KB_APP_GUIDES = [
     '- When your task is done, tick it. The app moves it to **Done**, which is folded at the bottom. To open the task again, tap its tick.\n- A task that you snoozed stays under **Snoozed**. To show it again, tap **Wake**.',
     // Version 4: rewritten in Simplified Technical English (owner, 14 Oct 2026).
     // Version 5: Home (UI pass 3, 16 Oct 2026): the dashboard, its day card, the widgets, Customise and the gallery; Pulse folded into it.
-    { version: 5 }),
+    // Version 6: the card family (U2R, §24): the masthead, how to read a widget (its figure, its colour, short money, More, the action,
+    // where the figures come from, a Choose), the moves and their dialog, Add here.
+    { version: 6 }),
   _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how the app calculates their figures', ['pageStats', 'pageHome'],
     'Stats has 3 tabs. All 3 tabs use 1 period, which is the same period as Home. Each tab starts with a card that shows its status. On a phone, tap the card to see its figures.\n\n' +
     '# By client\n- Contribution by client shows the worst client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n' +

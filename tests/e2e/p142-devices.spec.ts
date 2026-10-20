@@ -389,7 +389,9 @@ test.describe('P142: devices, with the guard on', () => {
     await tab.reload();
     await waitForBoot(tab);
     await guardAfterBoot(tab);
-    await expect(tab.locator('[data-w="sync"]')).toContainText('This device was removed by Meera Rao on ' + day + ': Tablet lost on the floor.');
+    // The Home card (U2R, a Small Tools card): its verdict says it stopped, its detail who removed it, when and why.
+    await expect(tab.locator('[data-w="sync"] .inv-widget-say')).toHaveText('Stopped: this device was removed');
+    await expect(tab.locator('[data-w="sync"] .inv-widget-sub')).toHaveText('By Meera Rao on ' + day + ': Tablet lost on the floor.');
     expect(await g(tab, 'ghPushLocked()')).toBe(false);
     await expect(tab.locator('.inv-toast')).toContainText('This device was removed by Meera Rao');
     await openSettingsAt(tab, 'sync');

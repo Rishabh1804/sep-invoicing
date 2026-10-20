@@ -153,6 +153,9 @@ test.describe('P102: on the screens', () => {
     s.attendance = { [todayIso()]: { marks: { 1: { st: 'P', area: 'barrel' }, 2: { st: 'A' } }, extra: [], note: '' } };
     await loadAppWithState(page, s as SepState);
     await openPulse(page);
-    await expect(page.locator('#homeAtt [data-att-onsite]')).toHaveClass(/inv-tile-danger/);
+    // The Attendance widget is a Crew card since U2R: on site is a figure in its detail, judged at the gate in its tone.
+    const onsite = page.locator('#homeAtt [data-att-onsite]');
+    await expect(onsite).toHaveAttribute('data-tone', 'danger');
+    await expect(onsite.locator('.inv-fig-danger #homeAttOnSite')).toHaveText('1/2');
   });
 });

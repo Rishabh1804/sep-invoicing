@@ -1,7 +1,9 @@
 # Geist under test
 
-The interface's two faces, served to the test browser in place of Google Fonts (`routeFonts`, `tests/e2e/fixtures.ts`), so every
-spec measures in the face the app ships in (docs/UI_PASS_3.md §24m). The app itself keeps loading them from Google Fonts.
+The interface's two faces, served to the test browser in place of Google Fonts, so every spec measures in the face the app ships in
+(docs/UI_PASS_3.md §24m). The test server (`tests/e2e/server.mjs`) serves the app's pages with Google's stylesheet named as
+`fonts.css` here, which declares the two faces with Google's own unicode ranges; no request is intercepted. The app itself keeps
+loading them from Google Fonts.
 
 | File | Face | Subset |
 |---|---|---|

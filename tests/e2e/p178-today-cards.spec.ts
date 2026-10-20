@@ -97,41 +97,47 @@ test('every hero is filled in its status tone’s gradient, mixed from the theme
   for (let i = 0; i < 6; i++) expect(dark.bg[i]).not.toBe(light.bg[i]);
 });
 
-test('Home: each question a widget that leads with its figure; at Large it takes the row with its story and its moves as cards', async ({ page }) => {
+test('Home: each question a widget that leads with its answer; at Large it takes the row with its moves as cards, its story a tap away', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   // Pulse's questions are widgets on Home's board since UI pass 3 (U2), laid out at Large here (openPulse).
   await openPulse(page);
   const qs = page.locator('#homeBoard [data-tdy-q]');
   expect(await qs.count()).toBeGreaterThanOrEqual(4);
-  // Each is its question, a figure or an answer, and its tone.
+  // Each is its question, its answer as a sentence and its tone (a Briefing card since U2R, §24d: the answer leads, no figure).
   const money = page.locator('[data-tdy-q="money"]');
   await expect(money.locator('.inv-widget-title')).toHaveText('Are we making money?');
-  await expect(money.locator('.inv-widget-fig')).toHaveCount(1);
-  await expect(money).toHaveClass(/inv-hero-(danger|warning|ok|info|neutral)/);
-  // The month's realisation against the cost, drawn small.
-  await expect(money.locator('.inv-widget-viz svg.inv-spark')).toHaveCount(1);
-  // At Large, what you can do, as cards; its story beside them where the card has room for both, else the story gives way to the
-  // moves (the phone's Large has Medium's room) and is the question's own, a tap away on its head.
+  await expect(money.locator('[data-tdy-ans]')).toHaveCount(1);
+  await expect(money.locator('[data-tdy-ans]')).not.toHaveText('');
+  await expect(money).toHaveAttribute('data-type', 'brief');
+  await expect(money).toHaveAttribute('data-tone', /^(danger|warning|ok|info|neutral)$/);
+  // At Large, what you can do, as cards; the story is the question's own, a tap away on its head (and its Medium card's body).
   await expect(money.locator('[data-tdy-moves]')).toBeVisible();
   await expect(money.locator('[data-tdy-moves] [data-adv-move]').first()).toBeVisible();
-  const story = money.locator('.inv-hero-sheet[data-tdy-story]');
-  await expect(story).toHaveCount(1);
-  if ((await story.getAttribute('data-wdg-cut')) === null) await expect(story).toBeVisible();
-  else {
-    await expect(story).toBeHidden();
-    await money.locator('.inv-widget-door').click();
-    await expect(page.locator('[data-tdy-q-open="money"] [data-story-say]')).toBeVisible();
-    await page.locator('[data-tdy-q-open="money"] [data-action="invCloseOverlay"]').first().click();
-  }
+  await money.locator('.inv-widget-door').click();
+  await expect(page.locator('[data-tdy-q-open="money"] [data-story-say]').first()).toBeVisible();
+  await page.locator('[data-tdy-q-open="money"] [data-action="invCloseOverlay"]').first().click();
   // Large spans the board's row.
   const [w, gw] = await money.evaluate(e => [e.getBoundingClientRect().width, e.parentElement!.getBoundingClientRect().width]);
   expect(Math.abs(w - gw)).toBeLessThan(2);
-  // The moves worth most, across the questions, as cards: three at Medium, five at Large.
+  // The moves worth most, across the questions, as cards at Large: as many as the card holds, the rest counted on its More.
   const first = page.locator('#homeDash [data-card="first"]');
-  const n = await first.locator('.inv-deck-item').count();
-  expect(n).toBeGreaterThan(0);
-  expect(n).toBeLessThanOrEqual(5);
+  const shown = await first.locator('.inv-brief-movecard:not([data-wdg-cut])').count(), cut = await first.locator('.inv-brief-movecard[data-wdg-cut]').count();
+  expect(shown).toBeGreaterThan(0);
+  if (cut) await expect(first.locator('[data-wdg-more]')).toContainText(cut + ' more move');
+  expect(await first.evaluate(e => e.scrollHeight - e.clientHeight)).toBeLessThanOrEqual(1);
+  // The month's realisation against the cost, drawn small: the question at Small holds its answer and the vital's picture.
+  await withSmall(page, 'q-money');
+  await expect(page.locator('[data-tdy-q="money"] .inv-widget-viz svg.inv-spark')).toHaveCount(1);
 });
+/** One widget on the board at Small, the rest as they were. */
+async function withSmall(page: Page, id: string) {
+  await page.evaluate(id => {
+    const w = window as any;
+    ['desk', 'phone'].forEach((lay: string) => w.wdgItemsPut('home', lay, w.wdgItems('home', lay).map((x: string[]) => x[0] === id ? [id, 's'] : x)));
+    w.renderHome();
+  }, id);
+  await page.locator(`#homeBoard [data-w="${id}"][data-size="s"]`).waitFor();
+}
 
 test('the month’s tiles each carry a line of the months before', async ({ page }) => {
   await loadAppWithState(page, sweepState());

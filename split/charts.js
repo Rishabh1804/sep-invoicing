@@ -207,12 +207,18 @@ function seriesSlot(kind, id) {
    unit. */
 function _chartBox(inner, opts, table) {
   opts = opts || {};
+  if (opts.bare) return inner.replace(/<svg class="(inv-chart-svg|inv-chart-heat)"/, '<svg class="$1 inv-chart-bare"');
   var t = table && table.rows && table.rows.length ? table : null;
   return '<div class="inv-chart-box"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + ' data-table="off"><div class="inv-chart-draw">' + inner + '</div>' +
     (t ? '<div class="inv-chart-table" hidden>' + chartTableHtml(t.cols, t.rows) + '</div>' : '') +
     '<div class="inv-chart-readline"><div class="inv-chart-readout" aria-live="polite">' + escHtml(opts.readHint || 'Tap a point to read it') + '</div>' +
     (t ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invChartTable" aria-pressed="false">Table</button>' : '') + '</div></div>';
 }
+/* A chart in a card is bare (docs/UI_PASS_3.md §24d): no box, no readout line and no Table, each datum keeping its <title> with
+   its exact figure, drawn at the room the card leaves it (opts.w × opts.h, widgets.js wdgVizDraw), so its viewBox is the card's own
+   pixels and every label it draws reads at 11px (.inv-chart-bare). The card's Open reaches the screen behind, which keeps the
+   chart's table; its verdict says in words what the chart shows. */
+function _chartWH(opts, W, H) { return opts && opts.bare && opts.w > 0 && opts.h > 0 ? { W: Math.round(opts.w), H: Math.round(opts.h) } : { W: W, H: H }; }
 /* The table: the label column, then a column a series, each figure as chartFull writes it in its column's unit ('text' for
    words; `signed` says the sign, + or −, as a chart whose sign is the point reads it); a figure the chart has none for is a
    dash, never a zero. It scrolls sideways in its box when it is wide. */
@@ -307,7 +313,7 @@ function chartLine(data, opts) {
   if (!data || data.length === 0) return _chartEmpty(opts.emptyText);
   if (data.length < 2) return _chartEmpty('Need at least two points to show a trend', 'early');
 
-  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 46, r: 12, t: 14, b: 30 };
   var f = _chartFrame(data, unit, W, H, pad);
   var points = data.map(function(d, i) {
     return {
@@ -365,8 +371,9 @@ function chartBars(data, opts) {
   var unit = opts.unit || 'money';
   if (!data || data.length === 0) return _chartEmpty(opts.emptyText);
 
-  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
-  var f = _chartFrame(data, unit, W, H, pad);
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 46, r: 12, t: 14, b: 30 };
+  // opts.top: the frame's ceiling where the scale has one (a percentage's 100), else the nice maximum over the bars.
+  var f = _chartFrame(data, unit, W, H, pad, opts.top);
   var slot = f.chartW / data.length;
   var barW = Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
   // One against the rest (§3d): with a stretch chosen (opts.span) its bars are the accent's and the rest Other; else one series.
@@ -396,6 +403,14 @@ function chartBars(data, opts) {
       svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, labels[i], W);
     }
   });
+  // opts.mark {value, label}: a rule across the bars at a level they are judged against (attendance's gate at 90%), its label at
+  // its right end over it; a reference, never a datum.
+  var mk = opts.mark;
+  if (mk && mk.value != null && f.maxVal > 0 && mk.value <= f.maxVal) {
+    var my = _chartN(pad.t + f.chartH - mk.value / f.maxVal * f.chartH);
+    svg += '<line class="inv-chart-mark" x1="' + pad.l + '" x2="' + (W - pad.r) + '" y1="' + my + '" y2="' + my + '"/>' +
+      '<text class="inv-chart-mark-label" x="' + (W - pad.r) + '" y="' + _chartN(my - 4) + '" text-anchor="end">' + escHtml((mk.label ? mk.label + ' ' : '') + chartShort(mk.value, unit)) + '</text>';
+  }
   svg += '</svg>';
   return _chartBox(svg, Object.assign({ readHint: 'Tap a bar to read it' }, opts), { cols: [{ label: opts.labelHead || '' }, { label: opts.valueHead || opts.ariaLabel || 'Value', unit: unit }],
     rows: data.map(function(d, i) { return [labels[i], d.value]; }) });
@@ -578,7 +593,7 @@ function chartLines(labels, series, opts) {
   series.forEach(function(s) { s.values.forEach(function(v) { if (v != null && isFinite(v)) all.push(v); }); });
   (opts.band || []).forEach(function(b) { if (b) { all.push(b.lo); all.push(b.hi); } });
   if (!all.length) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 50, r: 12, t: 14, b: 30 };
   var r = (opts.fit ? chartFitRange : chartNiceRange)(Math.min.apply(null, all), Math.max.apply(null, all));
   // Nothing but zeros has no scale: the frame is a nominal one, and only its zero line is labelled (as _chartFrame).
   var zeros = all.every(function(v) { return v === 0; });
@@ -658,7 +673,7 @@ function chartStack(labels, series, opts) {
   });
   var max = Math.max.apply(null, totals.concat([0]));
   if (!(max > 0)) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 50, r: 12, t: 14, b: 30 };
   var f = _chartFrame(labels.map(function(l, i) { return { label: l, value: totals[i] }; }), unit, W, H, pad);
   var slot = f.chartW / labels.length, n = series.length;
   var barW = group ? Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX * n + CHART_GAP * (n - 1)) : Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
@@ -779,7 +794,7 @@ function chartDiverging(rows, opts) {
   var ok = function(v) { return v != null && isFinite(v); };
   var vals = data.map(function(r) { return r.value; }).filter(ok).map(Number);
   if (!vals.length) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var rg = chartNiceRange(Math.min.apply(null, vals), Math.max.apply(null, vals));
   var y = function(v) { return pad.t + ch - (v - rg.lo) / (rg.hi - rg.lo) * ch; };
   var zeros = vals.every(function(v) { return v === 0; });
@@ -830,7 +845,7 @@ function chartHistogram(values, opts) {
   vs.forEach(function(v) { counts[Math.max(0, Math.min(n - 1, Math.floor((v - start) / bw + 1e-9)))]++; });
   var edge = function(k) { return _chartN(start + k * bw); };
   var binLabel = function(k) { return chartShort(edge(k), unit) + '\u2013' + chartShort(edge(k + 1), unit); };
-  var W = 480, H = 220, pad = { l: 46, r: 12, t: 22, b: 30 };
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 46, r: 12, t: 22, b: 30 };
   var f = _chartFrame(counts.map(function(c) { return { value: c }; }), 'count', W, H, pad, _chartCountMax(Math.max.apply(null, counts)));
   var slot = f.chartW / n, barW = Math.min(Math.max(slot - CHART_GAP, 1), CHART_BAR_MAX);
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'How they spread') + '">' + f.svg;
@@ -938,7 +953,7 @@ function chartScatter(series, opts) {
   var X = [], Y = [];
   ss.forEach(function(x) { x.pts.forEach(function(p) { X.push(p.x); Y.push(p.y); }); });
   var rx = chartFitRange(Math.min.apply(null, X), Math.max.apply(null, X)), ry = chartFitRange(Math.min.apply(null, Y), Math.max.apply(null, Y));
-  var W = 480, H = 240, pad = { l: 50, r: 16, t: 18, b: 34 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  var WH = _chartWH(opts, 480, 240), W = WH.W, H = WH.H, pad = { l: 50, r: 16, t: 18, b: 34 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var px = function(v) { return pad.l + (v - rx.lo) / (rx.hi - rx.lo) * cw; }, py = function(v) { return pad.t + ch - (v - ry.lo) / (ry.hi - ry.lo) * ch; };
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'One against the other') + '">';
   for (var g = 0; g <= 4; g++) {
@@ -1022,7 +1037,10 @@ function chartHeat(cells, opts) {
   var max = Math.max.apply(null, shownDates.filter(function(d) { return has(by[d]); }).map(function(d) { return Number(by[d].value); }).concat([0]));
   var step = function(v) { return max > 0 ? Math.max(1, Math.min(7, Math.ceil(v / max * 7))) : 1; };
   var td = typeof opts.toDate === 'string' ? opts.toDate : (opts.toDate != null && cells && cells[opts.toDate] ? cells[opts.toDate].date : null);
-  var C = 16, P = C + CHART_GAP, LW = 14, TH = 14, W = LW + weeks * P, H = TH + days.length * P;
+  var LW = 14, TH = 14, C = 16;
+  // Bare in a card: the cells take the room the card leaves, between 8 and 24 a side, the labels read at 11px.
+  if (opts.bare && opts.w > 0 && opts.h > 0) C = Math.max(8, Math.min(24, Math.floor(Math.min((opts.w - LW) / weeks, (opts.h - TH) / days.length)) - CHART_GAP));
+  var P = C + CHART_GAP, W = LW + weeks * P, H = TH + days.length * P;
   var svg = '<svg class="inv-chart-heat" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Each day') + '">';
   days.forEach(function(d, r) { svg += '<text x="0" y="' + (TH + r * P + C - 4) + '" class="inv-chart-axis">' + CHART_DAY_LETTERS[d] + '</text>'; });
   // A week is named by its Saturday, the pay week's own day; every few, counted back from the latest so it is always named.
@@ -1113,7 +1131,7 @@ function chartStack100(labels, series, opts) {
   var val = function(s, i) { var v = s.values ? s.values[i] : null; return v != null && isFinite(v) && v > 0 ? Number(v) : 0; };
   var totals = labels.map(function(_, i) { return series.reduce(function(t, s) { return t + val(s, i); }, 0); });
   if (!totals.some(function(t) { return t > 0; })) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  var WH = _chartWH(opts, 480, 220), W = WH.W, H = WH.H, pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var y = function(sh) { return pad.t + ch - sh * ch; };
   var inks = series.map(function(s, si) { return chartInk(s, si); });
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Shares') + '">';
@@ -1201,6 +1219,37 @@ function chartSpark(values, opts) {
     '<path class="inv-spark-line" d="' + path(main) + '"/>' +
     (into ? '<path class="inv-spark-line inv-chart-todate" data-todate d="' + path(vals.map(function(v, i) { return Math.abs(i - td) <= 1 ? v : null; })) + '"/>' : '') +
     (last >= 0 && opts.dot !== false ? '<path class="inv-spark-dot" d="M' + x(last).toFixed(2) + ' ' + y(vals[last]).toFixed(2) + 'l0 0"/>' : '') + '</svg>';
+}
+/* Small bars (U2R §24f): a Small card's picture, as a sparkline is a tile's: a bar a period, drawn to the card's width at a fixed
+   height, no axis, each bar's <title> its label and figure. bars: [{v, label, text, tone, hatch, todate}]: `tone` a status tone
+   (the risk window's warning) else the neutral ink; `todate` a period not yet ended, lighter, its title saying "to date"; `hatch`
+   lines at 45° (true: across the bar, a period to date; 'info' or another tone: across the bar's whole slot in that tone's mark,
+   the forecast's thunder hours). opts.title what the bars say, which a screen reader reads. */
+function chartMiniBars(bars, opts) {
+  opts = opts || {};
+  var list = (bars || []).filter(Boolean);
+  if (!list.length) return '';
+  var max = Math.max.apply(null, list.map(function(b) { return Number(b.v) || 0; }).concat([0]));
+  var W = list.length * 10, H = 32, slot = 10, bw = 7;
+  var hatch = function(x0, y0, w, h, cls) {
+    var s = '';
+    for (var k = -h; k < w; k += 3) {
+      var xa = Math.max(x0, x0 + k), xb = Math.min(x0 + w, x0 + k + h);
+      if (xb <= xa) continue;
+      s += '<line class="inv-minibar-hatch' + cls + '" x1="' + _chartN(xa) + '" y1="' + _chartN(y0 + h - (xa - x0 - k)) + '" x2="' + _chartN(xb) + '" y2="' + _chartN(y0 + h - (xb - x0 - k)) + '"/>';
+    }
+    return s;
+  };
+  var body = list.map(function(b, i) {
+    var v = Number(b.v) || 0, h = max > 0 ? Math.max(v > 0 ? 1.5 : 0, v / max * (H - 1)) : 0, x = i * slot + (slot - bw) / 2, y = H - h;
+    var label = (b.label || '') + (b.todate ? ' to date' : ''), read = label + (b.text ? ': ' + b.text : '');
+    var tone = /^(ok|info|warning|danger)$/.test(b.tone) ? ' data-tone="' + b.tone + '"' : '';
+    var band = b.hatch && b.hatch !== true ? hatch(i * slot, 0, slot, H, ' inv-minibar-hatch-' + escHtml(uiTone(b.hatch))) : '';
+    return '<g class="inv-minibar-slot"><title>' + escHtml(read) + '</title>' + band +
+      '<rect class="inv-minibar' + (b.todate ? ' inv-chart-todate' : '') + '"' + tone + ' x="' + _chartN(x) + '" y="' + _chartN(y) + '" width="' + bw + '" height="' + _chartN(Math.max(h, 0)) + '"/>' +
+      (b.hatch === true && h > 0 ? hatch(x, y, bw, h, '') : '') + '<rect class="inv-minibar-base" x="' + (i * slot) + '" y="' + (H - 0.5) + '" width="' + slot + '" height="0.5"/></g>';
+  }).join('');
+  return '<svg class="inv-minibars" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + escHtml(opts.title || '') + '">' + body + '</svg>';
 }
 /* A meter: shares of one whole as a bar, each part in its tone (a status tone, or neutral), with a mark where the figure is
    judged (80% of the plant's capacity, last month's revenue). `parts` [{v, tone}], `opts.max` the whole (else their sum),

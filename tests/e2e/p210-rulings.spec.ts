@@ -166,10 +166,16 @@ test.describe('P210: contract labour is fixed', () => {
     // Home's "Who is driving it?" (Pulse's until UI pass 3, a widget at Large here) asks BETA for the full cost, and asks no
     // labour question.
     await openPulse(page);
-    const q = page.locator('[data-tdy-q="clients"]');
+    // The card holds its moves (U2R); the whole, its story and every move, is the dialog its head opens.
+    const card = page.locator('#homeBoard [data-tdy-q="clients"]');
+    await expect(card.locator('[data-adv-move="reprice:72"]')).toHaveCount(1);
+    await expect(card.locator('[data-adv-move^="labour:"]')).toHaveCount(0);
+    await card.locator('[data-action="invWdgGo"]').click();
+    const q = page.locator('[data-tdy-q-open="clients"]');
     await expect(q.locator('[data-tdy-story]')).toHaveCount(1);
     await expect(q.locator('[data-adv-move="reprice:72"]')).toHaveCount(1);
     await expect(q.locator('[data-adv-move^="labour:"]')).toHaveCount(0);
     await expect(q).not.toContainText('Settle the labour question');
+    await expect(card).not.toContainText('Settle the labour question');
   });
 });

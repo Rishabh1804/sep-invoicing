@@ -1,7 +1,7 @@
 import { test, type Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { loadAppWithState, routeFonts, switchTab, todayIso, type SepState } from './fixtures';
+import { loadAppWithState, switchTab, todayIso, type SepState } from './fixtures';
 import { PAPER, challan, dayOff, inv, sweepState } from './sweep-fixture';
 
 // The long book (docs/TAB_MAP.md TM1 item 12): the sweep's book scaled toward the owner's shape, so a list past thirty rows and a
@@ -140,13 +140,10 @@ export function longBook(): SepState {
 
 /* ---------- The instruments' walk and measures (P195, P197) ---------- */
 
-/* The same face on every machine: the interface's own, Geist and Geist Mono, served from tests/fixtures/fonts in place of Google
-   Fonts (routeFonts; docs/UI_PASS_3.md §24m). Until U2R the face was pinned to Liberation Sans and Mono, which Playwright's install
-   puts on every runner: a measure in a face the app never ships in. A length or a row's wrap measured in whatever face a machine
-   happens to have is not a measure (CLAUDE.md, the invoice's grid). Call before the app loads. */
-export async function pinFace(page: Page): Promise<void> {
-  await routeFonts(page);
-}
+/* The same face on every machine: the interface's own, Geist and Geist Mono, which the test server serves to every page in place of
+   Google Fonts (tests/e2e/server.mjs; docs/UI_PASS_3.md §24m). Until U2R the face was pinned to Liberation Sans and Mono, which
+   Playwright's install puts on every runner: a measure in a face the app never ships in. A length or a row's wrap measured in
+   whatever face a machine happens to have is not a measure (CLAUDE.md, the invoice's grid). */
 
 /* Settles a screen for measuring: drawn, nothing focused, the pointer off it, charts and folds laid out. */
 export async function settle(page: Page): Promise<void> {
@@ -328,29 +325,46 @@ export async function census(page: Page): Promise<Census> {
    body), now drawn as their own components; and two of TM1's looks nothing draws on either book any more were taken off.
    UI pass 3's look (U1, 16 Oct 2026; docs/UI_PASS_3.md §3b, §3g) regenerated the list from the census on both layouts, each look
    named with what wears it: a card lifts with a card's corners (r18), a tile, a search and a segmented track are wells (r14, r12),
-   a hero's sheet draws only its head rule; the old corners (r6, r8, r10) and the tile's lift are gone, 41 looks to 35. */
+   a hero's sheet draws only its head rule; the old corners (r6, r8, r10) and the tile's lift are gone, 41 looks to 35.
+   The card family (U2R, 20 Oct 2026; §24b–§24j) regenerated it again, from the census of the map's screens (P197) and of every
+   widget at every size, each preset and the random boards on three books (P224's dump), on the phone and the desktop at 1280 and
+   1024 px: the corners moved (a card r18 to r14, every well r14 or r12 to r10), and the card family's own parts joined (a widget is
+   a card; the tray, the stages and a move's card are wells; the rows its types draw are flat, a rule over each; the masthead is
+   flat with a hairline under it). Three looks the long book does not draw stay: the Planner board's two lane rules (the owner's
+   book) and a row-auto under its parent. 36 looks to 46. */
 export const LOOKS: string[] = [
-  // Cards (§6.8, §6.21, §6.22): lifted, a card's corners.
-  'fill edge:all1 r18 lift p16/12',  // inv-panel
-  'fill edge:all1 r18 lift p0/0',    // inv-panel-flush
-  'grad edge:all1 r18 lift p0/0',    // inv-hero, coded in its tone
-  'grad edge:all1 r18 lift p12/12',  // inv-deck-item, a card in a card's deck
-  // Wells (§6.5, §6.7, §6.9): sunk into what they sit in.
-  'fill edge:all1 r14 well p10/12',  // inv-tile
-  'grad edge:all1 r14 well p10/12',  // inv-tile in a coded card, a well of its own tone
-  'fill edge:all1 r12 well p0/12',   // inv-search
-  'fill edge:all1 r12 well p0/2',    // inv-seg, the segmented control's track
+  // Cards (§6.8, §6.21, §6.22, §6.33): lifted, a card's corners.
+  'fill edge:all1 r14 lift p16/12',  // inv-panel
+  'fill edge:all1 r14 lift p0/0',    // inv-panel-flush; inv-widget, a card on a board (its salience an inset top edge, §24d)
+  'grad edge:all1 r14 lift p0/0',    // inv-hero, coded in its tone
+  'grad edge:all1 r14 lift p12/12',  // inv-deck-item, a card in a card's deck
+  // Wells (§6.5, §6.7, §6.9, §6.34): sunk into what they sit in, a tile's corners.
+  'fill edge:all1 r10 well p10/12',  // inv-tile
+  'grad edge:all1 r10 well p10/12',  // inv-tile in a coded card, a well of its own tone
+  'fill edge:all1 r10 well p8/10',   // inv-tile in a widget, a step tighter
+  'fill edge:all1 r10 well p0/12',   // inv-search
+  'fill edge:all1 r10 well p0/2',    // inv-seg, the segmented control's track (a widget's Choose, inv-seg-choose, too)
+  'fill edge:none r10 well p6/6',    // inv-tray, the Tools card's keys sunk in their tray
+  'fill edge:none r10 well p4/4',    // inv-docket-stages, a Docket's stages in a well
+  'fill edge:none r10 well p10/12',  // inv-brief-movecard, a move's card in a Briefing at Large
   'nofill edge:none r0 well p0/0',   // inv-viewtabs, the tab row's rule (an inset line)
   'fill edge:none r9999 well p0/0',  // inv-blank-icon, the blank state's icon in a round well (design §6.32), in a widget saying it is empty
+  // The masthead (§6.36): Home's verdict drawn flat, a hairline under it.
+  'nofill edge:B1 r0 flat p12/4',    // inv-mast on the desktop
+  'nofill edge:B1 r0 flat p8/0',     // inv-mast on the phone; inv-row-auto in a widget
   // Inside a card: heads, bodies, strips, rows (§6.8, §6.10).
   'nofill edge:B1 r0 flat p10/12',   // inv-panel-head, a flush card's head
   'nofill edge:B1 r0 flat p8/12',    // inv-panel-head, inv-row-auto
   'nofill edge:B1 r0 flat p16/12',   // inv-panel-body
   'nofill edge:B1 r0 flat p12/12',   // inv-tiles-flush, a strip in a flush card
   'nofill edge:B1 r0 flat p6/12',    // inv-row (and a table's cells)
+  'nofill edge:B1 r0 flat p6/0',     // inv-row in a widget, its card's body padding its sides
   'nofill edge:B1 r0 flat p6/28',    // inv-row under its parent, indented
   'nofill edge:B1 r0 flat p8/28',    // inv-row-auto under its parent, indented
-  'nofill edge:T1 r0 flat p0/0',     // inv-hero-sheet: what a hero opens to draws only its head rule
+  'nofill edge:T1 r0 flat p0/0',     // inv-hero-sheet: what a hero opens to draws only its head rule; inv-docket-row, a rule over each
+  'nofill edge:T1 r0 flat p6/0',     // inv-plant-row, a Plant card's line or machine
+  'nofill edge:T1 r0 flat p2/0',     // inv-crew-row, a Crew card's row
+  'nofill edge:T1 r0 flat p4/0',     // inv-brief-move, a Briefing's move; inv-ledger-total, the total ruled under a Ledger's lines
   'fill edge:B1 r0 flat p0/0',       // inv-row-children, a row's own lines on the page colour
   'nofill edge:B1 r0 flat p0/0',     // inv-row-children
   'fill edge:B1 r0 flat p0/12',      // inv-row-group, a group's head band; a table's head cells
@@ -449,8 +463,16 @@ export async function oneLookProblems(page: Page): Promise<string[]> {
     } else if (kind === 'overview') {
       const head = blocks.findIndex(b => !b.matches('.inv-toolbar, .inv-seg, .inv-pagehead'));
       const first = blocks[head];
+      if (first && first.matches('.inv-mast[data-verdict]')) {
+        // Home since U2R (docs/UI_PASS_3.md §24j): its masthead, an overview's verdict drawn flat, then one toolbar row, then the
+        // board.
+        const tb = blocks[head + 1], board = blocks[head + 2];
+        if (!tb || !tb.matches('.inv-toolbar')) out.push('the masthead is followed by ' + name(tb) + ', not its toolbar');
+        else if (rows(tb) > 1) out.push('the toolbar runs to ' + rows(tb) + ' rows');
+        if (!board || !board.matches('.inv-wboard')) out.push('the toolbar is followed by ' + name(board) + ', not the board');
+      }
       // Heroes side by side (inv-heroes), or packed on the desktop (Needs you's inv-panels, uiMasonry).
-      if (!first || !(first.matches('.inv-hero[data-verdict]') || (first.matches('.inv-heroes, .inv-panels') && first.querySelector('.inv-hero[data-verdict]')))) out.push('leads with ' + name(first) + ', not a hero with its verdict');
+      else if (!first || !(first.matches('.inv-hero[data-verdict]') || (first.matches('.inv-heroes, .inv-panels') && first.querySelector('.inv-hero[data-verdict]')))) out.push('leads with ' + name(first) + ', not a hero with its verdict');
     } else if (kind === 'document') {
       if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1) out.push('the page scrolls sideways');
       Array.from(act.querySelectorAll('*')).filter(el => el.querySelector(PAPER) && (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 && /auto|scroll/.test(getComputedStyle(el).overflowX))
@@ -469,7 +491,6 @@ export async function oneLookProblems(page: Page): Promise<string[]> {
 export async function walkOneLook(page: Page) {
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
-  await pinFace(page);
   await page.clock.install({ time: new Date(todayIso() + 'T11:30:00') });
   await loadAppWithState(page, longBook());
   const report: Record<string, Census & { problems: string[] }> = {};

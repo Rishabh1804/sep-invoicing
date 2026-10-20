@@ -436,13 +436,13 @@ function renderClientPerformance(container) {
     var cost = last.realisation != null && money ? cpMonthCost(last.month) : null;
     var full = monthly.filter(function(r) { return r.month !== thisYm; });
     if (!money) html += '<div class="inv-tiles inv-tiles-flush">' +
-      tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>',
+      tile(escHtml(last.label) + (partial ? ' to date' : ''), formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>',
         last.count + ' invoice' + (last.count !== 1 ? 's' : '') + ' · ' + cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
       tile('Average month', full.length ? formatNum(full.reduce(function(t, r) { return t + r.kg; }, 0) / full.length / 1000, 2) + '<span class="inv-tile-of"> t</span>' : '&mdash;',
         full.length ? 'over ' + full.length + ' full month' + (full.length !== 1 ? 's' : '') : 'no full month yet', '') +
       '</div>';
     else html += '<div class="inv-tiles inv-tiles-flush">' +
-      tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
+      tile(escHtml(last.label) + (partial ? ' to date' : ''), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(bench && bench.revenue))) +
       tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
       tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), cost ? figToneAgainst(last.realisation, cost.perKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
@@ -686,7 +686,7 @@ function cpWorkedHtml(clientId) {
     '<div class="inv-seg" role="group" aria-label="Whose">' + seg('client', 'This client', 'invCpScope', _cpScope, 'data-s') + seg('all', 'All clients', 'invCpScope', _cpScope, 'data-s') + '</div></div>' +
     '</div><div id="cpWorkedList">' + cpWorkedListHtml(clientId) + '</div>';
   // Shut on both layouts until opened (the tab map, TM5f), remembered on the device as every fold is.
-  return uiFoldHtml('cp-worked', '<span class="inv-panel-title">Materials worked</span><span class="inv-note">what was sent and billed, and when</span>',
+  return uiFoldHtml('cp-worked', '<span class="inv-panel-title">Materials worked</span><span class="inv-note">sent and billed, and when</span>',
     body, false, ' data-card="worked"');
 }
 /* The search redraws the list only, so the field keeps its focus and caret. */

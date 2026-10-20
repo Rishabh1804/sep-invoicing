@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="ed27e857">
+<meta name="app-build" content="976d3956">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -57323,7 +57323,7 @@ var WC_QUESTIONS = [
   { k: 'money', title: 'Are we making money?', short: 'Making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'] },
   { k: 'clients', title: 'Who is driving it?', short: 'Who drives it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'] },
   { k: 'plant', title: 'Is the plant full?', short: 'Plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'] },
-  { k: 'cash', title: 'Is cash coming in?', short: 'Cash coming in?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true },
+  { k: 'cash', title: 'Is cash coming in?', short: 'Getting paid?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true },
   { k: 'changed', title: 'What changed?', short: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'] }
 ];
 function wcQuestion(k) { return tdyQuestions().filter(function(x) { return x.key === k; })[0] || null; }

@@ -22,9 +22,10 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 - **Fonts under test**: Geist and Geist Mono (latin, variable woff2) and their OFL licence are in `tests/fixtures/fonts/`, served by
   the test server in place of Google's stylesheet (`tests/e2e/server.mjs`, `fonts.css`), so every spec measures in the real face and
   no request is intercepted.
-- **A stall in this sandbox, cause not found** (CLAUDE.md, *Tests*): about one test in 1,500 to 2,000 times out because the page
-  stopped answering just after it loaded (*Object with guid response@… was not bound in the connection* when it closes). It was put
-  down to the fonts' route, and came back without it; it has not shown on CI.
+- **A stall in this sandbox, a deadlock inside Chromium** (CLAUDE.md, *Tests*): about one test in 1,500 to 2,000 times out because
+  the page hung just after it loaded (*Object with guid response@… was not bound in the connection* when it closes). Its renderer
+  waits on the Linux font service while every thread-pool worker waits on V8's garbage collection. It began with web fonts under test
+  (Geist) and has not shown on CI.
 - **CI draws text about 0.5% wider than this sandbox** (Chromium 147 against 141): two labels on Performance that fitted by a hair
   here wrapped on CI and were shortened. A measure that passes here within 1% of its limit can fail there; P195 and Performance were
   checked with text drawn 0.5% wider. The e2e job took 27 minutes on CI on 20 Oct (2,030 tests, step 1); the suite is 2,063 now.

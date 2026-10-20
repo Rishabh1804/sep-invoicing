@@ -1409,7 +1409,8 @@ the grep checklist's output, anything decided differently and why).
    Geist, never loosened; the commit says which and why. *As built:* the routes were later replaced by the test server serving the
    app's pages with the stylesheet named as `tests/fixtures/fonts/fonts.css` (`tests/e2e/server.mjs`), so no request is intercepted
    and a second window draws in Geist too. A rare stall had been put down to the routes (about one test in a thousand timed out,
-   ending in *Object with guid response@… was not bound*); it came back without them, so it was not theirs (CLAUDE.md, *Tests*).
+   ending in *Object with guid response@… was not bound*); it came back without them, so it was not theirs: it is a deadlock
+   inside this sandbox's Chromium that web fonts set off (CLAUDE.md, *Tests*).
 2. **Tokens** (styles.css's block): the corners (`--r-card`, `--r-tile`, `--r-ctl`, `--r-seg`) and `--r-bar`, the wells moved from
    `--r-ctl` to `--r-tile` (the segmented track, the search, a field, the weather's hours, the market's days); the type surfaces per
    palette (`--c-ty-ledger`, `--c-ty-plant`, aliases `--ty-ledger`, `--ty-plant`); `--card-danger`; `--tone-edge`; `--wdg-row`,
@@ -1422,6 +1423,8 @@ the grep checklist's output, anything decided differently and why).
    `wdgSourceHtml`, `wdgChooseHtml`, `wdgFit`'s More); the type builders; the move dialog (`advMoveOpen`, advice.js); `wdgPlace`, the
    board's rows and dense packing, Customise's slots and *Add here*; `wdgFromHero`'s Source; a chart's `opts.bare` (charts.js).
 6. **The widgets** (§24f), each in its type with its short title, Choose, Act and Source; the old feet and second doors gone.
+   *As built:* `q-cash`'s Small title is *Getting paid?*. The table's *Cash coming in?* fitted the phone's 101 px title box by a
+   pixel here and took 106 px on CI, whose text is wider; the card's figure at Small is what is owed to us, which the new words ask.
 7. **The masthead** (§24j): `homeMastHtml`, the tick, the shift before, during and after.
 8. **The presets** (§24i): four, each packing with no hole; the phone's Owner without Do first if Home measures over four screens.
 9. **Specs** (§20): P235–P239 new; the rewrites (§21); P195 and P197 measured, Home's budget set (I10), `LOOKS` regenerated; the guide
@@ -1839,7 +1842,7 @@ reading gives; *—* means none.
 | `q-money` | Making money? | — | as above | Invoices net of credit notes · the live cost N% measured · labour counted as fixed | as above |
 | `q-clients` | Who drives it? | — | as above | as above | as above |
 | `q-plant` | Plant full? | — | as above | Invoices, the period · ~2 t a shift, two shifts | as above |
-| `q-cash` | Cash coming in? | — | as above | Bank statement to `<d>` | as above |
+| `q-cash` | Getting paid? | — | as above | Bank statement to `<d>` | as above |
 | `q-changed` | What changed? | — | as above | The month to `<d>` against its pace | as above; its insights as rows |
 | `dofirst` | — | — | — (each move's at its row's end) | Every question's moves, by what each is worth a month | the moves as rows (Large: cards); a move opens its dialog (§24e); *4 more moves* opens Do first's dialog |
 | `why` | — | — | — | Against `<the period before>` · weighed lines only | the causes as rows, the change ruled under them |

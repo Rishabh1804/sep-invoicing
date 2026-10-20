@@ -1444,7 +1444,7 @@ var WC_QUESTIONS = [
   { k: 'money', title: 'Are we making money?', short: 'Making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'] },
   { k: 'clients', title: 'Who is driving it?', short: 'Who drives it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'] },
   { k: 'plant', title: 'Is the plant full?', short: 'Plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'] },
-  { k: 'cash', title: 'Is cash coming in?', short: 'Cash coming in?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true },
+  { k: 'cash', title: 'Is cash coming in?', short: 'Getting paid?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true },
   { k: 'changed', title: 'What changed?', short: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'] }
 ];
 function wcQuestion(k) { return tdyQuestions().filter(function(x) { return x.key === k; })[0] || null; }

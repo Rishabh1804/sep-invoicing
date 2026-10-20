@@ -276,12 +276,14 @@ run; split the job or raise it before it cuts a run off.
 here by a hair can wrap there (two labels on Performance did). Before pushing a change near a measured limit, measure it again with
 `* { letter-spacing: 0.005em }` laid over the page; that reproduced CI's figure to the pixel.
 
-⚠ **In this sandbox a page now and then stops answering just after it loads** (20 Oct 2026, cause not found): about one test in
-1,500 to 2,000, in full runs and in a loop of 1,500 boots alike. Nothing paints after the shell, the test times out, and closing it
-reports *Object with guid response@… was not bound in the connection* (the trace recorder waits on a snapshot the page never takes,
-so the navigation's answer comes after the context has closed). The page does not answer the debugger either, so it is blocked
-outside JavaScript. It came with the fonts routed and without them, and has not shown on CI. Run that one test again before reading
-the failure as yours.
+⚠ **In this sandbox a page now and then hangs just after it loads: a deadlock inside Chromium, not the app** (20 Oct 2026). About
+one test in 1,500 to 2,000 times out, and closing it reports *Object with guid response@… was not bound in the connection* (the trace
+recorder waits on a snapshot the page never takes, so the navigation's answer comes after the context has closed). gdb on the hung
+renderer (Chromium 141) shows its main thread laying out text in a web font that is still loading and waiting on the Linux font service
+(`FontServiceThread::FontRenderStyleForStrike`). That request needs one of the renderer's three thread-pool workers, and all three are
+parked in V8's `CollectionBarrier`, waiting for the main thread to collect garbage. Web fonts make Blink build font data during boot
+while V8 compiles the app's script in the background, which is why it began with Geist under test. It has not shown on CI (Chromium
+147), and Android and Windows have no Linux font service. Run that one test again before reading the failure as yours.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never

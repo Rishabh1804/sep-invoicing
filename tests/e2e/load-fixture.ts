@@ -1,7 +1,7 @@
 import { test, type Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { loadAppWithState, switchTab, todayIso, type SepState } from './fixtures';
+import { loadAppWithState, routeFonts, switchTab, todayIso, type SepState } from './fixtures';
 import { PAPER, challan, dayOff, inv, sweepState } from './sweep-fixture';
 
 // The long book (docs/TAB_MAP.md TM1 item 12): the sweep's book scaled toward the owner's shape, so a list past thirty rows and a
@@ -140,19 +140,12 @@ export function longBook(): SepState {
 
 /* ---------- The instruments' walk and measures (P195, P197) ---------- */
 
-/* The same face on every machine: the webfont is not fetched (CI reaches Google's fonts and a sandbox cannot), and the page is
-   set in Liberation Sans and Mono, which Playwright's own install puts on every runner. A length or a row's wrap measured in
-   whatever face a machine happens to have is not a measure (CLAUDE.md, the invoice's grid). Call before the app loads. */
+/* The same face on every machine: the interface's own, Geist and Geist Mono, served from tests/fixtures/fonts in place of Google
+   Fonts (routeFonts; docs/UI_PASS_3.md §24m). Until U2R the face was pinned to Liberation Sans and Mono, which Playwright's install
+   puts on every runner: a measure in a face the app never ships in. A length or a row's wrap measured in whatever face a machine
+   happens to have is not a measure (CLAUDE.md, the invoice's grid). Call before the app loads. */
 export async function pinFace(page: Page): Promise<void> {
-  await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  await page.addInitScript(() => {
-    const put = () => {
-      const st = document.createElement('style');
-      st.textContent = ":root, :root[data-palette] { --ff-base: 'Liberation Sans', sans-serif !important; --ff-mono: 'Liberation Mono', monospace !important; }";
-      document.head.appendChild(st);
-    };
-    if (document.head) put(); else document.addEventListener('DOMContentLoaded', put);
-  });
+  await routeFonts(page);
 }
 
 /* Settles a screen for measuring: drawn, nothing focused, the pointer off it, charts and folds laid out. */

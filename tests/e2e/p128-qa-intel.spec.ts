@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget, withWidgets, openHome } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, waitForBoot, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget, withWidgets, openHome } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P128: the intelligence screens' QA findings (30 Sep 2026) — Clients → Performance, the Stats stories and figures,
@@ -178,12 +178,15 @@ test.describe('P128: Clients → Performance', () => {
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(Math.min(n, 10));
     if (n > 10) await steady.locator('[data-action="invShowMore"]').click();
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(n);
-    // The page was 3.1 phone screens on this book with every steady part and Materials worked drawn open.
+    // The page was 3.1 phone screens on this book with every steady part and Materials worked drawn open. The limit was set at 2.4
+    // in the fallback face (Liberation, its leading 1.15); in Geist, the face the app ships in (its leading about 1.3), the same
+    // page is 1.3% longer, a line two pixels taller (1625 → 1646 px on this book), so it is the same limit at 2.43 (U2R, §24m).
+    // Measured once the face is in (waitForBoot): straight after the reload it raced the face.
     await page.reload();
-    await page.waitForSelector('body.inv-booted');
+    await waitForBoot(page);
     await page.locator('#cpClientSelect').waitFor();
     const screens = await page.evaluate(() => document.documentElement.scrollHeight / window.innerHeight);
-    expect(screens).toBeLessThan(2.4);
+    expect(screens).toBeLessThan(2.43);
     // The fold is the device's: opened once, it stays open.
     await openCard(page, 'worked');
     // The fold is kept on the details' toggle event, a task of its own: a reload straight after the click can beat it.

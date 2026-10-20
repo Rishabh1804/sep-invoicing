@@ -1,6 +1,35 @@
-import { Page, expect } from '@playwright/test';
+import { Page, expect, type BrowserContext } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
 
 export const STORAGE_KEY = 'sep_invoicing_state';
+
+/* Geist under test (docs/UI_PASS_3.md §24m). The test browser cannot reach Google Fonts here (the sandbox refuses its certificate) and
+   reaches it on CI, so a length or a title's room was measured in whatever face a machine had. Google's stylesheet is answered with one
+   naming the interface's two faces, served from tests/fixtures/fonts (latin, and latin-ext for the rupee sign); the paper faces are
+   not served, as before. On the context, so a second window draws in Geist too. */
+const FONT_DIR = path.join(__dirname, '..', 'fixtures', 'fonts');
+const FONT_LATIN = 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, '
+  + 'U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD';
+const FONT_LATIN_EXT = 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, '
+  + 'U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF';
+const FONT_CSS = ([['Geist', 'geist'], ['Geist Mono', 'geist-mono']] as const).map(([family, file]) =>
+  [[FONT_LATIN_EXT, file + '-latin-ext'], [FONT_LATIN, file + '-latin']].map(([range, name]) =>
+    `@font-face { font-family: '${family}'; font-style: normal; font-weight: 100 900; font-display: swap; `
+    + `src: url(https://fonts.gstatic.com/sep-test/${name}.woff2) format('woff2'); unicode-range: ${range}; }`).join('\n')).join('\n');
+const fontsRouted = new WeakSet<BrowserContext>();
+export async function routeFonts(target: Page | BrowserContext): Promise<void> {
+  const ctx = 'context' in target ? target.context() : target;
+  if (fontsRouted.has(ctx)) return;
+  fontsRouted.add(ctx);
+  const cors = { 'access-control-allow-origin': '*' };
+  await ctx.route(/^https:\/\/fonts\.googleapis\.com\//, r => r.fulfill({ status: 200, contentType: 'text/css', headers: cors, body: FONT_CSS }));
+  await ctx.route(/^https:\/\/fonts\.gstatic\.com\//, r => {
+    const m = /\/sep-test\/([a-z-]+\.woff2)$/.exec(r.request().url());
+    if (!m) return r.abort();
+    return r.fulfill({ status: 200, contentType: 'font/woff2', headers: cors, body: fs.readFileSync(path.join(FONT_DIR, m[1])) });
+  });
+}
 
 export type SepState = {
   company?: Record<string, string>;
@@ -141,6 +170,12 @@ export function recentTs(msAgo = 0): number {
    that touches state may run before this. */
 export async function waitForBoot(page: Page): Promise<void> {
   await page.waitForSelector('body.inv-booted', { state: 'attached' });
+  // Both faces and both their subsets in before anything is measured: with swap, a face still on its way draws the fallback first.
+  await page.evaluate(() => Promise.race([
+    Promise.all(['400 16px Geist', '400 16px "Geist Mono"'].map(f => document.fonts.load(f, 'A₹0').catch(() => null)))
+      .then(() => document.fonts.ready),
+    new Promise(r => setTimeout(r, 3000)),
+  ]).then(() => true));
 }
 
 /* Seeds through the LEGACY localStorage key, which the app migrates into
@@ -161,6 +196,7 @@ export async function loadAppWithState(page: Page, state: SepState): Promise<voi
       } catch { resolve(); }
     }));
   }
+  await routeFonts(page);
   await page.addInitScript(
     ([key, value]) => { localStorage.setItem(key as string, value as string); },
     [STORAGE_KEY, JSON.stringify(state)] as const,

@@ -7,7 +7,24 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
-## Built 20 Oct 2026: UI pass 3, U2R (the card family), then the second stop (read this first)
+## Built 21 Oct 2026: Home leads, after the owner's look at U2R (read this first)
+
+- **The owner looked at Home on the phone** (21 Oct 2026; `docs/UI_PASS_3.md` §25): the plant's place was asked for though the address
+  is in the book, the news never came, *Needs you · 27* meant nothing, a holiday said the shift ends at 5, the masthead had no weather,
+  and *"Home screen should not feel heavy, and should lead and prioritise the user"*. Their answers: *"Ask the sources directly"*;
+  *"Lead with the first move, About 7 cards on the phone, Cards only as tall as needed, Red only for today"*; and *"move the layout
+  option and options dots into the masthead"*. All built the same day (P241; CLAUDE.md, *UI pass 3: Home leads*).
+- **What the owner sees**: the masthead leads with the first thing to do and its own button; Needs you carries a red badge; Home reads
+  this month (no period chips); about seven cards on the phone, each as tall as it needs; the edge only for what asks for something
+  today; *Plant shut…* in Home's More marks a holiday, which the masthead then says in the shift's place; the news (GDELT) and the
+  weather (MET Norway) arrive with no Worker deployed, at the place read from the company's address. **A layout the owner arranged
+  before is kept**: *Reset Home* takes the new preset.
+- **The build stops again for the owner to look** at Home. **U3 waits on their word.** Still open with them: closing PR #153.
+- **A data flow changed** (the interface table below): `flowCfg.shutWhy` in the book; the place and whether the Worker answered on the
+  device only; new requests to Nominatim, GDELT and MET Norway from the device.
+- **The suite is 2,087 tests.**
+
+## Built 20 Oct 2026: UI pass 3, U2R (the card family), then the second stop
 
 - **U2R is built** (`docs/UI_PASS_3.md` §24; PR #154): every card on Home is one family. One skeleton (head, figure, verdict, body,
   Act, Source), seven types (Ledger, Docket, Plant, Crew, Briefing, Outside, Tools), five action rows (Open, Choose, More, Act,
@@ -685,3 +702,4 @@ in the PR**, so the compile session knows to re-check.
 | **Produces** attendance from the supervisor's rolls → `soma-internal` | **Built 25 Sep 2026.** Staff → Paste message reads the in/out-time rolls into `S.attendance` in the seed's own shape (marks by worker id, `coverage` / `block` EXTRA rows), so the compile reads pasted days exactly as it reads seeded ones. Each roll is kept whole in `relayPastes`. The parser was calibrated against `analysis/sep-attendance-seed-2026-09-{07,12}.json`; if the decode conventions change there, say so here. |
 | **Produces** captured stock entries → `soma-internal` (the owner) | **Built 24 Sep 2026.** Stock → Export writes `sep-stock-YYYY-MM-DD.json`: `{format: 'sep-stock', version: 1, exportedAt, build, items, entries, pastes}`. Always the whole record; ids are stable, so the compile de-duplicates on them. Each entry: `{id, itemId, kind: count/received/used/charged, qty, date, from?, days?, rate?, price?, supplier?, billNo?, note?, unsettled?, voided?, at, by, sentBy, source: paste/manual/import, pasteId?, n?, raw?}`. `pastes` hold each message whole. The same data is also in the full backup under `stock`, with `stockCheck: {redDays, amberDays, chemModel}`. The ledger stays `soma-internal/operations/chemical-stock-log.md`. |
 | **Backup shape changed, 16 Oct 2026 (UI pass 3, U2: Home and its widgets)** | Two new top-level keys. `market: {tata: {YYYY-MM: {cvTotal: {now, ly}, cvDomestic, cvExport, hcv, released?, url?, note?, src, at, by}}, calendar: {YYYY-MM-DD: {state, why, src, url?, at, by}}, models: [..], weather: {YYYY-MM-DD: {tMax, tMin, rain, thunder, symbol, at}}}`: Tata Motors' months, the plant's calendar and the models followed are the owner's typed records (in the change log and the merge, under `market`); the weather days are a fetched copy, written quietly (never in the change log; the merge keeps this device's), and the compile may ignore them. `feedsCfg: {on, url, lat, lon, place}` is the feeds Worker's address and the plant's place. **Not in the book**: a Home layout (`sep_inv_layout`, per device and person) and the feeds' copies of the news and the weather (`sep_inv_feeds`). Nothing new crosses to soma-internal but the backup. |
+| **Backup shape changed, 21 Oct 2026 (Home leads)** | `flowCfg` gains `shutWhy: {YYYY-MM-DD or MM-DD: why}` beside `holidays`, the reason each day the plant is shut was marked (Home → More → Plant shut…, which writes full dates into `holidays`); filled key by key on an old backup; in the change log as days and reasons. **For the compile**: a day in `flowCfg.holidays` is a day this plant did not work (never Tata's: that is `market.calendar`); pay is not changed by it. **Not in the book**: the company's address placed on the map (`sep_inv_feeds.geo`) and whether the feeds Worker answered (`sep_inv_feeds.direct`). **New requests from a device**: OpenStreetMap's Nominatim (the address's words, once an address), GDELT (the news topics) and MET Norway (the place to two decimals), where the Worker cannot be reached; none carries the book. Nothing new crosses to soma-internal but the backup. |

@@ -40,7 +40,7 @@ function wsSvg(k) {
 var WORKSPACES = [
   // Home (UI pass 3 §8a): its id stays `today` (a saved trail, the bar's counts and the specs name it); the label and the icon are Home's.
   { id: 'today', label: 'Home', icon: 'home', bar: true,
-    views: [{ tab: 'pageHome', v: 'home', label: 'Home' }, { tab: 'pageHome', v: 'needs', label: 'Needs you' },
+    views: [{ tab: 'pageHome', v: 'home', label: 'Home' }, { tab: 'pageHome', v: 'needs', label: 'Needs you', count: 'today' },
       { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
     members: [] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
@@ -237,7 +237,7 @@ function wsDrawRow(w, views, on) {
     row.innerHTML = show ? views.map(function(x, i) {
       return (x.group && i ? '<span class="inv-viewtab-group" role="presentation" data-action="invWsGroup">' + escHtml(x.group) + '</span>' : '') +
         '<button class="inv-viewtab" role="tab" aria-selected="' + (i === on) + '" data-action="invSwitchTab" data-tab="' + x.tab + '"' +
-        (x.v ? ' data-v="' + x.v + '"' : '') + '>' + escHtml(x.label) + '</button>';
+        (x.v ? ' data-v="' + x.v + '"' : '') + '>' + escHtml(x.label) + (x.count ? ' ' + wsTabCountHtml(x.count) : '') + '</button>';
     }).join('') : '';
     if (show) row.setAttribute('aria-label', w.label); else row.removeAttribute('aria-label');
     row.classList.toggle('inv-hidden', !show);
@@ -338,9 +338,16 @@ function wsRedCounts() {
   });
   return n;
 }
+var _wsCounts = {};   // the red counts as last worked out (wsUpdateCounts), for a tab row drawn between two counts
+/* A view's red count as a notification badge on its tab (owner, 21 Oct 2026: "Needs you · 27 … should be shown as notification
+   dots"): Needs you carries the red rows the Home door counts, the things that need you now; the rest are in the list. */
+function wsTabCountHtml(id) {
+  var k = _wsCounts[id] || 0;
+  return '<span class="inv-viewtab-count' + (k ? '' : ' inv-hidden') + '" data-ws-count="' + id + '">' + (k ? k : '') + '</span>';
+}
 function wsUpdateCounts() {
   if (!S) return;
-  var n = wsRedCounts();
+  var n = _wsCounts = wsRedCounts();
   document.querySelectorAll('[data-ws-count]').forEach(function(el) {
     var k = n[el.dataset.wsCount] || 0;
     el.textContent = k ? String(k) : '';

@@ -216,7 +216,7 @@ var SETTINGS_SECS = {
         _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1))) +
         _sfg('Other days the plant is shut (state holidays: MM-DD every year, or a full date)', 'setFlowHolidays',
           '<input class="inv-input inv-id" id="setFlowHolidays" value="' + escHtml(c.holidays.join(', ')) + '">',
-          'Sundays and the paid holidays (Labour) are never counted');
+          'Sundays and the paid holidays (Labour) are never counted. Plant shut…, in Home’s More, marks a day or a run of days, with why');
     },
     why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day, and Sundays, the paid holidays (Settings → Labour) and the other days the plant is shut are not counted (the owner, 14 Oct 2026). Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
     save: function() {
@@ -227,6 +227,10 @@ var SETTINGS_SECS = {
       S.flowCfg.holidays = _sVal('setFlowHolidays').split(/[,;\s]+/).map(function(x) { return x.trim(); }).filter(function(x) {
         return /^(\d{4}-)?\d{2}-\d{2}$/.test(x);
       });
+      // Why a day is shut goes with the day: one taken off the list takes its reason with it.
+      var why = Object.assign({}, flowCfg().shutWhy);
+      Object.keys(why).forEach(function(k) { if (S.flowCfg.holidays.indexOf(k) < 0) delete why[k]; });
+      S.flowCfg.shutWhy = why;
     }
   },
   stockAlerts: {

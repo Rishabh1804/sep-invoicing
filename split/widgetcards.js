@@ -40,7 +40,7 @@ function wcDayWord(day) {
   return lag <= 0 ? 'Today' : lag === 1 ? 'Yesterday' : attDayName(day) + ' ' + stockShortDate(day);
 }
 function wcCap(s) { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-function wcLc(s) { s = String(s || ''); return s.charAt(0).toLowerCase() + s.slice(1); }
+function wcLc(s) { return lcLead(s); }   // a name in capitals, a day or a month keeps its first letter (state.js)
 /* A month by its whole name (September), its year only where it is not this one (September 2025). */
 function wcGstMonth(ym) {
   var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7) - 1, now = new Date();
@@ -90,12 +90,14 @@ wdgDefine({ id: 'cash', title: 'Cash and its low point', short: 'Cash', q: 'Will
     // The low point with its date: the line, unless the account is overdrawn or dips below zero, which the hero's title says first.
     // The forecast's low starts at today's balance, so a low on today is the balance itself: nothing lower comes in the 60 days.
     var low = fc && fc.min.date !== localDateStr() ? 'Lowest ' + wcRs(fc.min.bal) + ' on ' + stockShortDate(fc.min.date) : 'No lower in the 60 days ahead';
-    var say = last.balance >= 0 && fc && !fc.cross ? low : c.title;
+    // Amber for a statement over a week old says so, or the lamp is unexplained on a Small: the low point moves under it.
+    var stale = c.stale > 7 && last.balance >= 0 && !(fc && fc.cross);
+    var say = stale ? 'Statement ' + c.stale + ' days old' : last.balance >= 0 && fc && !fc.cross ? low : c.title;
     var tin = 0, tout = 0;
     if (fc) fc.days.forEach(function(x) { tin += x.in; tout += x.out; });
     // The balance in the card's own tone (the canvas: ₹3.49 L in the ok mark while no lower point is ahead).
     return { state: 'ok', tone: c.tone, c: c, fc: fc, fig: wcMoneyFig(last.balance, last.balance < 0 ? 'danger' : c.tone, ctx.size === 's' ? '' : 'in the bank'), say: say,
-      detail: (c.stale > 7 ? 'Statement ' + c.stale + ' days old' : 'In the bank on ' + stockShortDate(last.date)) + (c.held.n ? ' · + ' + wcRs(c.held.amount) + ' in cheques in hand' : ''),
+      detail: (stale ? low : c.stale > 7 ? 'Statement ' + c.stale + ' days old' : 'In the bank on ' + stockShortDate(last.date)) + (c.held.n ? ' · + ' + wcRs(c.held.amount) + ' in cheques in hand' : ''),
       detailNotSmall: true, detailAttrs: ' data-wdg-opt', sayTone: c.tone, inn: gstRound(tin), out: gstRound(tout) };
   },
   draw: function(d, size) {
@@ -192,7 +194,7 @@ wdgDefine({ id: 'owed', title: 'Owed to us, by age', short: 'Owed to us', q: 'Ho
    (flowPayTone). Small, the book's median and a gauge of it against the plant's terms; from Medium, the clients most past their
    terms as a dumbbell, bare. */
 var WC_DTP_MIN = 3;
-wdgDefine({ id: 'dtp', title: 'Days to pay, against terms', short: 'Days to pay', q: 'Who pays on time, who is slipping?', section: 'money', type: 'ledger', icon: 'dtp', sizes: ['m', 's', 'l'],
+wdgDefine({ id: 'dtp', title: 'Days to pay, against terms', short: 'Days to pay', q: 'Who pays on time, who is slipping?', section: 'money', type: 'ledger', icon: 'dtp', sizes: ['m', 's', 'l'], trend: true,
   needs: { page: 'pageFinance', money: true }, go: { tab: 'pageFinance', v: 'receipts' },
   data: function(ctx) {
     if (!finHasBank()) return wcNoBank('days to pay are');
@@ -273,30 +275,44 @@ wdgDefine({ id: 'gst', title: 'GST due against paid', short: 'GST', q: 'Is every
 
 
 /* ---------- Office (Docket: documents in motion; the month's Ledgers) ---------- */
-/* Month to date: Home's month tiles (homeMtdOpts: billing against the same days last month, realisation against the cost). Small,
-   what is billed and its months before as small bars, this month to date hatched; Medium, the four tiles; Large, each tile's line of
-   the months before. */
-wdgDefine({ id: 'mtd', title: 'Month to date', short: 'Month to date', q: 'How is the month going?', section: 'office', type: 'ledger', icon: 'invoice', sizes: ['s', 'm', 'l'],
+/* Month to date: Home's month tiles (homeMtdOpts: billing against the same days last month, realisation against the cost), and where
+   the month lands at its pace (predMonthPace; owner, 21 Oct 2026: the pace card folded into this one, "About 7 cards on the phone").
+   Small, what is billed, where it lands, and its months before as small bars, this month to date hatched and its landing outlined;
+   Medium, where it lands and its likely range under the verdict, then the four tiles; Large, each tile's line of the months before.
+   What the pace rests on (the unbilled in hand, the tonnes) is This month at its pace's, under Add a widget. */
+wdgDefine({ id: 'mtd', title: 'Month to date', short: 'Month to date', q: 'How is the month going, and where does it land?', section: 'office', type: 'ledger', icon: 'invoice', sizes: ['s', 'm', 'l'], trend: true,
   needs: { page: 'pageRegister', money: true }, go: { tab: 'pageRegister' },
   data: function(ctx) {
-    var o = homeMtdOpts(homeMonthInvoices(), { viz: ctx.size === 'l' });
+    var o = homeMtdOpts(homeMonthInvoices(), { viz: ctx.size === 'l' }), p = predMonthPace();
     // Small: coded by its billing's change alone, said without the word the card's title already is (the canvas's "Level with the
     // same days last month"); from Medium the worse of billing and realisation.
     var tone = ctx.size === 's' ? (WDG_TONES[o.revTone] ? o.revTone : 'neutral') : WDG_TONES[o.tone] ? o.tone : 'neutral';
     // A Small's verdict is two short lines: a whole percent ("22% behind the same days last month").
     var say = ctx.size === 's' ? o.title.replace(/^Billing (\S)/, function(m, c) { return c.toUpperCase(); })
       .replace(/(\d+\.\d+)%/, function(m, n) { return Math.round(parseFloat(n)) + '%'; }) : o.title;
-    return { state: 'ok', tone: tone, o: o, fig: wcMoneyFig(o.rev, ctx.size === 's' ? o.revTone : null), sayHtml: say, sayTone: tone, detailHtml: o.sub, detailNotSmall: true,
-      detailAttrs: ' data-wdg-opt', attrs: o.attrs };
+    // Where the month lands, under the verdict: short on a board (its exact figure the title), its range from Medium. Before the
+    // month has a pace (its first working day billed), the realisation line the tiles' card always had.
+    var lands = p ? 'On pace for ' + inrCard(p.projRev).text + (ctx.size === 's' ? '' : ' · likely ' + inrCard(p.low).text + ' – ' + inrCard(p.high).text) : '';
+    var det = lands ? '<span data-mtd-pace title="' + escHtml('On pace for ' + formatCurrency(p.projRev) + ' and ' + formatNum(p.projKg / 1000, 1) + ' t; likely ' +
+      formatCurrency(p.low) + ' – ' + formatCurrency(p.high) + ', as the ' + p.done + ' of ' + p.total + ' working days in varied') + '">' + escHtml(lands) + '</span>' : ctx.size === 's' ? '' : o.sub;
+    // A Small keeps where the month lands and lets its bars go first where it is short of room (the phone's Small); from Medium the
+    // line under the verdict is what goes.
+    return { state: 'ok', tone: tone, o: o, p: p, fig: wcMoneyFig(o.rev, ctx.size === 's' ? o.revTone : null), sayHtml: say, sayTone: tone, detailHtml: det,
+      detailAttrs: ctx.size === 's' && p ? '' : ' data-wdg-opt', attrs: o.attrs };
   },
   draw: function(d, size) {
+    var p = d.p;
     if (size !== 's') return d.o.tiles;
-    // The months before as small bars, last month the one the figure is set against (dark), this month to date hatched (§24f).
+    // The months before as small bars, last month the one the figure is set against (dark), this month to date hatched and where
+    // it lands at its pace outlined (§24f).
     var hist = homeMonthsBack(6), month = TREND_MONTH_LABELS[new Date().getMonth()];
     var bars = hist.map(function(x, i) { return { v: x.rev, label: x.label, text: formatCurrency(x.rev), on: i === hist.length - 1 }; })
-      .concat([{ v: d.o.rev, label: month + ' to date', text: formatCurrency(d.o.rev), todate: true, hatch: true }]);
-    return '<div class="inv-widget-viz" data-wdg-push>' + chartMiniBars(bars, { title: 'Billed by month: ' + bars.map(function(b) { return b.label + ' ' + wcRs(b.v); }).join(' · ') }) + '</div>';
+      .concat([{ v: d.o.rev, label: month + ' to date', text: formatCurrency(d.o.rev), todate: true, hatch: true,
+        proj: p ? p.projRev : null, projText: p ? 'on pace for ' + formatCurrency(p.projRev) : '' }]);
+    return '<div class="inv-widget-viz" data-wdg-push' + (p ? ' data-wdg-opt' : '') + '>' + chartMiniBars(bars, { title: 'Billed by month: ' + bars.map(function(b) { return b.label + ' ' + wcRs(b.v); }).join(' · ') +
+      (p ? '; ' + month + ' on pace for ' + wcRs(p.projRev) : '') }) + '</div>';
   },
+  // What the pace rests on is the pace line's title: the source stays one line.
   source: function(d) { return { facts: ['Invoices, ' + d.o.span, 'net of credit notes'] }; } });
 
 /* Unbilled challans: what IM lists under Awaiting invoice (pipeAwaitingChallans, oldest first), judged as Pipeline judges its first
@@ -732,7 +748,7 @@ wdgDefine({ id: 'quote', title: 'Quotations and prospects', short: 'Quotations',
 /* Power cuts this month (homePowerOpts' reading of powerCuts): how long the plant was dark and how many cuts; from Medium each cut a
    row, newest first, its lamp amber while it has no time back, each opening its completion. Complete the cut is the Act while one
    has no time back. */
-wdgDefine({ id: 'powercuts', title: 'Power cuts', short: 'Power cuts', q: 'How much power did we lose?', section: 'floor', type: 'plant', sizes: ['s', 'm'],
+wdgDefine({ id: 'powercuts', title: 'Power cuts', short: 'Power cuts', q: 'How much power did we lose?', section: 'floor', type: 'plant', sizes: ['s', 'm'], trend: true,
   needs: { page: 'pagePower' }, go: { tab: 'pagePower', v: 'cuts' },
   data: function() {
     var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today).slice().reverse(), all = powerCuts(null, today);
@@ -855,12 +871,23 @@ function wcFlrLineClient(r) {
 /* A plating line as a Plant row (the canvas's floor now): its lamp in its tone, its nameplate, what it has plated (today: so far) or
    its state, its units working and its main client, and its efficiency at the end over a gauge marked at PROD_EFF_OK. A row says and
    opens nothing (the canvas's 40px row): the card's head opens Floor's Overview, whose line cards open their lines. */
+/* Half or more of a line's units down on the plant register, as the masthead counts it: said whether or not the line has run (its
+   efficiency judges it only once it has). */
+function wcFlrHalfDown(x) {
+  var ef = x && x.j && x.j.ef;
+  return !!(ef && (ef.halfDown || (ef.n >= 2 && ef.avail != null && ef.avail <= 0.5)));
+}
 function wcFlrLineRowHtml(x, day, isToday) {
-  var ef = x.j.ef, plated = wcFlrPlated(x.r);
-  var units = ef && ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + wdgNoun(ef.unitWord || 'unit', ef.n) : '';
-  var meta = [units, wcFlrLineClient(x.r)].filter(Boolean).join(' · ') || x.j.st.word;
+  var ef = x.j.ef, plated = wcFlrPlated(x.r), half = wcFlrHalfDown(x), unit = (ef && ef.unitWord) || 'unit';
+  var units = ef && ef.n && !half ? ef.nAvail + ' of ' + ef.n + ' ' + wdgNoun(unit, ef.n) : '';
+  // Its hands against the day's number once the roll is in (Attendance today, folded into this card: owner, 21 Oct 2026).
+  var st = x.j.st, hands = st.need != null ? st.heads + ' of ' + st.need + ' hands' : st.heads ? st.heads + ' on' : '';
+  var meta = [units, hands, wcFlrLineClient(x.r)].filter(Boolean).join(' · ');
+  if (!meta && !half) meta = st.word;
   var pct = ef && ef.eff != null ? Math.round(ef.eff * 100) : null;
-  return wdgPlantRowHtml({ tone: x.j.tone, plate: flrLineName(x.ln.id), runs: plated ? plated + (isToday ? ' so far' : '') : wcFlrLineWord(x, isToday), meta: meta,
+  var down = half ? (ef.n - ef.nAvail) + ' of ' + ef.n + ' ' + wdgNoun(unit, ef.n) + ' down' : '';
+  if (half && plated) meta = [down].concat(meta ? [meta] : []).join(' · ');
+  return wdgPlantRowHtml({ tone: half ? 'danger' : x.j.tone, plate: flrLineName(x.ln.id), runs: plated ? plated + (isToday ? ' so far' : '') : half ? down : wcFlrLineWord(x, isToday), meta: meta,
     eff: { text: pct != null ? pct + '%' : '\u2014', tone: pct != null ? ef.tone : null, v: pct || 0, max: 100, mark: PROD_EFF_OK * 100,
       title: pct != null ? flrLineName(x.ln.id) + ' at ' + pct + '% of what its working units could plate; the mark is ' + Math.round(PROD_EFF_OK * 100) + '%' : 'Not judged yet' },
     attrs: ' data-wc-line="' + escHtml(x.ln.id) + '"' });
@@ -878,9 +905,26 @@ function wcDayLanesHtml(day, only) {
   return '<div class="inv-widget-viz" data-wc-daystrip>' + chartDayLanes(lanes, { cuts: cuts, now: isToday ? d.getHours() * 60 + d.getMinutes() : null, compact: !_isDesktop,
     title: 'The day, 6 AM to 6 AM: ' + (pic.ran.length ? pic.ran.map(prodLineName).join(', ') + ' ran' : 'no line has run') + (cuts.length ? '; ' + todoPlural(cuts.length, 'cut') : '') }) + '</div>';
 }
-/* The floor now: who is on site against the day's roster (attOnSiteTone, the People card's judge) and the lines running; the day on
-   one bar; a line a row, worst first; at Large the units down and the EXTRA booked. Today, as Floor's Overview opens; heads only,
-   never a rupee, so every role that opens Floor sees it. */
+/* The last day with plating on record before today, in a few words (Production, the last day, folded into the floor's card: owner,
+   21 Oct 2026, "About 7 cards on the phone"): "Last plated Fri 16 Oct: ≈ 732 kg, 46% of a usual day", in the day's tone. */
+function wcFlrLastPlated(today) {
+  var day = homeLastPlatedDay();
+  if (!day || day >= today) return null;
+  var pic = prodDayPicture(day);
+  if (!pic || !(pic.kg > 0)) return null;
+  var share = pic.usual > 0 ? Math.round(pic.kg / pic.usual * 100) : null;
+  return { day: day, share: share, tone: share == null ? 'neutral' : prodDayUnder(pic.kg, pic.usual) ? 'warning' : 'ok',
+    text: 'Last plated ' + wcDayWord(day) + ': ' + prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0) + (share != null ? ', ' + share + '% of a usual day' : '') };
+}
+/* A day the plant is not expected to work, as the floor's card says it. */
+function wcFlrOffSay(off) {
+  return off.kind === 'shut' ? 'Plant shut today' + (off.why ? ': ' + off.why : '') : off.kind === 'sunday' ? 'Sunday: the plant is shut' : 'A paid holiday: the plant is shut';
+}
+/* The floor now: who is on site against the day's roster (attOnSiteTone, the People card's judge) and the lines running, each with
+   its units and hands; the day on one bar; a line a row, worst first; at Large the units down and the EXTRA booked. Today, as Floor's
+   Overview opens; heads only, never a rupee, so every role that opens Floor sees it. Production, the last day, and Attendance today
+   are folded into it (owner, 21 Oct 2026): before today's first run it says the last day plated, and a day the plant is shut (marked
+   from Home, a paid holiday, a Sunday not worked) is one quiet line. */
 wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who is on site and what is running?', section: 'floor', type: 'plant', icon: 'floor', sizes: ['m', 's', 'l'],
   needs: { page: 'pageFloor' }, card: 'floor-now',
   // Floor's Overview on today, as Needs you's floor card opens it.
@@ -890,24 +934,37 @@ wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who 
     var ran = F.lines.filter(function(x) { return x.r.entries.length > 0; });
     if (!d.roster.length && !ran.length && !homeLastPlatedDay()) return { state: 'empty', title: 'Nothing on the floor yet', body: 'People → Roster holds the crew, and Production records what each line plates.',
       act: { label: 'Open the floor', action: 'invWdgGo', attrs: ' data-wid="floornow"' } };
+    var last = wcFlrLastPlated(day), off = plantDayOff(day);
+    // A day the plant is shut: one quiet line, and the last day plated under it.
+    if (off) return { state: 'ok', tone: 'neutral', F: F, day: day, off: off, last: last, quiet: true, say: wcFlrOffSay(off), sayTone: 'neutral', sayAttrs: ' data-wc-off',
+      detail: last ? last.text : '', detailAttrs: ' data-wc-lastday' };
     var onTone = attOnSiteTone(d, F.short), worst = F.lines[0], n = d.roster.length, on = d.p + d.half;
-    var say = !d.marked && !ran.length ? 'Nothing recorded yet today' : flrLineName(worst.ln.id) + ': ' + wcLc(wcFlrLineWord(worst, true));
+    var none = !d.marked && !ran.length;
+    // A line half down leads, as the masthead and Floor's line cards lead with it, run or not.
+    var half = F.lines.filter(wcFlrHalfDown)[0];
+    if (half) worst = half;
+    var halfSay = half ? flrLineName(half.ln.id) + ': ' + (half.j.ef.n - half.j.ef.nAvail) + ' of ' + half.j.ef.n + ' ' + wdgNoun(half.j.ef.unitWord || 'unit', half.j.ef.n) + ' down' : '';
+    var say = halfSay || (none ? 'Nothing recorded yet today' : flrLineName(worst.ln.id) + ': ' + wcLc(wcFlrLineWord(worst, true)));
     // Who is on site beside the lines running, as a reading (the canvas's "14 of 16 on site"), in the People card's tone.
     var heads = d.marked ? '<span class="inv-reading" data-wc-onsite>' + figHtml(escHtml(String(on)), onTone) + '<span class="inv-unit">of ' + n + ' on site</span></span>' : '';
-    return { state: 'ok', tone: wcWorst([onTone].concat(F.lines.map(function(x) { return x.j.tone; }))), F: F, day: day,
-      fig: wcFigUnit(ran.length, 'of ' + F.lines.length + ' lines running') + (heads ? ' ' + heads : ''), say: say, sayTone: worst ? worst.j.tone : 'neutral',
-      // The heads behind the reading, at Large (the lanes and the rows say the rest).
-      detail: ctx.size !== 'l' ? '' : d.marked ? [d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' : '', todoPlural(d.absent.length, 'absent', 'absent') + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '')]
-        .filter(Boolean).join(' · ') : 'The in-time roll fills it', detailNotSmall: true };
+    // Under the verdict, the last day plated until today's first run (the Production card's word), else at Large the heads behind
+    // the reading (the lanes and the rows say the rest).
+    var heads2 = ctx.size !== 'l' ? '' : d.marked ? [d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' : '', todoPlural(d.absent.length, 'absent', 'absent') + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '')]
+      .filter(Boolean).join(' · ') : 'The in-time roll fills it';
+    return { state: 'ok', tone: wcWorst([onTone].concat(F.lines.map(function(x) { return wcFlrHalfDown(x) ? 'danger' : x.j.tone; }))), F: F, day: day, last: last, none: none,
+      fig: wcFigUnit(ran.length, 'of ' + F.lines.length + ' lines running') + (heads ? ' ' + heads : ''), say: say, sayTone: half ? 'danger' : worst ? worst.j.tone : 'neutral',
+      detail: last && !ran.length ? last.text : heads2, detailAttrs: last && !ran.length ? ' data-wc-lastday' : '', detailNotSmall: !(last && !ran.length) };
   },
   draw: function(d, size) {
+    if (d.off) return '';
     if (size === 's') {
       var a = d.F.att;
       return a.marked ? '<div class="inv-widget-viz" data-wdg-push>' + chartMeter([{ v: a.p, tone: 'ok' }, { v: a.half, tone: 'warning' }, { v: a.absent.length, tone: 'danger' }, { v: a.unmarked, tone: 'neutral' }],
         { title: a.p + ' present, ' + a.half + ' half day, ' + a.absent.length + ' absent' + (a.unmarked ? ', ' + a.unmarked + ' unmarked' : '') }) + '</div>' : '';
     }
     var rows = '<div class="inv-plant" data-wdg-list data-noun="line">' + d.F.lines.map(function(x) { return wcFlrLineRowHtml(x, d.day, true); }).join('') + '</div>';
-    var strip = wcDayLanesHtml(d.day);
+    // The day in lanes once anything is recorded: before that it is an empty clock.
+    var strip = d.none ? '' : wcDayLanesHtml(d.day);
     if (size !== 'l') return strip + rows;
     // The units not working on each line (the plant register, as found on the day), and the EXTRA booked: the day's whole, by line.
     var nUnits = 0, nDown = 0, half = false, words = [];
@@ -928,7 +985,13 @@ wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who 
   },
   // What the card stands on (the canvas's "In-time roll 8:41 AM · register to 2:10 PM · one cut, 11:20 to 11:58 AM"): when the roll
   // came, how late the day's runs are recorded to, and the cuts.
+  // Nothing recorded by eleven on a day the calendar calls a working day: the plant may be shut, and Home is where it is marked.
+  actRow: function(d) {
+    if (d.off || !d.none || new Date().getHours() < 11 || typeof grdCan !== 'function' || !grdCan('settings')) return null;
+    return { text: { label: 'Mark today shut', action: 'invPlantShut', attrs: ' data-day="' + escHtml(d.day) + '"' } };
+  },
   source: function(d) {
+    if (d.off) return { facts: [d.off.kind === 'shut' ? 'Marked shut from Home' : d.off.kind === 'sunday' ? 'Sundays' : 'Paid holidays, Settings → Labour', 'nothing recorded today'] };
     var a = d.F.att, day = d.day, pic = prodDayPicture(day), last = null, cuts = pic.cuts || [];
     var at = tdyRolls('in', day).map(function(p) { return tdyArrival(p.text, p.at, day, p); }).filter(function(x) { return x != null; });
     PROD_LINES.forEach(function(l) { (pic.spans[l] || []).forEach(function(x) { if (x.to != null && (last == null || x.to > last)) last = x.to; }); });
@@ -992,7 +1055,7 @@ function wcProdWeighedHtml(pic) {
   return wdgFactLinesHtml(lines, { caption: 'How it was weighed', attrs: ' data-wc-weighed',
     viz: chartMeter([{ v: sure, tone: 'neutral' }, { v: est, tone: 'neutral', hatch: true }], { max: max, title: title }) });
 }
-wdgDefine({ id: 'prodday', title: 'Production, the last day', short: 'Production', q: 'What did we plate?', section: 'floor', type: 'plant', icon: 'vat', sizes: ['s', 'm', 'l'],
+wdgDefine({ id: 'prodday', title: 'Production, the last day', short: 'Production', q: 'What did we plate?', section: 'floor', type: 'plant', icon: 'vat', sizes: ['s', 'm', 'l'], trend: function(d) { return !d.o || !d.o.isToday; },
   needs: { page: 'pageProduction' },
   // Lines on the day it shows (the head is the door: Open the lines went, §24f).
   go: function() { var day = homeLastPlatedDay(); _prodView = 'main'; prodSetTab('lines'); if (day) _prodDay = day; switchTab('pageProduction'); },
@@ -1070,7 +1133,7 @@ function wcFlrCutWords(c) {
 /* Plated each day: a calendar of the weeks (chartHeat bare, the one blue ramp; a day with no record hatched), Medium eight weeks and
    Large twelve, with how many days fell under a usual day (prodDayUnder, the day card's own judge) and how many of those had a cut;
    Large lists the days under a usual day that were cut days beside it. Today is drawn as to date and never judged. */
-wdgDefine({ id: 'heat', title: 'Plated each day', q: 'Which days ran light, and why?', section: 'floor', type: 'plant', sizes: ['l', 'm'],
+wdgDefine({ id: 'heat', title: 'Plated each day', q: 'Which days ran light, and why?', section: 'floor', type: 'plant', sizes: ['l', 'm'], trend: true,
   needs: { page: 'pageProduction' }, go: { tab: 'pageProduction', v: 'lines' }, card: 'plated-days',
   data: function(ctx) {
     var D = wcFlrDays(), today = localDateStr();
@@ -1116,7 +1179,7 @@ wdgDefine({ id: 'heat', title: 'Plated each day', q: 'Which days ran light, and 
 /* Line efficiency on the last day with plating (prodLineEfficiency, Floor's line cards' own figure and tone): Small the worst line's
    figure; Medium and Large the three lines as rows, each with its gauge against what its working units could plate, the mark at
    three quarters; Large names the factor that lost most (flrEffMoved, the card's own caption). */
-wdgDefine({ id: 'eff', title: 'Line efficiency, now', short: 'Efficiency', q: 'Is each line plating what it can?', section: 'floor', type: 'plant', sizes: ['m', 's', 'l'],
+wdgDefine({ id: 'eff', title: 'Line efficiency, now', short: 'Efficiency', q: 'Is each line plating what it can?', section: 'floor', type: 'plant', sizes: ['m', 's', 'l'], trend: true,
   needs: { page: 'pageProduction' }, go: { tab: 'pageProduction', v: 'lines' }, card: 'line-eff',
   data: function() {
     var day = homeLastPlatedDay();
@@ -1298,7 +1361,7 @@ var WC_FLR_ZINC_RANGE = { '3M': 'three months', '6M': 'six months', FY: 'this fi
 /* Zinc against the market (zincTrend, over the range Stock → Spend and prices shows): what the bills paid over the market a kilo,
    weighted by their kilos (dashZincPaidOver), the market now against the last bill and the market's line with the last bill dashed
    beside it; Large each supplier over the market (dashZincSupStatus: Spend and prices' own words), as statement lines with their paise. */
-wdgDefine({ id: 'zincpaid', title: 'Zinc against the market', q: 'Did we buy well, and from whom?', section: 'floor', type: 'ledger', sizes: ['m', 'l'],
+wdgDefine({ id: 'zincpaid', title: 'Zinc against the market', q: 'Did we buy well, and from whom?', section: 'floor', type: 'ledger', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageStock', money: true }, card: 'zinc-paid',
   go: function() { dashZincShow(); },
   data: function() {
@@ -1387,7 +1450,7 @@ wdgDefine({ id: 'atttoday', title: 'Attendance today', short: 'Attendance', q: '
 /* Attendance by pay week (dashAttendanceByWeek, Attendance → Week's own reading): the share present of the marks typed, a week
    nobody typed a gap, the week running drawn as to date, against the rest-day gate's 90% (the mark). The latest week with marks is
    the figure, judged at the gate's 90% and 80% (figTonePct). Medium eight weeks, Large twenty-six. */
-wdgDefine({ id: 'attweek', title: 'Attendance by week', q: 'Is the crew turning up?', section: 'people', type: 'crew', sizes: ['m', 'l'],
+wdgDefine({ id: 'attweek', title: 'Attendance by week', q: 'Is the crew turning up?', section: 'people', type: 'crew', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageStaff' }, go: { tab: 'pageStaff', v: 'week' }, card: 'att-weeks',
   data: function(ctx) {
     var n = 8, weeks = dashAttendanceByWeek(n), known = weeks.filter(function(w) { return w.pct != null; });
@@ -1448,7 +1511,7 @@ function wcPplOtBars(rows, key, max, head) {
   return chartRankedBars(rows.map(function(r) { return { label: r.label, value: Math.round(r[key] * 10) / 10, display: wcHours(r[key]) + ' h' }; }),
     { unit: 'h', max: max, labelHead: 'Area', valueHead: head, emptyText: 'None in four weeks', bare: true });
 }
-wdgDefine({ id: 'ot', title: 'Overtime by area', q: 'Where are the extra hours going?', section: 'people', type: 'crew', sizes: ['m', 'l'],
+wdgDefine({ id: 'ot', title: 'Overtime by area', q: 'Where are the extra hours going?', section: 'people', type: 'crew', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageStaff' }, go: { tab: 'pageStaff', v: 'areas' }, card: 'ot-areas',
   data: function() {
     var today = localDateStr(), from = isoAddDays(attWeekStartOf(today), -21), ah = areaHoursForRange(from, today);
@@ -1741,7 +1804,7 @@ function wcCorrPicksHtml(p, compact) {
   // Each pick is kept as it is made: nothing typed waits to be saved (data-nodirty), in a dialog or on the page.
   return '<div class="inv-corr-picks' + (compact ? ' inv-corr-picks-sm' : '') + '" data-corr-picks data-nodirty>' + sel('x', p.across, p.x) + sel('y', p.up, p.y) + '</div>';
 }
-wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures; see if they travel together.', section: 'analysis', type: 'brief', sizes: ['l', 'm'],
+wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures; see if they travel together.', section: 'analysis', type: 'brief', sizes: ['l', 'm'], trend: true,
   card: 'corr',
   // Its Choose is the pair (§24f): the two pickers at Large, one button naming the pair at Medium.
   choose: { at: ['m', 'l'], label: 'The pair', html: function(ctx) {
@@ -1796,7 +1859,7 @@ wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures;
 /* What each client pays a kilo (§7d `clientprice`): the period's clients, worst first, each against the full cost (the mark) and the
    variable cost (labour is fixed: everything but labour, statsClientMargins), the ranked bars bare, each row opening its client.
    Coded by the large accounts (10% of the tonnes or more) under the cost, as Stats' By client is. */
-wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who clears the cost, who does not?', section: 'analysis', type: 'ledger', sizes: ['l', 'm'],
+wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who clears the cost, who does not?', section: 'analysis', type: 'ledger', sizes: ['l', 'm'], trend: true,
   needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'clients' }, card: 'clientprice',
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), m = wdgMemo('margins:' + ctx.period, function() { return statsClientMargins(ctx.period, a.filtered, a.tonnage); });
@@ -1820,7 +1883,7 @@ wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who cl
     }), { unit: 'rate', max: max, labelHead: 'Client', valueHead: '₹ a kilo', ariaLabel: 'What each client pays a kilo against the full cost', bare: true }) + '</div>';
   },
   source: function(d, size, ctx) {
-    return { facts: ['Invoices, ' + (PERIOD_LABELS[ctx.period] || 'the period').toLowerCase(), 'the live cost ' + Math.round(d.m.c.measuredShare * 100) + '% measured', 'labour fixed']
+    return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the live cost ' + Math.round(d.m.c.measuredShare * 100) + '% measured', 'labour fixed']
       .concat(d.m.apart.length ? [d.m.apart.length + ' not ranked: under 90% weighed'] : []) };
   } });
 
@@ -1828,7 +1891,7 @@ wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who cl
    Medium its parts as one bar of 100% (chartShareBar; a part's colour its own on every cost chart, seriesSlot 'cost'); at Large each
    part's ₹ a kilo as statement lines adding up to it. Coded by the share measured, as Stats' Cost is. */
 var WC_KILO_TONE = function(share) { return share >= 0.9 ? 'ok' : share >= 0.5 ? 'warning' : 'danger'; };
-wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s cost', q: 'Which part of the cost is moving?', section: 'analysis', type: 'ledger', sizes: ['m', 's', 'l'],
+wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s cost', q: 'Which part of the cost is moving?', section: 'analysis', type: 'ledger', sizes: ['m', 's', 'l'], trend: true,
   needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'cost' }, card: 'kilo',
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), kg = a.tonnage ? a.tonnage.kg : 0;
@@ -1848,7 +1911,7 @@ wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s 
       return { label: r.label, meta: Math.round(r.amount / c.total * 100) + '% · ' + (COST_SRC_LABEL[r.source] || r.source || ''), amt: gstRound(r.perKg, 2), attrs: ' data-kilo-part="' + escHtml(r.key) + '"' };
     }), { label: 'A kilo', amt: gstRound(c.perKg, 2) }, { rate: true, unit: '/kg', noun: 'part', attrs: ' data-kilo-parts' });
   },
-  source: function(d, size, ctx) { return { facts: ['Live cost, ' + (PERIOD_LABELS[ctx.period] || 'the period').toLowerCase(), Math.round(d.c.measuredShare * 100) + '% measured'] }; } });
+  source: function(d, size, ctx) { return { facts: ['Live cost ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), Math.round(d.c.measuredShare * 100) + '% measured'] }; } });
 
 /* ---------- The questions (Briefing: a briefing note on the desk at nine; Pulse's, folded into Home: §8c) ----------
    Each question a widget: Small its answer as a sentence, its key figure in its tone, with its picture; Medium the story's sentences,
@@ -1856,11 +1919,11 @@ wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s 
    the question. Its head opens the whole of it, every move, in a dialog. The questions read money in every figure, so each is money's. */
 var WC_QUESTIONS = [
   { k: 'smooth', title: 'Is the plant running smoothly?', short: 'Running well?', q: 'Stock, power, staffing, records, the payout and the backup, in one answer', sizes: ['m', 's', 'l'], icon: 'efficiency' },
-  { k: 'money', title: 'Are we making money?', short: 'Making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'], icon: 'money' },
-  { k: 'clients', title: 'Who is driving it?', short: 'Who drives it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'], icon: 'client' },
-  { k: 'plant', title: 'Is the plant full?', short: 'Plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'], icon: 'scale' },
+  { k: 'money', trend: true, title: 'Are we making money?', short: 'Making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'], icon: 'money' },
+  { k: 'clients', trend: true, title: 'Who is driving it?', short: 'Who drives it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'], icon: 'client' },
+  { k: 'plant', trend: true, title: 'Is the plant full?', short: 'Plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'], icon: 'scale' },
   { k: 'cash', title: 'Is cash coming in?', short: 'Getting paid?', shortDesk: 'Cash coming in?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true, icon: 'owed' },
-  { k: 'changed', title: 'What changed?', short: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'], icon: 'activity' }
+  { k: 'changed', trend: true, title: 'What changed?', short: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'], icon: 'activity' }
 ];
 function wcQuestion(k) { return tdyQuestions().filter(function(x) { return x.key === k; })[0] || null; }
 /* The story as a card on the board tells it (Medium): its sentences and rows, without the tiles and charts that restate the answer's
@@ -1911,7 +1974,7 @@ function wcQuestionSource(k, ctx) {
   return ['The month to ' + stockShortDate(localDateStr()), 'against its pace'];
 }
 WC_QUESTIONS.forEach(function(qd) {
-  wdgDefine({ id: 'q-' + qd.k, title: qd.title, short: qd.short, shortDesk: qd.shortDesk, q: qd.q, section: 'questions', type: 'brief', icon: qd.icon, sizes: qd.sizes,
+  wdgDefine({ id: 'q-' + qd.k, title: qd.title, short: qd.short, shortDesk: qd.shortDesk, q: qd.q, section: 'questions', type: 'brief', icon: qd.icon, sizes: qd.sizes, trend: !!qd.trend,
     needs: { money: true, when: qd.bank ? function() { return finHasBank(); } : null },
     go: function() { wcQuestionOpen(qd); },
     more: function() { wcQuestionOpen(qd); },
@@ -2002,7 +2065,7 @@ function wcWhyVs(period) {
   if (period === 'mtd') { var d = attParseIso(localDateStr()); return RPT_MONTHS[(d.getMonth() + 11) % 12]; }
   return period === 'qtd' ? 'last quarter' : period === 'ytd' ? 'last year' : 'the period before';
 }
-wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against the period before?', section: 'questions', type: 'brief', sizes: ['m', 'l'],
+wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against the period before?', section: 'questions', type: 'brief', sizes: ['m', 'l'], trend: true,
   needs: { money: true }, go: { tab: 'pageStats', v: 'trends' },
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), o = whyHeroOpts(ctx.period, a.filtered, a.prior, 'real');
@@ -2035,7 +2098,7 @@ wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against
   } });
 /* The period in figures (statsOverviewOpts, the panel Stats → Overview drew): what a kilo left after the live cost, its four factors
    as tiles, and the plated tonnage as a row opening Production. */
-wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, contribution, capacity', section: 'questions', type: 'ledger', sizes: ['m', 'l'],
+wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, contribution, capacity', section: 'questions', type: 'ledger', sizes: ['m', 'l'], trend: true,
   needs: { money: true }, go: { tab: 'pageStats', v: 'cost' },
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), o = statsOverviewOpts(ctx.period, a.filtered, a.tonnage);
@@ -2044,12 +2107,13 @@ wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, cont
   },
   draw: function(d) { return (d.tiles || '') + (d.plated ? '<div data-wdg-list data-noun="line">' + d.plated + '</div>' : ''); },
   source: function(d, size, ctx) {
-    return { facts: ['Invoices of ' + (PERIOD_LABELS[ctx.period] || 'the period').toLowerCase() + ', net of notes'].concat(d.measured != null ? ['the live cost ' + Math.round(d.measured * 100) + '% measured'] : []) };
+    // The period in words (this month), never its key: PERIOD_LABELS is the chip's MTD, which read "Invoices of mtd".
+    return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period') + ', net of notes'].concat(d.measured != null ? ['the live cost ' + Math.round(d.measured * 100) + '% measured'] : []) };
   } });
 /* This month at its pace (paceCardOpts, predMonthPace): where the month lands as the figure, its change on last month as the verdict;
    so far, the unbilled challans in hand and the likely range as statement lines, with no total ruled: the landing is a pace, not
    their sum. */
-wdgDefine({ id: 'pace', title: 'This month at its pace', q: 'Where does the month land?', section: 'office', type: 'ledger', icon: 'forecast', sizes: ['m', 'l'],
+wdgDefine({ id: 'pace', title: 'This month at its pace', q: 'Where does the month land?', section: 'office', type: 'ledger', icon: 'forecast', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageRegister', money: true }, go: { tab: 'pageRegister' },
   data: function() {
     var o = paceCardOpts();
@@ -2092,9 +2156,10 @@ wdgDefine({ id: 'needs', title: 'Needs you', q: 'What needs me now?', section: '
   actRow: function() { return { text: { label: 'Add a task', action: 'invHomeQuick', attrs: ' data-go="task"' } }; } });
 /* What's coming (§7d `coming`): dated predictions, soonest first, each with its reason, read off what already predicts it, each shown
    only to a role that may see it: the cash forecast's low under zero (finForecast), a stock line out before its supplier can deliver
-   (stockStatus, suppReorderPick), a client's next challan by its rhythm (predCadence), where the month lands (predMonthPace), a
-   challan's turnaround target passing (flowLines), and a cut likely today where the forecast has thunder in the hours the plant's own
-   cuts most often start (said as the two facts side by side). Each a dated row; More lists them all in a dialog. */
+   (stockStatus, suppReorderPick), a client's next challan by its rhythm (predCadence), a challan's turnaround target passing
+   (flowLines), and a cut likely today where the forecast has thunder in the hours the plant's own cuts most often start (said as the
+   two facts side by side). Each a dated row; More lists them all in a dialog. Where the month lands is the Month to date card's (owner,
+   21 Oct 2026: one fact in one place; it had been the masthead's, the pace card's and this card's). */
 var WC_COMING_RANK = { danger: 3, warning: 2, info: 1, ok: 1, neutral: 0 };
 /* The day a dated row is for, in the canvas's chip: Today, the weekday and date within the week (Mon 19), else the date (31 Oct). */
 function wcComingDay(iso) {
@@ -2102,12 +2167,8 @@ function wcComingDay(iso) {
   if (n <= 0) return 'Today';
   return n <= 6 ? CHART_DAY_NAMES[d.getDay()] + ' ' + d.getDate() : d.getDate() + ' ' + CHART_MONTHS[d.getMonth()];
 }
-/* A client's name as a card says it (the canvas's "ALPHA FORGINGS"): its legal ending left off; the full name is the record's. */
-function wcClientShort(name) {
-  var s = String(name || '').trim();
-  var t = s.replace(/[\s,.]*\b(?:(?:\(P\)|PVT\.?|PRIVATE)\s*)?(?:LTD\.?|LIMITED)\.?$/i, '').replace(/[\s,.]*\bLLP\.?$/i, '').trim();
-  return t || s;
-}
+/* A client's name as a card says it (the canvas's "ALPHA FORGINGS"): its legal ending left off (state.js clientShortName). */
+function wcClientShort(name) { return clientShortName(name); }
 function wcComingBook() {
   return wdgMemo('coming-book', function() {
     var today = localDateStr(), out = [], money = wdgSeesMoney();
@@ -2132,19 +2193,9 @@ function wcComingBook() {
     });
     if (sees('pageIM')) guard(function() {
       predCadence().filter(function(c) { return c.count >= 5 && !c.quiet && c.next && c.next >= today && isoDaysBetween(today, c.next) <= 7; }).slice(0, 4).forEach(function(c) {
-        out.push({ key: 'cad:' + c.id, date: c.next, tone: 'neutral', title: wcClientShort(c.name) + '’s next challan', why: 'Every ' + Math.round(c.median) + ' days, the last on ' + stockShortDate(c.last),
+        out.push({ key: 'cad:' + c.id, date: c.next, tone: 'neutral', title: 'Next challan from ' + wcClientShort(c.name), why: 'Every ' + Math.round(c.median) + ' days, the last on ' + stockShortDate(c.last),
           go: { kind: 'im', clientId: c.id } });
       });
-    });
-    if (money && sees('pageRegister')) guard(function() {
-      var p = predMonthPace();
-      if (!p || !(p.left > 0)) return;
-      var end = payMonthEnd(today.slice(0, 7) + '-01'), ahead = p.prevRev > 0 ? p.projRev >= p.prevRev : null;
-      out.push({ key: 'pace', date: end, tone: ahead === false ? 'warning' : ahead ? 'ok' : 'neutral', title: 'The month lands about ' + wcRs(p.projRev),
-        // One line on a phone's card: the range, then last month's billing; the whole is the row's title.
-        why: 'Likely ' + wcRs(p.low) + '–' + wcRs(p.high) + (p.prevRev > 0 ? ' · ' + p.prevLabel + ' ' + wcRs(p.prevRev) : ''),
-        title2: 'At the pace of ' + todoPlural(p.done, 'working day') + ' so far' + (p.prevRev > 0 ? '; ' + p.prevLabel + ' billed ' + wcRs(p.prevRev) : ''),
-        go: { kind: 'register' } });
     });
     if (sees('pageProduction') && typeof flowLines === 'function') guard(function() {
       var seen = {}, soon = flowAddWd(today, 1);
@@ -2164,6 +2215,8 @@ function wcComingBook() {
 /* The cut likely today: today's thunder hours (the feed's copy, read each draw) against the plant's own hours. */
 function wcComingCut() {
   if (typeof grdSees === 'function' && !grdSees('pagePower')) return null;
+  // A day the plant is shut has no cut to lose work to.
+  if (typeof plantDayOff === 'function' && plantDayOff(localDateStr())) return null;
   var th = wcThunderHours();
   if (!th || !th.length || typeof powerRiskWindow !== 'function') return null;
   var a = wdgMemo('power-analysis', powerAnalysis), win = a && a.hours ? powerRiskWindow(a.hours, 6, 22) : null;
@@ -2206,14 +2259,21 @@ function wcComingItems() {
   if (cut) list.push(cut);
   return wcComingGroup(list.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (WC_COMING_RANK[b.tone] || 0) - (WC_COMING_RANK[a.tone] || 0); }));
 }
-/* The answer the card leads with (the canvas's "Three challans are due back today"): what is due today, else the soonest. */
+/* The answer the card leads with (the canvas's "Three challans are due back today"), never a row said again (owner, 21 Oct 2026: the
+   headline had repeated its first row word for word): what is due back today; else the worst row that asks for something, which
+   then leaves the rows (`skip`); else what the rows are, counted (2 challans expected by Mon 26). */
 function wcComingSay(list) {
   var today = localDateStr(), now = list.filter(function(x) { return x.date <= today; });
-  var back = now.reduce(function(t, x) { return t + (/^turns?:/.test(x.key) ? x.n || 1 : 0); }, 0);
-  if (back > 1) return { text: back + ' challans are due back today', tone: 'warning' };
-  if (back === 1) { var one = now.filter(function(x) { return /^turns?:/.test(x.key); })[0]; return { text: one.title.replace(/ due back$/, ' is due back today'), tone: one.tone }; }
-  var x = list[0];
-  return { text: x.date <= today ? x.title : wcComingDay(x.date) + ': ' + wcLc(x.title), tone: x.tone };
+  var back = now.filter(function(x) { return /^turns?:/.test(x.key); }), nBack = back.reduce(function(t, x) { return t + (x.n || 1); }, 0);
+  if (nBack > 1) return { text: nBack + ' challans are due back today', tone: 'warning' };
+  if (nBack === 1) return { text: back[0].title.replace(/ due back$/, ' is due back today'), tone: back[0].tone, skip: back[0].key };
+  var act = list.filter(function(x) { return x.tone === 'danger' || x.tone === 'warning'; })
+    .sort(function(a, b) { return (WC_COMING_RANK[b.tone] || 0) - (WC_COMING_RANK[a.tone] || 0); })[0];
+  if (act) return { text: (act.date <= today ? act.title : wcComingDay(act.date) + ': ' + wcLc(act.title)), tone: act.tone, skip: act.key };
+  // What the rows are, counted: challans alone by the last day one is expected; anything else beside them, every row by the last day.
+  var cad = list.filter(function(x) { return /^cad:/.test(x.key); }), lastDay = wcComingDay(list[list.length - 1].date);
+  if (cad.length === list.length) return { text: cad.length === 1 ? 'A challan expected ' + wcComingDay(cad[0].date) : cad.length + ' challans expected by ' + lastDay, tone: list[0].tone };
+  return { text: list.length === 1 ? list[0].title : todoPlural(list.length, 'thing') + ' dated by ' + lastDay, tone: list[0].tone };
 }
 function wcComingRowsHtml(list) {
   var today = localDateStr();
@@ -2238,11 +2298,12 @@ wdgDefine({ id: 'coming', title: 'What’s coming', q: 'What happens next, and w
   },
   data: function() {
     var list = wcComingItems();
-    if (!list.length) return { state: 'empty', title: 'Nothing dated ahead yet', body: 'A prediction appears here once the book can make one: a stock line running out, a client’s next challan, where the month lands.' };
+    if (!list.length) return { state: 'empty', title: 'Nothing dated ahead yet', body: 'Once the book can tell: a stock line running out, a client’s next challan, a challan due back.' };
     var tone = list.slice(0, 4).reduce(function(t, x) { return (WC_COMING_RANK[x.tone] || 0) > (WC_COMING_RANK[t] || 0) ? x.tone : t; }, 'neutral');
     // The answer as a sentence (a Briefing's), then the rows, soonest first.
     var a = wcComingSay(list);
     return { state: 'ok', tone: tone === 'info' || tone === 'ok' ? 'neutral' : tone, list: list, ans: escHtml(a.text),
+      rows: list.filter(function(x) { return x.key !== a.skip; }),
       ansAttrs: ' data-coming-say title="' + escHtml(a.text + ' · ' + todoPlural(list.length, 'thing') + ' dated ahead, soonest first') + '"' };
   },
-  draw: function(d) { return wcComingRowsHtml(d.list); } });
+  draw: function(d) { return d.rows.length ? wcComingRowsHtml(d.rows) : ''; } });

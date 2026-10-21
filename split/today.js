@@ -104,12 +104,11 @@ function tdyUsual(k, day) {
   return { min: mins.length >= TDY_MIN_SEEN ? tdyMedian(mins) : def.usual, seen: mins.length };
 }
 
-/* One input on one day: whether it is in, what it says, and its state: in · wait (not yet due) · late · off (a Sunday or a
-   paid holiday nobody worked: nothing is expected). Only today is judged against the clock. */
+/* One input on one day: whether it is in, what it says, and its state: in · wait (not yet due) · late · off (a Sunday, a paid
+   holiday or a day marked shut that nobody worked: nothing is expected). Only today is judged against the clock. */
 function tdyInput(def, day) {
   var isToday = day === localDateStr(), now = isToday ? tdyNowMin() : 1440;
-  var att = attDaySummary(day), worked = att.marked || Object.keys(prodDayPlated(day).lines).length > 0 || prodDayLoads(day).length > 0;
-  var off = !worked && (new Date(day + 'T00:00:00').getDay() === 0 || (typeof labourIsHoliday === 'function' && labourIsHoliday(day)));
+  var att = attDaySummary(day), off = plantDayOff(day);
   var o = { k: def.k, title: def.title, move: def.move, state: 'wait', text: '', usual: null, lines: null };
   var clock = function(m) { return m == null ? '' : relayClockLabel(m); };
   if (def.k === 'roll-in' || def.k === 'roll-out') {
@@ -156,7 +155,8 @@ function tdyInput(def, day) {
   }
   var u = tdyUsual(def.k, day);
   o.usual = u.min;
-  if (off) { o.state = 'off'; o.text = 'Not expected: ' + (new Date(day + 'T00:00:00').getDay() === 0 ? 'Sunday' : 'a paid holiday'); return o; }
+  // A day the plant does not work (floor.js plantDayOff): a Sunday, a paid holiday, a day marked shut (Home → More → Plant shut).
+  if (off) { o.state = 'off'; o.text = 'Not expected: ' + (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'a paid holiday' : 'plant shut' + (off.why ? ', ' + off.why : '')); return o; }
   var due = Math.max(def.from || 0, 0);
   // What the step says in a line (tdyStepMeta) is read from these: the part already in, when one is first looked for,
   // and whether the usual minute is the record's or the shop's own.
@@ -468,11 +468,11 @@ function tdyRecentHead(list) {
    gallery. The questions Pulse asked are widgets now (widgetcards.js: q-*, dofirst, why, figures, pace); the moves worth most across
    them are worked out here once a draw (tdyFirstMoves), for the dofirst widget. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
-/* The questions for the period the board shows, worked out once a book, a period and a person (wdgMemo). */
+/* The questions for the period the board shows (this month: wdgPeriod), worked out once a book and a person (wdgMemo). */
 function tdyQuestions() {
   if (!tdySeesMoney()) return [];
-  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  return wdgMemo('tdy-questions', function() {
+  var per = wdgPeriod('home');
+  return wdgMemo('tdy-questions:' + per, function() {
     try { return advQuestions(statsPulseArgs(per)); } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Home questions'); return []; }
   });
 }
@@ -484,10 +484,13 @@ function tdyFirstMoves(qs, n) {
   return advRank(all, null).slice(0, n || 3).map(function(mv) { return { mv: mv, word: TDY_Q_WORD[from[mv.key]] }; });
 }
 
-/* The masthead (§8b, §24j): Home's verdict drawn flat on the page, never a card and never folded. The greeting and the date; the
-   first of what holds as its sentence, in its lamp's tone (and, on the desktop, how many tasks are open where the sentence counts
-   tasks); the next two as facts, then the weather now; Open Needs you and today's report; the clock at its right with the general
-   shift under it. Its tone is the worst of what it says. A role without money reads only what it may (the forecast and the pace are
+/* The masthead (§8b, §24j, and the owner's look of 21 Oct 2026: "Home screen should not feel heavy, and should lead and prioritise
+   the user, control attention, makes information effortless, has a clear objective"; "Lead with the first move"): Home's verdict
+   drawn flat on the page, never a card and never folded. The greeting and the date; then ONE lead, the first thing to do, with its
+   own button (homeMastLead); then how many things need you now, a link to Needs you; then a fact the day holds (a line half down)
+   and the weather now; the clock at its right with the general shift under it, or the day the plant does not work (Plant shut ·
+   Durga Puja, a Sunday, a paid holiday: floor.js plantDayOff). Each fact said once: where the month lands is the Month to date
+   card's, not the masthead's. Its tone is its lead's. A role without money reads only what it may (the forecast and the moves are
    money). */
 function homeGreeting(now) {
   var h = now.getHours(), part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
@@ -497,35 +500,39 @@ function homeGreeting(now) {
 }
 /* The clock (9:42 AM, 2:00 PM: a clock keeps its minutes, where a roll's time drops ":00"), in two parts for the masthead (the time
    and AM or PM), and the general shift: before it starts, while it runs and after it ends. The shift is the roll's own (relay.js:
-   8:30 AM to 5:00 PM). The phone says it short. */
+   8:30 AM to 5:00 PM). The phone says it short. On a day the plant does not work there is no shift: the day is said instead. */
 function homeClockMin(m) { var h = Math.floor(m / 60) % 24, mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
 function homeClockText(now) { return homeClockMin(now.getHours() * 60 + now.getMinutes()); }
 function homeClockSpan(left) { var h = Math.floor(left / 60), mm = left % 60; return [h ? h + ' h' : '', mm ? mm + ' min' : ''].filter(Boolean).join(' '); }
+function homeDayOff(now) { return typeof plantDayOff === 'function' ? plantDayOff(isoOf(now)) : null; }
 function homeShiftText(now, short) {
+  var off = homeDayOff(now);
+  if (off) return plantDayOffText(off);
   var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
   if (m >= end) return short ? 'The shift has ended' : 'The general shift has ended';
   if (m < start) return short ? 'Shift starts ' + homeClockMin(start) : 'General shift starts ' + homeClockMin(start) + ' · in ' + homeClockSpan(start - m);
   return short ? 'Shift ends ' + homeClockMin(end) : 'General shift ends ' + homeClockMin(end) + ' · ' + homeClockSpan(end - m) + ' left';
 }
-/* How much of the general shift has gone, 0 to 1, for the track under it; null once it has ended (no track). */
+/* How much of the general shift has gone, 0 to 1, for the track under it; null once it has ended or on a day off (no track). */
 function homeShiftDone(now) {
+  if (homeDayOff(now)) return null;
   var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
   if (m >= end) return null;
   return m < start ? 0 : Math.round((m - start) / (end - start) * 1000) / 1000;
 }
-/* What may lead the masthead, in the order it leads: each {tone, text, money, tasks}. */
+/* What the day holds that is urgent, each {tone, text, go, label}: the bank account overdrawn or cash below zero within 14 days
+   (money), and a line with half its units down (the plant register). */
 function homeDayFacts() {
   var out = [], today = localDateStr(), money = tdySeesMoney();
   if (money && tdySees('pageFinance') && typeof finHasBank === 'function' && finHasBank()) {
     try {
       var fc = finForecast(60);
-      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', money: true });
-      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), money: true });
+      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', go: 'pageFinance', label: 'Open Money', money: true });
+      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), go: 'pageFinance', label: 'Open Money', money: true });
     } catch (e) { /* the forecast's own screen says what went wrong */ }
   }
-  var red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
-  if (red) out.push({ tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now', tasks: true });
-  if (tdySees('pageProduction') && typeof pltCapacity === 'function') {
+  // A line half down is the day's news only on a day the plant works (a day marked shut, a paid holiday, a Sunday not worked).
+  if (tdySees('pageProduction') && typeof pltCapacity === 'function' && !(typeof plantDayOff === 'function' && plantDayOff(today))) {
     PROD_LINES.forEach(function(l) {
       try {
         var c = pltCapacity(l, null, true);
@@ -533,37 +540,60 @@ function homeDayFacts() {
       } catch (e) { /* the plant register says what went wrong */ }
     });
   }
-  if (money && tdySees('pageRegister') && typeof predMonthPace === 'function') {
-    try {
-      var p = predMonthPace();
-      if (p && p.prevRev > 0) {
-        var ahead = p.projRev >= p.prevRev;
-        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + inrCard(p.projRev).text + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevName, money: true });
-      }
-    } catch (e) { /* the pace's own widget says what went wrong */ }
-  }
   return out;
+}
+/* The one thing the masthead leads with: money in danger first (it opens Money); else the red move worth most across every
+   question (tdyFirstMoves: what to do, opened in its dialog, with its own button: Call, Order, Open); else the things that need you
+   now, counted (Open Needs you); else the amber move worth most; else a fact of the day; else nothing. {tone, text, html (the
+   lead's sentence), act (its button), facts (the rest), red (the count the link beside it says)}. */
+function homeMastLead() {
+  var facts = homeDayFacts(), red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
+  var needs = function(label) { return '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>' + escHtml(label) + '</button>'; };
+  var money = facts.filter(function(f) { return f.money; })[0], rest = facts.filter(function(f) { return f !== money; });
+  if (money) {
+    return { tone: 'danger', text: money.text, html: escHtml(money.text), facts: rest, red: red,
+      act: '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageFinance" data-home-lead="money">' + escHtml(money.label) + '</button>' };
+  }
+  // The moves across the questions, worth most first (tdyFirstMoves); the masthead takes the first that asks for something today,
+  // red before amber, whatever a "to know" move is worth: a backup reminder never leads over a stock line out.
+  var moves = tdySeesMoney() ? tdyFirstMoves(tdyQuestions(), 99).map(function(x) { return x.mv; }) : [];
+  var first = function(t) { return moves.filter(function(m) { return m.tone === t; })[0] || null; };
+  var lead = function(mv) {
+    var ref = advRowRef(mv), say = wdgMoveSay(mv), short = wdgShortMoney(say);
+    return { tone: mv.tone === 'red' ? 'danger' : 'warning', text: short, facts: rest, red: red, move: mv.key,
+      html: '<button type="button" class="inv-mast-lead" data-action="invWdgMoveOpen" data-key="' + escHtml(mv.key) + '" data-adv-row="' + escHtml(ref) + '" title="' + escHtml(mv.say || say) + '">' + escHtml(short) + '</button>',
+      act: wdgMoveActHtml(mv, ref).replace('inv-btn-sm', '').replace('class="inv-btn ', 'data-home-lead="move" class="inv-btn ') };
+  };
+  var r = first('red');
+  if (r) return lead(r);
+  if (red) return { tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now', html: escHtml(todoPlural(red, 'thing needs', 'things need') + ' you now'), facts: rest, red: 0, act: needs('Open Needs you') };
+  var a = first('amber');
+  if (a) return lead(a);
+  // Nothing to do: a fact of the day (a line half down) is the sentence, else the day is clear.
+  if (rest.length) return { tone: rest[0].tone, text: rest[0].text, html: escHtml(rest[0].text), facts: rest.slice(1), red: 0, act: '' };
+  return { tone: 'ok', text: 'Nothing needs you now', html: escHtml('Nothing needs you now'), facts: [], red: 0, act: '' };
 }
 var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
 function homeMastHtml() {
-  var now = new Date(), facts = homeDayFacts(), lead = facts[0] || { tone: 'ok', text: 'Nothing needs you now' };
-  var rest = facts.slice(1, 3), tone = [lead].concat(rest).map(function(f) { return f.tone; })
-    .sort(function(a, b) { return (HOME_TONE_RANK[b] || 0) - (HOME_TONE_RANK[a] || 0); })[0] || 'ok';
-  var open = tdyTasks().length, wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
-  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '"><span>' + escHtml(lead.text) + '</span>' +
-    (lead.tasks && open && _isDesktop ? '<span class="inv-mast-count">' + open + ' open</span>' : '') + '</p>';
-  var items = rest.map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
+  var now = new Date(), lead = homeMastLead(), wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
+  // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span).
+  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '">' + (/^<button/.test(lead.html) ? lead.html : '<span>' + lead.html + '</span>') + '</p>';
+  var items = lead.facts.slice(0, 2).map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
   if (wx) items.push('<li data-home-wx>' + wx + '</li>');
-  var act = '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
-    (open && !_isDesktop ? ' · ' + open : '') + '</button>' +
-    (tdySees('pageReports') ? '<button type="button" class="inv-btn inv-btn-link" data-action="invHomeReport">Make today’s report</button>' : '');
-  var clock = homeClockText(now).split(' ');
-  return '<header class="inv-mast" data-home-day data-verdict data-tone="' + uiTone(tone) + '" aria-label="' + escHtml(lead.text) + '">' +
+  // How many things need you now (the red ones, the Needs you tab's badge), a link to them; said once, so never beside a lead that
+  // is that count. On the phone the board's tools take its place at the act row's end (owner, 21 Oct 2026: "move the layout option
+  // and options dots into the masthead, that way we utilise the space efficiently"): the badge on Needs you, just above, says it.
+  var tools = !_isDesktop && !wdgArrangeOn('home') ? homeToolbarHtml() : '';
+  var more = lead.red && !tools ? '<button type="button" class="inv-btn inv-btn-link" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>' +
+    escHtml(todoPlural(lead.red, 'thing needs', 'things need') + ' you now') + '</button>' : '';
+  var clock = homeClockText(now).split(' '), off = homeDayOff(now);
+  return '<header class="inv-mast" data-home-day data-verdict data-tone="' + uiTone(lead.tone) + '"' + (off ? ' data-day-off="' + off.kind + '"' : '') + ' aria-label="' + escHtml(lead.text) + '">' +
     '<p class="inv-mast-date">' + escHtml(homeGreeting(now)) + '</p>' + say +
-    (items.length ? '<ul class="inv-mast-facts">' + items.join('') + '</ul>' : '') + '<div class="inv-mast-act">' + act + '</div>' +
+    (items.length ? '<ul class="inv-mast-facts">' + items.join('') + '</ul>' : '') +
+    (lead.act || more || tools ? '<div class="inv-mast-act">' + (lead.act || '') + more + tools + '</div>' : '') +
     '<div class="inv-mast-time"><span class="inv-mast-clock" data-home-clock><span>' + escHtml(clock[0]) + '</span> <span class="inv-unit">' + escHtml(clock[1]) + '</span></span>' +
     '<span class="inv-mast-shift"><span data-home-shift>' + escHtml(homeShiftText(now, !_isDesktop)) + '</span>' +
-    (_isDesktop ? '<span class="inv-mast-track" data-home-track></span>' : '') + '</span></div></header>';
+    (_isDesktop && !off ? '<span class="inv-mast-track" data-home-track></span>' : '') + '</span></div></header>';
 }
 /* The masthead drawn again in place (a task ticked on the board changes what leads it and its count), its clock running on. */
 function homeDayRefresh() {
@@ -622,8 +652,9 @@ document.addEventListener('visibilitychange', function() {
   if (dash && !dash.classList.contains('inv-hidden') && dash.closest('.inv-page-active')) homeClockStart();
 });
 
-/* The board's toolbar (§8c): the period (one with Stats'), Customise and More (Make a report, Open Stats, Reset Home). Arranging,
-   the toolbar is Add a widget, Reset and Done, the one primary. A door the role does not open is not offered. */
+/* The board's toolbar (§8c): Customise and More (Make a report, Plant shut, Open Stats, Reset Home). The period went (owner, 21 Oct 2026: Home
+   reads this month, wdgPeriod; Stats keeps its own). Arranging, the toolbar is Add a widget, Reset and Done, the one primary. A door
+   the role does not open is not offered. */
 function homeToolbarHtml() {
   if (wdgArrangeOn('home')) {
     return '<div class="inv-toolbar" data-home-toolbar data-arranging>' +
@@ -631,14 +662,17 @@ function homeToolbarHtml() {
       '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgReset" data-board="home">Reset</button>' +
       '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invWdgDone" data-board="home">Done</button></div>';
   }
-  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  return '<div class="inv-toolbar" data-home-toolbar>' +
-    (tdySeesMoney() ? statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') : '') +
+  // The desktop's row under the masthead; on the phone, flat icons at the end of the masthead's act row (homeMastHtml).
+  return '<div class="inv-toolbar' + (_isDesktop ? '' : ' inv-toolbar-tight') + '" data-home-toolbar>' +
     (_isDesktop ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgArrange" data-board="home" aria-label="Customise Home">' + iconSvg('widgets') + '<span>Customise</span></button>'
-      : '<button class="inv-btn inv-btn-secondary inv-btn-icon" data-action="invWdgArrange" data-board="home" aria-label="Customise Home" title="Customise Home">' + iconSvg('widgets') + '</button>') +
-    uiToolbarMoreHtml([tdySees('pageReports') && tdySeesMoney() ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+      : '<button class="inv-btn inv-btn-ghost inv-btn-icon" data-action="invWdgArrange" data-board="home" aria-label="Customise Home" title="Customise Home">' + iconSvg('widgets') + '</button>') +
+    // Today's report (the masthead's second action until 21 Oct 2026, when the masthead kept one) and the month's.
+    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make today’s report', action: 'invHomeReport' } : null,
+      tdySees('pageReports') && tdySeesMoney() ? { label: 'Make a report', action: 'invRptFromStats', attrs: ' data-period="mtd"' } : null,
+      // The days the plant is shut (floor.js plantShutOpen): Home then says so in place of the shift.
+      tdySees('pageFloor') && (typeof grdCan !== 'function' || grdCan('settings')) ? { label: 'Plant shut…', action: 'invPlantShut' } : null,
       tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
-      { label: 'Reset Home', action: 'invWdgReset', attrs: ' data-board="home"' }], { icon: !_isDesktop }) + '</div>';
+      { label: 'Reset Home', action: 'invWdgReset', attrs: ' data-board="home"' }], { icon: !_isDesktop, ghost: !_isDesktop }) + '</div>';
 }
 /* The dashboard drawn: the masthead, the toolbar, the board, the foot. */
 function renderHomeBoard() {
@@ -646,7 +680,8 @@ function renderHomeBoard() {
   if (!el) return;
   if (typeof grdHeld === 'function' && grdHeld()) return;
   var n = wdgAddable('home');
-  el.innerHTML = '<div data-home-daycard>' + homeMastHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
+  // The toolbar's own row on the desktop and while arranging; on the phone it stands in the masthead.
+  el.innerHTML = '<div data-home-daycard>' + homeMastHtml() + '</div>' + (_isDesktop || wdgArrangeOn('home') ? homeToolbarHtml() : '') + '<div id="homeBoard"></div>' +
     (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">' + iconSvg('plus') + 'Add a widget · ' +
       n + ' to choose from</button></div>' : '');
   wdgBoardDraw(document.getElementById('homeBoard'), 'home');

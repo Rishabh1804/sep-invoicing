@@ -118,14 +118,17 @@ test.describe('P185: Today on the phone', () => {
     await expect(page.locator('#todoLearn [data-learn="raise:challan"]')).toBeVisible();
   });
 
-  test('Home leads with the day card and one toolbar row: the period, Customise and More; Pulse’s three are widgets; one period with Stats', async ({ page }) => {
+  test('Home leads with the masthead, Customise and More in it on the phone; Pulse’s three are widgets; Home reads this month, Stats its own period', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await openPulse(page);
-    const head = page.locator('[data-home-toolbar]');
-    await expect(head.locator('.inv-seg-btn[aria-pressed="true"]')).toHaveText('MTD');
-    // One row: the period, Customise and More (their middles level, whatever box an inline span draws).
+    // No period on Home (owner, 21 Oct 2026: "Let's remove the MTD, QTD, YTD, all filters"), and on the phone the board's tools stand
+    // at the end of the masthead's act row ("move the layout option and options dots into the masthead").
+    const head = page.locator('#homeDash [data-home-day] .inv-mast-act [data-home-toolbar]');
+    await expect(head).toHaveCount(1);
+    await expect(page.locator('#homeDash .inv-seg')).toHaveCount(0);
+    // One row: Customise and More (their middles level, whatever box an inline span draws).
     const mids = await head.evaluate(el => Array.from(el.children).map(c => { const r = (c as HTMLElement).getBoundingClientRect(); return r.top + r.height / 2; }));
-    expect(mids.length).toBe(3);
+    expect(mids.length).toBe(2);
     expect(Math.max(...mids) - Math.min(...mids), 'the head is one row').toBeLessThan(8);
     // Why it moved, In one line (The period in figures since UI pass 3) and the pace: each a widget with its line (Why it moved
     // a Briefing since U2R: its line is the answer, a sentence).
@@ -135,27 +138,34 @@ test.describe('P185: Today on the phone', () => {
       await expect(card).toHaveClass(/inv-widget/);
       await expect(card.locator('.inv-widget-line, .inv-brief-ans').first()).not.toHaveText('');
     }
-    // The day card leads, then the toolbar, then the board.
+    // The masthead leads, then the board: on the phone no toolbar row stands between them.
     const order = await page.locator('#homeDash > *').evaluateAll(els => els.map(e => e.matches('[data-home-daycard]') ? 'day'
       : e.matches('[data-home-toolbar]') ? 'head' : e.id === 'homeBoard' ? 'board' : e.matches('[data-home-foot]') ? 'foot' : e.className));
-    expect(order.slice(0, 3)).toEqual(['day', 'head', 'board']);
+    expect(order.slice(0, 2)).toEqual(['day', 'board']);
 
-    // The period is Stats' too: changed here, Stats shows it; changed there, Home is drawn again on it.
-    await head.locator('.inv-seg-btn', { hasText: 'QTD' }).click();
-    await expect(head.locator('.inv-seg-btn[aria-pressed="true"]')).toHaveText('QTD');
+    // Home reads this month whatever Stats is set to, and says so in words (its key, "mtd", had been printed); Stats keeps its own.
+    await expect(page.locator('#statsOverview .inv-widget-src')).toContainText('Invoices this month, net of notes');
+    const figures = (await page.locator('#statsOverview').textContent()) || '';
     await switchTab(page, 'pageStats');
-    await expect(page.locator('#statsToolbar .inv-seg-btn[aria-pressed="true"]')).toHaveText('QTD');
     await page.locator('#statsToolbar .inv-seg-btn', { hasText: 'YTD' }).click();
+    await expect(page.locator('#statsToolbar .inv-seg-btn[aria-pressed="true"]')).toHaveText('YTD');
     await openPulse(page);
-    await expect(page.locator('[data-home-toolbar] .inv-seg-btn[aria-pressed="true"]')).toHaveText('YTD');
+    await g(page, 'renderHome()');
+    expect(await g(page, `wdgPeriod('home')`)).toBe('mtd');
+    await expect(page.locator('#statsOverview')).toHaveText(figures);
+    await switchTab(page, 'pageStats');
+    await expect(page.locator('#statsToolbar .inv-seg-btn[aria-pressed="true"]')).toHaveText('YTD');
 
-    // More: Make a report opens Reports on the period; Customise arranges the board, its toolbar Add a widget, Reset and Done.
+    // More: Make a report opens Reports on this month; Customise arranges the board, its toolbar its own row while arranging: Add a
+    // widget, Reset and Done.
+    await openPulse(page);
     await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#rptSheet [data-rpt-doc]')).toHaveAttribute('data-kind', 'monthly');
     await openPulse(page);
     await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
     await expect(page.locator('#homeBoard [data-wdg-handle]').first()).toBeVisible();
-    await expect(page.locator('[data-home-toolbar] .inv-btn')).toHaveText(['Add a widget', 'Reset', 'Done']);
+    await expect(page.locator('#homeDash > [data-home-toolbar][data-arranging] .inv-btn')).toHaveText(['Add a widget', 'Reset', 'Done']);
   });
 
   test('Stats is By client · Cost · Trends, each led by its verdict card, shut on the phone', async ({ page }) => {

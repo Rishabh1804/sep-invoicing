@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="7ede3e5e">
+<meta name="app-build" content="cfa6a4fe">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -170,6 +170,8 @@
   --cause-bar-w: 6rem; --cause-bar-w-sm: 3.5rem;
   /* The least room a bare chart keeps where a card stacks its columns (the phone's Large); a Small card's bars (chartMiniBars). */
   --wdg-viz-min: 4.5rem; --minibars-h: 2.25rem; --meter-h-card: 0.375rem;
+  /* A bare chart's room on the phone's board, where a card is as tall as what it holds (owner, 21 Oct 2026): by the card's size. */
+  --wdg-viz-h-s: 2.75rem; --wdg-viz-h-m: 7.5rem; --wdg-viz-h-l: 10rem;
   /* The day in lanes (chartDayLanes draws 12, 6 and 14 px: a lane, the gap between two, the room over them for "now"); the labels beside
      the lanes; a line's efficiency at a row's end. */
   --lane-h: 0.75rem; --lane-gap: var(--sp-6); --lane-top: 0.875rem; --lane-lab-w: 2.5rem; --plant-eff-w: 6rem; --plant-row-h: 2.5rem; --brief-row-h: 2.5rem;
@@ -1432,6 +1434,14 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
   outline: var(--rule) solid var(--surface);
   font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
+}
+
+/* The same count on a view's tab (Needs you's: the red rows that need you now), beside its word rather than on a mark. */
+.inv-viewtab-count {
+  display: inline-block; margin-left: var(--sp-6); vertical-align: middle;
+  min-width: var(--sp-20); height: var(--sp-20); padding: 0 var(--sp-6);
+  border-radius: var(--r-full); background: var(--danger); color: var(--surface);
+  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-20); text-align: center; font-variant-numeric: tabular-nums;
 }
 
 /* ======================================================================
@@ -3019,6 +3029,18 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-wgrid > [data-size="s"] { grid-column-end: span 1; grid-row-end: span 1; }
 .inv-wgrid > [data-size="l"] { grid-row-end: span 3; }
 .inv-wgrid > .inv-wgrid-blank { grid-column: 1 / -1; }
+/* The phone's board (owner, 21 Oct 2026: "Cards only as tall as needed"): a card is as tall as what it holds, up to its size's height
+   (a Small one row, a Medium two, a Large three), and lets go of what will not fit as on any board (wdgFit); two Smalls side by side
+   are as tall as the taller. A bare chart keeps its size's room. While arranging, each size's whole box, so a hole is seen. */
+@container wboard (width < 36rem) {
+  .inv-wboard:not([data-arranging]) .inv-wgrid { grid-auto-rows: auto; }
+  .inv-wboard:not([data-arranging]) .inv-wgrid > :is(.inv-widget, .inv-widget-ph) { grid-row-end: span 1; max-height: calc(2 * var(--wdg-row) + var(--wdg-gap)); }
+  .inv-wboard:not([data-arranging]) .inv-wgrid > [data-size="s"] { max-height: var(--wdg-row); }
+  .inv-wboard:not([data-arranging]) .inv-wgrid > [data-size="l"] { max-height: calc(3 * var(--wdg-row) + 2 * var(--wdg-gap)); }
+  .inv-wboard:not([data-arranging]) .inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex: 0 1 var(--wdg-viz-h-m); min-height: var(--wdg-viz-h-s); }
+  .inv-wboard:not([data-arranging]) .inv-widget[data-size="s"] .inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex-basis: var(--wdg-viz-h-s); }
+  .inv-wboard:not([data-arranging]) .inv-widget[data-size="l"] .inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex-basis: var(--wdg-viz-h-l); }
+}
 @container wboard (min-width: 36rem) {
   .inv-wgrid { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(--wdg-gap-wide); grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .inv-wgrid > :is(.inv-widget, .inv-widget-ph, .inv-wgrid-slot) { grid-column-end: span 6; }
@@ -3041,8 +3063,9 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 body:not(.inv-desktop) .inv-widget[data-size="s"] { --wdg-px: var(--wdg-pad-sm); }
 .inv-widget[data-type="ledger"] { background: var(--ty-ledger); }
 .inv-widget[data-type="plant"] { background: var(--ty-plant); }
-.inv-widget[data-tone="warning"] { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
-.inv-widget[data-tone="danger"] { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
+/* Edged only for what asks for something today (owner, 21 Oct 2026: "Red only for today"): a trend keeps its figure's tone, unedged. */
+.inv-widget[data-tone="warning"]:not([data-trend]) { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
+.inv-widget[data-tone="danger"]:not([data-trend]) { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
 /* Its head: the section's icon, the title (the short one at Small) and the chevron where the head opens its screen, which is the
    whole head; the Choose at its right at Large on the desktop, under it at the card's width on the phone (§24e). */
 .inv-widget-head { flex: none; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; height: var(--wdg-head-h); padding: 0 var(--wdg-px); }
@@ -3440,8 +3463,10 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
 .inv-toast-btn { min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-ctl); background: none;
   font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
 .inv-toast-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. The board's foot: the door
-   to the gallery, centred under the widgets. */
+/* The board's toolbar: Customise and More at the row's end, the board's own tools, quiet under the masthead (owner, 21 Oct 2026: the
+   period chips came off Home); arranging, Add a widget and Reset lead and Done ends the row. The board's foot: the door to the
+   gallery, centred under the widgets. */
+[data-home-toolbar]:not([data-arranging]) { justify-content: flex-end; }
 [data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
 .inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
 /* Home's masthead (§24j): its verdict drawn flat under the top bar, no fill, no edge, no lift, a hairline under it; never folded.
@@ -3453,14 +3478,22 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
 .inv-mast-date { grid-area: date; margin: 0; min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
 .inv-mast-say.inv-dot { grid-area: say; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-8); min-width: 0; margin: 0;
   white-space: normal; font-size: var(--fs-22); font-weight: 600; line-height: 1.25; color: var(--text-1); }
-.inv-mast-say.inv-dot::before { align-self: center; width: var(--sp-10); height: var(--sp-10); }
-.inv-mast-count { font-size: var(--fs-14); font-weight: 500; color: var(--text-2); }
+.inv-mast-say.inv-dot::before { align-self: flex-start; flex: none; width: var(--sp-10); height: var(--sp-10); margin-top: calc((1lh - var(--sp-10)) / 2); }
+/* The sentence takes the line beside its lamp and wraps under its own first word, never leaving the lamp alone on a line. */
+.inv-mast-say > :is(span, .inv-mast-lead) { flex: 1 1 0; min-width: 0; }
+/* The lead, the first thing to do (owner, 21 Oct 2026): its sentence a button that opens the move's dialog, read as the sentence. */
+.inv-mast-lead { display: inline; min-width: 0; margin: 0; padding: 0; border: none; background: none; box-shadow: none; color: inherit;
+  font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+.inv-mast-lead:hover { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: var(--sp-4); }
+.inv-mast-lead:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
 .inv-mast-facts { grid-area: facts; display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); min-width: 0; margin: 0; padding: 0; list-style: none; }
 .inv-mast-facts > li { min-width: 0; font-size: var(--fs-13); }
 .inv-mast-facts > li.inv-dot { white-space: normal; color: var(--text-1); }
 .inv-mast-act { grid-area: act; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-16); margin-top: var(--sp-2); }
 body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-mast-act > .inv-btn-link { font-size: var(--fs-13); }
+/* The phone's board tools at the act row's end (owner, 21 Oct 2026), flat as the masthead is. */
+.inv-mast-act > [data-home-toolbar] { margin-left: auto; }
 .inv-mast-time { grid-area: time; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-6); text-align: right; }
 .inv-mast-clock { font-family: var(--ff-num); font-size: var(--fs-44); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1; color: var(--text-1); white-space: nowrap; }
 .inv-mast-clock > .inv-unit { margin-left: var(--sp-2); font-size: var(--fs-17); font-weight: 500; letter-spacing: normal; color: var(--text-2); }
@@ -3468,8 +3501,11 @@ body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); paddi
 .inv-mast-track { display: block; height: var(--sp-4); border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-2); overflow: hidden; }
 .inv-mast-track::before { content: ''; display: block; width: calc(var(--shift-done, 0) * 100%); height: 100%; border-radius: inherit; background: var(--text-3); }
 .inv-mast-track[hidden] { display: none; }
-body:not(.inv-desktop) .inv-mast { grid-template-areas: "date date" "say time" "facts facts" "act act"; column-gap: var(--sp-12); min-height: 0; padding: var(--sp-8) 0 var(--sp-12); }
+/* The phone (owner, 21 Oct 2026: "Home screen should not feel heavy"): the date and the clock share the first row, so the sentence
+   takes the whole width under them and reads in two lines where it would have needed four beside the clock. */
+body:not(.inv-desktop) .inv-mast { grid-template-areas: "date time" "say say" "facts facts" "act act"; column-gap: var(--sp-12); min-height: 0; padding: var(--sp-8) 0 var(--sp-12); }
 body:not(.inv-desktop) .inv-mast-say.inv-dot { font-size: var(--fs-19); }
+body:not(.inv-desktop) .inv-mast-date { align-self: start; }
 body:not(.inv-desktop) .inv-mast-time { align-self: start; gap: var(--sp-2); }
 body:not(.inv-desktop) .inv-mast-clock { font-size: var(--fs-30); }
 body:not(.inv-desktop) .inv-mast-clock > .inv-unit { font-size: var(--fs-13); }
@@ -3558,6 +3594,8 @@ button.inv-row > .inv-widget-chev { flex: none; align-self: center; }
 .inv-minibar[data-tone="warning"] { fill: var(--warning-mark); }
 .inv-minibar[data-tone="danger"] { fill: var(--danger-mark); }
 .inv-minibar-base { fill: var(--border); }
+/* Where a bar lands (the month at its pace): its outline, dashed, never filled. */
+.inv-minibar-proj { fill: none; stroke: var(--text-2); stroke-width: var(--hair); stroke-dasharray: var(--sp-2) var(--sp-2); vector-effect: non-scaling-stroke; }
 .inv-minibar-hatch { stroke: var(--text-2); stroke-width: var(--hair); vector-effect: non-scaling-stroke; }
 .inv-minibar-hatch-info { stroke: var(--info-mark); }
 .inv-minibar-hatch-warning { stroke: var(--warning-mark); }
@@ -3930,8 +3968,9 @@ function getDefaultState() {
     labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
-    // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice.
-    flowCfg: { turnDays: 1, termsDays: 45, holidays: [] },
+    // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice;
+    // the days the plant is shut (MM-DD every year, or a full date) and why, which Home's Plant shut marks (floor.js).
+    flowCfg: { turnDays: 1, termsDays: 45, holidays: [], shutWhy: {} },
     // The office printer (remoteprint.js): sent to over GitHub, printed by the print station.
     printer: { on: false, name: '', address: '', cartridge: '' },
     // The news and the weather (feeds.js, UI pass 3 §9): the owner's feeds Worker and the plant's place. No place ships: it is
@@ -5167,7 +5206,7 @@ var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
    The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
    (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
 function uiToolbarMoreHtml(items, opts) {
-  var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon);
+  var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon), ghost = !!(opts && opts.ghost);
   if (!list.length) return '';
   var n = 0, worst = '';
   var rows = list.map(function(x) {
@@ -5178,7 +5217,7 @@ function uiToolbarMoreHtml(items, opts) {
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
       (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';
   }).join('');
-  return '<span data-tb-more><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm' + (icon ? ' inv-btn-icon' : '') + '" data-action="invTbMore" aria-haspopup="dialog"' + (icon ? ' aria-label="More"' : '') + '>' + UI_ICON_MORE + (icon ? '' : 'More') +
+  return '<span data-tb-more><button type="button" class="inv-btn ' + (ghost ? 'inv-btn-ghost' : 'inv-btn-secondary') + ' inv-btn-sm' + (icon ? ' inv-btn-icon' : '') + '" data-action="invTbMore" aria-haspopup="dialog"' + (icon ? ' aria-label="More"' : '') + '>' + UI_ICON_MORE + (icon ? '' : 'More') +
     (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
 }
 /* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count
@@ -5730,6 +5769,21 @@ function saveRegFilter() {
 function escHtml(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+/* A sentence's first letter lowered where it joins another ("Thu 22: next challan from …"), only for an ordinary word: a name
+   written in capitals (OM SHEET METALS, VAT A2), one of two capitalised words (Tata Motors), a day or a month keeps its own. Lowering it whatever it was had printed "oM SHEET
+   METALS" and "Made mon 19 Oct" (owner, 21 Oct 2026). */
+function lcLead(s) {
+  s = String(s == null ? '' : s);
+  if (!/^[A-Z][a-z]/.test(s) || /^[A-Z][a-z]+\s+[A-Z]/.test(s) || /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/.test(s)) return s;
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+/* A client's name as a sentence or a card says it: its legal ending left off (PVT LTD, P. LTD., (P) LTD, LIMITED, LLP), the whole
+   name the record's. "PAWAN AUTO P LTD" had lost only its LTD. */
+function clientShortName(name) {
+  var s = String(name || '').trim();
+  var t = s.replace(/[\s,.]*(?:\(P\)|\bP\.?|\bPVT\.?|\bPRIVATE)?[\s.]*\b(?:LTD|LIMITED)\.?$/i, '').replace(/[\s,.]*\bLLP\.?$/i, '').trim();
+  return t || s;
 }
 
 function formatCurrency(n) {
@@ -7024,7 +7078,8 @@ var CHG_TRACK = [
   { path: 'todoCheck', kind: 'cfg', sec: 'To-do', dflt: function() { return typeof TODO_CHECK_DEFAULTS !== 'undefined' ? TODO_CHECK_DEFAULTS : getDefaultState().todoCheck; } },
   { path: 'costModel', kind: 'cfg', sec: 'Live cost fallbacks', dflt: function() { return typeof COST_MODEL_DEFAULTS !== 'undefined' ? COST_MODEL_DEFAULTS : getDefaultState().costModel; } },
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
-  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
+  // The days the plant is shut are read as days and their reasons (Home's Plant shut, floor.js), never "2 items" or "set".
+  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', proj: chgFlowProj, dflt: function() { return chgFlowProj(getDefaultState().flowCfg); } },
   { path: 'printer', kind: 'cfg', sec: 'Office printer', dflt: function() { return getDefaultState().printer; } },
   { path: 'feedsCfg', kind: 'cfg', sec: 'News and weather', dflt: function() { return getDefaultState().feedsCfg; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
@@ -7414,6 +7469,12 @@ function chgWalkArr(va, vb, p, k, depth, ctx) {
     return;
   }
   for (var i = 0; i < Math.min(va.length, vb.length); i++) chgCompare(va[i], vb[i], p + '[' + i + ']', k, depth, ctx);
+}
+function chgFlowProj(v) {
+  v = v || {};
+  var why = v.shutWhy && typeof v.shutWhy === 'object' ? v.shutWhy : {};
+  return { turnDays: v.turnDays, termsDays: v.termsDays, holidays: Array.isArray(v.holidays) ? v.holidays.join(', ') : '',
+    shutWhy: Object.keys(why).sort().map(function(k) { return k + ' ' + why[k]; }).join('; ') };
 }
 function chgVal(v, k) {
   if (chgNullish(v)) return null;
@@ -9483,10 +9544,10 @@ function tabRender(tabId, isDirty) {
     // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
     // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
     // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
-    // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both). Home's dashboard
-    // (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late.
+    // Home's dashboard (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late. Its
+    // period is its own (this month, wdgPeriod), so a period changed on Stats no longer redraws it (owner, 21 Oct 2026).
     // And for whoever is in: Home drawn for somebody else is drawn again (a person's board is their own).
-    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr() ||
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnDay !== localDateStr() ||
       _homeDrawnFor !== homeDrawnKey()) { renderHome(); _tabDirty.home = false; }
     else if (tdyView() === 'home' && typeof homeArrive === 'function') homeArrive();
   } else if (tabId === 'pageRegister') {
@@ -9670,7 +9731,6 @@ function homePriorSameDays() {
 
 /* Home (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
 var _homeDrawnView = '';   // the view of Home drawn last (tabRender)
-var _homeDrawnPeriod = '';   // the period the dashboard was drawn on last: Stats and Home share one (tabRender)
 var _homeDrawnDay = '';      // the day Home was drawn on last (tabRender)
 var _homeDrawnFor = '';      // whom Home was drawn for last (homeDrawnKey): a person's board and masthead are their own
 /* Who Home is drawn for: the person signed in and their role's settings (guard.js grdDrawKey), null with the guard off. Home is kept
@@ -9679,7 +9739,6 @@ function homeDrawnKey() { return typeof grdOn === 'function' && grdOn() && typeo
 function renderHome() {
   if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
-  _homeDrawnPeriod = _statsPeriod;
   _homeDrawnDay = localDateStr();
   _homeDrawnFor = homeDrawnKey();
   tdyApplyView();
@@ -13230,7 +13289,7 @@ var SETTINGS_SECS = {
         _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1))) +
         _sfg('Other days the plant is shut (state holidays: MM-DD every year, or a full date)', 'setFlowHolidays',
           '<input class="inv-input inv-id" id="setFlowHolidays" value="' + escHtml(c.holidays.join(', ')) + '">',
-          'Sundays and the paid holidays (Labour) are never counted');
+          'Sundays and the paid holidays (Labour) are never counted. Plant shut…, in Home’s More, marks a day or a run of days, with why');
     },
     why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day, and Sundays, the paid holidays (Settings → Labour) and the other days the plant is shut are not counted (the owner, 14 Oct 2026). Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
     save: function() {
@@ -13241,6 +13300,10 @@ var SETTINGS_SECS = {
       S.flowCfg.holidays = _sVal('setFlowHolidays').split(/[,;\s]+/).map(function(x) { return x.trim(); }).filter(function(x) {
         return /^(\d{4}-)?\d{2}-\d{2}$/.test(x);
       });
+      // Why a day is shut goes with the day: one taken off the list takes its reason with it.
+      var why = Object.assign({}, flowCfg().shutWhy);
+      Object.keys(why).forEach(function(k) { if (S.flowCfg.holidays.indexOf(k) < 0) delete why[k]; });
+      S.flowCfg.shutWhy = why;
     }
   },
   stockAlerts: {
@@ -23069,7 +23132,8 @@ function chartMiniBars(bars, opts) {
   opts = opts || {};
   var list = (bars || []).filter(Boolean);
   if (!list.length) return '';
-  var max = Math.max.apply(null, list.map(function(b) { return Number(b.v) || 0; }).concat([0]));
+  // A bar may carry where it lands (`proj`, the month at its pace): its outline is drawn to that height, dashed, over the bar.
+  var max = Math.max.apply(null, list.map(function(b) { return Math.max(Number(b.v) || 0, Number(b.proj) || 0); }).concat([0]));
   var W = list.length * 10, H = 32, slot = 10, bw = 7;
   var hatch = function(x0, y0, w, h, cls) {
     var s = '';
@@ -23082,12 +23146,15 @@ function chartMiniBars(bars, opts) {
   };
   var body = list.map(function(b, i) {
     var v = Number(b.v) || 0, h = max > 0 ? Math.max(v > 0 ? 1.5 : 0, v / max * (H - 1)) : 0, x = i * slot + (slot - bw) / 2, y = H - h;
-    var label = (b.label || '') + (b.todate ? ' to date' : ''), read = label + (b.text ? ': ' + b.text : '');
+    var label = (b.label || '') + (b.todate ? ' to date' : ''), read = label + (b.text ? ': ' + b.text : '') + (b.projText ? ', ' + b.projText : '');
+    var ph = b.proj > v && max > 0 ? b.proj / max * (H - 1) : 0;
     var tone = /^(ok|info|warning|danger)$/.test(b.tone) ? ' data-tone="' + b.tone + '"' : '';
     var band = b.hatch && b.hatch !== true ? hatch(i * slot, 0, slot, H, ' inv-minibar-hatch-' + escHtml(uiTone(b.hatch))) : '';
     return '<g class="inv-minibar-slot"><title>' + escHtml(read) + '</title>' + band +
       '<rect class="inv-minibar' + (b.todate ? ' inv-chart-todate' : '') + '"' + tone + (b.on && !tone ? ' data-on' : '') + ' x="' + _chartN(x) + '" y="' + _chartN(y) + '" width="' + bw + '" height="' + _chartN(Math.max(h, 0)) + '"/>' +
-      (b.hatch === true && h > 0 ? hatch(x, y, bw, h, '') : '') + '<rect class="inv-minibar-base" x="' + (i * slot) + '" y="' + (H - 0.5) + '" width="' + slot + '" height="0.5"/></g>';
+      (b.hatch === true && h > 0 ? hatch(x, y, bw, h, '') : '') +
+      (ph > 0 ? '<rect class="inv-minibar-proj" x="' + _chartN(x) + '" y="' + _chartN(H - ph) + '" width="' + bw + '" height="' + _chartN(ph) + '"/>' : '') +
+      '<rect class="inv-minibar-base" x="' + (i * slot) + '" y="' + (H - 0.5) + '" width="' + slot + '" height="0.5"/></g>';
   }).join('');
   return '<svg class="inv-minibars" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + escHtml(opts.title || '') + '">' + body + '</svg>';
 }
@@ -44389,10 +44456,15 @@ function statsRangeIso(period) {
   var first = (S.invoices || []).map(function(i) { return i.date; }).filter(Boolean).sort()[0];
   return { from: first || localDateStr(), to: localDateStr() };
 }
-/* The working days from one date to another, inclusive: every day but Sunday, the shop's calendar. */
+/* The working days from one date to another, inclusive: every day but Sunday and the days the plant is shut (flowCfg.holidays,
+   Home's Plant shut: a month's pace, the capacity and a day's use are read over the days the plant works). The paid holidays are
+   still counted, as they always were: what pays a day is Labour's, and a festival is not a paid holiday. */
 function statsWorkingDayList(from, to) {
-  var out = [], d = from;
-  for (var g = 0; d <= to && g < 4000; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) out.push(d); d = isoAddDays(d, 1); }
+  var out = [], d = from, h = S && S.flowCfg && Array.isArray(S.flowCfg.holidays) ? S.flowCfg.holidays : [];
+  for (var g = 0; d <= to && g < 4000; g++) {
+    if (new Date(d + 'T00:00:00').getDay() !== 0 && (!h.length || (h.indexOf(d) < 0 && h.indexOf(d.slice(5)) < 0))) out.push(d);
+    d = isoAddDays(d, 1);
+  }
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
@@ -46373,9 +46445,10 @@ function advWindow(n) {
 /* ---------- Words and figures ---------- */
 function advRs(v) { return formatCurrency(gstRound(Math.abs(Number(v) || 0))); }
 function advKg(kg) { return kg >= 1000 ? formatNum(kg / 1000, 1) + ' t' : formatNum(kg, 0) + ' kg'; }
-function advLower(s) { s = String(s || ''); return s.charAt(0).toLowerCase() + s.slice(1); }
+function advLower(s) { return lcLead(s); }
 function advClient(id) { return id == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(id); }) || null; }
-function advNameOf(c, fallback) { return (c && c.name) || fallback || 'the client'; }
+// A client as a move's sentence names it: its legal ending left off (Call SSSMEHTA INDUSTRIES, not … LTD), the record keeping the whole.
+function advNameOf(c, fallback) { return clientShortName((c && c.name) || fallback || '') || 'the client'; }
 /* How to reach a client from its master: a tel: link for its mobile or phone, else a mailto: for its email. */
 function advContact(c) {
   if (!c) return null;
@@ -54188,8 +54261,98 @@ function flrOpenStaff(view) {
 }
 function flrStep(n) { flrSetDay(isoAddDays(flrDayIso(), n)); renderFloor(); }
 
+/* ---------- A day the plant does not work (owner, 21 Oct 2026: "Today is a holiday, yet the masthead says shift ends at 5") ----------
+   The plant's own calendar: the days marked shut (flowCfg.holidays and why, flow.js flowShutOn; marked here or in Settings →
+   Checks & alerts → Turnaround and terms), the paid holidays (Labour) and Sundays. A day the floor recorded work on (marks, a run, a
+   load) is a working day whatever it is (a Sunday worked). Never pay: what a day pays is Labour's, and a festival is not a paid
+   holiday (28 Aug 2026). */
+function plantDayWorked(iso) {
+  try {
+    if (attDaySummary(iso).marked) return true;
+    if (Object.keys(prodDayPlated(iso).lines).length > 0 || prodDayLoads(iso).length > 0) return true;
+  } catch (e) { /* a day that cannot be read is not called worked */ }
+  return false;
+}
+/* {kind: 'shut' | 'holiday' | 'sunday', why, worked} for a day the plant is not expected to work, else null. */
+function plantDayOff(iso) {
+  var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+  var off = shut ? { kind: 'shut', why: shut.why } : typeof labourIsHoliday === 'function' && labourIsHoliday(iso) ? { kind: 'holiday', why: '' }
+    : new Date(iso + 'T00:00:00').getDay() === 0 ? { kind: 'sunday', why: '' } : null;
+  if (!off || plantDayWorked(iso)) return null;
+  return off;
+}
+/* The day said in a few words: "Plant shut · Durga Puja", "Sunday: plant shut", "Paid holiday". */
+function plantDayOffText(off) {
+  if (!off) return '';
+  if (off.kind === 'shut') return 'Plant shut' + (off.why ? ' · ' + off.why : '');
+  return off.kind === 'sunday' ? 'Sunday: plant shut' : 'Paid holiday: plant shut';
+}
+/* Plant shut: a day or a run of days marked shut, with why (Durga Puja), from Home. Written as full dates into the days the plant
+   is shut (flowCfg.holidays), which the turnaround, the pace, the day's inputs and Home all read; the days marked from 30 days back
+   are listed with Remove. Settings' list keeps the yearly MM-DD ones. */
+function plantShutRows() {
+  var c = flowCfg(), from = isoAddDays(localDateStr(), -30);
+  return c.holidays.filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k) && k >= from; }).sort().map(function(k) { return { day: k, why: c.shutWhy[k] || '' }; });
+}
+function plantShutOpen(day) {
+  var today = localDateStr(), d = /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? day : today, rows = plantShutRows();
+  var f = function(fid, label, input, hint) { return '<div class="inv-field"><label class="inv-field-label" for="' + fid + '">' + label + '</label>' + input + (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>'; };
+  var list = rows.length ? '<div class="inv-panel inv-panel-flush inv-mt-8" data-plant-shut-list><div class="inv-panel-head"><span class="inv-panel-title">Marked shut <span class="inv-panel-count">' + rows.length + '</span></span></div>' +
+    rows.map(function(r) {
+      return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(attDayName(r.day) + ' ' + stockShortDate(r.day)) + '</span>' +
+        (r.why ? '<span class="inv-row-meta">' + escHtml(r.why) + '</span>' : '') + '</span><span class="inv-row-end"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlantShutDel" data-day="' + r.day + '">Remove</button></span></div>';
+    }).join('') + '</div>' : '';
+  dialogOpen('<div class="inv-dialog" data-plant-shut role="dialog" aria-modal="true" aria-labelledby="plantShutTitle">' +
+    dialogHeadHtml('<span id="plantShutTitle">Plant shut</span>') +
+    '<div class="inv-fields">' + f('plantShutFrom', 'From', '<input class="inv-input" type="date" id="plantShutFrom" value="' + d + '">') +
+      f('plantShutTo', 'To', '<input class="inv-input" type="date" id="plantShutTo" value="' + d + '">') + '</div>' +
+    f('plantShutWhy', 'Why', '<input class="inv-input" id="plantShutWhy" maxlength="40" placeholder="Durga Puja" autocomplete="off">', 'Home says it in place of the shift, and these days are not counted as working days. Pay is not touched: a paid holiday is set in Settings → Labour.') +
+    list +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invPlantShutSave">Mark shut</button></div></div>',
+    { dismiss: true, replace: !!document.querySelector('[data-plant-shut]') });
+}
+function plantShutAfter() {
+  if (typeof renderHome === 'function' && document.getElementById('homeDash')) renderHome();
+  if (document.querySelector('#pageFloor.inv-page-active') && typeof renderFloor === 'function') renderFloor();
+  if (typeof wsUpdateCounts === 'function') wsUpdateCounts();
+}
+function plantShutSave() {
+  var from = (document.getElementById('plantShutFrom') || {}).value || '', to = (document.getElementById('plantShutTo') || {}).value || from;
+  var why = String((document.getElementById('plantShutWhy') || {}).value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { showToast('Pick the first day the plant is shut', 'error'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from) to = from;
+  if (isoDaysBetween(from, to) > 31) { showToast('Mark at most a month at a time', 'error'); return; }
+  if (!grdGate('settings', 'mark the plant shut', plantShutSave)) return;
+  if (!S.flowCfg) S.flowCfg = {};
+  var h = Array.isArray(S.flowCfg.holidays) ? S.flowCfg.holidays.slice() : [], whyMap = Object.assign({}, flowCfg().shutWhy), n = 0;
+  for (var d = from, g = 0; d <= to && g < 40; g++, d = isoAddDays(d, 1)) {
+    if (h.indexOf(d) < 0) h.push(d);
+    if (why) whyMap[d] = why; else delete whyMap[d];
+    n++;
+  }
+  S.flowCfg.holidays = h.sort();
+  S.flowCfg.shutWhy = whyMap;
+  saveState();
+  closeTopOverlay();
+  showToast(n === 1 ? 'Marked shut: ' + attDayName(from) + ' ' + stockShortDate(from) : n + ' days marked shut', 'success');
+  plantShutAfter();
+}
+function plantShutDel(day) {
+  if (!grdGate('settings', 'change the days the plant is shut', function() { plantShutDel(day); })) return;
+  if (!S.flowCfg || !Array.isArray(S.flowCfg.holidays)) return;
+  S.flowCfg.holidays = S.flowCfg.holidays.filter(function(k) { return k !== day; });
+  if (S.flowCfg.shutWhy) { var w = Object.assign({}, S.flowCfg.shutWhy); delete w[day]; S.flowCfg.shutWhy = w; }
+  saveState();
+  showToast('No longer marked shut: ' + attDayName(day) + ' ' + stockShortDate(day), 'info');
+  plantShutOpen(day);
+  plantShutAfter();
+}
+
 function flrAction(action, btn) {
   switch (action) {
+    case 'invPlantShut': plantShutOpen(btn.dataset.day); return true;
+    case 'invPlantShutSave': plantShutSave(); return true;
+    case 'invPlantShutDel': plantShutDel(btn.dataset.day); return true;
     // A day stepped to is a place of its own (the address carries it); the page and the focus stay where they were.
     case 'invFlrStep': keepScroll(function() { flrStep(+btn.dataset.step || 0); }); return true;
     case 'invFlrToday': keepScroll(function() { _flrDay = null; renderFloor(); }); return true;
@@ -54318,12 +54481,11 @@ function tdyUsual(k, day) {
   return { min: mins.length >= TDY_MIN_SEEN ? tdyMedian(mins) : def.usual, seen: mins.length };
 }
 
-/* One input on one day: whether it is in, what it says, and its state: in · wait (not yet due) · late · off (a Sunday or a
-   paid holiday nobody worked: nothing is expected). Only today is judged against the clock. */
+/* One input on one day: whether it is in, what it says, and its state: in · wait (not yet due) · late · off (a Sunday, a paid
+   holiday or a day marked shut that nobody worked: nothing is expected). Only today is judged against the clock. */
 function tdyInput(def, day) {
   var isToday = day === localDateStr(), now = isToday ? tdyNowMin() : 1440;
-  var att = attDaySummary(day), worked = att.marked || Object.keys(prodDayPlated(day).lines).length > 0 || prodDayLoads(day).length > 0;
-  var off = !worked && (new Date(day + 'T00:00:00').getDay() === 0 || (typeof labourIsHoliday === 'function' && labourIsHoliday(day)));
+  var att = attDaySummary(day), off = plantDayOff(day);
   var o = { k: def.k, title: def.title, move: def.move, state: 'wait', text: '', usual: null, lines: null };
   var clock = function(m) { return m == null ? '' : relayClockLabel(m); };
   if (def.k === 'roll-in' || def.k === 'roll-out') {
@@ -54370,7 +54532,8 @@ function tdyInput(def, day) {
   }
   var u = tdyUsual(def.k, day);
   o.usual = u.min;
-  if (off) { o.state = 'off'; o.text = 'Not expected: ' + (new Date(day + 'T00:00:00').getDay() === 0 ? 'Sunday' : 'a paid holiday'); return o; }
+  // A day the plant does not work (floor.js plantDayOff): a Sunday, a paid holiday, a day marked shut (Home → More → Plant shut).
+  if (off) { o.state = 'off'; o.text = 'Not expected: ' + (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'a paid holiday' : 'plant shut' + (off.why ? ', ' + off.why : '')); return o; }
   var due = Math.max(def.from || 0, 0);
   // What the step says in a line (tdyStepMeta) is read from these: the part already in, when one is first looked for,
   // and whether the usual minute is the record's or the shop's own.
@@ -54682,11 +54845,11 @@ function tdyRecentHead(list) {
    gallery. The questions Pulse asked are widgets now (widgetcards.js: q-*, dofirst, why, figures, pace); the moves worth most across
    them are worked out here once a draw (tdyFirstMoves), for the dofirst widget. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
-/* The questions for the period the board shows, worked out once a book, a period and a person (wdgMemo). */
+/* The questions for the period the board shows (this month: wdgPeriod), worked out once a book and a person (wdgMemo). */
 function tdyQuestions() {
   if (!tdySeesMoney()) return [];
-  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  return wdgMemo('tdy-questions', function() {
+  var per = wdgPeriod('home');
+  return wdgMemo('tdy-questions:' + per, function() {
     try { return advQuestions(statsPulseArgs(per)); } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Home questions'); return []; }
   });
 }
@@ -54698,10 +54861,13 @@ function tdyFirstMoves(qs, n) {
   return advRank(all, null).slice(0, n || 3).map(function(mv) { return { mv: mv, word: TDY_Q_WORD[from[mv.key]] }; });
 }
 
-/* The masthead (§8b, §24j): Home's verdict drawn flat on the page, never a card and never folded. The greeting and the date; the
-   first of what holds as its sentence, in its lamp's tone (and, on the desktop, how many tasks are open where the sentence counts
-   tasks); the next two as facts, then the weather now; Open Needs you and today's report; the clock at its right with the general
-   shift under it. Its tone is the worst of what it says. A role without money reads only what it may (the forecast and the pace are
+/* The masthead (§8b, §24j, and the owner's look of 21 Oct 2026: "Home screen should not feel heavy, and should lead and prioritise
+   the user, control attention, makes information effortless, has a clear objective"; "Lead with the first move"): Home's verdict
+   drawn flat on the page, never a card and never folded. The greeting and the date; then ONE lead, the first thing to do, with its
+   own button (homeMastLead); then how many things need you now, a link to Needs you; then a fact the day holds (a line half down)
+   and the weather now; the clock at its right with the general shift under it, or the day the plant does not work (Plant shut ·
+   Durga Puja, a Sunday, a paid holiday: floor.js plantDayOff). Each fact said once: where the month lands is the Month to date
+   card's, not the masthead's. Its tone is its lead's. A role without money reads only what it may (the forecast and the moves are
    money). */
 function homeGreeting(now) {
   var h = now.getHours(), part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
@@ -54711,35 +54877,39 @@ function homeGreeting(now) {
 }
 /* The clock (9:42 AM, 2:00 PM: a clock keeps its minutes, where a roll's time drops ":00"), in two parts for the masthead (the time
    and AM or PM), and the general shift: before it starts, while it runs and after it ends. The shift is the roll's own (relay.js:
-   8:30 AM to 5:00 PM). The phone says it short. */
+   8:30 AM to 5:00 PM). The phone says it short. On a day the plant does not work there is no shift: the day is said instead. */
 function homeClockMin(m) { var h = Math.floor(m / 60) % 24, mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
 function homeClockText(now) { return homeClockMin(now.getHours() * 60 + now.getMinutes()); }
 function homeClockSpan(left) { var h = Math.floor(left / 60), mm = left % 60; return [h ? h + ' h' : '', mm ? mm + ' min' : ''].filter(Boolean).join(' '); }
+function homeDayOff(now) { return typeof plantDayOff === 'function' ? plantDayOff(isoOf(now)) : null; }
 function homeShiftText(now, short) {
+  var off = homeDayOff(now);
+  if (off) return plantDayOffText(off);
   var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
   if (m >= end) return short ? 'The shift has ended' : 'The general shift has ended';
   if (m < start) return short ? 'Shift starts ' + homeClockMin(start) : 'General shift starts ' + homeClockMin(start) + ' · in ' + homeClockSpan(start - m);
   return short ? 'Shift ends ' + homeClockMin(end) : 'General shift ends ' + homeClockMin(end) + ' · ' + homeClockSpan(end - m) + ' left';
 }
-/* How much of the general shift has gone, 0 to 1, for the track under it; null once it has ended (no track). */
+/* How much of the general shift has gone, 0 to 1, for the track under it; null once it has ended or on a day off (no track). */
 function homeShiftDone(now) {
+  if (homeDayOff(now)) return null;
   var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
   if (m >= end) return null;
   return m < start ? 0 : Math.round((m - start) / (end - start) * 1000) / 1000;
 }
-/* What may lead the masthead, in the order it leads: each {tone, text, money, tasks}. */
+/* What the day holds that is urgent, each {tone, text, go, label}: the bank account overdrawn or cash below zero within 14 days
+   (money), and a line with half its units down (the plant register). */
 function homeDayFacts() {
   var out = [], today = localDateStr(), money = tdySeesMoney();
   if (money && tdySees('pageFinance') && typeof finHasBank === 'function' && finHasBank()) {
     try {
       var fc = finForecast(60);
-      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', money: true });
-      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), money: true });
+      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', go: 'pageFinance', label: 'Open Money', money: true });
+      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), go: 'pageFinance', label: 'Open Money', money: true });
     } catch (e) { /* the forecast's own screen says what went wrong */ }
   }
-  var red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
-  if (red) out.push({ tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now', tasks: true });
-  if (tdySees('pageProduction') && typeof pltCapacity === 'function') {
+  // A line half down is the day's news only on a day the plant works (a day marked shut, a paid holiday, a Sunday not worked).
+  if (tdySees('pageProduction') && typeof pltCapacity === 'function' && !(typeof plantDayOff === 'function' && plantDayOff(today))) {
     PROD_LINES.forEach(function(l) {
       try {
         var c = pltCapacity(l, null, true);
@@ -54747,37 +54917,60 @@ function homeDayFacts() {
       } catch (e) { /* the plant register says what went wrong */ }
     });
   }
-  if (money && tdySees('pageRegister') && typeof predMonthPace === 'function') {
-    try {
-      var p = predMonthPace();
-      if (p && p.prevRev > 0) {
-        var ahead = p.projRev >= p.prevRev;
-        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + inrCard(p.projRev).text + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevName, money: true });
-      }
-    } catch (e) { /* the pace's own widget says what went wrong */ }
-  }
   return out;
+}
+/* The one thing the masthead leads with: money in danger first (it opens Money); else the red move worth most across every
+   question (tdyFirstMoves: what to do, opened in its dialog, with its own button: Call, Order, Open); else the things that need you
+   now, counted (Open Needs you); else the amber move worth most; else a fact of the day; else nothing. {tone, text, html (the
+   lead's sentence), act (its button), facts (the rest), red (the count the link beside it says)}. */
+function homeMastLead() {
+  var facts = homeDayFacts(), red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
+  var needs = function(label) { return '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>' + escHtml(label) + '</button>'; };
+  var money = facts.filter(function(f) { return f.money; })[0], rest = facts.filter(function(f) { return f !== money; });
+  if (money) {
+    return { tone: 'danger', text: money.text, html: escHtml(money.text), facts: rest, red: red,
+      act: '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageFinance" data-home-lead="money">' + escHtml(money.label) + '</button>' };
+  }
+  // The moves across the questions, worth most first (tdyFirstMoves); the masthead takes the first that asks for something today,
+  // red before amber, whatever a "to know" move is worth: a backup reminder never leads over a stock line out.
+  var moves = tdySeesMoney() ? tdyFirstMoves(tdyQuestions(), 99).map(function(x) { return x.mv; }) : [];
+  var first = function(t) { return moves.filter(function(m) { return m.tone === t; })[0] || null; };
+  var lead = function(mv) {
+    var ref = advRowRef(mv), say = wdgMoveSay(mv), short = wdgShortMoney(say);
+    return { tone: mv.tone === 'red' ? 'danger' : 'warning', text: short, facts: rest, red: red, move: mv.key,
+      html: '<button type="button" class="inv-mast-lead" data-action="invWdgMoveOpen" data-key="' + escHtml(mv.key) + '" data-adv-row="' + escHtml(ref) + '" title="' + escHtml(mv.say || say) + '">' + escHtml(short) + '</button>',
+      act: wdgMoveActHtml(mv, ref).replace('inv-btn-sm', '').replace('class="inv-btn ', 'data-home-lead="move" class="inv-btn ') };
+  };
+  var r = first('red');
+  if (r) return lead(r);
+  if (red) return { tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now', html: escHtml(todoPlural(red, 'thing needs', 'things need') + ' you now'), facts: rest, red: 0, act: needs('Open Needs you') };
+  var a = first('amber');
+  if (a) return lead(a);
+  // Nothing to do: a fact of the day (a line half down) is the sentence, else the day is clear.
+  if (rest.length) return { tone: rest[0].tone, text: rest[0].text, html: escHtml(rest[0].text), facts: rest.slice(1), red: 0, act: '' };
+  return { tone: 'ok', text: 'Nothing needs you now', html: escHtml('Nothing needs you now'), facts: [], red: 0, act: '' };
 }
 var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
 function homeMastHtml() {
-  var now = new Date(), facts = homeDayFacts(), lead = facts[0] || { tone: 'ok', text: 'Nothing needs you now' };
-  var rest = facts.slice(1, 3), tone = [lead].concat(rest).map(function(f) { return f.tone; })
-    .sort(function(a, b) { return (HOME_TONE_RANK[b] || 0) - (HOME_TONE_RANK[a] || 0); })[0] || 'ok';
-  var open = tdyTasks().length, wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
-  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '"><span>' + escHtml(lead.text) + '</span>' +
-    (lead.tasks && open && _isDesktop ? '<span class="inv-mast-count">' + open + ' open</span>' : '') + '</p>';
-  var items = rest.map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
+  var now = new Date(), lead = homeMastLead(), wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
+  // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span).
+  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '">' + (/^<button/.test(lead.html) ? lead.html : '<span>' + lead.html + '</span>') + '</p>';
+  var items = lead.facts.slice(0, 2).map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
   if (wx) items.push('<li data-home-wx>' + wx + '</li>');
-  var act = '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
-    (open && !_isDesktop ? ' · ' + open : '') + '</button>' +
-    (tdySees('pageReports') ? '<button type="button" class="inv-btn inv-btn-link" data-action="invHomeReport">Make today’s report</button>' : '');
-  var clock = homeClockText(now).split(' ');
-  return '<header class="inv-mast" data-home-day data-verdict data-tone="' + uiTone(tone) + '" aria-label="' + escHtml(lead.text) + '">' +
+  // How many things need you now (the red ones, the Needs you tab's badge), a link to them; said once, so never beside a lead that
+  // is that count. On the phone the board's tools take its place at the act row's end (owner, 21 Oct 2026: "move the layout option
+  // and options dots into the masthead, that way we utilise the space efficiently"): the badge on Needs you, just above, says it.
+  var tools = !_isDesktop && !wdgArrangeOn('home') ? homeToolbarHtml() : '';
+  var more = lead.red && !tools ? '<button type="button" class="inv-btn inv-btn-link" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>' +
+    escHtml(todoPlural(lead.red, 'thing needs', 'things need') + ' you now') + '</button>' : '';
+  var clock = homeClockText(now).split(' '), off = homeDayOff(now);
+  return '<header class="inv-mast" data-home-day data-verdict data-tone="' + uiTone(lead.tone) + '"' + (off ? ' data-day-off="' + off.kind + '"' : '') + ' aria-label="' + escHtml(lead.text) + '">' +
     '<p class="inv-mast-date">' + escHtml(homeGreeting(now)) + '</p>' + say +
-    (items.length ? '<ul class="inv-mast-facts">' + items.join('') + '</ul>' : '') + '<div class="inv-mast-act">' + act + '</div>' +
+    (items.length ? '<ul class="inv-mast-facts">' + items.join('') + '</ul>' : '') +
+    (lead.act || more || tools ? '<div class="inv-mast-act">' + (lead.act || '') + more + tools + '</div>' : '') +
     '<div class="inv-mast-time"><span class="inv-mast-clock" data-home-clock><span>' + escHtml(clock[0]) + '</span> <span class="inv-unit">' + escHtml(clock[1]) + '</span></span>' +
     '<span class="inv-mast-shift"><span data-home-shift>' + escHtml(homeShiftText(now, !_isDesktop)) + '</span>' +
-    (_isDesktop ? '<span class="inv-mast-track" data-home-track></span>' : '') + '</span></div></header>';
+    (_isDesktop && !off ? '<span class="inv-mast-track" data-home-track></span>' : '') + '</span></div></header>';
 }
 /* The masthead drawn again in place (a task ticked on the board changes what leads it and its count), its clock running on. */
 function homeDayRefresh() {
@@ -54836,8 +55029,9 @@ document.addEventListener('visibilitychange', function() {
   if (dash && !dash.classList.contains('inv-hidden') && dash.closest('.inv-page-active')) homeClockStart();
 });
 
-/* The board's toolbar (§8c): the period (one with Stats'), Customise and More (Make a report, Open Stats, Reset Home). Arranging,
-   the toolbar is Add a widget, Reset and Done, the one primary. A door the role does not open is not offered. */
+/* The board's toolbar (§8c): Customise and More (Make a report, Plant shut, Open Stats, Reset Home). The period went (owner, 21 Oct 2026: Home
+   reads this month, wdgPeriod; Stats keeps its own). Arranging, the toolbar is Add a widget, Reset and Done, the one primary. A door
+   the role does not open is not offered. */
 function homeToolbarHtml() {
   if (wdgArrangeOn('home')) {
     return '<div class="inv-toolbar" data-home-toolbar data-arranging>' +
@@ -54845,14 +55039,17 @@ function homeToolbarHtml() {
       '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgReset" data-board="home">Reset</button>' +
       '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invWdgDone" data-board="home">Done</button></div>';
   }
-  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  return '<div class="inv-toolbar" data-home-toolbar>' +
-    (tdySeesMoney() ? statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') : '') +
+  // The desktop's row under the masthead; on the phone, flat icons at the end of the masthead's act row (homeMastHtml).
+  return '<div class="inv-toolbar' + (_isDesktop ? '' : ' inv-toolbar-tight') + '" data-home-toolbar>' +
     (_isDesktop ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgArrange" data-board="home" aria-label="Customise Home">' + iconSvg('widgets') + '<span>Customise</span></button>'
-      : '<button class="inv-btn inv-btn-secondary inv-btn-icon" data-action="invWdgArrange" data-board="home" aria-label="Customise Home" title="Customise Home">' + iconSvg('widgets') + '</button>') +
-    uiToolbarMoreHtml([tdySees('pageReports') && tdySeesMoney() ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+      : '<button class="inv-btn inv-btn-ghost inv-btn-icon" data-action="invWdgArrange" data-board="home" aria-label="Customise Home" title="Customise Home">' + iconSvg('widgets') + '</button>') +
+    // Today's report (the masthead's second action until 21 Oct 2026, when the masthead kept one) and the month's.
+    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make today’s report', action: 'invHomeReport' } : null,
+      tdySees('pageReports') && tdySeesMoney() ? { label: 'Make a report', action: 'invRptFromStats', attrs: ' data-period="mtd"' } : null,
+      // The days the plant is shut (floor.js plantShutOpen): Home then says so in place of the shift.
+      tdySees('pageFloor') && (typeof grdCan !== 'function' || grdCan('settings')) ? { label: 'Plant shut…', action: 'invPlantShut' } : null,
       tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
-      { label: 'Reset Home', action: 'invWdgReset', attrs: ' data-board="home"' }], { icon: !_isDesktop }) + '</div>';
+      { label: 'Reset Home', action: 'invWdgReset', attrs: ' data-board="home"' }], { icon: !_isDesktop, ghost: !_isDesktop }) + '</div>';
 }
 /* The dashboard drawn: the masthead, the toolbar, the board, the foot. */
 function renderHomeBoard() {
@@ -54860,7 +55057,8 @@ function renderHomeBoard() {
   if (!el) return;
   if (typeof grdHeld === 'function' && grdHeld()) return;
   var n = wdgAddable('home');
-  el.innerHTML = '<div data-home-daycard>' + homeMastHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
+  // The toolbar's own row on the desktop and while arranging; on the phone it stands in the masthead.
+  el.innerHTML = '<div data-home-daycard>' + homeMastHtml() + '</div>' + (_isDesktop || wdgArrangeOn('home') ? homeToolbarHtml() : '') + '<div id="homeBoard"></div>' +
     (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">' + iconSvg('plus') + 'Add a widget · ' +
       n + ' to choose from</button></div>' : '');
   wdgBoardDraw(document.getElementById('homeBoard'), 'home');
@@ -54971,10 +55169,11 @@ function wdgFitSize(def, size) {
   return def.sizes.indexOf('m') >= 0 ? 'm' : def.sizes[0];
 }
 
-/* What several widgets read in one draw (the questions, a forecast) is worked out once a book, a period and a person. */
+/* What several widgets read in one draw (the questions, a forecast) is worked out once a book and a person. A widget reads its
+   board's period (wdgPeriod), which Home's is fixed at: a key that depends on a period names it. */
 var _wdgMemo = { key: '', v: {} };
 function wdgMemo(key, fn) {
-  var k = _bookWrites + '|' + (typeof _statsPeriod === 'string' ? _statsPeriod : '') + '|' + (typeof grdUserId === 'function' ? grdUserId() || '' : '');
+  var k = _bookWrites + '|' + (typeof grdUserId === 'function' ? grdUserId() || '' : '');
   if (_wdgMemo.key !== k) _wdgMemo = { key: k, v: {} };
   if (!Object.prototype.hasOwnProperty.call(_wdgMemo.v, key)) _wdgMemo.v[key] = fn();
   return _wdgMemo.v[key];
@@ -55037,19 +55236,19 @@ function wdgGo(def) {
 /* ---------- Presets by role (§7g, §24i) ----------
    A board starts from its role's preset; any change makes it the person's own, and Reset returns to the preset. Each preset holds
    what its role sees by default (grdRoleDefaults) and packs with no hole on both layouts, packing on or off. The phone keeps the
-   desktop's order: a Small stays Small, the rest Medium. The phone's Owner holds all fourteen, as the canvas the owner agreed draws
-   it (Home card types, 17 Oct 2026; owner, 20 Oct 2026: "This was the agreed upon artifact"): Home is longer than I10's four phone
-   screens by it, which that canvas set (§1a-14). A widget the role may not see, or the build does not have, is left out when the
+   desktop's order: a Small stays Small, the rest Medium; an entry marked `desk` is the desktop's alone. About seven cards on the
+   phone (owner, 21 Oct 2026: "Home screen should not feel heavy, and should lead and prioritise the user"): the masthead leads with
+   the move worth most, the count of what needs you and the weather, so Do first, Needs you and the weather are not on a board;
+   This month at its pace is in Month to date, and Production, the last day and Attendance today in The floor now. What a preset
+   leaves out is one tap away, under Add a widget. A widget the role may not see, or the build does not have, is left out when the
    preset is drawn. */
 var WDG_PRESETS = {
-  owner: { label: 'Owner', home: [['mtd', 's'], ['q-money', 's'], ['prodday', 's'], ['cash', 's'], ['pace', 'm'], ['coming', 'm'], ['tata', 'l'],
-    ['floornow', 'm'], ['risk', 's'], ['turn', 's'], ['dtp', 's'], ['atttoday', 's'], ['q-smooth', 'm'], ['dofirst', 'm']] },
-  office: { label: 'Office', home: [['needs', 'm'], ['quick', 's'], ['unbilled', 's'], ['quote', 's'], ['weather', 's'], ['pipe', 'm'], ['recent', 'm'],
-    ['tata', 'm'], ['coming', 'm']] },
-  supervisor: { label: 'Supervisor', home: [['floornow', 'l'], ['eff', 'm'], ['prodday', 's'], ['atttoday', 's'], ['risk', 's'], ['weather', 's'],
-    ['stockdays', 'm'], ['attweek', 'm'], ['ot', 'm'], ['tata', 'm']] },
-  floor: { label: 'Floor', home: [['floornow', 'l'], ['eff', 'm'], ['prodday', 's'], ['stockdays', 's'], ['weather', 's'], ['quick', 's'], ['heat', 'm'],
-    ['needs', 'm'], ['tata', 'm'], ['coming', 'm']] }
+  owner: { label: 'Owner', home: [['mtd', 's'], ['q-money', 's'], ['cash', 's'], ['owed', 's'], ['floornow', 'm'], ['coming', 'm'], ['q-smooth', 'm'],
+    ['tata', 'm', 'desk']] },
+  office: { label: 'Office', home: [['quick', 's'], ['unbilled', 's'], ['pipe', 's'], ['quote', 's'], ['recent', 'm'], ['coming', 'm'], ['tata', 'l', 'desk']] },
+  supervisor: { label: 'Supervisor', home: [['floornow', 'l'], ['eff', 'm'], ['risk', 's'], ['powercuts', 's'], ['stockdays', 's'], ['turn', 's'], ['attweek', 'm'],
+    ['ot', 'm', 'desk']] },
+  floor: { label: 'Floor', home: [['floornow', 'l'], ['stockdays', 's'], ['quick', 's'], ['turn', 's'], ['eff', 's'], ['heat', 'm'], ['coming', 'm']] }
 };
 function wdgRole() {
   if (typeof grdOn !== 'function' || !grdOn()) return 'owner';
@@ -55057,9 +55256,9 @@ function wdgRole() {
   return u ? u.role : 'owner';
 }
 function wdgPresetKey() { var r = wdgRole(); return WDG_PRESETS[r] ? r : 'owner'; }
-function wdgPresetList(board, lay) {
-  var p = WDG_PRESETS[wdgPresetKey()] || WDG_PRESETS.owner;
-  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]); }).map(function(x) {
+function wdgPresetList(board, lay, key) {
+  var p = WDG_PRESETS[key || wdgPresetKey()] || WDG_PRESETS.owner;
+  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]) && !(x[2] === 'desk' && lay === 'phone'); }).map(function(x) {
     return [x[0], wdgFitSize(wdgDef(x[0]), lay === 'phone' && x[1] !== 's' ? 'm' : x[1])];
   });
 }
@@ -55321,16 +55520,23 @@ var _wdgDrawn = {};
    at its right at Large; its body the figure, the verdict, the detail and the type's parts; its foot the Act and the Source. In
    arrange mode its handle, its place, its size and its Remove ride over the head (§7e). An Outside card is never edged or tinted:
    the world outside is to know, info at most. */
+/* The period a board's widgets read: Home's is this month, always (owner, 21 Oct 2026: "Let's remove the MTD, QTD, YTD, all
+   filters - they are not needed on the home screen and increases cognitive load"). Stats keeps its own (_statsPeriod). */
+function wdgPeriod(board) { return 'mtd'; }
 function wdgCardHtml(def, size, o) {
   o = o || {};
   var board = o.board || 'home', opts = wdgOpts(board, def.id);
-  var ctx = { board: board, size: size, opts: opts, period: typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd', preview: !!o.preview };
+  var ctx = { board: board, size: size, opts: opts, period: wdgPeriod(board), preview: !!o.preview };
   ctx.choose = wdgChooseVal(def, ctx);
   var d = wdgData(def, ctx);
   var tone = d.state === 'ok' && WDG_TONES[d.tone] ? d.tone : 'neutral';
   if (def.type === 'outside' && (tone === 'warning' || tone === 'danger')) tone = 'info';
   var body = wdgBodyHtml(def, size, d, ctx, tone);
   if (d.state !== 'ok') tone = 'neutral';
+  // A card edged amber or red asks for something today (owner, 21 Oct 2026: "Red only for today"): a trend (the month against the
+  // last, a period's answer, a record of days) keeps its figure and its lamp in their tone, and is never edged (`trend`).
+  var trend = false;
+  if (d.state === 'ok' && def.trend) { try { trend = typeof def.trend === 'function' ? !!def.trend(d, ctx) : true; } catch (e) { trend = false; } }
   _wdgDrawn[(o.preview ? 'preview|' : board + '|') + def.id] = { d: d, ctx: ctx };
   var sec = wdgSection(def.section), id = escHtml(def.id), full = escHtml(def.title), title = escHtml(wdgTitleAt(def, size));
   var door = wdgCanGo(def) && !o.preview
@@ -55348,7 +55554,7 @@ function wdgCardHtml(def, size, o) {
   if (def.card && !/\bdata-card=/.test(attrs)) attrs += ' data-card="' + escHtml(def.card) + '"';
   if (o.preview) attrs = attrs.replace(/\s+id="[^"]*"/g, '').replace(/\s+data-card="[^"]*"/g, '');
   return '<section class="inv-widget" data-w="' + id + '" data-size="' + size + '" data-type="' + escHtml(def.type) + '" data-tone="' + tone + '" data-state="' + escHtml(d.state) + '"' +
-    attrs + ' aria-label="' + full + '">' + head + '<div class="inv-widget-body">' + body + '</div>' + foot + '</section>';
+    (trend ? ' data-trend' : '') + attrs + ' aria-label="' + full + '">' + head + '<div class="inv-widget-body">' + body + '</div>' + foot + '</section>';
 }
 /* After a card is in the page: a widget's own hook (a chart measured, a fold wired), never one that writes the book; then its fit,
    then its chart drawn into the room left. */
@@ -56512,7 +56718,7 @@ function wcDayWord(day) {
   return lag <= 0 ? 'Today' : lag === 1 ? 'Yesterday' : attDayName(day) + ' ' + stockShortDate(day);
 }
 function wcCap(s) { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-function wcLc(s) { s = String(s || ''); return s.charAt(0).toLowerCase() + s.slice(1); }
+function wcLc(s) { return lcLead(s); }   // a name in capitals, a day or a month keeps its first letter (state.js)
 /* A month by its whole name (September), its year only where it is not this one (September 2025). */
 function wcGstMonth(ym) {
   var y = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7) - 1, now = new Date();
@@ -56562,12 +56768,14 @@ wdgDefine({ id: 'cash', title: 'Cash and its low point', short: 'Cash', q: 'Will
     // The low point with its date: the line, unless the account is overdrawn or dips below zero, which the hero's title says first.
     // The forecast's low starts at today's balance, so a low on today is the balance itself: nothing lower comes in the 60 days.
     var low = fc && fc.min.date !== localDateStr() ? 'Lowest ' + wcRs(fc.min.bal) + ' on ' + stockShortDate(fc.min.date) : 'No lower in the 60 days ahead';
-    var say = last.balance >= 0 && fc && !fc.cross ? low : c.title;
+    // Amber for a statement over a week old says so, or the lamp is unexplained on a Small: the low point moves under it.
+    var stale = c.stale > 7 && last.balance >= 0 && !(fc && fc.cross);
+    var say = stale ? 'Statement ' + c.stale + ' days old' : last.balance >= 0 && fc && !fc.cross ? low : c.title;
     var tin = 0, tout = 0;
     if (fc) fc.days.forEach(function(x) { tin += x.in; tout += x.out; });
     // The balance in the card's own tone (the canvas: ₹3.49 L in the ok mark while no lower point is ahead).
     return { state: 'ok', tone: c.tone, c: c, fc: fc, fig: wcMoneyFig(last.balance, last.balance < 0 ? 'danger' : c.tone, ctx.size === 's' ? '' : 'in the bank'), say: say,
-      detail: (c.stale > 7 ? 'Statement ' + c.stale + ' days old' : 'In the bank on ' + stockShortDate(last.date)) + (c.held.n ? ' · + ' + wcRs(c.held.amount) + ' in cheques in hand' : ''),
+      detail: (stale ? low : c.stale > 7 ? 'Statement ' + c.stale + ' days old' : 'In the bank on ' + stockShortDate(last.date)) + (c.held.n ? ' · + ' + wcRs(c.held.amount) + ' in cheques in hand' : ''),
       detailNotSmall: true, detailAttrs: ' data-wdg-opt', sayTone: c.tone, inn: gstRound(tin), out: gstRound(tout) };
   },
   draw: function(d, size) {
@@ -56664,7 +56872,7 @@ wdgDefine({ id: 'owed', title: 'Owed to us, by age', short: 'Owed to us', q: 'Ho
    (flowPayTone). Small, the book's median and a gauge of it against the plant's terms; from Medium, the clients most past their
    terms as a dumbbell, bare. */
 var WC_DTP_MIN = 3;
-wdgDefine({ id: 'dtp', title: 'Days to pay, against terms', short: 'Days to pay', q: 'Who pays on time, who is slipping?', section: 'money', type: 'ledger', icon: 'dtp', sizes: ['m', 's', 'l'],
+wdgDefine({ id: 'dtp', title: 'Days to pay, against terms', short: 'Days to pay', q: 'Who pays on time, who is slipping?', section: 'money', type: 'ledger', icon: 'dtp', sizes: ['m', 's', 'l'], trend: true,
   needs: { page: 'pageFinance', money: true }, go: { tab: 'pageFinance', v: 'receipts' },
   data: function(ctx) {
     if (!finHasBank()) return wcNoBank('days to pay are');
@@ -56745,30 +56953,44 @@ wdgDefine({ id: 'gst', title: 'GST due against paid', short: 'GST', q: 'Is every
 
 
 /* ---------- Office (Docket: documents in motion; the month's Ledgers) ---------- */
-/* Month to date: Home's month tiles (homeMtdOpts: billing against the same days last month, realisation against the cost). Small,
-   what is billed and its months before as small bars, this month to date hatched; Medium, the four tiles; Large, each tile's line of
-   the months before. */
-wdgDefine({ id: 'mtd', title: 'Month to date', short: 'Month to date', q: 'How is the month going?', section: 'office', type: 'ledger', icon: 'invoice', sizes: ['s', 'm', 'l'],
+/* Month to date: Home's month tiles (homeMtdOpts: billing against the same days last month, realisation against the cost), and where
+   the month lands at its pace (predMonthPace; owner, 21 Oct 2026: the pace card folded into this one, "About 7 cards on the phone").
+   Small, what is billed, where it lands, and its months before as small bars, this month to date hatched and its landing outlined;
+   Medium, where it lands and its likely range under the verdict, then the four tiles; Large, each tile's line of the months before.
+   What the pace rests on (the unbilled in hand, the tonnes) is This month at its pace's, under Add a widget. */
+wdgDefine({ id: 'mtd', title: 'Month to date', short: 'Month to date', q: 'How is the month going, and where does it land?', section: 'office', type: 'ledger', icon: 'invoice', sizes: ['s', 'm', 'l'], trend: true,
   needs: { page: 'pageRegister', money: true }, go: { tab: 'pageRegister' },
   data: function(ctx) {
-    var o = homeMtdOpts(homeMonthInvoices(), { viz: ctx.size === 'l' });
+    var o = homeMtdOpts(homeMonthInvoices(), { viz: ctx.size === 'l' }), p = predMonthPace();
     // Small: coded by its billing's change alone, said without the word the card's title already is (the canvas's "Level with the
     // same days last month"); from Medium the worse of billing and realisation.
     var tone = ctx.size === 's' ? (WDG_TONES[o.revTone] ? o.revTone : 'neutral') : WDG_TONES[o.tone] ? o.tone : 'neutral';
     // A Small's verdict is two short lines: a whole percent ("22% behind the same days last month").
     var say = ctx.size === 's' ? o.title.replace(/^Billing (\S)/, function(m, c) { return c.toUpperCase(); })
       .replace(/(\d+\.\d+)%/, function(m, n) { return Math.round(parseFloat(n)) + '%'; }) : o.title;
-    return { state: 'ok', tone: tone, o: o, fig: wcMoneyFig(o.rev, ctx.size === 's' ? o.revTone : null), sayHtml: say, sayTone: tone, detailHtml: o.sub, detailNotSmall: true,
-      detailAttrs: ' data-wdg-opt', attrs: o.attrs };
+    // Where the month lands, under the verdict: short on a board (its exact figure the title), its range from Medium. Before the
+    // month has a pace (its first working day billed), the realisation line the tiles' card always had.
+    var lands = p ? 'On pace for ' + inrCard(p.projRev).text + (ctx.size === 's' ? '' : ' · likely ' + inrCard(p.low).text + ' – ' + inrCard(p.high).text) : '';
+    var det = lands ? '<span data-mtd-pace title="' + escHtml('On pace for ' + formatCurrency(p.projRev) + ' and ' + formatNum(p.projKg / 1000, 1) + ' t; likely ' +
+      formatCurrency(p.low) + ' – ' + formatCurrency(p.high) + ', as the ' + p.done + ' of ' + p.total + ' working days in varied') + '">' + escHtml(lands) + '</span>' : ctx.size === 's' ? '' : o.sub;
+    // A Small keeps where the month lands and lets its bars go first where it is short of room (the phone's Small); from Medium the
+    // line under the verdict is what goes.
+    return { state: 'ok', tone: tone, o: o, p: p, fig: wcMoneyFig(o.rev, ctx.size === 's' ? o.revTone : null), sayHtml: say, sayTone: tone, detailHtml: det,
+      detailAttrs: ctx.size === 's' && p ? '' : ' data-wdg-opt', attrs: o.attrs };
   },
   draw: function(d, size) {
+    var p = d.p;
     if (size !== 's') return d.o.tiles;
-    // The months before as small bars, last month the one the figure is set against (dark), this month to date hatched (§24f).
+    // The months before as small bars, last month the one the figure is set against (dark), this month to date hatched and where
+    // it lands at its pace outlined (§24f).
     var hist = homeMonthsBack(6), month = TREND_MONTH_LABELS[new Date().getMonth()];
     var bars = hist.map(function(x, i) { return { v: x.rev, label: x.label, text: formatCurrency(x.rev), on: i === hist.length - 1 }; })
-      .concat([{ v: d.o.rev, label: month + ' to date', text: formatCurrency(d.o.rev), todate: true, hatch: true }]);
-    return '<div class="inv-widget-viz" data-wdg-push>' + chartMiniBars(bars, { title: 'Billed by month: ' + bars.map(function(b) { return b.label + ' ' + wcRs(b.v); }).join(' · ') }) + '</div>';
+      .concat([{ v: d.o.rev, label: month + ' to date', text: formatCurrency(d.o.rev), todate: true, hatch: true,
+        proj: p ? p.projRev : null, projText: p ? 'on pace for ' + formatCurrency(p.projRev) : '' }]);
+    return '<div class="inv-widget-viz" data-wdg-push' + (p ? ' data-wdg-opt' : '') + '>' + chartMiniBars(bars, { title: 'Billed by month: ' + bars.map(function(b) { return b.label + ' ' + wcRs(b.v); }).join(' · ') +
+      (p ? '; ' + month + ' on pace for ' + wcRs(p.projRev) : '') }) + '</div>';
   },
+  // What the pace rests on is the pace line's title: the source stays one line.
   source: function(d) { return { facts: ['Invoices, ' + d.o.span, 'net of credit notes'] }; } });
 
 /* Unbilled challans: what IM lists under Awaiting invoice (pipeAwaitingChallans, oldest first), judged as Pipeline judges its first
@@ -57204,7 +57426,7 @@ wdgDefine({ id: 'quote', title: 'Quotations and prospects', short: 'Quotations',
 /* Power cuts this month (homePowerOpts' reading of powerCuts): how long the plant was dark and how many cuts; from Medium each cut a
    row, newest first, its lamp amber while it has no time back, each opening its completion. Complete the cut is the Act while one
    has no time back. */
-wdgDefine({ id: 'powercuts', title: 'Power cuts', short: 'Power cuts', q: 'How much power did we lose?', section: 'floor', type: 'plant', sizes: ['s', 'm'],
+wdgDefine({ id: 'powercuts', title: 'Power cuts', short: 'Power cuts', q: 'How much power did we lose?', section: 'floor', type: 'plant', sizes: ['s', 'm'], trend: true,
   needs: { page: 'pagePower' }, go: { tab: 'pagePower', v: 'cuts' },
   data: function() {
     var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today).slice().reverse(), all = powerCuts(null, today);
@@ -57327,12 +57549,23 @@ function wcFlrLineClient(r) {
 /* A plating line as a Plant row (the canvas's floor now): its lamp in its tone, its nameplate, what it has plated (today: so far) or
    its state, its units working and its main client, and its efficiency at the end over a gauge marked at PROD_EFF_OK. A row says and
    opens nothing (the canvas's 40px row): the card's head opens Floor's Overview, whose line cards open their lines. */
+/* Half or more of a line's units down on the plant register, as the masthead counts it: said whether or not the line has run (its
+   efficiency judges it only once it has). */
+function wcFlrHalfDown(x) {
+  var ef = x && x.j && x.j.ef;
+  return !!(ef && (ef.halfDown || (ef.n >= 2 && ef.avail != null && ef.avail <= 0.5)));
+}
 function wcFlrLineRowHtml(x, day, isToday) {
-  var ef = x.j.ef, plated = wcFlrPlated(x.r);
-  var units = ef && ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + wdgNoun(ef.unitWord || 'unit', ef.n) : '';
-  var meta = [units, wcFlrLineClient(x.r)].filter(Boolean).join(' · ') || x.j.st.word;
+  var ef = x.j.ef, plated = wcFlrPlated(x.r), half = wcFlrHalfDown(x), unit = (ef && ef.unitWord) || 'unit';
+  var units = ef && ef.n && !half ? ef.nAvail + ' of ' + ef.n + ' ' + wdgNoun(unit, ef.n) : '';
+  // Its hands against the day's number once the roll is in (Attendance today, folded into this card: owner, 21 Oct 2026).
+  var st = x.j.st, hands = st.need != null ? st.heads + ' of ' + st.need + ' hands' : st.heads ? st.heads + ' on' : '';
+  var meta = [units, hands, wcFlrLineClient(x.r)].filter(Boolean).join(' · ');
+  if (!meta && !half) meta = st.word;
   var pct = ef && ef.eff != null ? Math.round(ef.eff * 100) : null;
-  return wdgPlantRowHtml({ tone: x.j.tone, plate: flrLineName(x.ln.id), runs: plated ? plated + (isToday ? ' so far' : '') : wcFlrLineWord(x, isToday), meta: meta,
+  var down = half ? (ef.n - ef.nAvail) + ' of ' + ef.n + ' ' + wdgNoun(unit, ef.n) + ' down' : '';
+  if (half && plated) meta = [down].concat(meta ? [meta] : []).join(' · ');
+  return wdgPlantRowHtml({ tone: half ? 'danger' : x.j.tone, plate: flrLineName(x.ln.id), runs: plated ? plated + (isToday ? ' so far' : '') : half ? down : wcFlrLineWord(x, isToday), meta: meta,
     eff: { text: pct != null ? pct + '%' : '\u2014', tone: pct != null ? ef.tone : null, v: pct || 0, max: 100, mark: PROD_EFF_OK * 100,
       title: pct != null ? flrLineName(x.ln.id) + ' at ' + pct + '% of what its working units could plate; the mark is ' + Math.round(PROD_EFF_OK * 100) + '%' : 'Not judged yet' },
     attrs: ' data-wc-line="' + escHtml(x.ln.id) + '"' });
@@ -57350,9 +57583,26 @@ function wcDayLanesHtml(day, only) {
   return '<div class="inv-widget-viz" data-wc-daystrip>' + chartDayLanes(lanes, { cuts: cuts, now: isToday ? d.getHours() * 60 + d.getMinutes() : null, compact: !_isDesktop,
     title: 'The day, 6 AM to 6 AM: ' + (pic.ran.length ? pic.ran.map(prodLineName).join(', ') + ' ran' : 'no line has run') + (cuts.length ? '; ' + todoPlural(cuts.length, 'cut') : '') }) + '</div>';
 }
-/* The floor now: who is on site against the day's roster (attOnSiteTone, the People card's judge) and the lines running; the day on
-   one bar; a line a row, worst first; at Large the units down and the EXTRA booked. Today, as Floor's Overview opens; heads only,
-   never a rupee, so every role that opens Floor sees it. */
+/* The last day with plating on record before today, in a few words (Production, the last day, folded into the floor's card: owner,
+   21 Oct 2026, "About 7 cards on the phone"): "Last plated Fri 16 Oct: ≈ 732 kg, 46% of a usual day", in the day's tone. */
+function wcFlrLastPlated(today) {
+  var day = homeLastPlatedDay();
+  if (!day || day >= today) return null;
+  var pic = prodDayPicture(day);
+  if (!pic || !(pic.kg > 0)) return null;
+  var share = pic.usual > 0 ? Math.round(pic.kg / pic.usual * 100) : null;
+  return { day: day, share: share, tone: share == null ? 'neutral' : prodDayUnder(pic.kg, pic.usual) ? 'warning' : 'ok',
+    text: 'Last plated ' + wcDayWord(day) + ': ' + prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0) + (share != null ? ', ' + share + '% of a usual day' : '') };
+}
+/* A day the plant is not expected to work, as the floor's card says it. */
+function wcFlrOffSay(off) {
+  return off.kind === 'shut' ? 'Plant shut today' + (off.why ? ': ' + off.why : '') : off.kind === 'sunday' ? 'Sunday: the plant is shut' : 'A paid holiday: the plant is shut';
+}
+/* The floor now: who is on site against the day's roster (attOnSiteTone, the People card's judge) and the lines running, each with
+   its units and hands; the day on one bar; a line a row, worst first; at Large the units down and the EXTRA booked. Today, as Floor's
+   Overview opens; heads only, never a rupee, so every role that opens Floor sees it. Production, the last day, and Attendance today
+   are folded into it (owner, 21 Oct 2026): before today's first run it says the last day plated, and a day the plant is shut (marked
+   from Home, a paid holiday, a Sunday not worked) is one quiet line. */
 wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who is on site and what is running?', section: 'floor', type: 'plant', icon: 'floor', sizes: ['m', 's', 'l'],
   needs: { page: 'pageFloor' }, card: 'floor-now',
   // Floor's Overview on today, as Needs you's floor card opens it.
@@ -57362,24 +57612,37 @@ wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who 
     var ran = F.lines.filter(function(x) { return x.r.entries.length > 0; });
     if (!d.roster.length && !ran.length && !homeLastPlatedDay()) return { state: 'empty', title: 'Nothing on the floor yet', body: 'People → Roster holds the crew, and Production records what each line plates.',
       act: { label: 'Open the floor', action: 'invWdgGo', attrs: ' data-wid="floornow"' } };
+    var last = wcFlrLastPlated(day), off = plantDayOff(day);
+    // A day the plant is shut: one quiet line, and the last day plated under it.
+    if (off) return { state: 'ok', tone: 'neutral', F: F, day: day, off: off, last: last, quiet: true, say: wcFlrOffSay(off), sayTone: 'neutral', sayAttrs: ' data-wc-off',
+      detail: last ? last.text : '', detailAttrs: ' data-wc-lastday' };
     var onTone = attOnSiteTone(d, F.short), worst = F.lines[0], n = d.roster.length, on = d.p + d.half;
-    var say = !d.marked && !ran.length ? 'Nothing recorded yet today' : flrLineName(worst.ln.id) + ': ' + wcLc(wcFlrLineWord(worst, true));
+    var none = !d.marked && !ran.length;
+    // A line half down leads, as the masthead and Floor's line cards lead with it, run or not.
+    var half = F.lines.filter(wcFlrHalfDown)[0];
+    if (half) worst = half;
+    var halfSay = half ? flrLineName(half.ln.id) + ': ' + (half.j.ef.n - half.j.ef.nAvail) + ' of ' + half.j.ef.n + ' ' + wdgNoun(half.j.ef.unitWord || 'unit', half.j.ef.n) + ' down' : '';
+    var say = halfSay || (none ? 'Nothing recorded yet today' : flrLineName(worst.ln.id) + ': ' + wcLc(wcFlrLineWord(worst, true)));
     // Who is on site beside the lines running, as a reading (the canvas's "14 of 16 on site"), in the People card's tone.
     var heads = d.marked ? '<span class="inv-reading" data-wc-onsite>' + figHtml(escHtml(String(on)), onTone) + '<span class="inv-unit">of ' + n + ' on site</span></span>' : '';
-    return { state: 'ok', tone: wcWorst([onTone].concat(F.lines.map(function(x) { return x.j.tone; }))), F: F, day: day,
-      fig: wcFigUnit(ran.length, 'of ' + F.lines.length + ' lines running') + (heads ? ' ' + heads : ''), say: say, sayTone: worst ? worst.j.tone : 'neutral',
-      // The heads behind the reading, at Large (the lanes and the rows say the rest).
-      detail: ctx.size !== 'l' ? '' : d.marked ? [d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' : '', todoPlural(d.absent.length, 'absent', 'absent') + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '')]
-        .filter(Boolean).join(' · ') : 'The in-time roll fills it', detailNotSmall: true };
+    // Under the verdict, the last day plated until today's first run (the Production card's word), else at Large the heads behind
+    // the reading (the lanes and the rows say the rest).
+    var heads2 = ctx.size !== 'l' ? '' : d.marked ? [d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' : '', todoPlural(d.absent.length, 'absent', 'absent') + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '')]
+      .filter(Boolean).join(' · ') : 'The in-time roll fills it';
+    return { state: 'ok', tone: wcWorst([onTone].concat(F.lines.map(function(x) { return wcFlrHalfDown(x) ? 'danger' : x.j.tone; }))), F: F, day: day, last: last, none: none,
+      fig: wcFigUnit(ran.length, 'of ' + F.lines.length + ' lines running') + (heads ? ' ' + heads : ''), say: say, sayTone: half ? 'danger' : worst ? worst.j.tone : 'neutral',
+      detail: last && !ran.length ? last.text : heads2, detailAttrs: last && !ran.length ? ' data-wc-lastday' : '', detailNotSmall: !(last && !ran.length) };
   },
   draw: function(d, size) {
+    if (d.off) return '';
     if (size === 's') {
       var a = d.F.att;
       return a.marked ? '<div class="inv-widget-viz" data-wdg-push>' + chartMeter([{ v: a.p, tone: 'ok' }, { v: a.half, tone: 'warning' }, { v: a.absent.length, tone: 'danger' }, { v: a.unmarked, tone: 'neutral' }],
         { title: a.p + ' present, ' + a.half + ' half day, ' + a.absent.length + ' absent' + (a.unmarked ? ', ' + a.unmarked + ' unmarked' : '') }) + '</div>' : '';
     }
     var rows = '<div class="inv-plant" data-wdg-list data-noun="line">' + d.F.lines.map(function(x) { return wcFlrLineRowHtml(x, d.day, true); }).join('') + '</div>';
-    var strip = wcDayLanesHtml(d.day);
+    // The day in lanes once anything is recorded: before that it is an empty clock.
+    var strip = d.none ? '' : wcDayLanesHtml(d.day);
     if (size !== 'l') return strip + rows;
     // The units not working on each line (the plant register, as found on the day), and the EXTRA booked: the day's whole, by line.
     var nUnits = 0, nDown = 0, half = false, words = [];
@@ -57400,7 +57663,13 @@ wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who 
   },
   // What the card stands on (the canvas's "In-time roll 8:41 AM · register to 2:10 PM · one cut, 11:20 to 11:58 AM"): when the roll
   // came, how late the day's runs are recorded to, and the cuts.
+  // Nothing recorded by eleven on a day the calendar calls a working day: the plant may be shut, and Home is where it is marked.
+  actRow: function(d) {
+    if (d.off || !d.none || new Date().getHours() < 11 || typeof grdCan !== 'function' || !grdCan('settings')) return null;
+    return { text: { label: 'Mark today shut', action: 'invPlantShut', attrs: ' data-day="' + escHtml(d.day) + '"' } };
+  },
   source: function(d) {
+    if (d.off) return { facts: [d.off.kind === 'shut' ? 'Marked shut from Home' : d.off.kind === 'sunday' ? 'Sundays' : 'Paid holidays, Settings → Labour', 'nothing recorded today'] };
     var a = d.F.att, day = d.day, pic = prodDayPicture(day), last = null, cuts = pic.cuts || [];
     var at = tdyRolls('in', day).map(function(p) { return tdyArrival(p.text, p.at, day, p); }).filter(function(x) { return x != null; });
     PROD_LINES.forEach(function(l) { (pic.spans[l] || []).forEach(function(x) { if (x.to != null && (last == null || x.to > last)) last = x.to; }); });
@@ -57464,7 +57733,7 @@ function wcProdWeighedHtml(pic) {
   return wdgFactLinesHtml(lines, { caption: 'How it was weighed', attrs: ' data-wc-weighed',
     viz: chartMeter([{ v: sure, tone: 'neutral' }, { v: est, tone: 'neutral', hatch: true }], { max: max, title: title }) });
 }
-wdgDefine({ id: 'prodday', title: 'Production, the last day', short: 'Production', q: 'What did we plate?', section: 'floor', type: 'plant', icon: 'vat', sizes: ['s', 'm', 'l'],
+wdgDefine({ id: 'prodday', title: 'Production, the last day', short: 'Production', q: 'What did we plate?', section: 'floor', type: 'plant', icon: 'vat', sizes: ['s', 'm', 'l'], trend: function(d) { return !d.o || !d.o.isToday; },
   needs: { page: 'pageProduction' },
   // Lines on the day it shows (the head is the door: Open the lines went, §24f).
   go: function() { var day = homeLastPlatedDay(); _prodView = 'main'; prodSetTab('lines'); if (day) _prodDay = day; switchTab('pageProduction'); },
@@ -57542,7 +57811,7 @@ function wcFlrCutWords(c) {
 /* Plated each day: a calendar of the weeks (chartHeat bare, the one blue ramp; a day with no record hatched), Medium eight weeks and
    Large twelve, with how many days fell under a usual day (prodDayUnder, the day card's own judge) and how many of those had a cut;
    Large lists the days under a usual day that were cut days beside it. Today is drawn as to date and never judged. */
-wdgDefine({ id: 'heat', title: 'Plated each day', q: 'Which days ran light, and why?', section: 'floor', type: 'plant', sizes: ['l', 'm'],
+wdgDefine({ id: 'heat', title: 'Plated each day', q: 'Which days ran light, and why?', section: 'floor', type: 'plant', sizes: ['l', 'm'], trend: true,
   needs: { page: 'pageProduction' }, go: { tab: 'pageProduction', v: 'lines' }, card: 'plated-days',
   data: function(ctx) {
     var D = wcFlrDays(), today = localDateStr();
@@ -57588,7 +57857,7 @@ wdgDefine({ id: 'heat', title: 'Plated each day', q: 'Which days ran light, and 
 /* Line efficiency on the last day with plating (prodLineEfficiency, Floor's line cards' own figure and tone): Small the worst line's
    figure; Medium and Large the three lines as rows, each with its gauge against what its working units could plate, the mark at
    three quarters; Large names the factor that lost most (flrEffMoved, the card's own caption). */
-wdgDefine({ id: 'eff', title: 'Line efficiency, now', short: 'Efficiency', q: 'Is each line plating what it can?', section: 'floor', type: 'plant', sizes: ['m', 's', 'l'],
+wdgDefine({ id: 'eff', title: 'Line efficiency, now', short: 'Efficiency', q: 'Is each line plating what it can?', section: 'floor', type: 'plant', sizes: ['m', 's', 'l'], trend: true,
   needs: { page: 'pageProduction' }, go: { tab: 'pageProduction', v: 'lines' }, card: 'line-eff',
   data: function() {
     var day = homeLastPlatedDay();
@@ -57770,7 +58039,7 @@ var WC_FLR_ZINC_RANGE = { '3M': 'three months', '6M': 'six months', FY: 'this fi
 /* Zinc against the market (zincTrend, over the range Stock → Spend and prices shows): what the bills paid over the market a kilo,
    weighted by their kilos (dashZincPaidOver), the market now against the last bill and the market's line with the last bill dashed
    beside it; Large each supplier over the market (dashZincSupStatus: Spend and prices' own words), as statement lines with their paise. */
-wdgDefine({ id: 'zincpaid', title: 'Zinc against the market', q: 'Did we buy well, and from whom?', section: 'floor', type: 'ledger', sizes: ['m', 'l'],
+wdgDefine({ id: 'zincpaid', title: 'Zinc against the market', q: 'Did we buy well, and from whom?', section: 'floor', type: 'ledger', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageStock', money: true }, card: 'zinc-paid',
   go: function() { dashZincShow(); },
   data: function() {
@@ -57859,7 +58128,7 @@ wdgDefine({ id: 'atttoday', title: 'Attendance today', short: 'Attendance', q: '
 /* Attendance by pay week (dashAttendanceByWeek, Attendance → Week's own reading): the share present of the marks typed, a week
    nobody typed a gap, the week running drawn as to date, against the rest-day gate's 90% (the mark). The latest week with marks is
    the figure, judged at the gate's 90% and 80% (figTonePct). Medium eight weeks, Large twenty-six. */
-wdgDefine({ id: 'attweek', title: 'Attendance by week', q: 'Is the crew turning up?', section: 'people', type: 'crew', sizes: ['m', 'l'],
+wdgDefine({ id: 'attweek', title: 'Attendance by week', q: 'Is the crew turning up?', section: 'people', type: 'crew', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageStaff' }, go: { tab: 'pageStaff', v: 'week' }, card: 'att-weeks',
   data: function(ctx) {
     var n = 8, weeks = dashAttendanceByWeek(n), known = weeks.filter(function(w) { return w.pct != null; });
@@ -57920,7 +58189,7 @@ function wcPplOtBars(rows, key, max, head) {
   return chartRankedBars(rows.map(function(r) { return { label: r.label, value: Math.round(r[key] * 10) / 10, display: wcHours(r[key]) + ' h' }; }),
     { unit: 'h', max: max, labelHead: 'Area', valueHead: head, emptyText: 'None in four weeks', bare: true });
 }
-wdgDefine({ id: 'ot', title: 'Overtime by area', q: 'Where are the extra hours going?', section: 'people', type: 'crew', sizes: ['m', 'l'],
+wdgDefine({ id: 'ot', title: 'Overtime by area', q: 'Where are the extra hours going?', section: 'people', type: 'crew', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageStaff' }, go: { tab: 'pageStaff', v: 'areas' }, card: 'ot-areas',
   data: function() {
     var today = localDateStr(), from = isoAddDays(attWeekStartOf(today), -21), ah = areaHoursForRange(from, today);
@@ -58213,7 +58482,7 @@ function wcCorrPicksHtml(p, compact) {
   // Each pick is kept as it is made: nothing typed waits to be saved (data-nodirty), in a dialog or on the page.
   return '<div class="inv-corr-picks' + (compact ? ' inv-corr-picks-sm' : '') + '" data-corr-picks data-nodirty>' + sel('x', p.across, p.x) + sel('y', p.up, p.y) + '</div>';
 }
-wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures; see if they travel together.', section: 'analysis', type: 'brief', sizes: ['l', 'm'],
+wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures; see if they travel together.', section: 'analysis', type: 'brief', sizes: ['l', 'm'], trend: true,
   card: 'corr',
   // Its Choose is the pair (§24f): the two pickers at Large, one button naming the pair at Medium.
   choose: { at: ['m', 'l'], label: 'The pair', html: function(ctx) {
@@ -58268,7 +58537,7 @@ wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures;
 /* What each client pays a kilo (§7d `clientprice`): the period's clients, worst first, each against the full cost (the mark) and the
    variable cost (labour is fixed: everything but labour, statsClientMargins), the ranked bars bare, each row opening its client.
    Coded by the large accounts (10% of the tonnes or more) under the cost, as Stats' By client is. */
-wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who clears the cost, who does not?', section: 'analysis', type: 'ledger', sizes: ['l', 'm'],
+wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who clears the cost, who does not?', section: 'analysis', type: 'ledger', sizes: ['l', 'm'], trend: true,
   needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'clients' }, card: 'clientprice',
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), m = wdgMemo('margins:' + ctx.period, function() { return statsClientMargins(ctx.period, a.filtered, a.tonnage); });
@@ -58292,7 +58561,7 @@ wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who cl
     }), { unit: 'rate', max: max, labelHead: 'Client', valueHead: '₹ a kilo', ariaLabel: 'What each client pays a kilo against the full cost', bare: true }) + '</div>';
   },
   source: function(d, size, ctx) {
-    return { facts: ['Invoices, ' + (PERIOD_LABELS[ctx.period] || 'the period').toLowerCase(), 'the live cost ' + Math.round(d.m.c.measuredShare * 100) + '% measured', 'labour fixed']
+    return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the live cost ' + Math.round(d.m.c.measuredShare * 100) + '% measured', 'labour fixed']
       .concat(d.m.apart.length ? [d.m.apart.length + ' not ranked: under 90% weighed'] : []) };
   } });
 
@@ -58300,7 +58569,7 @@ wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who cl
    Medium its parts as one bar of 100% (chartShareBar; a part's colour its own on every cost chart, seriesSlot 'cost'); at Large each
    part's ₹ a kilo as statement lines adding up to it. Coded by the share measured, as Stats' Cost is. */
 var WC_KILO_TONE = function(share) { return share >= 0.9 ? 'ok' : share >= 0.5 ? 'warning' : 'danger'; };
-wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s cost', q: 'Which part of the cost is moving?', section: 'analysis', type: 'ledger', sizes: ['m', 's', 'l'],
+wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s cost', q: 'Which part of the cost is moving?', section: 'analysis', type: 'ledger', sizes: ['m', 's', 'l'], trend: true,
   needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'cost' }, card: 'kilo',
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), kg = a.tonnage ? a.tonnage.kg : 0;
@@ -58320,7 +58589,7 @@ wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s 
       return { label: r.label, meta: Math.round(r.amount / c.total * 100) + '% · ' + (COST_SRC_LABEL[r.source] || r.source || ''), amt: gstRound(r.perKg, 2), attrs: ' data-kilo-part="' + escHtml(r.key) + '"' };
     }), { label: 'A kilo', amt: gstRound(c.perKg, 2) }, { rate: true, unit: '/kg', noun: 'part', attrs: ' data-kilo-parts' });
   },
-  source: function(d, size, ctx) { return { facts: ['Live cost, ' + (PERIOD_LABELS[ctx.period] || 'the period').toLowerCase(), Math.round(d.c.measuredShare * 100) + '% measured'] }; } });
+  source: function(d, size, ctx) { return { facts: ['Live cost ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), Math.round(d.c.measuredShare * 100) + '% measured'] }; } });
 
 /* ---------- The questions (Briefing: a briefing note on the desk at nine; Pulse's, folded into Home: §8c) ----------
    Each question a widget: Small its answer as a sentence, its key figure in its tone, with its picture; Medium the story's sentences,
@@ -58328,11 +58597,11 @@ wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s 
    the question. Its head opens the whole of it, every move, in a dialog. The questions read money in every figure, so each is money's. */
 var WC_QUESTIONS = [
   { k: 'smooth', title: 'Is the plant running smoothly?', short: 'Running well?', q: 'Stock, power, staffing, records, the payout and the backup, in one answer', sizes: ['m', 's', 'l'], icon: 'efficiency' },
-  { k: 'money', title: 'Are we making money?', short: 'Making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'], icon: 'money' },
-  { k: 'clients', title: 'Who is driving it?', short: 'Who drives it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'], icon: 'client' },
-  { k: 'plant', title: 'Is the plant full?', short: 'Plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'], icon: 'scale' },
+  { k: 'money', trend: true, title: 'Are we making money?', short: 'Making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'], icon: 'money' },
+  { k: 'clients', trend: true, title: 'Who is driving it?', short: 'Who drives it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'], icon: 'client' },
+  { k: 'plant', trend: true, title: 'Is the plant full?', short: 'Plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'], icon: 'scale' },
   { k: 'cash', title: 'Is cash coming in?', short: 'Getting paid?', shortDesk: 'Cash coming in?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true, icon: 'owed' },
-  { k: 'changed', title: 'What changed?', short: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'], icon: 'activity' }
+  { k: 'changed', trend: true, title: 'What changed?', short: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'], icon: 'activity' }
 ];
 function wcQuestion(k) { return tdyQuestions().filter(function(x) { return x.key === k; })[0] || null; }
 /* The story as a card on the board tells it (Medium): its sentences and rows, without the tiles and charts that restate the answer's
@@ -58383,7 +58652,7 @@ function wcQuestionSource(k, ctx) {
   return ['The month to ' + stockShortDate(localDateStr()), 'against its pace'];
 }
 WC_QUESTIONS.forEach(function(qd) {
-  wdgDefine({ id: 'q-' + qd.k, title: qd.title, short: qd.short, shortDesk: qd.shortDesk, q: qd.q, section: 'questions', type: 'brief', icon: qd.icon, sizes: qd.sizes,
+  wdgDefine({ id: 'q-' + qd.k, title: qd.title, short: qd.short, shortDesk: qd.shortDesk, q: qd.q, section: 'questions', type: 'brief', icon: qd.icon, sizes: qd.sizes, trend: !!qd.trend,
     needs: { money: true, when: qd.bank ? function() { return finHasBank(); } : null },
     go: function() { wcQuestionOpen(qd); },
     more: function() { wcQuestionOpen(qd); },
@@ -58474,7 +58743,7 @@ function wcWhyVs(period) {
   if (period === 'mtd') { var d = attParseIso(localDateStr()); return RPT_MONTHS[(d.getMonth() + 11) % 12]; }
   return period === 'qtd' ? 'last quarter' : period === 'ytd' ? 'last year' : 'the period before';
 }
-wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against the period before?', section: 'questions', type: 'brief', sizes: ['m', 'l'],
+wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against the period before?', section: 'questions', type: 'brief', sizes: ['m', 'l'], trend: true,
   needs: { money: true }, go: { tab: 'pageStats', v: 'trends' },
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), o = whyHeroOpts(ctx.period, a.filtered, a.prior, 'real');
@@ -58507,7 +58776,7 @@ wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against
   } });
 /* The period in figures (statsOverviewOpts, the panel Stats → Overview drew): what a kilo left after the live cost, its four factors
    as tiles, and the plated tonnage as a row opening Production. */
-wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, contribution, capacity', section: 'questions', type: 'ledger', sizes: ['m', 'l'],
+wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, contribution, capacity', section: 'questions', type: 'ledger', sizes: ['m', 'l'], trend: true,
   needs: { money: true }, go: { tab: 'pageStats', v: 'cost' },
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), o = statsOverviewOpts(ctx.period, a.filtered, a.tonnage);
@@ -58516,12 +58785,13 @@ wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, cont
   },
   draw: function(d) { return (d.tiles || '') + (d.plated ? '<div data-wdg-list data-noun="line">' + d.plated + '</div>' : ''); },
   source: function(d, size, ctx) {
-    return { facts: ['Invoices of ' + (PERIOD_LABELS[ctx.period] || 'the period').toLowerCase() + ', net of notes'].concat(d.measured != null ? ['the live cost ' + Math.round(d.measured * 100) + '% measured'] : []) };
+    // The period in words (this month), never its key: PERIOD_LABELS is the chip's MTD, which read "Invoices of mtd".
+    return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period') + ', net of notes'].concat(d.measured != null ? ['the live cost ' + Math.round(d.measured * 100) + '% measured'] : []) };
   } });
 /* This month at its pace (paceCardOpts, predMonthPace): where the month lands as the figure, its change on last month as the verdict;
    so far, the unbilled challans in hand and the likely range as statement lines, with no total ruled: the landing is a pace, not
    their sum. */
-wdgDefine({ id: 'pace', title: 'This month at its pace', q: 'Where does the month land?', section: 'office', type: 'ledger', icon: 'forecast', sizes: ['m', 'l'],
+wdgDefine({ id: 'pace', title: 'This month at its pace', q: 'Where does the month land?', section: 'office', type: 'ledger', icon: 'forecast', sizes: ['m', 'l'], trend: true,
   needs: { page: 'pageRegister', money: true }, go: { tab: 'pageRegister' },
   data: function() {
     var o = paceCardOpts();
@@ -58564,9 +58834,10 @@ wdgDefine({ id: 'needs', title: 'Needs you', q: 'What needs me now?', section: '
   actRow: function() { return { text: { label: 'Add a task', action: 'invHomeQuick', attrs: ' data-go="task"' } }; } });
 /* What's coming (§7d `coming`): dated predictions, soonest first, each with its reason, read off what already predicts it, each shown
    only to a role that may see it: the cash forecast's low under zero (finForecast), a stock line out before its supplier can deliver
-   (stockStatus, suppReorderPick), a client's next challan by its rhythm (predCadence), where the month lands (predMonthPace), a
-   challan's turnaround target passing (flowLines), and a cut likely today where the forecast has thunder in the hours the plant's own
-   cuts most often start (said as the two facts side by side). Each a dated row; More lists them all in a dialog. */
+   (stockStatus, suppReorderPick), a client's next challan by its rhythm (predCadence), a challan's turnaround target passing
+   (flowLines), and a cut likely today where the forecast has thunder in the hours the plant's own cuts most often start (said as the
+   two facts side by side). Each a dated row; More lists them all in a dialog. Where the month lands is the Month to date card's (owner,
+   21 Oct 2026: one fact in one place; it had been the masthead's, the pace card's and this card's). */
 var WC_COMING_RANK = { danger: 3, warning: 2, info: 1, ok: 1, neutral: 0 };
 /* The day a dated row is for, in the canvas's chip: Today, the weekday and date within the week (Mon 19), else the date (31 Oct). */
 function wcComingDay(iso) {
@@ -58574,12 +58845,8 @@ function wcComingDay(iso) {
   if (n <= 0) return 'Today';
   return n <= 6 ? CHART_DAY_NAMES[d.getDay()] + ' ' + d.getDate() : d.getDate() + ' ' + CHART_MONTHS[d.getMonth()];
 }
-/* A client's name as a card says it (the canvas's "ALPHA FORGINGS"): its legal ending left off; the full name is the record's. */
-function wcClientShort(name) {
-  var s = String(name || '').trim();
-  var t = s.replace(/[\s,.]*\b(?:(?:\(P\)|PVT\.?|PRIVATE)\s*)?(?:LTD\.?|LIMITED)\.?$/i, '').replace(/[\s,.]*\bLLP\.?$/i, '').trim();
-  return t || s;
-}
+/* A client's name as a card says it (the canvas's "ALPHA FORGINGS"): its legal ending left off (state.js clientShortName). */
+function wcClientShort(name) { return clientShortName(name); }
 function wcComingBook() {
   return wdgMemo('coming-book', function() {
     var today = localDateStr(), out = [], money = wdgSeesMoney();
@@ -58604,19 +58871,9 @@ function wcComingBook() {
     });
     if (sees('pageIM')) guard(function() {
       predCadence().filter(function(c) { return c.count >= 5 && !c.quiet && c.next && c.next >= today && isoDaysBetween(today, c.next) <= 7; }).slice(0, 4).forEach(function(c) {
-        out.push({ key: 'cad:' + c.id, date: c.next, tone: 'neutral', title: wcClientShort(c.name) + '’s next challan', why: 'Every ' + Math.round(c.median) + ' days, the last on ' + stockShortDate(c.last),
+        out.push({ key: 'cad:' + c.id, date: c.next, tone: 'neutral', title: 'Next challan from ' + wcClientShort(c.name), why: 'Every ' + Math.round(c.median) + ' days, the last on ' + stockShortDate(c.last),
           go: { kind: 'im', clientId: c.id } });
       });
-    });
-    if (money && sees('pageRegister')) guard(function() {
-      var p = predMonthPace();
-      if (!p || !(p.left > 0)) return;
-      var end = payMonthEnd(today.slice(0, 7) + '-01'), ahead = p.prevRev > 0 ? p.projRev >= p.prevRev : null;
-      out.push({ key: 'pace', date: end, tone: ahead === false ? 'warning' : ahead ? 'ok' : 'neutral', title: 'The month lands about ' + wcRs(p.projRev),
-        // One line on a phone's card: the range, then last month's billing; the whole is the row's title.
-        why: 'Likely ' + wcRs(p.low) + '–' + wcRs(p.high) + (p.prevRev > 0 ? ' · ' + p.prevLabel + ' ' + wcRs(p.prevRev) : ''),
-        title2: 'At the pace of ' + todoPlural(p.done, 'working day') + ' so far' + (p.prevRev > 0 ? '; ' + p.prevLabel + ' billed ' + wcRs(p.prevRev) : ''),
-        go: { kind: 'register' } });
     });
     if (sees('pageProduction') && typeof flowLines === 'function') guard(function() {
       var seen = {}, soon = flowAddWd(today, 1);
@@ -58636,6 +58893,8 @@ function wcComingBook() {
 /* The cut likely today: today's thunder hours (the feed's copy, read each draw) against the plant's own hours. */
 function wcComingCut() {
   if (typeof grdSees === 'function' && !grdSees('pagePower')) return null;
+  // A day the plant is shut has no cut to lose work to.
+  if (typeof plantDayOff === 'function' && plantDayOff(localDateStr())) return null;
   var th = wcThunderHours();
   if (!th || !th.length || typeof powerRiskWindow !== 'function') return null;
   var a = wdgMemo('power-analysis', powerAnalysis), win = a && a.hours ? powerRiskWindow(a.hours, 6, 22) : null;
@@ -58678,14 +58937,21 @@ function wcComingItems() {
   if (cut) list.push(cut);
   return wcComingGroup(list.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (WC_COMING_RANK[b.tone] || 0) - (WC_COMING_RANK[a.tone] || 0); }));
 }
-/* The answer the card leads with (the canvas's "Three challans are due back today"): what is due today, else the soonest. */
+/* The answer the card leads with (the canvas's "Three challans are due back today"), never a row said again (owner, 21 Oct 2026: the
+   headline had repeated its first row word for word): what is due back today; else the worst row that asks for something, which
+   then leaves the rows (`skip`); else what the rows are, counted (2 challans expected by Mon 26). */
 function wcComingSay(list) {
   var today = localDateStr(), now = list.filter(function(x) { return x.date <= today; });
-  var back = now.reduce(function(t, x) { return t + (/^turns?:/.test(x.key) ? x.n || 1 : 0); }, 0);
-  if (back > 1) return { text: back + ' challans are due back today', tone: 'warning' };
-  if (back === 1) { var one = now.filter(function(x) { return /^turns?:/.test(x.key); })[0]; return { text: one.title.replace(/ due back$/, ' is due back today'), tone: one.tone }; }
-  var x = list[0];
-  return { text: x.date <= today ? x.title : wcComingDay(x.date) + ': ' + wcLc(x.title), tone: x.tone };
+  var back = now.filter(function(x) { return /^turns?:/.test(x.key); }), nBack = back.reduce(function(t, x) { return t + (x.n || 1); }, 0);
+  if (nBack > 1) return { text: nBack + ' challans are due back today', tone: 'warning' };
+  if (nBack === 1) return { text: back[0].title.replace(/ due back$/, ' is due back today'), tone: back[0].tone, skip: back[0].key };
+  var act = list.filter(function(x) { return x.tone === 'danger' || x.tone === 'warning'; })
+    .sort(function(a, b) { return (WC_COMING_RANK[b.tone] || 0) - (WC_COMING_RANK[a.tone] || 0); })[0];
+  if (act) return { text: (act.date <= today ? act.title : wcComingDay(act.date) + ': ' + wcLc(act.title)), tone: act.tone, skip: act.key };
+  // What the rows are, counted: challans alone by the last day one is expected; anything else beside them, every row by the last day.
+  var cad = list.filter(function(x) { return /^cad:/.test(x.key); }), lastDay = wcComingDay(list[list.length - 1].date);
+  if (cad.length === list.length) return { text: cad.length === 1 ? 'A challan expected ' + wcComingDay(cad[0].date) : cad.length + ' challans expected by ' + lastDay, tone: list[0].tone };
+  return { text: list.length === 1 ? list[0].title : todoPlural(list.length, 'thing') + ' dated by ' + lastDay, tone: list[0].tone };
 }
 function wcComingRowsHtml(list) {
   var today = localDateStr();
@@ -58710,14 +58976,15 @@ wdgDefine({ id: 'coming', title: 'What’s coming', q: 'What happens next, and w
   },
   data: function() {
     var list = wcComingItems();
-    if (!list.length) return { state: 'empty', title: 'Nothing dated ahead yet', body: 'A prediction appears here once the book can make one: a stock line running out, a client’s next challan, where the month lands.' };
+    if (!list.length) return { state: 'empty', title: 'Nothing dated ahead yet', body: 'Once the book can tell: a stock line running out, a client’s next challan, a challan due back.' };
     var tone = list.slice(0, 4).reduce(function(t, x) { return (WC_COMING_RANK[x.tone] || 0) > (WC_COMING_RANK[t] || 0) ? x.tone : t; }, 'neutral');
     // The answer as a sentence (a Briefing's), then the rows, soonest first.
     var a = wcComingSay(list);
     return { state: 'ok', tone: tone === 'info' || tone === 'ok' ? 'neutral' : tone, list: list, ans: escHtml(a.text),
+      rows: list.filter(function(x) { return x.key !== a.skip; }),
       ansAttrs: ' data-coming-say title="' + escHtml(a.text + ' · ' + todoPlural(list.length, 'thing') + ' dated ahead, soonest first') + '"' };
   },
-  draw: function(d) { return wcComingRowsHtml(d.list); } });
+  draw: function(d) { return d.rows.length ? wcComingRowsHtml(d.rows) : ''; } });
 /* ===== THE WORLD OUTSIDE: NEWS, WEATHER AND TATA MOTORS (docs/UI_PASS_3.md §9b–§9e, §16) =====
    Owner, 15–16 Oct 2026: "live clock, weather, TATA Motors news - as everything boils down to their production and demand";
    "Tata Motors, Jamshedpur: monthly CV sales and the latest headlines + export sales as well … Prima division of Trucks, along
@@ -58808,18 +59075,89 @@ function feedUrlOk(u) {
   return (x.origin + x.pathname).replace(/\/+$/, '');
 }
 /* What the feeds are set to: on (the default), the address, and the plant's place. The place is the feeds' own where typed, else the
-   Office QR's (S.checkinCfg, checkin.js), read here and never copied into the book; with neither, the weather is not set. */
+   Office QR's (S.checkinCfg, checkin.js), else the company's address placed on the map (feedGeoRec, owner, 21 Oct 2026: "we have the
+   location for our plant available in the database, yet it asks to set the plant place"), each read here and never copied into the
+   book; with none, the weather is not set. */
 function feedCfg() {
-  var c = (S && S.feedsCfg) || {}, ck = (S && S.checkinCfg) || {};
+  var c = (S && S.feedsCfg) || {}, ck = (S && S.checkinCfg) || {}, name = String(c.place || '').trim().slice(0, 40);
   var lat = feedNum(c.lat, -90, 90), lon = feedNum(c.lon, -180, 180), from = '';
   if (lat != null && lon != null) from = 'feeds';
   else {
     lat = feedNum(ck.lat, -90, 90); lon = feedNum(ck.lng, -180, 180);
-    if (lat != null && lon != null) from = 'checkin'; else lat = lon = null;
+    if (lat != null && lon != null) from = 'checkin';
+    else {
+      var g = feedGeoRec();
+      if (g) { lat = g.lat; lon = g.lon; from = 'address'; if (!name) name = g.name; } else lat = lon = null;
+    }
   }
   var blank = c.url == null || String(c.url).trim() === '';
   return { on: c.on !== false, url: blank ? feedDefaults().url : feedUrlOk(c.url), lat: lat, lon: lon,
-    place: String(c.place || '').trim().slice(0, 40), placeFrom: from };
+    place: name, placeFrom: from };
+}
+
+/* ---------- The plant's place from the company's address (OpenStreetMap's Nominatim) ----------
+   The address on every invoice (S.company) placed on the map once, the answer kept on this device beside the feeds' copies
+   (sep_inv_feeds.geo: {key (the address as asked), lat, lon, name, at, tried, why}) and never in the book: a phone looks it up once,
+   and a changed address is looked up again. Nominatim's terms: at most one ask a second, the site named (the referrer), and an
+   answer cached: here at most three asks, 1.2 s apart, once an address (a day apart after one that found nothing). The address is
+   asked from its plainest parts: the parts with no figure in them (8-B, 1st Phase and the PIN code left out), the locality with
+   its town first ("Adityapur, Jamshedpur"), then all of them, then the town. The weather wants about a kilometre (two decimals). */
+var FEED_GEO_URL = 'https://nominatim.openstreetmap.org/search';
+var FEED_GEO_RETRY_MS = 24 * 3600000;
+var _feedGeoBusy = null;
+function feedGeoParts() {
+  var co = (S && S.company) || {};
+  return [co.add1, co.add2, co.add3].join(',').split(/\s*(?:,|\s-\s|\n)\s*/).map(function(x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
+    .filter(function(x) { return x && !/\d/.test(x) && x.length <= 40; });
+}
+function feedGeoKey() { var parts = feedGeoParts(); return parts.length ? parts.join(', ').toLowerCase() : ''; }
+/* The address placed, for the address as it now reads; null when it was not, or not yet. */
+function feedGeoRec() {
+  var r = feedStoreRec('geo'), key = feedGeoKey();
+  return r && key && r.key === key && feedNum(r.lat, -90, 90) != null && feedNum(r.lon, -180, 180) != null ? r : null;
+}
+/* The asks, plainest first: the locality and its town, every part, the town. */
+function feedGeoQueries() {
+  var parts = feedGeoParts(), q = [];
+  if (parts.length >= 2) q.push(parts.slice(-2).join(', '));
+  if (parts.length > 2) q.push(parts.join(', '));
+  if (parts.length) q.push(parts[parts.length - 1]);
+  return q.filter(function(x, i) { return q.indexOf(x) === i; });
+}
+/* Looks the address up when it has no place yet (and none typed or from the Office QR); resolves {ok} or {ok: false, why}. Under
+   test only when a fixture says so (window.__sepGeoOn), since a spec must not reach the internet. */
+function feedGeoEnsure() {
+  if (_feedGeoBusy) return _feedGeoBusy;
+  var c = (S && S.feedsCfg) || {}, ck = (S && S.checkinCfg) || {};
+  if (feedNum(c.lat, -90, 90) != null || feedNum(ck.lat, -90, 90) != null) return Promise.resolve({ ok: false, why: 'set' });
+  var key = feedGeoKey(), rec = feedStoreRec('geo') || {}, now = Date.now();
+  if (!key) return Promise.resolve({ ok: false, why: 'noaddress' });
+  if (rec.key === key && (rec.lat != null || (rec.tried && now - rec.tried < FEED_GEO_RETRY_MS))) return Promise.resolve({ ok: rec.lat != null });
+  if (!feedOnline() || feedHidden()) return Promise.resolve({ ok: false, why: 'offline' });
+  try { if (navigator.webdriver && window.__sepGeoOn !== true) return Promise.resolve({ ok: false, why: 'test' }); } catch (e) { /* none */ }
+  var qs = feedGeoQueries(), i = 0, parts = feedGeoParts();
+  feedStorePut('geo', { key: key, tried: now });
+  var next = function() {
+    if (i >= qs.length) return Promise.resolve(null);
+    var q = qs[i++], wait = i > 1 ? new Promise(function(res) { setTimeout(res, 1200); }) : Promise.resolve();
+    return wait.then(function() {
+      return feedGet(FEED_GEO_URL + '?format=jsonv2&limit=1&countrycodes=in&q=' + encodeURIComponent(q), { referrer: true });
+    }).then(function(r) {
+      var hit = null;
+      if (r.ok) { try { var j = JSON.parse(r.text); hit = Array.isArray(j) && j[0] ? j[0] : null; } catch (e) { hit = null; } }
+      var lat = hit ? feedNum(Number(hit.lat), -90, 90) : null, lon = hit ? feedNum(Number(hit.lon), -180, 180) : null;
+      return lat != null && lon != null ? { lat: Math.round(lat * 10000) / 10000, lon: Math.round(lon * 10000) / 10000, q: q } : next();
+    });
+  };
+  _feedGeoBusy = next().then(function(hit) {
+    var name = parts.length >= 2 ? parts[parts.length - 2] : parts[0] || '';
+    feedStorePut('geo', hit ? { key: key, lat: hit.lat, lon: hit.lon, name: name.slice(0, 40), asked: hit.q, at: Date.now(), tried: now }
+      : { key: key, tried: now, why: 'notfound' });
+    _feedGeoBusy = null;
+    if (hit) feedTell({ kind: 'weather', place: true });
+    return { ok: !!hit };
+  }).catch(function() { _feedGeoBusy = null; return { ok: false, why: 'unreachable' }; });
+  return _feedGeoBusy;
 }
 /* Under test the feeds stay quiet, as errors.js does, unless a fixture asks for them (P225's feedsOn). */
 function feedLive() { try { return !navigator.webdriver || window.__sepFeedsOn === true; } catch (e) { return true; } }
@@ -58882,14 +59220,15 @@ function feedBlocked(kind) {
 }
 
 /* ---------- Asking ---------- */
-/* One GET to the Worker, answered within FEED_TIMEOUT_MS: {ok, json} or {ok: false, why: 'refused' (an HTTP error, with its
-   status) | 'slow' | 'unreachable' (no answer: no network, a wrong address, or the Worker not allowing this app) | 'nonsense'}.
-   Never throws, and never reports: a feed failing is not the app failing. */
-function feedAsk(base, path, query) {
-  var url = base + path + (query ? '?' + query : ''), slow = false;
-  var ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  var timer = setTimeout(function() { slow = true; if (ctl) ctl.abort(); }, FEED_TIMEOUT_MS);
-  var opts = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' };
+/* One GET answered within FEED_TIMEOUT_MS (or `o.timeout`): {ok, text} or {ok: false, why: 'refused' (an HTTP error, with its
+   status) | 'slow' | 'unreachable' (no answer: no network, a wrong address, or the server not allowing this app) | 'nonsense'}.
+   `o.referrer`: the site is named (strict-origin: https://rishabh1804.github.io/, never the screen), as Nominatim and MET Norway ask
+   a browser to say who is asking; otherwise no referrer. Never throws, and never reports: a feed failing is not the app failing. */
+function feedGet(url, o) {
+  o = o || {};
+  var slow = false, ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  var timer = setTimeout(function() { slow = true; if (ctl) ctl.abort(); }, o.timeout || FEED_TIMEOUT_MS);
+  var opts = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: o.referrer ? 'strict-origin' : 'no-referrer' };
   if (ctl) opts.signal = ctl.signal;
   var p;
   try { p = fetch(url, opts); } catch (e) { p = Promise.reject(e); }
@@ -58898,10 +59237,186 @@ function feedAsk(base, path, query) {
     return res.text().then(function(t) {
       if (slow) return { ok: false, why: 'slow' };
       if (typeof t !== 'string' || t.length > FEED_MAX_CHARS) return { ok: false, why: 'nonsense' };
-      try { return { ok: true, json: JSON.parse(t) }; } catch (e) { return { ok: false, why: 'nonsense' }; }
+      return { ok: true, text: t };
     });
   }).catch(function() { return { ok: false, why: slow ? 'slow' : 'unreachable' }; })
     .then(function(r) { clearTimeout(timer); return r; });
+}
+/* One GET to the feeds service: {ok, json}, else as feedGet. */
+function feedAsk(base, path, query) {
+  return feedGet(base + path + (query ? '?' + query : '')).then(function(r) {
+    if (!r.ok) return r;
+    try { return { ok: true, json: JSON.parse(r.text) }; } catch (e) { return { ok: false, why: 'nonsense' }; }
+  });
+}
+function feedSleep(ms) { return new Promise(function(res) { setTimeout(res, ms); }); }
+
+/* ---------- Straight from the sources (owner, 21 Oct 2026: "Ask the sources directly") ----------
+   The feeds service (S.feedsCfg.url, server/feeds) was never set up, so nothing ever arrived. Where it cannot be reached, the app
+   asks the sources itself, as the service would and in its shape (server/feeds/src/news.js, weather.js), each answer then read by
+   the same checks as the service's (feedNormNews, feedNormWeather): GDELT's DOC 2.0 for the news (open to a browser; its topics
+   asked 6 s apart, as it asks) and MET Norway's forecast for the weather (open to a browser, the site named). What leaves the
+   device is the same: the topics, the model words and the plant's place to two decimals. Once the service cannot be reached, it is
+   not asked again for six hours (sep_inv_feeds.direct); one that answers is used whenever it does. Under test only where a fixture
+   says so (window.__sepFeedsDirect), so a spec never reaches the internet. */
+var FEED_GDELT_URL = 'https://api.gdeltproject.org/api/v2/doc/doc';
+var FEED_MET_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
+var FEED_DIRECT_HOLD_MS = 6 * 3600000;
+var FEED_GDELT_GAP_MS = 6000;
+var FEED_GDELT_Q = {
+  'tata-cv': function() { return '"tata motors" (sales OR trucks OR "commercial vehicles") sourcecountry:IN'; },
+  'tata-plant': function() { return '"tata motors" jamshedpur'; },
+  'tata-models': function(models) {
+    var p = models.map(function(m) { return '"tata ' + String(m).toLowerCase() + '"'; });
+    return p.length > 1 ? '(' + p.join(' OR ') + ')' : p[0];
+  },
+  'tata-exports': function() { return '"tata motors" (exports OR "international business")'; }
+};
+function feedDirectOk() { try { return !navigator.webdriver || window.__sepFeedsDirect === true; } catch (e) { return true; } }
+/* A headline as a person reads it: its tags dropped and its entities decoded by an inert parse (nothing in it runs or loads),
+   then one line of 200 characters at most. Drawn later through escHtml like every headline. */
+function feedHeadline(raw) {
+  if (typeof raw !== 'string') return '';
+  var text = function(s) { return new DOMParser().parseFromString('<!doctype html><body>' + s, 'text/html').body.textContent || ''; }, t;
+  // Tags written as entities (&lt;b&gt;) are tags once decoded: a second parse drops them, as the service's reader does.
+  try { t = text(raw); if (/<\/?[A-Za-z][^<>]*>/.test(t)) t = text(t); } catch (e) { t = raw.replace(/<[^>]*>/g, ' '); }
+  return feedText(t, 200);
+}
+/* GDELT has sent JSON a strict reader refuses (a raw control character, a stray backslash): read strictly, else mended once. */
+function feedLooseJson(text) {
+  try { return JSON.parse(text); } catch (e) {
+    try {
+      return JSON.parse(String(text).replace(/[\u0000-\u001f]/g, ' ').replace(/\\(.?)/g, function(w, n) { return n && '"\\/bfnrtu'.indexOf(n) >= 0 ? w : n; }));
+    } catch (e2) { return undefined; }
+  }
+}
+/* GDELT's article list as the service's items: at most 25, newest first, each title and link once. null when it is not one. */
+function feedGdeltItems(text) {
+  var j = feedLooseJson(text);
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
+  if (!Array.isArray(j.articles)) return Object.keys(j).length ? null : [];
+  var seen = {}, out = [];
+  j.articles.forEach(function(a) {
+    if (out.length >= 25 || !a || typeof a !== 'object') return;
+    var url = feedSafeUrl(a.url), title = feedHeadline(a.title), k = title.toLowerCase().replace(/[^0-9a-z\u00c0-\uffff]+/g, ' ').trim();
+    if (!url || !title || seen['t' + k] || seen['u' + url]) return;
+    seen['t' + k] = seen['u' + url] = 1;
+    out.push({ title: title, url: url, source: feedHost(url), at: feedIso(a.seendate), lang: feedText(a.language, 24) });
+  });
+  return out;
+}
+/* The news straight from GDELT: each topic asked in turn, 6 s apart. A topic that fails keeps what the last copy had. */
+function feedDirectNews() {
+  var models = mktModelsSent(), topics = FEED_TOPICS.map(function(t) { return t[0]; }).filter(function(t) { return t !== 'tata-models' || models.length; });
+  var prev = feedNewsRec(), had = prev && prev.data && prev.data.topics ? prev.data.topics : {};
+  var out = { at: new Date().toISOString(), topics: {} }, got = 0, i = 0, last = null;
+  var step = function() {
+    if (i >= topics.length) return Promise.resolve(got ? { ok: true, json: out } : last || { ok: false, why: 'unreachable' });
+    var id = topics[i++], url = FEED_GDELT_URL + '?query=' + encodeURIComponent(FEED_GDELT_Q[id](models)) + '&mode=ArtList&format=json&maxrecords=25&timespan=14d&sort=DateDesc';
+    return (i > 1 ? feedSleep(FEED_GDELT_GAP_MS) : Promise.resolve()).then(function() { return feedGet(url, { timeout: 12000 }); }).then(function(r) {
+      var items = r.ok ? feedGdeltItems(r.text) : null;
+      if (items) { got++; out.topics[id] = { at: new Date().toISOString(), items: items }; }
+      else { last = r.ok ? { ok: false, why: 'nonsense' } : r; if (had[id]) out.topics[id] = had[id]; }
+      return step();
+    });
+  };
+  return step();
+}
+/* MET Norway's compact forecast as the service answers it (weather.js readForecast, weatherAnswer): the next 48 hours with an
+   hour's forecast, and 7 days by India's calendar day (UTC+5:30), a day's figures from its steps ahead of now. null when it
+   holds no forecast. */
+function feedMetAnswer(j, nowMs) {
+  var props = j && typeof j === 'object' ? j.properties : null, steps = props && Array.isArray(props.timeseries) ? props.timeseries : null;
+  if (!steps) return null;
+  var HOUR = 3600000, DAY = 86400000, IST = 330 * 60000;
+  var n = function(v, lo, hi) { return typeof v === 'number' && isFinite(v) && v >= lo && v <= hi ? v : undefined; };
+  var per = function(p) {
+    if (!p || typeof p !== 'object') return undefined;
+    var o = {}, sym = p.summary && p.summary.symbol_code, d = p.details && typeof p.details === 'object' ? p.details : {};
+    if (typeof sym === 'string' && /^[a-z][a-z0-9_]{0,39}$/.test(sym)) o.sym = sym;
+    if (n(d.precipitation_amount, 0, 1000) !== undefined) o.rain = d.precipitation_amount;
+    if (n(d.air_temperature_max, -100, 70) !== undefined) o.tmax = d.air_temperature_max;
+    if (n(d.air_temperature_min, -100, 70) !== undefined) o.tmin = d.air_temperature_min;
+    return Object.keys(o).length ? o : undefined;
+  };
+  var series = [];
+  steps.forEach(function(s) {
+    if (!s || typeof s.time !== 'string') return;
+    var t = Date.parse(s.time);
+    if (!isFinite(t)) return;
+    var d = s.data && typeof s.data === 'object' ? s.data : {}, row = { t: t };
+    var temp = n(d.instant && d.instant.details && d.instant.details.air_temperature, -100, 70);
+    if (temp !== undefined) row.temp = temp;
+    var p1 = per(d.next_1_hours), p6 = per(d.next_6_hours), p12 = per(d.next_12_hours);
+    if (p1) row.p1 = p1;
+    if (p6) row.p6 = p6;
+    if (p12) row.p12 = p12;
+    series.push(row);
+  });
+  if (!series.length) return null;
+  series.sort(function(a, b) { return a.t - b.t; });
+  var iso = function(ms) { return new Date(ms).toISOString(); }, indiaDate = function(ms) { return iso(ms + IST).slice(0, 10); };
+  var from = Math.floor(nowMs / HOUR) * HOUR, ahead = series.filter(function(s) { return s.t >= from; });
+  var hours = [];
+  ahead.forEach(function(s) {
+    if (!s.p1 || hours.length >= 48) return;
+    hours.push({ t: iso(s.t), temp: s.temp != null ? s.temp : null, symbol: s.p1.sym || null, rain: s.p1.rain != null ? s.p1.rain : null });
+  });
+  var byDate = {}, dayOf = function(date) { return byDate[date] || (byDate[date] = { date: date, tMax: null, tMin: null, rain: null, thunder: false, symbol: null, rank: 9 }); };
+  var temp = function(d, v) { if (d.tMax === null || v > d.tMax) d.tMax = v; if (d.tMin === null || v < d.tMin) d.tMin = v; };
+  var symbol = function(d, sym, rank) { if (sym && rank < d.rank) { d.symbol = sym; d.rank = rank; } };
+  var covered = -Infinity;
+  ahead.forEach(function(s) {
+    if (s.temp !== undefined) temp(dayOf(indiaDate(s.t)), s.temp);
+    var p = null, len = 0;
+    if (s.p1) { p = s.p1; len = HOUR; } else if (s.p6) { p = s.p6; len = 6 * HOUR; } else if (s.p12) { p = s.p12; len = 12 * HOUR; }
+    if (p && s.t >= covered) {
+      covered = s.t + len;
+      var d = dayOf(indiaDate(s.t + len / 2));
+      if (p.rain !== undefined) d.rain = (d.rain || 0) + p.rain;
+      if (p.tmax !== undefined) temp(d, p.tmax);
+      if (p.tmin !== undefined) temp(d, p.tmin);
+      if (p.sym && p.sym.indexOf('thunder') >= 0) d.thunder = true;
+      symbol(d, p.sym, 3);
+    }
+    var ofDay = ((s.t % DAY) + DAY) % DAY;
+    if (ofDay === 0 && s.p12) symbol(dayOf(indiaDate(s.t)), s.p12.sym, 1);
+    else if (ofDay === 6 * HOUR && s.p6) symbol(dayOf(indiaDate(s.t)), s.p6.sym, 2);
+  });
+  var today = indiaDate(nowMs), round1 = function(x) { return Math.round(x * 10) / 10; };
+  var days = Object.keys(byDate).sort().filter(function(k) { return k >= today; }).slice(0, 7).map(function(k) {
+    var d = byDate[k];
+    return { date: d.date, tMax: d.tMax === null ? null : round1(d.tMax), tMin: d.tMin === null ? null : round1(d.tMin),
+      rain: d.rain === null ? null : round1(d.rain), thunder: d.thunder || !!(d.symbol && d.symbol.indexOf('thunder') >= 0), symbol: d.symbol };
+  });
+  var up = Date.parse(props.meta && props.meta.updated_at);
+  return { at: iso(nowMs), updated: isFinite(up) ? iso(up) : null, hours: hours, days: days };
+}
+/* The weather straight from MET Norway, at the plant's place to two decimals. */
+function feedDirectWeather() {
+  var key = feedWeatherQuery();
+  if (!key) return Promise.resolve({ ok: false, why: 'noplace' });
+  return feedGet(FEED_MET_URL + '?' + key, { referrer: true, timeout: 12000 }).then(function(r) {
+    if (!r.ok) return r;
+    var j;
+    try { j = JSON.parse(r.text); } catch (e) { return { ok: false, why: 'nonsense' }; }
+    var w = feedMetAnswer(j, Date.now());
+    return w ? { ok: true, json: w } : { ok: false, why: 'nonsense' };
+  });
+}
+/* The service first, unless it could not be reached in the last six hours; where it cannot be (no answer, an answer that is not
+   its own, or a 404 or 5xx: no service at the address), the sources themselves. The answer says which (`via`). */
+function feedAskVia(kind, base, key) {
+  var d = feedStoreRec('direct'), held = !!(d && d.at && Date.now() - d.at < FEED_DIRECT_HOLD_MS);
+  var direct = function() { return (kind === 'news' ? feedDirectNews() : feedDirectWeather()).then(function(r) { r.via = 'direct'; return r; }); };
+  if (held && feedDirectOk()) return direct();
+  return feedAsk(base, '/' + kind, key).then(function(r) {
+    if (r.ok) { if (d && d.at) feedStorePut('direct', {}); r.via = 'service'; return r; }
+    var gone = r.why === 'unreachable' || r.why === 'nonsense' || (r.why === 'refused' && (r.status === 404 || r.status >= 500));
+    if (!gone || !feedDirectOk()) return r;
+    feedStorePut('direct', { at: Date.now(), why: r.why, status: r.status || null });
+    return direct();
+  });
 }
 /* A feed asked, its answer read and kept. Resolves {ok} or {ok: false, why, status, wait (seconds, for 'gap')}. One ask at a time a
    feed: a second call while one is in flight shares it. */
@@ -58915,15 +59430,15 @@ function feedFetch(kind) {
   var key = feedKey(kind), base = feedCfg().url;
   rec.tried = now;
   feedStorePut(kind, rec);
-  var p = feedAsk(base, '/' + kind, key).then(function(r) {
+  var p = feedAskVia(kind, base, key).then(function(r) {
     var data = r.ok ? (kind === 'news' ? feedNormNews(r.json) : feedNormWeather(r.json)) : null;
-    if (r.ok && !data) r = { ok: false, why: 'nonsense' };
+    if (r.ok && !data) r = { ok: false, why: 'nonsense', via: r.via };
     var cur = feedStoreRec(kind) || {};
-    if (r.ok) cur = { key: key, at: Date.now(), data: data, tried: cur.tried || now, why: '' };
-    else { cur.why = r.why; cur.status = r.status || null; cur.failedAt = Date.now(); }
+    if (r.ok) cur = { key: key, at: Date.now(), data: data, tried: cur.tried || now, why: '', via: r.via || 'service' };
+    else { cur.why = r.why; cur.status = r.status || null; cur.failedAt = Date.now(); cur.failVia = r.via || 'service'; }
     feedStorePut(kind, cur);
     if (r.ok && kind === 'weather') mktWeatherKeep();
-    return r.ok ? { ok: true } : { ok: false, why: r.why, status: r.status || null };
+    return r.ok ? { ok: true, via: r.via || 'service' } : { ok: false, why: r.why, status: r.status || null, via: r.via || 'service' };
   }).catch(function() { return { ok: false, why: 'unreachable' }; }).then(function(res) {
     _feedBusy[kind] = null;
     feedTell({ kind: kind, ok: !!res.ok, why: res.why || '' });
@@ -58940,6 +59455,8 @@ function feedTell(detail) {
    asked, unless it may not be now (off, offline, hidden, under test, asked within the minute). Resolves when the asks end. */
 function feedEnsure() {
   var asks = [];
+  // No place for the weather yet: the company's address is looked up first (once), then the weather is asked at it.
+  if (feedBlocked('weather') === 'noplace') asks.push(feedGeoEnsure().then(function(r) { return r && r.ok ? feedFetch('weather') : r; }));
   FEED_KINDS.forEach(function(kind) {
     if (feedBlocked(kind)) return;
     var rec = feedStoreRec(kind), now = Date.now();
@@ -59015,7 +59532,14 @@ var FEED_WHY_TEXT = {
   refused: 'the feeds Worker refused the ask', slow: 'no answer in 8 seconds', unreachable: 'the feeds Worker could not be reached',
   nonsense: 'the answer was not the feeds Worker’s'
 };
-function feedWhyText(why, status) {
+/* Asked of the sources themselves (feedAskVia), a failure is theirs: GDELT's or MET Norway's. */
+var FEED_SOURCE = { news: 'GDELT', weather: 'MET Norway' };
+function feedWhyText(why, status, via, kind) {
+  if (via === 'direct') {
+    var who = FEED_SOURCE[kind] || 'the source';
+    return why === 'refused' ? who + ' answered ' + (status || 'no') : why === 'slow' ? who + ' did not answer in 12 seconds'
+      : why === 'unreachable' ? who + ' could not be reached' : why === 'nonsense' ? who + ' sent what could not be read (it may be asking for a pause)' : '';
+  }
   if (why === 'refused' && status) return 'the feeds Worker answered ' + status;
   return FEED_WHY_TEXT[why] || '';
 }
@@ -59040,7 +59564,9 @@ function feedNoCopy(base, kind, old) {
   if (!feedOnline()) return feedBlank(base, 'offline', 'Offline: the ' + n + ' comes back with a signal', '');
   if (!feedLive()) return feedBlank(base, 'offline', 'The ' + n + ' is not fetched in this browser', 'It is under test.');
   if (rec && rec.why) {
-    var said = feedWhyText(rec.why, rec.status).replace(/^./, function(c) { return c.toUpperCase(); }) + (rec.failedAt ? ', ' + ghRelTime(rec.failedAt) : '');
+    var said = feedWhyText(rec.why, rec.status, rec.failVia, kind).replace(/^./, function(c) { return c.toUpperCase(); }) + (rec.failedAt ? ', ' + ghRelTime(rec.failedAt) : '');
+    // Asked of the sources themselves and failed: nothing is to be set up; it is asked again with the next look at Home.
+    if (!rec.at && rec.failVia === 'direct') return feedBlank(base, 'offline', 'The ' + n + ' could not be fetched yet', said + '. It is asked again when Home is next opened.');
     if (!rec.at) {
       var b = feedBlank(base, 'notset', 'The ' + n + ' is not set up yet', said + '. Its guide: Setting up: the news and weather.');
       b.blank.action = feedDoorHtml('guide');
@@ -59083,7 +59609,7 @@ function feedAge(kind) {
 function feedFlags(base, kind) {
   var a = feedAge(kind), rec = feedStoreRec(kind);
   return Object.assign(base, { age: a, ago: a ? a.text : '', stale: !!(a && a.stale), old: !!(a && a.old), offline: !feedOnline(), busy: !!_feedBusy[kind],
-    failed: rec && rec.why ? feedWhyText(rec.why, rec.status) : '' });
+    failed: rec && rec.why ? feedWhyText(rec.why, rec.status, rec.failVia, kind) : '' });
 }
 
 /* ---------- The news ---------- */
@@ -59837,7 +60363,8 @@ async function mktClose() {
 function feedStatusHtml() {
   var n = feedNews({ n: 1 }), w = feedWeather();
   var row = function(kind, title, d, ok) {
-    var meta = d.state === 'ok' || (d.state === 'empty' && d.age) ? ok + (d.ago ? ' · ' + d.ago : '') + (d.stale ? ' · the Worker’s last copy' : '') + (d.offline ? ' · offline' : '')
+    var via = (feedStoreRec(kind) || {}).via === 'direct' ? ' · straight from ' + FEED_SOURCE[kind] : '';
+    var meta = d.state === 'ok' || (d.state === 'empty' && d.age) ? ok + (d.ago ? ' · ' + d.ago : '') + via + (d.stale ? ' · the Worker’s last copy' : '') + (d.offline ? ' · offline' : '')
       : d.blank ? d.blank.title + (d.blank.body ? ': ' + d.blank.body : '') : '';
     return '<div class="inv-row inv-row-2" data-feed-status-row="' + kind + '"><span class="inv-row-main"><span class="inv-row-title">' + title + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span><span class="inv-row-end">' +
@@ -59858,6 +60385,9 @@ function feedFieldsHtml() {
   var c = (S && S.feedsCfg) || {}, cfg = feedCfg(), ck = (S && S.checkinCfg) || {};
   var qr = feedNum(ck.lat, -90, 90) != null && feedNum(ck.lng, -180, 180) != null;
   var lat = feedNum(c.lat, -90, 90) != null ? c.lat : qr ? ck.lat : '', lon = feedNum(c.lon, -180, 180) != null ? c.lon : qr ? ck.lng : '';
+  // The address placed is shown, never filled in: saved, a filled field would write it into the book as typed.
+  var geo = cfg.placeFrom === 'address' ? feedGeoRec() : null;
+  var ph = function(v) { return geo && v != null ? ' placeholder="' + escHtml(v.toFixed(2)) + '"' : ''; };
   var origin = '';
   try { origin = location.origin && /^https?:/.test(location.origin) ? location.origin : ''; } catch (e) { origin = ''; }
   return '<div class="inv-field"><label class="inv-field-check" for="setFeedOn"><input type="checkbox" id="setFeedOn" class="inv-check"' + (cfg.on ? ' checked' : '') + '>' +
@@ -59866,14 +60396,16 @@ function feedFieldsHtml() {
     '<div class="inv-field"><label class="inv-field-label" for="setFeedUrl">The feeds Worker’s address</label>' +
       '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><input class="inv-input inv-toolbar-item" id="setFeedUrl" type="url" autocomplete="off" value="' + escHtml(c.url == null ? feedDefaults().url : c.url) + '" placeholder="' + escHtml(feedDefaults().url) + '">' +
       '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFeedCheck">Check</button></div>' +
-      '<div class="inv-field-hint">Blank is ' + escHtml(feedDefaults().url) + '. <strong>Check</strong> asks the address and says what came back.</div></div>' +
+      '<div class="inv-field-hint">Blank is ' + escHtml(feedDefaults().url) + '. <strong>Check</strong> asks the address and says what came back. Optional: where it cannot be reached, the app asks GDELT and MET Norway itself.</div></div>' +
     '<div class="inv-callout" data-feed-check aria-live="polite"></div>' +
     '<div class="inv-fields">' +
-      '<div class="inv-field"><label class="inv-field-label" for="setFeedLat">The plant’s latitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-90" max="90" id="setFeedLat" value="' + escHtml(lat == null ? '' : String(lat)) + '"></div>' +
-      '<div class="inv-field"><label class="inv-field-label" for="setFeedLon">The plant’s longitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-180" max="180" id="setFeedLon" value="' + escHtml(lon == null ? '' : String(lon)) + '"></div>' +
+      '<div class="inv-field"><label class="inv-field-label" for="setFeedLat">The plant’s latitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-90" max="90" id="setFeedLat" value="' + escHtml(lat == null ? '' : String(lat)) + '"' + ph(cfg.lat) + '></div>' +
+      '<div class="inv-field"><label class="inv-field-label" for="setFeedLon">The plant’s longitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-180" max="180" id="setFeedLon" value="' + escHtml(lon == null ? '' : String(lon)) + '"' + ph(cfg.lon) + '></div>' +
     '</div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="setFeedPlace">A short name for the place</label><input class="inv-input" id="setFeedPlace" maxlength="40" autocomplete="off" value="' + escHtml(c.place || '') + '">' +
-      '<div class="inv-field-hint">' + (cfg.placeFrom === 'checkin' ? 'The place is the Office QR’s, until another is typed here.' : qr ? 'The Office QR has a place too: this one is used.' : 'The weather is asked for this place, to 2 decimals (about a kilometre).') + '</div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setFeedPlace">A short name for the place</label><input class="inv-input" id="setFeedPlace" maxlength="40" autocomplete="off" value="' + escHtml(c.place || '') + '"' + (geo && geo.name ? ' placeholder="' + escHtml(geo.name) + '"' : '') + '>' +
+      '<div class="inv-field-hint" data-feed-place="' + escHtml(cfg.placeFrom || 'none') + '">' + (cfg.placeFrom === 'checkin' ? 'The place is the Office QR’s, until another is typed here.'
+        : geo ? 'From the company’s address: ' + escHtml(geo.name || 'the plant') + ' at ' + cfg.lat.toFixed(2) + ', ' + cfg.lon.toFixed(2) + ', placed on OpenStreetMap. Type another place to use it instead.'
+        : qr ? 'The Office QR has a place too: this one is used.' : 'The weather is asked for this place, to 2 decimals (about a kilometre). Left blank, the company’s address is placed on the map.') + '</div></div>' +
     '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMktOpen">Tata Motors’ figures and the plant’s week</button></div>' +
     feedStatusHtml() +
     (origin ? '<p class="inv-note inv-mt-8">This app’s address, for the Worker’s ALLOWED_ORIGINS: <span class="inv-id">' + escHtml(origin) + '</span></p>' : '') +
@@ -59931,9 +60463,9 @@ var FEED_SETTINGS_SEC = {
     return escHtml(feedHost(c.url) + (c.lat != null ? ' · ' + (c.place || 'the plant') + ' at ' + c.lat.toFixed(2) + ', ' + c.lon.toFixed(2) : ' · no place set'));
   },
   body: function() { return feedFieldsHtml(); },
-  why: 'The news comes from the GDELT Project and the weather from MET Norway, through the shop’s own feeds Worker on Cloudflare. ' +
+  why: 'The news comes from the GDELT Project and the weather from MET Norway, through the shop’s own feeds Worker on Cloudflare where it is set up, else asked of them straight from this device. ' +
     'The app asks only when Home is opened and its copy is over 30 minutes old, or when Refresh is tapped, and never offline. ' +
-    'It sends the four news topics, the models followed and the plant’s place to two decimals: nothing of the book. ' +
+    'It sends the four news topics, the models followed and the plant’s place to two decimals: nothing of the book. With no place typed and none on the Office QR, the company’s address is placed once on OpenStreetMap. ' +
     'The copy stays on this device. A headline that gives a month’s figure, or names the plant shut on a day, is offered in the Tata dialog, never applied.',
   save: function() { return feedSaveCfg(); }
 };
@@ -59967,7 +60499,7 @@ function mktAction(action, btn) {
       var kind = btn.dataset.kind;
       feedRefresh(kind).then(function(r) {
         if (r && r.why === 'gap') showToast('Asked a moment ago: again in ' + r.wait + ' s', 'info');
-        else if (r && !r.ok && r.why && FEED_WHY_TEXT[r.why]) showToast('The ' + (FEED_NAME[kind] || 'feed') + ' was not fetched: ' + feedWhyText(r.why, r.status), 'warning');
+        else if (r && !r.ok && r.why && FEED_WHY_TEXT[r.why]) showToast('The ' + (FEED_NAME[kind] || 'feed') + ' was not fetched: ' + feedWhyText(r.why, r.status, r.via, kind), 'warning');
         else if (r && !r.ok && r.why === 'offline') showToast('This device is offline', 'warning');
       });
       return true;
@@ -62235,7 +62767,14 @@ var FLOW_RED_AFTER = 2;      // working days past the target before material pas
 function flowCfg() {
   var c = (S && S.flowCfg) || {};
   return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45,
-    holidays: Array.isArray(c.holidays) ? c.holidays : [] };
+    holidays: Array.isArray(c.holidays) ? c.holidays : [], shutWhy: c.shutWhy && typeof c.shutWhy === 'object' && !Array.isArray(c.shutWhy) ? c.shutWhy : {} };
+}
+/* A day the plant is shut (the list above: MM-DD every year, or a full date; Home's Plant shut writes full dates, floor.js) and
+   why ('' where none was said); null on any other day. */
+function flowShutOn(iso) {
+  var c = flowCfg(), h = c.holidays, md = String(iso).slice(5);
+  if (h.indexOf(iso) < 0 && h.indexOf(md) < 0) return null;
+  return { why: String(c.shutWhy[iso] || c.shutWhy[md] || '').trim() };
 }
 /* A day the plant works, for the turnaround (owner, 14 Oct 2026: "the national holidays and state holidays should not count as
    working days for turnaround"): never a Sunday, a paid holiday (Settings → Labour, the national ones), or a day the plant is shut
@@ -65103,10 +65642,11 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Home → More → Make a report: the period Home shows, as a report (Stats → Overview's until the tab map, TM2b). All is the
-   whole book, which no report covers (a financial year at most): it opens the year to date and says so (QA5-14). */
-function rptFromStats() {
-  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
+/* Home → More → Make a report: the period Home shows, as a report (Stats → Overview's until the tab map, TM2b): this month, which
+   the door names (data-period, since Home's period is no longer Stats'). All is the whole book, which no report covers (a financial
+   year at most): it opens the year to date and says so (QA5-14). */
+function rptFromStats(per) {
+  per = per || (typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd');
   rptSet(per === 'qtd' ? 'quarterly' : per === 'ytd' || per === 'all' ? 'yearly' : 'monthly', localDateStr());
   switchTab('pageReports');
   if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book. Step back a year with ‹.', 'info');
@@ -65140,7 +65680,7 @@ function rptAction(action, btn) {
     }
     case 'invRptNow': rptSet(p.kind, localDateStr()); renderReports(); break;
     case 'invRptPrint': rptPrint(); break;
-    case 'invRptFromStats': rptFromStats(); break;
+    case 'invRptFromStats': rptFromStats(btn.dataset.period); break;
     default: return false;
   }
   return true;
@@ -66865,35 +67405,52 @@ var KB_APP_GUIDES = [
   _kbg('today', 'Using the app: Home', 'The dashboard, your widgets, and what needs you now', ['pageHome'],
     'Home is the first screen. It has 2 views: **Home**, the dashboard, and **Needs you**. After them are its Insights: Stats, Reports and the Planner.\n\n' +
     '# The masthead\n- The masthead is at the top of Home. It shows the greeting, the date and the time. The time changes each minute.\n' +
-    '- Under the time, it shows when the general shift starts or ends. Before 5:00 PM, a bar shows how much of the shift is gone.\n' +
-    '- The sentence is the first item that needs you: a cash low point, red tasks, a line that is half down, or the pace of the month.\n' +
-    '- To see all your tasks, tap **Open Needs you**. To make the report of today, tap **Make today’s report**.\n\n' +
-    '# Read a widget\n- Under the masthead is the period (**MTD**, **QTD**, **YTD**, **All**). Stats uses the same period. Under the period are the widgets.\n' +
-    '- Each widget answers 1 question. Its title is at the top. To open the screen of the widget, tap its title.\n' +
+    '- Under the time, it shows when the general shift starts or ends. On a computer, a bar shows how much of the shift is gone.\n' +
+    '- On a day that the plant is shut, the masthead says so in place of the shift. For example: **Plant shut · Durga Puja**.\n' +
+    '- The sentence is the first thing to do today. A red item comes first, then an amber item. A larger item that is only to know never comes first.\n' +
+    '- It can be a cash low point, a move with its own button such as **Call**, or the count of red tasks.\n' +
+    '- To see what a move is worth and why, tap its sentence. When nothing needs you, the sentence says **Nothing needs you now**.\n' +
+    '- Under the sentence are the facts of the day and the weather now, for example **31° thunder 6–8 PM**.\n' +
+    '- The red number on **Needs you** is the count of the tasks that need you now. It goes when none is left.\n\n' +
+    '# Customise and More\n- On a phone, **Customise** and **More** are at the right end of the masthead’s buttons. On a computer, they are on the row under the masthead.\n' +
+    '- **More** holds **Make today’s report**, **Make a report** (this month), **Plant shut…**, **Open Stats** and **Reset Home**.\n' +
+    '- Home always shows this month. To see another period, open Stats.\n\n' +
+    '# Read a widget\n- Each widget answers 1 question. Its title is at the top. To open the screen of the widget, tap its title.\n' +
     '- Under the title is the figure, then a sentence with a dot. The colour of the dot tells you if the figure is good.\n' +
-    '- A widget is quiet when all is well. An amber line at its top means: examine it soon. A red line and a red tint mean: act now.\n' +
+    '- An amber line at the top of a widget means: examine it today. A red line and a red tint mean: act now.\n' +
+    '- A widget about a trend, for example the month against the last, never has a line or a tint. Its figure and its dot keep their colour.\n' +
+    '- On a phone, each widget is only as tall as what it holds. A quiet widget is short.\n' +
     '- Money on Home is short: ₹3.50 L is 3.5 lakh, ₹1.24 Cr is 1.24 crore. To see the full amount, point to it or hold it.\n' +
     '- A list that is too long for its widget shows how many more rows there are. To see all of them, tap that last row.\n' +
     '- Under the list is the action of the widget, for example **Place the 23 receipts**. A row can also have its own action, for example **Print**.\n' +
     '- The small line at the bottom tells you where the figures come from. For the news, the weather and zinc, tap **Refresh** to get them again.\n' +
     '- Some large widgets let you choose what they show, for example **By client** or **By age**. Your choice stays.\n\n' +
-    '# The questions and the moves\n- Each question widget answers in 1 sentence. A large question widget also shows the moves that you can make.\n' +
-    '- To see what a move is worth and why, tap the move. To keep it as a task, tap **Add to my list**.\n' +
-    '- **Do first** shows the moves that are worth most, across all the questions.\n\n' +
+    '# The widgets on Home\n- A phone shows about 7 widgets. Each other widget is under **Add a widget**.\n' +
+    '- **Month to date** shows what is billed, against the same days last month. It also shows where the month lands at its pace.\n' +
+    '- **The floor now** shows each line, its units and its hands. Before the first run of the day, it shows the last day plated.\n' +
+    '- On a day the plant is shut, **The floor now** shows 1 line. If nothing is recorded by 11 AM, it shows **Mark today shut**.\n' +
+    '- **What’s coming** shows the next events, soonest first. For example: cash below zero, a stock line that runs out, or the next challan of a client.\n' +
+    '- Each question widget answers in 1 sentence. A large question widget also shows the moves that you can make. To keep a move as a task, tap **Add to my list**.\n' +
+    '- **Do first**, **This month at its pace**, **Production, the last day**, **Attendance today** and **Weather at the plant** are under **Add a widget**.\n\n' +
+    '# Mark the plant shut\n1. Tap **More**. Then tap **Plant shut…**.\n2. Set **From** and **To**. For 1 day, keep both on the same day.\n' +
+    '3. Type why the plant is shut, for example **Durga Puja**.\n4. Tap **Mark shut**.\n' +
+    '- The days are not working days for the pace and the turnaround. Pay does not change: a paid holiday is set in Settings → Labour.\n' +
+    '- To remove a day, open **Plant shut…** again. Then tap **Remove** next to the day.\n' +
+    '- If the floor works on a day marked shut, the masthead and Needs you show it as a working day. The pace still leaves it out, as it leaves out a Sunday.\n\n' +
     '# The world outside and the analysis\n- **Tata Motors, Jamshedpur** shows the figures of the month that you typed from the release of Tata. To type a month, tap the title of the widget.\n' +
     '- Large, it also shows the week of the plant and the headlines. To see the headlines of 1 model only, choose the model at its top.\n' +
-    '- **Weather at the plant** shows the weather now and the next 12 hours. After 30 days, it also shows the cut days that had rain.\n' +
-    '- The news and the weather come from the feeds Worker. Until the Worker is set up, these widgets say so. To set it up, read **Setting up: the news and weather**.\n' +
-    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap the pair at its top. The widget shows a pattern, not proof.\n' +
-    '- **What’s coming** shows the next events, soonest first. For example: cash below zero, a stock line that runs out, or the next challan of a client.\n\n' +
+    '- The news and the weather come from the feeds Worker, or straight from GDELT and MET Norway. To set them up, read **Setting up: the news and weather**.\n' +
+    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap the pair at its top. The widget shows a pattern, not proof.\n\n' +
     '# Arrange the widgets\n1. Tap **Customise**.\n2. To move a widget, drag its handle. On a phone, hold the handle for a moment, then drag it.\n' +
     '3. To move a widget with the keys, select its handle. Then push an arrow key, Home or End.\n4. To change the size of a widget, tap **S**, **M** or **L**.\n' +
     '5. To remove a widget, tap **×**. To get it back, tap **Undo** in the message.\n6. To fill an empty space, tap **Add here** in it. Then tap **Add here** on a widget.\n7. When you are done, tap **Done**.\n' +
+    '- While you arrange, each widget shows the full space of its size.\n' +
     '- To add a widget at the end, tap **Add a widget**. Tap a type, then tap **Add to Home** on the widget.\n' +
     '- When you are not arranging, a later widget moves up into an empty space that fits it. The order you set stays the same.\n' +
     '- NOTE: **Reset** puts back the widgets of your role on this screen. It asks you first. The other screen keeps its widgets.\n' +
     '- Your arrangement is yours, and it stays on this device. The phone and the computer each keep their own arrangement.\n\n' +
     '# Needs you\n- The day’s 5 inputs are the in-time roll, the pickling loads, the stock message, the production records and the out-time roll. Each input shows **in**, **late** or **not yet**.\n' +
+    '- On a day the plant is shut, each input shows **Not expected**.\n' +
     '- Under the inputs are all the open tasks, in 3 groups: **Now**, **This week** and **Later**.\n- To see why the app raised a task and what clears it, tap the task.\n- A red task is late or wrong. An amber task needs an examination soon.\n' +
     '- To add a task of your own, type it in the field above the tasks. Then tap **Add** or push Enter.\n- To give your task a due date, a note and a link, tap **Details**.\n' +
     '- When your task is done, tick it. The app moves it to **Done**, which is folded at the bottom. To open the task again, tap its tick.\n- A task that you snoozed stays under **Snoozed**. To show it again, tap **Wake**.',
@@ -66901,7 +67458,9 @@ var KB_APP_GUIDES = [
     // Version 5: Home (UI pass 3, 16 Oct 2026): the dashboard, its day card, the widgets, Customise and the gallery; Pulse folded into it.
     // Version 6: the card family (U2R, §24): the masthead, how to read a widget (its figure, its colour, short money, More, the action,
     // where the figures come from, a Choose), the moves and their dialog, Add here.
-    { version: 6 }),
+    // Version 7: the owner's look of 21 Oct 2026 (P241): no period on Home, the masthead's lead red first and its weather, the red count
+    // on Needs you, the tools in the masthead on a phone, about 7 widgets, an edge only for today, Plant shut.
+    { version: 7 }),
   _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how the app calculates their figures', ['pageStats', 'pageHome'],
     'Stats has 3 tabs. All 3 tabs use 1 period, which is the same period as Home. Each tab starts with a card that shows its status. On a phone, tap the card to see its figures.\n\n' +
     '# By client\n- Contribution by client shows the worst client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n' +
@@ -67457,30 +68016,37 @@ var KB_APP_GUIDES = [
     '- **Reset PIN** on a user gives the user a new PIN. **Deactivate** keeps the history of the user and stops their sign-in. The other devices get an added, reset or deactivated user with the next push and pull.',
     { roles: ['owner'], version: 1 }),
   // The news and the weather (feeds.js, docs/UI_PASS_3.md §9e): every role reads it, since a widget with no feed links it.
-  _kbg('feeds', 'Setting up: the news and weather', 'The feeds Worker on Cloudflare, its address in the app, and what the app sends', ['pageHome'],
-    'The news and the weather come through the shop’s own **feeds Worker** on Cloudflare. The Worker gets the news from the GDELT Project and the weather from MET Norway. The app asks only the Worker.\n\n' +
-    '# In Cloudflare, once\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
+  _kbg('feeds', 'Setting up: the news and weather', 'Where the news and the weather come from, the place of the plant, and what the app sends', ['pageHome'],
+    'The news comes from the GDELT Project and the weather from MET Norway. The shop can put its own **feeds Worker** on Cloudflare between them and the app. If the Worker is not there, the app asks GDELT and MET Norway straight from this device.\n\n' +
+    '# The place of the plant\n- The weather needs the place of the plant. The app uses, in this order: the latitude and longitude typed in Settings, the place of the Office QR, the address of the company.\n' +
+    '- For the address, the app asks OpenStreetMap once, with the parts of the address that have no number. It keeps the place on this device only, never in the book.\n' +
+    '- If OpenStreetMap does not find the address, the app asks again after a day. To give the place yourself, type the latitude and the longitude in Settings.\n\n' +
+    '# With no Worker\n- When the Worker cannot be reached, the app asks GDELT and MET Norway itself. It does not ask the Worker again for 6 hours.\n' +
+    '- Settings → Connections → **News and weather** says **straight from GDELT** or **straight from MET Norway** next to each feed.\n' +
+    '- GDELT answers 1 request in 5 seconds from one address. The app asks the 4 news topics 6 seconds apart.\n\n' +
+    '# The Worker in Cloudflare, once (optional)\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
     '2. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
     '3. In the Worker’s **Settings → Variables**, add `ALLOWED_ORIGINS`. Type each address of the app, with a comma between them. Settings in the app shows the address of this app.\n' +
     '4. Add `CONTACT` too. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
     '5. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
     '# In the app\n1. Open Settings → Connections → **News and weather**. Make sure that **Show the news and the weather** is ticked.\n' +
-    '2. If the Worker is not at the address shown, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
-    '3. Type the latitude and the longitude of the plant. If the Office QR has a place, the app uses that place. Tap **Save**.\n' +
+    '2. If a Worker is set up at another address, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
+    '3. If the place shown is not the plant, type its latitude and longitude. Tap **Save**.\n' +
     '4. Open Home. The app gets the news and the weather. Then it asks again only when Home opens and its copy is more than 30 minutes old.\n\n' +
     '# What Check says\n- **Reached**: the Worker answered.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
-    '- **Not reachable**: nothing answered. Make sure that the custom domain is set. Make sure that `ALLOWED_ORIGINS` has the address of this app.\n' +
+    '- **Not reachable**: nothing answered. With no Worker, the app asks the sources straight.\n' +
     '- **No answer in 8 seconds**: try again later.\n\n' +
     '# What the app sends\n- The 4 news topics: the sales, Jamshedpur, the models and the exports.\n- The models that you follow, as words.\n' +
-    '- The place of the plant, to 2 decimals. This is approximately 1 km.\n- Nothing from the book: no record, no figure and no name.\n' +
+    '- The place of the plant, to 2 decimals. This is approximately 1 km. To find the place, the parts of the address that have no number.\n- Nothing else from the book: no record, no figure and no name.\n' +
     '- The app keeps the headlines and the forecast on this device only. Each day’s forecast also goes into the book, to compare with the power cuts.\n' +
     '- The app asks only when Home opens or when you tap **Refresh**. It never asks while the device is offline, and never more than once a minute.\n\n' +
     '# Tata Motors’ figures\n- Tata Motors gives its sales each month. From the 2nd of the month, the app adds a task to type the month before.\n' +
     '- Tap the task, or **Tata Motors’ figures and the plant’s week** in Settings. Type each figure from the release: this year and the same month a year before.\n' +
     '- Leave a figure blank if the release does not give it.\n- A headline can give a figure. The app shows it with **Use**. Compare it with the release before you save.\n' +
     '- A headline can say that the plant is shut or works on a day. The app shows it with **Add**. The calendar changes only when you tap.\n\n' +
-    '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The app shows both under its news and its weather.',
-    { roles: [], version: 1 })
+    '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The place: OpenStreetMap. The app shows the credits under its news and its weather.',
+    // Version 2 (owner, 21 Oct 2026: "Ask the sources directly"): the sources straight where no Worker answers, and the place from the address.
+    { roles: [], version: 2 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of
@@ -73295,7 +73861,7 @@ function wsSvg(k) {
 var WORKSPACES = [
   // Home (UI pass 3 §8a): its id stays `today` (a saved trail, the bar's counts and the specs name it); the label and the icon are Home's.
   { id: 'today', label: 'Home', icon: 'home', bar: true,
-    views: [{ tab: 'pageHome', v: 'home', label: 'Home' }, { tab: 'pageHome', v: 'needs', label: 'Needs you' },
+    views: [{ tab: 'pageHome', v: 'home', label: 'Home' }, { tab: 'pageHome', v: 'needs', label: 'Needs you', count: 'today' },
       { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
     members: [] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
@@ -73492,7 +74058,7 @@ function wsDrawRow(w, views, on) {
     row.innerHTML = show ? views.map(function(x, i) {
       return (x.group && i ? '<span class="inv-viewtab-group" role="presentation" data-action="invWsGroup">' + escHtml(x.group) + '</span>' : '') +
         '<button class="inv-viewtab" role="tab" aria-selected="' + (i === on) + '" data-action="invSwitchTab" data-tab="' + x.tab + '"' +
-        (x.v ? ' data-v="' + x.v + '"' : '') + '>' + escHtml(x.label) + '</button>';
+        (x.v ? ' data-v="' + x.v + '"' : '') + '>' + escHtml(x.label) + (x.count ? ' ' + wsTabCountHtml(x.count) : '') + '</button>';
     }).join('') : '';
     if (show) row.setAttribute('aria-label', w.label); else row.removeAttribute('aria-label');
     row.classList.toggle('inv-hidden', !show);
@@ -73593,9 +74159,16 @@ function wsRedCounts() {
   });
   return n;
 }
+var _wsCounts = {};   // the red counts as last worked out (wsUpdateCounts), for a tab row drawn between two counts
+/* A view's red count as a notification badge on its tab (owner, 21 Oct 2026: "Needs you · 27 … should be shown as notification
+   dots"): Needs you carries the red rows the Home door counts, the things that need you now; the rest are in the list. */
+function wsTabCountHtml(id) {
+  var k = _wsCounts[id] || 0;
+  return '<span class="inv-viewtab-count' + (k ? '' : ' inv-hidden') + '" data-ws-count="' + id + '">' + (k ? k : '') + '</span>';
+}
 function wsUpdateCounts() {
   if (!S) return;
-  var n = wsRedCounts();
+  var n = _wsCounts = wsRedCounts();
   document.querySelectorAll('[data-ws-count]').forEach(function(el) {
     var k = n[el.dataset.wsCount] || 0;
     el.textContent = k ? String(k) : '';

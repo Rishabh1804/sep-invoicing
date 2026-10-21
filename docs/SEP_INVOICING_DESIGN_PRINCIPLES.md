@@ -601,6 +601,10 @@ the name is a `--hair` × `--sp-16` rule between the groups (`data-group="rule"`
 cue to scroll a row that does not; only a row that would run past the screen keeps the word (`data-group="word"`, `wsRowFit`).
 **A page's own tab row that runs past the screen fades** on the side with more, the table's cue (§6.11)
 without its note (`data-more` start | end | both); the workspace's row never fades, its cue being the group's name.
+**A view may carry a red count** (owner, 21 Oct 2026: *"that should be shown as notification dots"*): Home's Needs you carries the red
+rows that need you now, the same count as the Home door's, as a pill beside its word (`inv-viewtab-count`, `wsTabCountHtml`,
+`data-ws-count`): `--fs-11` 700 in `--surface` on `--danger`, `--sp-20` tall, hidden at nought. Only a view whose red rows a door
+already counts carries one.
 
 ### 6.5 Segmented control — `inv-seg`
 A well (UI pass 3): the track sinks into its card (`--well`, `--press-1`, `--r-ctl`, its fine edge) and the pressed segment is a
@@ -1209,13 +1213,19 @@ the masthead (§6.36).
   `--warning-mark`, an inset shadow along the top (`--tone-edge`) that follows the corners and takes no room; danger adds the edge in
   `--danger-mark` and the red tint `--card-danger` in place of the surface. A card's tone is the worst of what it holds that is the
   plant's to act on; an Outside card is never edged or tinted (info at most); a card in a blank state is neutral. Never colour alone:
-  the lamp stands beside the words (DR-8). A hero elsewhere keeps its wash until U7 (`docs/UI_PASS_3.md` §14a).
+  the lamp stands beside the words (DR-8). A hero elsewhere keeps its wash until U7 (`docs/UI_PASS_3.md` §14a). **The edge and the
+  tint are for what asks for something today** (owner, 21 Oct 2026: *"Red only for today"*; UI pass 3 §25i): a trend (`trend` on
+  `wdgDefine`, `data-trend`: the month against the last, a period's answer, a record of days) keeps its figure and its lamp in their
+  tone and is never edged or tinted.
 - **Fixed heights, packed dense** (§24h): rows of `--wdg-row` (10.75rem, 172 px) a `--wdg-gap` (1rem) apart on a board of 12 or 6
   columns, 10.5rem (168 px) and 0.75rem on the phone's 2. A Small is one row (3 of 12 columns, 3 of 6, 1 of 2), a Medium two (6 of
   12, the row at 6 and on the phone), a Large two across the row, three on the phone. A card fills its area and nothing runs past it.
   The grid packs dense (`grid-auto-flow: row dense`): a later card moves up into a hole an earlier one left, and the DOM keeps the
   layout's order, so the tab order and a screen reader read the order arranged. The columns come from the board's own width (12
-  from 60rem, 6 from 36rem, 2 under it). Under the board, its foot: *Add a widget · N to choose from*.
+  from 60rem, 6 from 36rem, 2 under it). Under the board, its foot: *Add a widget · N to choose from*. **On the phone's board a card
+  is as tall as what it holds** (owner, 21 Oct 2026: *"Cards only as tall as needed"*; UI pass 3 §25h): rows are `auto`, each card
+  capped at its size's height (a Small one row, a Medium two, a Large three), two Smalls side by side as tall as the taller, and a bare
+  chart keeping its size's room (`--wdg-viz-h-s`, `-m`, `-l`); while arranging, each size's whole box, so a hole is seen.
 - **The fit** (`wdgFit`, measured on the card laid out): first what the card can do without, all together (`WDG_FIT_OPT`: a part
   marked `data-wdg-opt`, a tile's line of the months before and the words under its figure, never its change; a chart's key and an
   age bar's); then
@@ -1252,10 +1262,13 @@ the masthead (§6.36).
   its first size, one row tall drawn or not (`inv-gallery-preview`), its title, question and sizes, and **Add to Home** or *On Home*
   with Remove. A widget a role may not see is in no gallery and on no board. A tap that changes the gallery swaps its parts inside the
   dialog, never the dialog.
-- **The presets** (`WDG_PRESETS`, §24i): Owner, Office, Supervisor and Floor, each drawn from what its role sees, each packing with
-  no hole on both layouts, packing on or off. On the phone a Small stays Small and the rest is Medium, and the Owner's holds all
-  fourteen in the agreed canvas's order (4.67 phone screens on the long book, over I10's four for Home: P195's budget for it is 5,
-  the owner's call at U2R's stop, UI pass 3 §1a-14).
+- **The presets** (`WDG_PRESETS`, §24i, redrawn in §25g): Owner, Office, Supervisor and Floor, each drawn from what its role sees,
+  each packing with no hole on both layouts, packing on or off. On the phone a Small stays Small and the rest is Medium, an entry
+  marked `desk` is left off, and each holds about seven cards (owner, 21 Oct 2026: *"About 7 cards on the phone"*): Home is 2.38
+  phone screens on the long book, P195's budget for it 2.5. What a preset leaves out is said elsewhere (the masthead's lead, count
+  and weather; Month to date's pace; The floor now's last day and hands) and is one tap away under *Add a widget*.
+- **A board's period**: Home reads this month (`wdgPeriod('home')`; owner, 21 Oct 2026: the period chips came off Home); Stats keeps
+  its own.
 - **A widget's own controls**: a button inside a card names its widget with `data-wid` (`data-w` is the card's alone); an action the
   framework does not know goes to the widget's `act` **only when it is named `invWdg…`** (events.js hands the framework no other: Quick
   actions' *Continue* on a page kept on the device was named otherwise and did nothing, P240); a change inside the card (or in a
@@ -1332,22 +1345,31 @@ Home's verdict, drawn flat on the page under the top bar: never a card and never
 `--mast-h` (9.25rem, 148 px) on the desktop, as tall as it needs on the phone. `<header class="inv-mast" data-home-day data-verdict
 data-tone>`, its parts in one order (P239):
 - **the date** (`inv-mast-date`): *Good afternoon, <name> · Saturday, 17 October*, 12 px semibold `--text-2`;
-- **the sentence** (`inv-mast-say`): its lamp and the verdict, the first of `homeDayFacts` that holds (the forecast under zero, red
-  tasks, a line half down, the month's pace, else *Nothing needs you now*), 22 px semibold (19 on the phone), at most 60 characters;
-  on the desktop *· 23 open* after it (`inv-mast-count`) where it counts tasks;
-- **the facts** (`inv-mast-facts`): up to two more, then the weather now where the feed is set, each led by its lamp or icon; none,
-  and the list is left out;
-- **the Act** (`inv-mast-act`): **Open Needs you** tinted (`data-home-needs`; *· 23* after it on the phone), and *Make today's report*
-  as text for a role that opens Reports;
+- **the sentence** (`inv-mast-say`): its lamp and **one lead, the first thing to do** (`homeMastLead`; owner, 21 Oct 2026: *"Lead
+  with the first move"*; UI pass 3 §25e): money in danger (overdrawn, or cash below zero within 14 days); else the red move worth most
+  across the questions, its words a button that opens the move's dialog (`inv-mast-lead`, read as the sentence); else the things that
+  need you now, counted; else the amber move worth most; else a fact of the day; else *Nothing needs you now*. A *to know* move never
+  leads. 22 px semibold (19 on the phone), at most 60 characters; it wraps under its own first word beside its lamp, never leaving the
+  lamp alone on a line. The masthead's tone is its lead's;
+- **the facts** (`inv-mast-facts`): a line half down where it is not the lead, then the weather now where it is known (the place
+  typed, the Office QR's, or the company's address placed on the map), each led by its lamp or icon; none, and the list is left out;
+- **the Act** (`inv-mast-act`): the lead's own one button, tinted (*Open Money*, the move's own action with `data-home-lead="move"`, or
+  **Open Needs you**, `data-home-needs`); on the desktop, beside a lead that is not the count, *N things need you now* as a link to
+  Needs you; on the phone the board's tools (Customise as an icon, then More), flat ghost buttons at the row's end, in place of the
+  toolbar's own row (owner, 21 Oct 2026: *"move the layout option and options dots into the masthead"*). *Make today's report* is in
+  the toolbar's More, beside *Make a report*;
 - **the time** (`inv-mast-time`): the clock (`inv-mast-clock`, `[data-home-clock]`: *2:30* and *PM*, 44 px, 30 on the phone) and the
   general shift (`inv-mast-shift`, `[data-home-shift]`): before it *General shift starts 8:30 AM · in 50 min*, during it *General
   shift ends 5:00 PM · 2 h 30 min left* over a track of the shift gone (`inv-mast-track`, `[data-home-track]`, `--shift-done`), after
   it *The general shift has ended* and no track; on the phone *Shift starts 8:30 AM*, *Shift ends 5:00 PM*, *The shift has ended*, and
-  no track.
+  no track. **On a day the plant does not work** (`plantDayOff`, floor.js: a day marked shut from Home → More → *Plant shut…*, a paid
+  holiday, a Sunday nobody worked) the shift's place says the day (*Plant shut · Durga Puja*, *Sunday: plant shut*, *Paid holiday:
+  plant shut*), with no track (`data-day-off` on the masthead).
 - **The tick** (`homeClockStart`, `homeClockStop`: on the minute while Home shows, stopped when it is left or hidden) sets the clock's
   text, the shift's text and the track's `--shift-done`, nothing else. A task ticked on the board draws the masthead again in place
   (`homeDayRefresh`), and so does the day turning.
-- On the phone the sentence and the clock stand in Home's first 200 px: the six-second test.
+- On the phone the date and the clock share the first row and the sentence takes the whole width under them (two lines, where it
+  took four beside the clock); the sentence and the clock stand in Home's first 200 px: the six-second test.
 
 ## 7. How each screen is assembled
 
@@ -1469,4 +1491,5 @@ document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe whil
 | 6 | A card's surface | **Salience follows severity**: quiet while all is well, an amber top edge, a red edge and tint (owner, 17 Oct 2026, call 1) — §3.3, `docs/UI_PASS_3.md` §24c |
 | 7 | The figures' face | **Geist with tabular figures**; Geist Mono for identifiers only (owner, 17 Oct 2026, call 2) — DR-4, `docs/UI_PASS_3.md` §24l |
 | 8 | Money on a board | **Short**: whole rupees under a lakh, lakhs and crores to two places, the exact figure its `title` (owner, 17 Oct 2026, call 3) — §5.4, `docs/UI_PASS_3.md` §24k |
-| 9 | A widget's height | **Fixed by its size**, the board packed with no hole (owner, 17 Oct 2026, call 4) — §6.33, `docs/UI_PASS_3.md` §24h |
+| 9 | A widget's height | **Fixed by its size**, the board packed with no hole (owner, 17 Oct 2026, call 4) — §6.33, `docs/UI_PASS_3.md` §24h; **on the phone as tall as what it holds, up to its size's height** (owner, 21 Oct 2026: *"Cards only as tall as needed"*) — `docs/UI_PASS_3.md` §25h |
+| 10 | What Home leads with | **The first thing to do**, with its own button, in the masthead (owner, 21 Oct 2026: *"Lead with the first move"*); about seven cards on the phone; the edge for what asks for something today (*"Red only for today"*) — §6.36, `docs/UI_PASS_3.md` §25 |

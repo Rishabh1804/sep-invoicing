@@ -54,7 +54,13 @@ export async function skeletonProblems(page: Page, where: string): Promise<strin
       }
       // Its type, and the type's surface (red's tint in its place).
       if (card.dataset.type !== def.type || w.WDG_TYPES.indexOf(def.type) < 0) out.push(at + ': type ' + card.dataset.type);
-      const tone = card.dataset.tone;
+      // A trend (the month against the last, a period's answer, a record of days) keeps its tone on its figure and lamp and is never
+      // edged or tinted: an edge asks for something today (owner, 21 Oct 2026: "Red only for today"; P241). Every other card as before.
+      const trend = card.hasAttribute('data-trend');
+      // Marked so only in what it says (its data drawn); a widget whose answer decides it (Production, the last day: today's or not)
+      // is read as drawn.
+      if (typeof def.trend !== 'function' && trend !== (!!def.trend && card.dataset.state === 'ok')) out.push(at + ': data-trend ' + trend + ' where the widget says ' + !!def.trend);
+      const tone = trend ? 'neutral' : card.dataset.tone;
       const surf = tone === 'danger' ? '--card-danger' : def.type === 'ledger' ? '--ty-ledger' : def.type === 'plant' ? '--ty-plant' : '--surface';
       if (card.dataset.state === 'ok' || tone !== 'danger') {
         const want2 = resolve(card, surf);
@@ -66,7 +72,7 @@ export async function skeletonProblems(page: Page, where: string): Promise<strin
         const mark = resolve(card, tone === 'warning' ? '--warning-mark' : '--danger-mark');
         if (!/inset/.test(sh) || sh.indexOf(mark) < 0) out.push(at + ': ' + tone + ' with no top edge in its mark (' + sh + ')');
         if (def.type === 'outside') out.push(at + ': the world outside edged ' + tone);
-      } else if (/inset/.test(sh)) out.push(at + ': an edge on a ' + tone + ' card');
+      } else if (/inset/.test(sh)) out.push(at + ': an edge on a ' + (trend ? 'trend' : tone) + ' card');
       // The title whole at its size (the short one at Small; a desktop's Small its own where a phone's short would say less, the
       // canvas's "Cash coming in?" against the phone's "Getting paid?").
       const t = card.querySelector('.inv-widget-title') as HTMLElement | null;

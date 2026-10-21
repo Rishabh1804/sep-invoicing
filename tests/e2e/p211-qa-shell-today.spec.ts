@@ -73,7 +73,8 @@ test.describe('P211: the shell, navigation, More and Filter, the change log', ()
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
     await openPulse(page);
-    expect(await toolbarMoreLabels(page)).toEqual(['Make a report', 'Open Stats', 'Reset Home']);
+    // Today's report beside the month's (the masthead's until 21 Oct 2026), and Plant shut… for a role that changes settings.
+    expect(await toolbarMoreLabels(page)).toEqual(['Make today’s report', 'Make a report', 'Plant shut…', 'Open Stats', 'Reset Home']);
   });
 
   test('A1-7: Add names the screens as the app calls them now: People, and Attendance → Month', async ({ page }) => {

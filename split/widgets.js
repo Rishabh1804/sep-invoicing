@@ -71,10 +71,11 @@ function wdgFitSize(def, size) {
   return def.sizes.indexOf('m') >= 0 ? 'm' : def.sizes[0];
 }
 
-/* What several widgets read in one draw (the questions, a forecast) is worked out once a book, a period and a person. */
+/* What several widgets read in one draw (the questions, a forecast) is worked out once a book and a person. A widget reads its
+   board's period (wdgPeriod), which Home's is fixed at: a key that depends on a period names it. */
 var _wdgMemo = { key: '', v: {} };
 function wdgMemo(key, fn) {
-  var k = _bookWrites + '|' + (typeof _statsPeriod === 'string' ? _statsPeriod : '') + '|' + (typeof grdUserId === 'function' ? grdUserId() || '' : '');
+  var k = _bookWrites + '|' + (typeof grdUserId === 'function' ? grdUserId() || '' : '');
   if (_wdgMemo.key !== k) _wdgMemo = { key: k, v: {} };
   if (!Object.prototype.hasOwnProperty.call(_wdgMemo.v, key)) _wdgMemo.v[key] = fn();
   return _wdgMemo.v[key];
@@ -137,19 +138,19 @@ function wdgGo(def) {
 /* ---------- Presets by role (§7g, §24i) ----------
    A board starts from its role's preset; any change makes it the person's own, and Reset returns to the preset. Each preset holds
    what its role sees by default (grdRoleDefaults) and packs with no hole on both layouts, packing on or off. The phone keeps the
-   desktop's order: a Small stays Small, the rest Medium. The phone's Owner holds all fourteen, as the canvas the owner agreed draws
-   it (Home card types, 17 Oct 2026; owner, 20 Oct 2026: "This was the agreed upon artifact"): Home is longer than I10's four phone
-   screens by it, which that canvas set (§1a-14). A widget the role may not see, or the build does not have, is left out when the
+   desktop's order: a Small stays Small, the rest Medium; an entry marked `desk` is the desktop's alone. About seven cards on the
+   phone (owner, 21 Oct 2026: "Home screen should not feel heavy, and should lead and prioritise the user"): the masthead leads with
+   the move worth most, the count of what needs you and the weather, so Do first, Needs you and the weather are not on a board;
+   This month at its pace is in Month to date, and Production, the last day and Attendance today in The floor now. What a preset
+   leaves out is one tap away, under Add a widget. A widget the role may not see, or the build does not have, is left out when the
    preset is drawn. */
 var WDG_PRESETS = {
-  owner: { label: 'Owner', home: [['mtd', 's'], ['q-money', 's'], ['prodday', 's'], ['cash', 's'], ['pace', 'm'], ['coming', 'm'], ['tata', 'l'],
-    ['floornow', 'm'], ['risk', 's'], ['turn', 's'], ['dtp', 's'], ['atttoday', 's'], ['q-smooth', 'm'], ['dofirst', 'm']] },
-  office: { label: 'Office', home: [['needs', 'm'], ['quick', 's'], ['unbilled', 's'], ['quote', 's'], ['weather', 's'], ['pipe', 'm'], ['recent', 'm'],
-    ['tata', 'm'], ['coming', 'm']] },
-  supervisor: { label: 'Supervisor', home: [['floornow', 'l'], ['eff', 'm'], ['prodday', 's'], ['atttoday', 's'], ['risk', 's'], ['weather', 's'],
-    ['stockdays', 'm'], ['attweek', 'm'], ['ot', 'm'], ['tata', 'm']] },
-  floor: { label: 'Floor', home: [['floornow', 'l'], ['eff', 'm'], ['prodday', 's'], ['stockdays', 's'], ['weather', 's'], ['quick', 's'], ['heat', 'm'],
-    ['needs', 'm'], ['tata', 'm'], ['coming', 'm']] }
+  owner: { label: 'Owner', home: [['mtd', 's'], ['q-money', 's'], ['cash', 's'], ['owed', 's'], ['floornow', 'm'], ['coming', 'm'], ['q-smooth', 'm'],
+    ['tata', 'm', 'desk']] },
+  office: { label: 'Office', home: [['quick', 's'], ['unbilled', 's'], ['pipe', 's'], ['quote', 's'], ['recent', 'm'], ['coming', 'm'], ['tata', 'l', 'desk']] },
+  supervisor: { label: 'Supervisor', home: [['floornow', 'l'], ['eff', 'm'], ['risk', 's'], ['powercuts', 's'], ['stockdays', 's'], ['turn', 's'], ['attweek', 'm'],
+    ['ot', 'm', 'desk']] },
+  floor: { label: 'Floor', home: [['floornow', 'l'], ['stockdays', 's'], ['quick', 's'], ['turn', 's'], ['eff', 's'], ['heat', 'm'], ['coming', 'm']] }
 };
 function wdgRole() {
   if (typeof grdOn !== 'function' || !grdOn()) return 'owner';
@@ -157,9 +158,9 @@ function wdgRole() {
   return u ? u.role : 'owner';
 }
 function wdgPresetKey() { var r = wdgRole(); return WDG_PRESETS[r] ? r : 'owner'; }
-function wdgPresetList(board, lay) {
-  var p = WDG_PRESETS[wdgPresetKey()] || WDG_PRESETS.owner;
-  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]); }).map(function(x) {
+function wdgPresetList(board, lay, key) {
+  var p = WDG_PRESETS[key || wdgPresetKey()] || WDG_PRESETS.owner;
+  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]) && !(x[2] === 'desk' && lay === 'phone'); }).map(function(x) {
     return [x[0], wdgFitSize(wdgDef(x[0]), lay === 'phone' && x[1] !== 's' ? 'm' : x[1])];
   });
 }
@@ -421,16 +422,23 @@ var _wdgDrawn = {};
    at its right at Large; its body the figure, the verdict, the detail and the type's parts; its foot the Act and the Source. In
    arrange mode its handle, its place, its size and its Remove ride over the head (§7e). An Outside card is never edged or tinted:
    the world outside is to know, info at most. */
+/* The period a board's widgets read: Home's is this month, always (owner, 21 Oct 2026: "Let's remove the MTD, QTD, YTD, all
+   filters - they are not needed on the home screen and increases cognitive load"). Stats keeps its own (_statsPeriod). */
+function wdgPeriod(board) { return 'mtd'; }
 function wdgCardHtml(def, size, o) {
   o = o || {};
   var board = o.board || 'home', opts = wdgOpts(board, def.id);
-  var ctx = { board: board, size: size, opts: opts, period: typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd', preview: !!o.preview };
+  var ctx = { board: board, size: size, opts: opts, period: wdgPeriod(board), preview: !!o.preview };
   ctx.choose = wdgChooseVal(def, ctx);
   var d = wdgData(def, ctx);
   var tone = d.state === 'ok' && WDG_TONES[d.tone] ? d.tone : 'neutral';
   if (def.type === 'outside' && (tone === 'warning' || tone === 'danger')) tone = 'info';
   var body = wdgBodyHtml(def, size, d, ctx, tone);
   if (d.state !== 'ok') tone = 'neutral';
+  // A card edged amber or red asks for something today (owner, 21 Oct 2026: "Red only for today"): a trend (the month against the
+  // last, a period's answer, a record of days) keeps its figure and its lamp in their tone, and is never edged (`trend`).
+  var trend = false;
+  if (d.state === 'ok' && def.trend) { try { trend = typeof def.trend === 'function' ? !!def.trend(d, ctx) : true; } catch (e) { trend = false; } }
   _wdgDrawn[(o.preview ? 'preview|' : board + '|') + def.id] = { d: d, ctx: ctx };
   var sec = wdgSection(def.section), id = escHtml(def.id), full = escHtml(def.title), title = escHtml(wdgTitleAt(def, size));
   var door = wdgCanGo(def) && !o.preview
@@ -448,7 +456,7 @@ function wdgCardHtml(def, size, o) {
   if (def.card && !/\bdata-card=/.test(attrs)) attrs += ' data-card="' + escHtml(def.card) + '"';
   if (o.preview) attrs = attrs.replace(/\s+id="[^"]*"/g, '').replace(/\s+data-card="[^"]*"/g, '');
   return '<section class="inv-widget" data-w="' + id + '" data-size="' + size + '" data-type="' + escHtml(def.type) + '" data-tone="' + tone + '" data-state="' + escHtml(d.state) + '"' +
-    attrs + ' aria-label="' + full + '">' + head + '<div class="inv-widget-body">' + body + '</div>' + foot + '</section>';
+    (trend ? ' data-trend' : '') + attrs + ' aria-label="' + full + '">' + head + '<div class="inv-widget-body">' + body + '</div>' + foot + '</section>';
 }
 /* After a card is in the page: a widget's own hook (a chart measured, a fold wired), never one that writes the book; then its fit,
    then its chart drawn into the room left. */

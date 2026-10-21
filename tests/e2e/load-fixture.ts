@@ -193,7 +193,8 @@ export async function walkMap(page: Page, at: (name: string) => Promise<void>): 
     if (!n) { await ownWalk(wsLabel); continue; }
     for (let i = 0; i < n; i++) {
       const tab = row().nth(i);
-      const label = (await tab.innerText()).trim();
+      // A view's name without its count (Needs you's red count since 21 Oct 2026), as the own rows are read.
+      const label = (await tab.innerText()).trim().replace(/\s+\d+$/, '');
       await tab.click();
       await page.locator('.inv-page-active').first().waitFor();
       await settle(page);
@@ -466,10 +467,20 @@ export async function oneLookProblems(page: Page): Promise<string[]> {
       if (first && first.matches('.inv-mast[data-verdict]')) {
         // Home since U2R (docs/UI_PASS_3.md §24j): its masthead, an overview's verdict drawn flat, then one toolbar row, then the
         // board.
-        const tb = blocks[head + 1], board = blocks[head + 2];
-        if (!tb || !tb.matches('.inv-toolbar')) out.push('the masthead is followed by ' + name(tb) + ', not its toolbar');
-        else if (rows(tb) > 1) out.push('the toolbar runs to ' + rows(tb) + ' rows');
-        if (!board || !board.matches('.inv-wboard')) out.push('the toolbar is followed by ' + name(board) + ', not the board');
+        // On the phone its toolbar stands at the end of the masthead's act row (owner, 21 Oct 2026: "move the layout option and options
+        // dots into the masthead"), and the board follows the masthead.
+        const own = first.querySelector('[data-home-toolbar]');
+        if (own && phone) {
+          if (rows(own) > 1) out.push('the toolbar runs to ' + rows(own) + ' rows');
+          const board = blocks[head + 1];
+          if (!board || !board.matches('.inv-wboard')) out.push('the masthead is followed by ' + name(board) + ', not the board');
+        } else {
+          if (own) out.push('the toolbar is in the masthead on the desktop');
+          const tb = blocks[head + 1], board = blocks[head + 2];
+          if (!tb || !tb.matches('.inv-toolbar')) out.push('the masthead is followed by ' + name(tb) + ', not its toolbar');
+          else if (rows(tb) > 1) out.push('the toolbar runs to ' + rows(tb) + ' rows');
+          if (!board || !board.matches('.inv-wboard')) out.push('the toolbar is followed by ' + name(board) + ', not the board');
+        }
       }
       // Heroes side by side (inv-heroes), or packed on the desktop (Needs you's inv-panels, uiMasonry).
       else if (!first || !(first.matches('.inv-hero[data-verdict]') || (first.matches('.inv-heroes, .inv-panels') && first.querySelector('.inv-hero[data-verdict]')))) out.push('leads with ' + name(first) + ', not a hero with its verdict');

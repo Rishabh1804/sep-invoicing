@@ -87,9 +87,10 @@ function advWindow(n) {
 /* ---------- Words and figures ---------- */
 function advRs(v) { return formatCurrency(gstRound(Math.abs(Number(v) || 0))); }
 function advKg(kg) { return kg >= 1000 ? formatNum(kg / 1000, 1) + ' t' : formatNum(kg, 0) + ' kg'; }
-function advLower(s) { s = String(s || ''); return s.charAt(0).toLowerCase() + s.slice(1); }
+function advLower(s) { return lcLead(s); }
 function advClient(id) { return id == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(id); }) || null; }
-function advNameOf(c, fallback) { return (c && c.name) || fallback || 'the client'; }
+// A client as a move's sentence names it: its legal ending left off (Call SSSMEHTA INDUSTRIES, not … LTD), the record keeping the whole.
+function advNameOf(c, fallback) { return clientShortName((c && c.name) || fallback || '') || 'the client'; }
 /* How to reach a client from its master: a tel: link for its mobile or phone, else a mailto: for its email. */
 function advContact(c) {
   if (!c) return null;

@@ -50,10 +50,15 @@ function statsRangeIso(period) {
   var first = (S.invoices || []).map(function(i) { return i.date; }).filter(Boolean).sort()[0];
   return { from: first || localDateStr(), to: localDateStr() };
 }
-/* The working days from one date to another, inclusive: every day but Sunday, the shop's calendar. */
+/* The working days from one date to another, inclusive: every day but Sunday and the days the plant is shut (flowCfg.holidays,
+   Home's Plant shut: a month's pace, the capacity and a day's use are read over the days the plant works). The paid holidays are
+   still counted, as they always were: what pays a day is Labour's, and a festival is not a paid holiday. */
 function statsWorkingDayList(from, to) {
-  var out = [], d = from;
-  for (var g = 0; d <= to && g < 4000; g++) { if (new Date(d + 'T00:00:00').getDay() !== 0) out.push(d); d = isoAddDays(d, 1); }
+  var out = [], d = from, h = S && S.flowCfg && Array.isArray(S.flowCfg.holidays) ? S.flowCfg.holidays : [];
+  for (var g = 0; d <= to && g < 4000; g++) {
+    if (new Date(d + 'T00:00:00').getDay() !== 0 && (!h.length || (h.indexOf(d) < 0 && h.indexOf(d.slice(5)) < 0))) out.push(d);
+    d = isoAddDays(d, 1);
+  }
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }

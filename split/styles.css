@@ -148,6 +148,8 @@
   --cause-bar-w: 6rem; --cause-bar-w-sm: 3.5rem;
   /* The least room a bare chart keeps where a card stacks its columns (the phone's Large); a Small card's bars (chartMiniBars). */
   --wdg-viz-min: 4.5rem; --minibars-h: 2.25rem; --meter-h-card: 0.375rem;
+  /* A bare chart's room on the phone's board, where a card is as tall as what it holds (owner, 21 Oct 2026): by the card's size. */
+  --wdg-viz-h-s: 2.75rem; --wdg-viz-h-m: 7.5rem; --wdg-viz-h-l: 10rem;
   /* The day in lanes (chartDayLanes draws 12, 6 and 14 px: a lane, the gap between two, the room over them for "now"); the labels beside
      the lanes; a line's efficiency at a row's end. */
   --lane-h: 0.75rem; --lane-gap: var(--sp-6); --lane-top: 0.875rem; --lane-lab-w: 2.5rem; --plant-eff-w: 6rem; --plant-row-h: 2.5rem; --brief-row-h: 2.5rem;
@@ -1410,6 +1412,14 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
   outline: var(--rule) solid var(--surface);
   font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
+}
+
+/* The same count on a view's tab (Needs you's: the red rows that need you now), beside its word rather than on a mark. */
+.inv-viewtab-count {
+  display: inline-block; margin-left: var(--sp-6); vertical-align: middle;
+  min-width: var(--sp-20); height: var(--sp-20); padding: 0 var(--sp-6);
+  border-radius: var(--r-full); background: var(--danger); color: var(--surface);
+  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-20); text-align: center; font-variant-numeric: tabular-nums;
 }
 
 /* ======================================================================
@@ -2997,6 +3007,18 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-wgrid > [data-size="s"] { grid-column-end: span 1; grid-row-end: span 1; }
 .inv-wgrid > [data-size="l"] { grid-row-end: span 3; }
 .inv-wgrid > .inv-wgrid-blank { grid-column: 1 / -1; }
+/* The phone's board (owner, 21 Oct 2026: "Cards only as tall as needed"): a card is as tall as what it holds, up to its size's height
+   (a Small one row, a Medium two, a Large three), and lets go of what will not fit as on any board (wdgFit); two Smalls side by side
+   are as tall as the taller. A bare chart keeps its size's room. While arranging, each size's whole box, so a hole is seen. */
+@container wboard (width < 36rem) {
+  .inv-wboard:not([data-arranging]) .inv-wgrid { grid-auto-rows: auto; }
+  .inv-wboard:not([data-arranging]) .inv-wgrid > :is(.inv-widget, .inv-widget-ph) { grid-row-end: span 1; max-height: calc(2 * var(--wdg-row) + var(--wdg-gap)); }
+  .inv-wboard:not([data-arranging]) .inv-wgrid > [data-size="s"] { max-height: var(--wdg-row); }
+  .inv-wboard:not([data-arranging]) .inv-wgrid > [data-size="l"] { max-height: calc(3 * var(--wdg-row) + 2 * var(--wdg-gap)); }
+  .inv-wboard:not([data-arranging]) .inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex: 0 1 var(--wdg-viz-h-m); min-height: var(--wdg-viz-h-s); }
+  .inv-wboard:not([data-arranging]) .inv-widget[data-size="s"] .inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex-basis: var(--wdg-viz-h-s); }
+  .inv-wboard:not([data-arranging]) .inv-widget[data-size="l"] .inv-widget-body > .inv-widget-viz[data-wdg-viz] { flex-basis: var(--wdg-viz-h-l); }
+}
 @container wboard (min-width: 36rem) {
   .inv-wgrid { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(--wdg-gap-wide); grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .inv-wgrid > :is(.inv-widget, .inv-widget-ph, .inv-wgrid-slot) { grid-column-end: span 6; }
@@ -3019,8 +3041,9 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 body:not(.inv-desktop) .inv-widget[data-size="s"] { --wdg-px: var(--wdg-pad-sm); }
 .inv-widget[data-type="ledger"] { background: var(--ty-ledger); }
 .inv-widget[data-type="plant"] { background: var(--ty-plant); }
-.inv-widget[data-tone="warning"] { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
-.inv-widget[data-tone="danger"] { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
+/* Edged only for what asks for something today (owner, 21 Oct 2026: "Red only for today"): a trend keeps its figure's tone, unedged. */
+.inv-widget[data-tone="warning"]:not([data-trend]) { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
+.inv-widget[data-tone="danger"]:not([data-trend]) { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
 /* Its head: the section's icon, the title (the short one at Small) and the chevron where the head opens its screen, which is the
    whole head; the Choose at its right at Large on the desktop, under it at the card's width on the phone (§24e). */
 .inv-widget-head { flex: none; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; height: var(--wdg-head-h); padding: 0 var(--wdg-px); }
@@ -3418,8 +3441,10 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
 .inv-toast-btn { min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-ctl); background: none;
   font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
 .inv-toast-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. The board's foot: the door
-   to the gallery, centred under the widgets. */
+/* The board's toolbar: Customise and More at the row's end, the board's own tools, quiet under the masthead (owner, 21 Oct 2026: the
+   period chips came off Home); arranging, Add a widget and Reset lead and Done ends the row. The board's foot: the door to the
+   gallery, centred under the widgets. */
+[data-home-toolbar]:not([data-arranging]) { justify-content: flex-end; }
 [data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
 .inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
 /* Home's masthead (§24j): its verdict drawn flat under the top bar, no fill, no edge, no lift, a hairline under it; never folded.
@@ -3431,14 +3456,22 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
 .inv-mast-date { grid-area: date; margin: 0; min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
 .inv-mast-say.inv-dot { grid-area: say; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-8); min-width: 0; margin: 0;
   white-space: normal; font-size: var(--fs-22); font-weight: 600; line-height: 1.25; color: var(--text-1); }
-.inv-mast-say.inv-dot::before { align-self: center; width: var(--sp-10); height: var(--sp-10); }
-.inv-mast-count { font-size: var(--fs-14); font-weight: 500; color: var(--text-2); }
+.inv-mast-say.inv-dot::before { align-self: flex-start; flex: none; width: var(--sp-10); height: var(--sp-10); margin-top: calc((1lh - var(--sp-10)) / 2); }
+/* The sentence takes the line beside its lamp and wraps under its own first word, never leaving the lamp alone on a line. */
+.inv-mast-say > :is(span, .inv-mast-lead) { flex: 1 1 0; min-width: 0; }
+/* The lead, the first thing to do (owner, 21 Oct 2026): its sentence a button that opens the move's dialog, read as the sentence. */
+.inv-mast-lead { display: inline; min-width: 0; margin: 0; padding: 0; border: none; background: none; box-shadow: none; color: inherit;
+  font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+.inv-mast-lead:hover { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: var(--sp-4); }
+.inv-mast-lead:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
 .inv-mast-facts { grid-area: facts; display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); min-width: 0; margin: 0; padding: 0; list-style: none; }
 .inv-mast-facts > li { min-width: 0; font-size: var(--fs-13); }
 .inv-mast-facts > li.inv-dot { white-space: normal; color: var(--text-1); }
 .inv-mast-act { grid-area: act; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-16); margin-top: var(--sp-2); }
 body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-mast-act > .inv-btn-link { font-size: var(--fs-13); }
+/* The phone's board tools at the act row's end (owner, 21 Oct 2026), flat as the masthead is. */
+.inv-mast-act > [data-home-toolbar] { margin-left: auto; }
 .inv-mast-time { grid-area: time; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-6); text-align: right; }
 .inv-mast-clock { font-family: var(--ff-num); font-size: var(--fs-44); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1; color: var(--text-1); white-space: nowrap; }
 .inv-mast-clock > .inv-unit { margin-left: var(--sp-2); font-size: var(--fs-17); font-weight: 500; letter-spacing: normal; color: var(--text-2); }
@@ -3446,8 +3479,11 @@ body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); paddi
 .inv-mast-track { display: block; height: var(--sp-4); border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-2); overflow: hidden; }
 .inv-mast-track::before { content: ''; display: block; width: calc(var(--shift-done, 0) * 100%); height: 100%; border-radius: inherit; background: var(--text-3); }
 .inv-mast-track[hidden] { display: none; }
-body:not(.inv-desktop) .inv-mast { grid-template-areas: "date date" "say time" "facts facts" "act act"; column-gap: var(--sp-12); min-height: 0; padding: var(--sp-8) 0 var(--sp-12); }
+/* The phone (owner, 21 Oct 2026: "Home screen should not feel heavy"): the date and the clock share the first row, so the sentence
+   takes the whole width under them and reads in two lines where it would have needed four beside the clock. */
+body:not(.inv-desktop) .inv-mast { grid-template-areas: "date time" "say say" "facts facts" "act act"; column-gap: var(--sp-12); min-height: 0; padding: var(--sp-8) 0 var(--sp-12); }
 body:not(.inv-desktop) .inv-mast-say.inv-dot { font-size: var(--fs-19); }
+body:not(.inv-desktop) .inv-mast-date { align-self: start; }
 body:not(.inv-desktop) .inv-mast-time { align-self: start; gap: var(--sp-2); }
 body:not(.inv-desktop) .inv-mast-clock { font-size: var(--fs-30); }
 body:not(.inv-desktop) .inv-mast-clock > .inv-unit { font-size: var(--fs-13); }
@@ -3536,6 +3572,8 @@ button.inv-row > .inv-widget-chev { flex: none; align-self: center; }
 .inv-minibar[data-tone="warning"] { fill: var(--warning-mark); }
 .inv-minibar[data-tone="danger"] { fill: var(--danger-mark); }
 .inv-minibar-base { fill: var(--border); }
+/* Where a bar lands (the month at its pace): its outline, dashed, never filled. */
+.inv-minibar-proj { fill: none; stroke: var(--text-2); stroke-width: var(--hair); stroke-dasharray: var(--sp-2) var(--sp-2); vector-effect: non-scaling-stroke; }
 .inv-minibar-hatch { stroke: var(--text-2); stroke-width: var(--hair); vector-effect: non-scaling-stroke; }
 .inv-minibar-hatch-info { stroke: var(--info-mark); }
 .inv-minibar-hatch-warning { stroke: var(--warning-mark); }

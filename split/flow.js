@@ -26,7 +26,14 @@ var FLOW_RED_AFTER = 2;      // working days past the target before material pas
 function flowCfg() {
   var c = (S && S.flowCfg) || {};
   return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45,
-    holidays: Array.isArray(c.holidays) ? c.holidays : [] };
+    holidays: Array.isArray(c.holidays) ? c.holidays : [], shutWhy: c.shutWhy && typeof c.shutWhy === 'object' && !Array.isArray(c.shutWhy) ? c.shutWhy : {} };
+}
+/* A day the plant is shut (the list above: MM-DD every year, or a full date; Home's Plant shut writes full dates, floor.js) and
+   why ('' where none was said); null on any other day. */
+function flowShutOn(iso) {
+  var c = flowCfg(), h = c.holidays, md = String(iso).slice(5);
+  if (h.indexOf(iso) < 0 && h.indexOf(md) < 0) return null;
+  return { why: String(c.shutWhy[iso] || c.shutWhy[md] || '').trim() };
 }
 /* A day the plant works, for the turnaround (owner, 14 Oct 2026: "the national holidays and state holidays should not count as
    working days for turnaround"): never a Sunday, a paid holiday (Settings → Labour, the national ones), or a day the plant is shut

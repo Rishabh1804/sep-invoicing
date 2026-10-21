@@ -471,8 +471,98 @@ function flrOpenStaff(view) {
 }
 function flrStep(n) { flrSetDay(isoAddDays(flrDayIso(), n)); renderFloor(); }
 
+/* ---------- A day the plant does not work (owner, 21 Oct 2026: "Today is a holiday, yet the masthead says shift ends at 5") ----------
+   The plant's own calendar: the days marked shut (flowCfg.holidays and why, flow.js flowShutOn; marked here or in Settings →
+   Checks & alerts → Turnaround and terms), the paid holidays (Labour) and Sundays. A day the floor recorded work on (marks, a run, a
+   load) is a working day whatever it is (a Sunday worked). Never pay: what a day pays is Labour's, and a festival is not a paid
+   holiday (28 Aug 2026). */
+function plantDayWorked(iso) {
+  try {
+    if (attDaySummary(iso).marked) return true;
+    if (Object.keys(prodDayPlated(iso).lines).length > 0 || prodDayLoads(iso).length > 0) return true;
+  } catch (e) { /* a day that cannot be read is not called worked */ }
+  return false;
+}
+/* {kind: 'shut' | 'holiday' | 'sunday', why, worked} for a day the plant is not expected to work, else null. */
+function plantDayOff(iso) {
+  var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+  var off = shut ? { kind: 'shut', why: shut.why } : typeof labourIsHoliday === 'function' && labourIsHoliday(iso) ? { kind: 'holiday', why: '' }
+    : new Date(iso + 'T00:00:00').getDay() === 0 ? { kind: 'sunday', why: '' } : null;
+  if (!off || plantDayWorked(iso)) return null;
+  return off;
+}
+/* The day said in a few words: "Plant shut · Durga Puja", "Sunday: plant shut", "Paid holiday". */
+function plantDayOffText(off) {
+  if (!off) return '';
+  if (off.kind === 'shut') return 'Plant shut' + (off.why ? ' · ' + off.why : '');
+  return off.kind === 'sunday' ? 'Sunday: plant shut' : 'Paid holiday: plant shut';
+}
+/* Plant shut: a day or a run of days marked shut, with why (Durga Puja), from Home. Written as full dates into the days the plant
+   is shut (flowCfg.holidays), which the turnaround, the pace, the day's inputs and Home all read; the days marked from 30 days back
+   are listed with Remove. Settings' list keeps the yearly MM-DD ones. */
+function plantShutRows() {
+  var c = flowCfg(), from = isoAddDays(localDateStr(), -30);
+  return c.holidays.filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k) && k >= from; }).sort().map(function(k) { return { day: k, why: c.shutWhy[k] || '' }; });
+}
+function plantShutOpen(day) {
+  var today = localDateStr(), d = /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? day : today, rows = plantShutRows();
+  var f = function(fid, label, input, hint) { return '<div class="inv-field"><label class="inv-field-label" for="' + fid + '">' + label + '</label>' + input + (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>'; };
+  var list = rows.length ? '<div class="inv-panel inv-panel-flush inv-mt-8" data-plant-shut-list><div class="inv-panel-head"><span class="inv-panel-title">Marked shut <span class="inv-panel-count">' + rows.length + '</span></span></div>' +
+    rows.map(function(r) {
+      return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(attDayName(r.day) + ' ' + stockShortDate(r.day)) + '</span>' +
+        (r.why ? '<span class="inv-row-meta">' + escHtml(r.why) + '</span>' : '') + '</span><span class="inv-row-end"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlantShutDel" data-day="' + r.day + '">Remove</button></span></div>';
+    }).join('') + '</div>' : '';
+  dialogOpen('<div class="inv-dialog" data-plant-shut role="dialog" aria-modal="true" aria-labelledby="plantShutTitle">' +
+    dialogHeadHtml('<span id="plantShutTitle">Plant shut</span>') +
+    '<div class="inv-fields">' + f('plantShutFrom', 'From', '<input class="inv-input" type="date" id="plantShutFrom" value="' + d + '">') +
+      f('plantShutTo', 'To', '<input class="inv-input" type="date" id="plantShutTo" value="' + d + '">') + '</div>' +
+    f('plantShutWhy', 'Why', '<input class="inv-input" id="plantShutWhy" maxlength="40" placeholder="Durga Puja" autocomplete="off">', 'Home says it in place of the shift, and these days are not counted as working days. Pay is not touched: a paid holiday is set in Settings → Labour.') +
+    list +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invPlantShutSave">Mark shut</button></div></div>',
+    { dismiss: true, replace: !!document.querySelector('[data-plant-shut]') });
+}
+function plantShutAfter() {
+  if (typeof renderHome === 'function' && document.getElementById('homeDash')) renderHome();
+  if (document.querySelector('#pageFloor.inv-page-active') && typeof renderFloor === 'function') renderFloor();
+  if (typeof wsUpdateCounts === 'function') wsUpdateCounts();
+}
+function plantShutSave() {
+  var from = (document.getElementById('plantShutFrom') || {}).value || '', to = (document.getElementById('plantShutTo') || {}).value || from;
+  var why = String((document.getElementById('plantShutWhy') || {}).value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { showToast('Pick the first day the plant is shut', 'error'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from) to = from;
+  if (isoDaysBetween(from, to) > 31) { showToast('Mark at most a month at a time', 'error'); return; }
+  if (!grdGate('settings', 'mark the plant shut', plantShutSave)) return;
+  if (!S.flowCfg) S.flowCfg = {};
+  var h = Array.isArray(S.flowCfg.holidays) ? S.flowCfg.holidays.slice() : [], whyMap = Object.assign({}, flowCfg().shutWhy), n = 0;
+  for (var d = from, g = 0; d <= to && g < 40; g++, d = isoAddDays(d, 1)) {
+    if (h.indexOf(d) < 0) h.push(d);
+    if (why) whyMap[d] = why; else delete whyMap[d];
+    n++;
+  }
+  S.flowCfg.holidays = h.sort();
+  S.flowCfg.shutWhy = whyMap;
+  saveState();
+  closeTopOverlay();
+  showToast(n === 1 ? 'Marked shut: ' + attDayName(from) + ' ' + stockShortDate(from) : n + ' days marked shut', 'success');
+  plantShutAfter();
+}
+function plantShutDel(day) {
+  if (!grdGate('settings', 'change the days the plant is shut', function() { plantShutDel(day); })) return;
+  if (!S.flowCfg || !Array.isArray(S.flowCfg.holidays)) return;
+  S.flowCfg.holidays = S.flowCfg.holidays.filter(function(k) { return k !== day; });
+  if (S.flowCfg.shutWhy) { var w = Object.assign({}, S.flowCfg.shutWhy); delete w[day]; S.flowCfg.shutWhy = w; }
+  saveState();
+  showToast('No longer marked shut: ' + attDayName(day) + ' ' + stockShortDate(day), 'info');
+  plantShutOpen(day);
+  plantShutAfter();
+}
+
 function flrAction(action, btn) {
   switch (action) {
+    case 'invPlantShut': plantShutOpen(btn.dataset.day); return true;
+    case 'invPlantShutSave': plantShutSave(); return true;
+    case 'invPlantShutDel': plantShutDel(btn.dataset.day); return true;
     // A day stepped to is a place of its own (the address carries it); the page and the focus stay where they were.
     case 'invFlrStep': keepScroll(function() { flrStep(+btn.dataset.step || 0); }); return true;
     case 'invFlrToday': keepScroll(function() { _flrDay = null; renderFloor(); }); return true;

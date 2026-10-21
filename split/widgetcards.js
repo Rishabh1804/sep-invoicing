@@ -23,6 +23,10 @@ function wcFigUnit(fig, unit, tone) {
   var f = tone && tone !== 'neutral' ? figHtml(escHtml(String(fig)), tone) : escHtml(String(fig));
   return f + (unit ? '<span class="inv-unit">' + escHtml(unit) + '</span>' : '');
 }
+/* A count with its unit and a sum after it (the canvas's "2 to bill, ₹2,300"): the sum short, its exact amount its title (§24k). */
+function wcFigUnitSum(fig, unit, amt) {
+  return escHtml(String(fig)) + '<span class="inv-unit">' + escHtml(unit) + ', ' + inrFigHtml(amt, { inline: true }) + '</span>';
+}
 /* A day short (16 Oct), a time where it is today (2:30 PM): how fresh a record is, for a Source. */
 function wcWhen(ts) {
   if (!ts) return '';
@@ -373,7 +377,7 @@ wdgDefine({ id: 'unbilled', title: 'Unbilled challans', short: 'Unbilled', short
       : imDatedAhead(ims[0]) ? 'The oldest is dated ' + stockDayLabel(ims[0].challanDate) : oldest == null ? 'The oldest has no challan date'
       : oldest === 0 ? 'All came in today' : 'The oldest has waited ' + pipeDays(oldest);
     return Object.assign(base, { tone: tone, say: say, sayTone: tone, tones: tones, amt: amt, oldest: oldest, red: red, amber: amber,
-      fig: wcFigUnit(ims.length, ctx.size !== 's' && money ? 'to bill, ' + wcRs(amt) : 'to bill') });
+      fig: ctx.size !== 's' && money ? wcFigUnitSum(ims.length, 'to bill', amt) : wcFigUnit(ims.length, 'to bill') });
   },
   draw: function(d, size) {
     if (!d.ims.length) return '';
@@ -449,7 +453,8 @@ wdgDefine({ id: 'recent', title: 'Recent invoices', q: 'What went out last?', se
     var list = inWeek.length >= 6 ? inWeek.slice(0, 30) : mine.slice(0, ctx.size === 'l' ? 10 : 6);
     var w = wcRecentWaiting(now);
     return { state: 'ok', tone: w.tone, list: list, week: inWeek.length >= 6, attrs: ' data-card="recent-pulse"', printed: pipeInvoices('printed'),
-      fig: wcFigUnit(shown.length, (day.length || !week.length ? 'made today' : 'made this week') + (shown.length && wdgSeesMoney() ? ', ' + wcRs(sum) : '')),
+      fig: shown.length && wdgSeesMoney() ? wcFigUnitSum(shown.length, day.length || !week.length ? 'made today' : 'made this week', sum)
+        : wcFigUnit(shown.length, day.length || !week.length ? 'made today' : 'made this week'),
       say: w.say, sayTone: w.tone };
   },
   draw: function(d) {

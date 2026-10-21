@@ -147,12 +147,13 @@ test.describe('P44: pay', () => {
     await load(page, { attendance: { [t]: { marks: { 1: { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }, 2: { st: 'A', ot: 0, hours: 0, area: 'flex' } }, extra: [{ kind: 'coverage', area: 'vat-a1', hours: 8 }], note: '' } } } as any);
     await openWidget(page, 'attendance');
     const card = page.locator('[data-w="atttoday"]');
-    // A Crew card since U2R: on site, absent and unmarked in its detail, who is away by name, the EXTRA in its Source.
+    // A Crew card since U2R: on site, absent and unmarked in its detail, who is away by name, the EXTRA booked beside its figure
+    // (the agreed canvas's "16 h EXTRA booked").
     await expect(card).toContainText('today');
     await expect(page.locator('#homeAttOnSite')).toHaveText('1/3');
     await expect(card).toContainText('1 absent, 1 unmarked');
     await expect(card.locator('[data-wc-away]')).toContainText('Bala');
-    await expect(card.locator('.inv-widget-src')).toContainText('8 h EXTRA booked');
+    await expect(card.locator('[data-wc-extra]')).toHaveText(/^8\s*h EXTRA booked$/);
     // Its head opens the day (the card's Open; its own Open link went in U2R).
     await card.locator('.inv-widget-head [data-action="invWdgGo"]').click();
     await expect(page.locator('#attDate')).toHaveValue(t);

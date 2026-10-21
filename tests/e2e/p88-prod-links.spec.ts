@@ -101,7 +101,8 @@ test.describe('P88: Production in the rest of the app', () => {
     // The last day plated is Pulse's production card (one unit: 100 kg written, nothing estimated); Floor's is the day on its stepper.
     await openWidget(page, 'production');
     // A widget since UI pass 3 (U2): the hero's day is on the card itself, its figure the widget's.
-    await expect(page.locator('[data-w="prodday"][data-prod-day] .inv-widget-fig')).toHaveText('100 kg');
+    // Its figure says the day after its unit (the agreed canvas's "326 kg plated yesterday"): the last working day.
+    await expect(page.locator('[data-w="prodday"][data-prod-day] .inv-widget-fig')).toHaveText(/^100\s*kg plated (yesterday|on .+)$/);
     // Record coverage is Entries' since the tab map (TM4c), folded under its card.
     await switchTab(page, 'pageProduction');
     await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();

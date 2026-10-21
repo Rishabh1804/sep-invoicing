@@ -1335,6 +1335,14 @@ function chartDayStrip(spans, opts) {
     (opts.title ? '<title>' + escHtml(opts.title) + '</title>' : '') + '<rect class="inv-meter-track" x="0" y="0" width="100" height="8"></rect>' + rects + marks + '</svg>' +
     (opts.axis === false ? '' : '<span class="inv-daystrip-axis" aria-hidden="true"><span>6 AM</span><span>noon</span><span>6 PM</span><span>midnight</span><span>6 AM</span></span>') + '</span>';
 }
+/* A Ledger line's bar (widgets.js wdgLedgerHtml's `bars`, the canvas's Why it moved): from a middle rule, left for less and right for
+   more, every line on one scale (`max`, the largest of them), stretched to its column with no aspect, the rule and the bar their own
+   height; nothing but the rule for a line of nothing. */
+function chartLedgerBar(v, max) {
+  var w = max > 0 && Math.abs(v) > 0 ? Math.max(1.5, Math.abs(v) / max * 46) : 0;
+  return '<svg class="inv-ledger-bar" viewBox="0 0 96 12" preserveAspectRatio="none" aria-hidden="true"><line class="inv-ledger-bar-mid" x1="48" x2="48" y1="0" y2="12"/>' +
+    (w ? '<rect class="inv-ledger-bar-' + (v < 0 ? 'less' : 'more') + '" x="' + _chartN(v < 0 ? 48 - w : 48) + '" y="2" width="' + _chartN(w) + '" height="8"/>' : '') + '</svg>';
+}
 /* A day in lanes (the canvas's floor now): a lane a line, 6 AM to 6 AM, its runs in the ok mark (a run outside the general shift
    lighter), the day's cuts hatched in the danger mark across every lane, the general shift's ends dashed, and now. Drawn with no
    viewBox, so a span's place and width are shares of the width while the lanes, the hatching and the word "now" keep their pixels

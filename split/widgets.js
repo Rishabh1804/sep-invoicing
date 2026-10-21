@@ -659,11 +659,7 @@ function wdgLedgerHtml(lines, total, o) {
   // o.bars: each line its bar from a middle rule where its leader was (left for less, right for more, every bar on one scale), its
   // words under its name (the canvas's Why it moved: causes that add up to the change). The total keeps its leader.
   var barMax = o.bars ? Math.max.apply(null, list.map(function(x) { return num(x) ? Math.abs(Number(x.amt)) : 0; }).concat([0])) : 0;
-  var bar = function(x) {
-    var v = num(x) ? Number(x.amt) : 0, w = barMax > 0 && Math.abs(v) > 0 ? Math.max(1.5, Math.abs(v) / barMax * 46) : 0;
-    return '<svg class="inv-ledger-bar" viewBox="0 0 96 12" preserveAspectRatio="none" aria-hidden="true"><line class="inv-ledger-bar-mid" x1="48" x2="48" y1="0" y2="12"/>' +
-      (w ? '<rect class="inv-ledger-bar-' + (v < 0 ? 'less' : 'more') + '" x="' + _chartN(v < 0 ? 48 - w : 48) + '" y="2" width="' + _chartN(w) + '" height="8"/>' : '') + '</svg>';
-  };
+  var bar = function(x) { return chartLedgerBar(num(x) ? Number(x.amt) : 0, barMax); };
   var line = function(x, cls, isTotal) {
     var has = num(x), r = has ? gstRound(Number(x.amt), dp) : null;
     var shown = x.text != null ? figHtml(escHtml(x.text), x.tone || null) : has ? figHtml(escHtml(fmt(Number(x.amt))), x.tone || null) : '&mdash;';

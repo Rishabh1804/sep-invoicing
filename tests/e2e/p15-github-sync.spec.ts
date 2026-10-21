@@ -338,7 +338,9 @@ test.describe('GitHub sync — configuration', () => {
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="sync"]').click();
 
     await expect(card).toHaveAttribute('data-state', 'ok');
-    await expect(card).toContainText('testowner/testrepo');
+    // The agreed canvas's Backup card says which way the copy went and how big the book is; the repository is that line's title.
+    await expect(card).toContainText('Not backed up yet');
+    await expect(card.locator('.inv-widget-sub')).toHaveAttribute('title', 'testowner/testrepo');
   });
 
   test('changing the target repo drops the remembered sha', async ({ page }) => {

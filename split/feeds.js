@@ -1456,6 +1456,8 @@ function feedCheck() {
   return feedAsk(url, '/health', '').then(function(r) {
     if (r.ok && r.json && typeof r.json === 'object' && r.json.ok === true) {
       var t = Date.parse(r.json.at || '');
+      // The Worker answers, so the six hours the app holds it off after it could not be reached are over: Home asks it next.
+      if ((feedStoreRec('direct') || {}).at) feedStorePut('direct', {});
       say('ok', 'Reached: the feeds Worker answered' + (isFinite(t) ? ', its clock at ' + formatTimestamp(t) : '') + '.');
       return true;
     }

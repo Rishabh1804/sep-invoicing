@@ -19,10 +19,16 @@ carries **this repo's side** of it: the work queued here, and what this app prod
   today; *Plant shut…* in Home's More marks a holiday, which the masthead then says in the shift's place; the news (GDELT) and the
   weather (MET Norway) arrive with no Worker deployed, at the place read from the company's address. **A layout the owner arranged
   before is kept**: *Reset Home* takes the new preset.
-- **The build stops again for the owner to look** at Home. **U3 waits on their word.** Still open with them: closing PR #153.
+- **The build stops again for the owner to look** at Home. **U3 waits on their word.** PR #153 is closed (owner, 21 Oct 2026: closed
+  if nothing on it needed attention; nothing did, and #154 had built all of it).
+- **The feeds Worker is being set up at `feeds.somaelectro.co.in`** (owner, 21 Oct 2026). The zone is already on Cloudflare (its
+  nameservers are Cloudflare's), and the app and `wrangler.toml` already name the address, so the rest is the owner's in the dashboard:
+  `server/feeds/README.md`'s four steps, which the guide *Setting up: the news and weather* (v3) now matches (the Worker named
+  `sep-feeds`, `ALLOWED_ORIGINS` left to the repository). **Check** reaching the Worker ends the six hours a device holds it off
+  (`feedCheck`; P241). Cloudflare's connector (*Cloudflare Developer Platform*) is installed for the org and not connected.
 - **A data flow changed** (the interface table below): `flowCfg.shutWhy` in the book; the place and whether the Worker answered on the
   device only; new requests to Nominatim, GDELT and MET Norway from the device.
-- **The suite is 2,087 tests.**
+- **The suite is 2,089 tests.**
 
 ## Built 20 Oct 2026: UI pass 3, U2R (the card family), then the second stop
 

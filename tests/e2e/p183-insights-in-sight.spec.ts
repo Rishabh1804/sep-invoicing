@@ -41,6 +41,26 @@ test.describe('P183: a group of a workspace\'s views is named where the phone ca
     });
   }
 
+  // Home leads (21 Oct 2026): Needs you carries the red count, which changes while the row stands. A count the row cannot hold
+  // turns the rule into the word, and one it can hold brings the rule back, with no redraw of the row.
+  test('a 393 px phone: a Needs you count too long for the row turns the rule into the word, and back', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 800 });
+    await loadAppWithState(page, emptyState());
+    await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
+    const count = page.locator('#wsTabs [data-v="needs"] .inv-viewtab-count');
+    await g(page, `window.wsRedCounts = function() { return { today: 1250 }; }; wsUpdateCounts()`);
+    await expect(count).toHaveText('1250');
+    let a = await rects(page, '[data-v="needs"]');
+    expect(a.group).toBe('word');
+    expect(a.over).toBe(true);
+    await g(page, `window.wsRedCounts = function() { return { today: 3 }; }; wsUpdateCounts()`);
+    await expect(count).toHaveText('3');
+    a = await rects(page, '[data-v="needs"]');
+    expect(a.group).toBe('rule');
+    expect(a.over).toBe(false);
+    expect(a.last[1]).toBeLessThanOrEqual(a.row[1] + 0.5);
+  });
+
   test('a row that does not fit names its group in a word at its right edge until the group is in view, and a tap brings it in', async ({ page }) => {
     // No row of the map is that long now (Office's ran to nine until 9 Oct 2026, its Insights out of sight): one is drawn here,
     // Office's five views and the three Insights again after their name, to keep the cue proven for a narrow phone or a

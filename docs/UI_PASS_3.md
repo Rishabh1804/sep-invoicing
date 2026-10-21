@@ -2149,7 +2149,8 @@ Built the same day (P241; the specs that read U2R's Home rewritten to the same f
   weather (the site named). Each answer is read by the Worker's own checks (`feedNormNews`, `feedNormWeather`).
 - **What leaves the device is unchanged**: the topics, the models' words and the plant's place to two decimals.
 - **Once the Worker cannot be reached, it is not asked again for six hours** (`sep_inv_feeds.direct`); one that answers is used
-  whenever it does. Each copy says how it came (`via`), and Settings' status row says *straight from GDELT* or *straight from MET Norway*.
+  whenever it does, and Settings' **Check** reaching it ends the six hours on that device (`feedCheck`), so the Worker set up later is
+  asked at once. Each copy says how it came (`via`), and Settings' status row says *straight from GDELT* or *straight from MET Norway*.
 - **A source that fails is named** (*GDELT could not be reached*), and the card says it is asked again when Home is next opened, never
   *not set up*.
 - **The three sources answer a browser**: MET Norway and Nominatim send `access-control-allow-origin: *` (checked from the sandbox, 21 Oct
@@ -2166,7 +2167,9 @@ Built the same day (P241; the specs that read U2R's Home rewritten to the same f
 
 - *Needs you · 27* was the open tasks after the masthead's button, as the canvas drew it. It is gone.
 - **The red rows that need you now** (the Home door's own count, `wsRedCounts`) are a badge on Needs you's tab, beside its word
-  (`inv-viewtab-count`, `wsTabCountHtml`, `data-ws-count="today"`), and on the Home door as before. Hidden at nought.
+  (`inv-viewtab-count`, `wsTabCountHtml`, `data-ws-count="today"`), and on the Home door as before. Hidden at nought. It is the
+  door's size (16 px), raised beside the word, and on the phone its tab gives back its right padding: Home's row then fits a 393 px
+  phone with two figures in CI's wider text, with 5.3 px to spare (one figure, 11.4 px; P183).
 
 ### 25d. A day the plant does not work
 

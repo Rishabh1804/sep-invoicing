@@ -628,18 +628,21 @@ var KB_APP_GUIDES = [
     '- For the address, the app asks OpenStreetMap once, with the parts of the address that have no number. It keeps the place on this device only, never in the book.\n' +
     '- If OpenStreetMap does not find the address, the app asks again after a day. To give the place yourself, type the latitude and the longitude in Settings.\n\n' +
     '# With no Worker\n- When the Worker cannot be reached, the app asks GDELT and MET Norway itself. It does not ask the Worker again for 6 hours.\n' +
+    '- When the Worker answers **Check**, the 6 hours stop on this device. Another device asks the Worker again within 6 hours, or when you tap **Check** on it.\n' +
     '- Settings → Connections → **News and weather** says **straight from GDELT** or **straight from MET Norway** next to each feed.\n' +
     '- GDELT answers 1 request in 5 seconds from one address. The app asks the 4 news topics 6 seconds apart.\n\n' +
     '# The Worker in Cloudflare, once (optional)\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
-    '2. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
-    '3. In the Worker’s **Settings → Variables**, add `ALLOWED_ORIGINS`. Type each address of the app, with a comma between them. Settings in the app shows the address of this app.\n' +
-    '4. Add `CONTACT` too. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
-    '5. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
+    '2. Name the Worker `sep-feeds`, as `wrangler.toml` names it. If the 2 names are different, Cloudflare stops the build.\n' +
+    '3. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
+    '4. Set the build watch path to `server/feeds/*`. Then only a change to the Worker starts a build.\n' +
+    '5. In the Worker’s **Settings → Variables and Secrets**, add `CONTACT` as text. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
+    '6. Do not add `ALLOWED_ORIGINS` there. It comes from `wrangler.toml`, and each deploy writes it again. If the app opens at an address that is not in it, add the address in `wrangler.toml`.\n' +
+    '7. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
     '# In the app\n1. Open Settings → Connections → **News and weather**. Make sure that **Show the news and the weather** is ticked.\n' +
     '2. If a Worker is set up at another address, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
     '3. If the place shown is not the plant, type its latitude and longitude. Tap **Save**.\n' +
     '4. Open Home. The app gets the news and the weather. Then it asks again only when Home opens and its copy is more than 30 minutes old.\n\n' +
-    '# What Check says\n- **Reached**: the Worker answered.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
+    '# What Check says\n- **Reached**: the Worker answered. Home asks the Worker next.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
     '- **Not reachable**: nothing answered. With no Worker, the app asks the sources straight.\n' +
     '- **No answer in 8 seconds**: try again later.\n\n' +
     '# What the app sends\n- The 4 news topics: the sales, Jamshedpur, the models and the exports.\n- The models that you follow, as words.\n' +
@@ -652,7 +655,9 @@ var KB_APP_GUIDES = [
     '- A headline can say that the plant is shut or works on a day. The app shows it with **Add**. The calendar changes only when you tap.\n\n' +
     '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The place: OpenStreetMap. The app shows the credits under its news and its weather.',
     // Version 2 (owner, 21 Oct 2026: "Ask the sources directly"): the sources straight where no Worker answers, and the place from the address.
-    { roles: [], version: 2 })
+    // Version 3 (21 Oct 2026, the Worker set up on Cloudflare): its name as wrangler.toml has it, ALLOWED_ORIGINS left to the repository
+    // (a deploy writes it again), and Check ending the 6 hours.
+    { roles: [], version: 3 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of

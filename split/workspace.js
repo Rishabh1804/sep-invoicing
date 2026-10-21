@@ -347,12 +347,15 @@ function wsTabCountHtml(id) {
 }
 function wsUpdateCounts() {
   if (!S) return;
-  var n = _wsCounts = wsRedCounts();
+  var n = _wsCounts = wsRedCounts(), moved = false;
   document.querySelectorAll('[data-ws-count]').forEach(function(el) {
-    var k = n[el.dataset.wsCount] || 0;
-    el.textContent = k ? String(k) : '';
+    var k = n[el.dataset.wsCount] || 0, t = k ? String(k) : '';
+    if (el.classList.contains('inv-viewtab-count') && el.textContent !== t) moved = true;
+    el.textContent = t;
     el.classList.toggle('inv-hidden', !k);
   });
+  // A tab's count that came, went or changed its figures changes its row's width: the row is fitted again (the rule or the word).
+  if (moved) wsRowFit();
 }
 
 /* ---------- Doing ---------- */

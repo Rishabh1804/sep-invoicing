@@ -265,7 +265,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,087 tests, both layouts
+pnpm exec playwright test          # 2,089 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -974,6 +974,9 @@ facts. **The build stops again for the owner to look.**
   buttons, `uiToolbarMoreHtml({ghost})`), so the toolbar has no row of its own there (it has one on the desktop and while arranging).
 - **Needs you's count is a badge** on its tab (`inv-viewtab-count`, `wsTabCountHtml`, `data-ws-count="today"`): the red rows, the
   Home door's own count. A spec reading the door's count scopes it (`.inv-navbar [data-ws-count]`), since the tab carries one too.
+  It is the door's size, raised beside its word, and the tab gives back its right padding on the phone: drawn 20 px with a 6 px gap
+  first, it took the 393 px row past the screen in CI's 0.5% wider text (P183), measured here with `letter-spacing: 0.005em`. A count
+  that changes fits the row again (`wsUpdateCounts` → `wsRowFit`): a count the row cannot hold makes the group's word the cue.
 - **Home reads this month** (`wdgPeriod('home')`, widgets.js): the period chips are gone; Stats keeps `_statsPeriod`, and changing it
   no longer redraws Home (`_homeDrawnPeriod` retired). More's *Make a report* opens this month's report (`data-period`).
 - **A day the plant does not work** (`plantDayOff`, floor.js): a day marked shut (`flowCfg.holidays`, its reason in
@@ -986,7 +989,8 @@ facts. **The build stops again for the owner to look.**
   another thing: Tata Motors' Jamshedpur plant.)
 - **The news and the weather straight from the sources** (feeds.js, `feedAskVia`): the feeds Worker first; where it cannot be reached (no
   answer, not its own, a 404 or 5xx) the app asks GDELT (`feedDirectNews`, the topics 6 s apart) and MET Norway (`feedDirectWeather`)
-  itself, in the Worker's shape and read by the Worker's checks, and does not ask the Worker again for six hours (`sep_inv_feeds.direct`).
+  itself, in the Worker's shape and read by the Worker's checks, and does not ask the Worker again for six hours (`sep_inv_feeds.direct`),
+  unless Settings' **Check** reaches it (`feedCheck` ends the hold on that device).
   Each copy says how it came (`via`). **The weather's place**: the one typed, else the Office QR's, else the company's address placed on
   OpenStreetMap's Nominatim once an address (`feedGeoEnsure`: the parts with no figure, at most three asks 1.2 s apart, kept on the
   device in `sep_inv_feeds.geo`, never in the book; Settings shows it as the fields' placeholders). Under test only where a fixture says

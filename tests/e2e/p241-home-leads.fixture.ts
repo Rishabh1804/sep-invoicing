@@ -397,6 +397,41 @@ export async function directSources(page: Page) {
   expect(seen.met.length).toBe(met + 1);
 }
 
+/* The Worker set up after the app held it off: Check reaching it ends the six hours, so the next ask is the Worker's. Only its
+   weather fails at first, so the hold is set with no topic of GDELT's asked six seconds apart. */
+export async function checkEndsHold(page: Page) {
+  await feedsOn(page);
+  await page.addInitScript(() => { (window as any).__sepFeedsDirect = true; });
+  await page.clock.setFixedTime(testTime());
+  const seen = await fakeSources(page);
+  let up = false;
+  const ok = okWorker(() => newsAnswer(), () => weatherAnswer());
+  const calls = await fakeWorker(page, c => !up && c.path === '/weather' ? { status: 404, json: { error: 'not found' } } : ok(c));
+  const s = emptyBook();
+  s.feedsCfg = { on: true, url: FEED_BASE, lat: FAKE_LAT, lon: FAKE_LON, place: 'Test place' };
+  await loadAppWithState(page, s);
+  await page.evaluate(() => (window as any).feedEnsure());
+  await g(page, 'homeClockStop()');
+  // No weather from a Worker at the address: MET Norway asked straight, and the Worker held off.
+  let copy = await feedCopy(page);
+  expect(copy.weather.via).toBe('direct');
+  expect(copy.direct.at).toBeGreaterThan(0);
+  // The Worker is set up, and Check reaches it: the hold is over.
+  up = true;
+  await openSettingsAt(page, 'feeds');
+  await page.locator('[data-sec="feeds"] [data-action="invFeedCheck"]').click();
+  await expect(page.locator('[data-feed-check="ok"]')).toContainText('Reached');
+  copy = await feedCopy(page);
+  expect(copy.direct.at).toBeFalsy();
+  await page.keyboard.press('Escape');
+  // The next weather, well inside the six hours, is the Worker's, and MET Norway is not asked again.
+  const asked = calls.filter(c => c.path === '/weather').length, met = seen.met.length;
+  await page.clock.setFixedTime(new Date(testTime().getTime() + 2 * 60000));
+  expect(await page.evaluate(() => (window as any).feedRefresh('weather'))).toEqual({ ok: true, via: 'service' });
+  expect(calls.filter(c => c.path === '/weather')).toHaveLength(asked + 1);
+  expect(seen.met.length).toBe(met);
+}
+
 /* Under test the sources and the address's place are never asked unless a spec says so. */
 export async function quietUnderTest(page: Page) {
   await feedsOn(page);

@@ -1414,12 +1414,13 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
 
-/* The same count on a view's tab (Needs you's: the red rows that need you now), beside its word rather than on a mark. */
+/* The same count on a view's tab (Needs you's: the red rows that need you now), at the door's size, raised beside its word as a
+   notification mark (nudged, so the word keeps its line). Home's five views fit a 393 px phone with it, two figures included (P183). */
 .inv-viewtab-count {
-  display: inline-block; margin-left: var(--sp-6); vertical-align: middle;
-  min-width: var(--sp-20); height: var(--sp-20); padding: 0 var(--sp-6);
+  display: inline-block; position: relative; top: calc(-1 * var(--sp-4)); margin-left: var(--sp-2); vertical-align: middle;
+  min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
-  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-20); text-align: center; font-variant-numeric: tabular-nums;
+  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center; font-variant-numeric: tabular-nums;
 }
 
 /* ======================================================================
@@ -2651,6 +2652,8 @@ body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); h
    narrow phone (a 360 px screen). */
 body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
 @media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
+/* A tab carrying its count ends in the pill's round end, so it gives back most of its own right padding to the row. */
+body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab:has(> .inv-viewtab-count:not(.inv-hidden)) { padding-right: var(--sp-4); }
 /* Where the row's views fit with the group set off by a rule, the name is that rule, as on the desktop (wsRowFit, the tab map):
    the word is the cue for a group out of sight, and a row with nothing out of sight needs none. */
 body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group { position: static; padding: 0 var(--sp-4); font-size: 0; background: none; cursor: default; }

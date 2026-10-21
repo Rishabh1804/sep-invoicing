@@ -603,8 +603,10 @@ cue to scroll a row that does not; only a row that would run past the screen kee
 without its note (`data-more` start | end | both); the workspace's row never fades, its cue being the group's name.
 **A view may carry a red count** (owner, 21 Oct 2026: *"that should be shown as notification dots"*): Home's Needs you carries the red
 rows that need you now, the same count as the Home door's, as a pill beside its word (`inv-viewtab-count`, `wsTabCountHtml`,
-`data-ws-count`): `--fs-11` 700 in `--surface` on `--danger`, `--sp-20` tall, hidden at nought. Only a view whose red rows a door
-already counts carries one.
+`data-ws-count`): `--fs-11` 700 in `--surface` on `--danger`, the door's size (`--sp-16` tall, `--sp-4` inside), raised `--sp-4` by a
+nudge that leaves the word on its line, hidden at nought. On the phone the tab carrying it gives back its right padding to `--sp-4`,
+so Home's five views fit a 393 px phone with a count of two figures in CI's wider text; a third figure lets the group's word be the cue
+(P183). Only a view whose red rows a door already counts carries one.
 
 ### 6.5 Segmented control — `inv-seg`
 A well (UI pass 3): the track sinks into its card (`--well`, `--press-1`, `--r-ctl`, its fine edge) and the pressed segment is a

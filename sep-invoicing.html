@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="cfa6a4fe">
+<meta name="app-build" content="8aef86d3">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1436,12 +1436,13 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
 
-/* The same count on a view's tab (Needs you's: the red rows that need you now), beside its word rather than on a mark. */
+/* The same count on a view's tab (Needs you's: the red rows that need you now), at the door's size, raised beside its word as a
+   notification mark (nudged, so the word keeps its line). Home's five views fit a 393 px phone with it, two figures included (P183). */
 .inv-viewtab-count {
-  display: inline-block; margin-left: var(--sp-6); vertical-align: middle;
-  min-width: var(--sp-20); height: var(--sp-20); padding: 0 var(--sp-6);
+  display: inline-block; position: relative; top: calc(-1 * var(--sp-4)); margin-left: var(--sp-2); vertical-align: middle;
+  min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
-  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-20); text-align: center; font-variant-numeric: tabular-nums;
+  font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center; font-variant-numeric: tabular-nums;
 }
 
 /* ======================================================================
@@ -2673,6 +2674,8 @@ body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); h
    narrow phone (a 360 px screen). */
 body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
 @media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
+/* A tab carrying its count ends in the pill's round end, so it gives back most of its own right padding to the row. */
+body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab:has(> .inv-viewtab-count:not(.inv-hidden)) { padding-right: var(--sp-4); }
 /* Where the row's views fit with the group set off by a rule, the name is that rule, as on the desktop (wsRowFit, the tab map):
    the word is the cue for a group out of sight, and a row with nothing out of sight needs none. */
 body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group { position: static; padding: 0 var(--sp-4); font-size: 0; background: none; cursor: default; }
@@ -60443,6 +60446,8 @@ function feedCheck() {
   return feedAsk(url, '/health', '').then(function(r) {
     if (r.ok && r.json && typeof r.json === 'object' && r.json.ok === true) {
       var t = Date.parse(r.json.at || '');
+      // The Worker answers, so the six hours the app holds it off after it could not be reached are over: Home asks it next.
+      if ((feedStoreRec('direct') || {}).at) feedStorePut('direct', {});
       say('ok', 'Reached: the feeds Worker answered' + (isFinite(t) ? ', its clock at ' + formatTimestamp(t) : '') + '.');
       return true;
     }
@@ -68022,18 +68027,21 @@ var KB_APP_GUIDES = [
     '- For the address, the app asks OpenStreetMap once, with the parts of the address that have no number. It keeps the place on this device only, never in the book.\n' +
     '- If OpenStreetMap does not find the address, the app asks again after a day. To give the place yourself, type the latitude and the longitude in Settings.\n\n' +
     '# With no Worker\n- When the Worker cannot be reached, the app asks GDELT and MET Norway itself. It does not ask the Worker again for 6 hours.\n' +
+    '- When the Worker answers **Check**, the 6 hours stop on this device. Another device asks the Worker again within 6 hours, or when you tap **Check** on it.\n' +
     '- Settings → Connections → **News and weather** says **straight from GDELT** or **straight from MET Norway** next to each feed.\n' +
     '- GDELT answers 1 request in 5 seconds from one address. The app asks the 4 news topics 6 seconds apart.\n\n' +
     '# The Worker in Cloudflare, once (optional)\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
-    '2. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
-    '3. In the Worker’s **Settings → Variables**, add `ALLOWED_ORIGINS`. Type each address of the app, with a comma between them. Settings in the app shows the address of this app.\n' +
-    '4. Add `CONTACT` too. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
-    '5. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
+    '2. Name the Worker `sep-feeds`, as `wrangler.toml` names it. If the 2 names are different, Cloudflare stops the build.\n' +
+    '3. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
+    '4. Set the build watch path to `server/feeds/*`. Then only a change to the Worker starts a build.\n' +
+    '5. In the Worker’s **Settings → Variables and Secrets**, add `CONTACT` as text. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
+    '6. Do not add `ALLOWED_ORIGINS` there. It comes from `wrangler.toml`, and each deploy writes it again. If the app opens at an address that is not in it, add the address in `wrangler.toml`.\n' +
+    '7. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
     '# In the app\n1. Open Settings → Connections → **News and weather**. Make sure that **Show the news and the weather** is ticked.\n' +
     '2. If a Worker is set up at another address, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
     '3. If the place shown is not the plant, type its latitude and longitude. Tap **Save**.\n' +
     '4. Open Home. The app gets the news and the weather. Then it asks again only when Home opens and its copy is more than 30 minutes old.\n\n' +
-    '# What Check says\n- **Reached**: the Worker answered.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
+    '# What Check says\n- **Reached**: the Worker answered. Home asks the Worker next.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
     '- **Not reachable**: nothing answered. With no Worker, the app asks the sources straight.\n' +
     '- **No answer in 8 seconds**: try again later.\n\n' +
     '# What the app sends\n- The 4 news topics: the sales, Jamshedpur, the models and the exports.\n- The models that you follow, as words.\n' +
@@ -68046,7 +68054,9 @@ var KB_APP_GUIDES = [
     '- A headline can say that the plant is shut or works on a day. The app shows it with **Add**. The calendar changes only when you tap.\n\n' +
     '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The place: OpenStreetMap. The app shows the credits under its news and its weather.',
     // Version 2 (owner, 21 Oct 2026: "Ask the sources directly"): the sources straight where no Worker answers, and the place from the address.
-    { roles: [], version: 2 })
+    // Version 3 (21 Oct 2026, the Worker set up on Cloudflare): its name as wrangler.toml has it, ALLOWED_ORIGINS left to the repository
+    // (a deploy writes it again), and Check ending the 6 hours.
+    { roles: [], version: 3 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of
@@ -74168,12 +74178,15 @@ function wsTabCountHtml(id) {
 }
 function wsUpdateCounts() {
   if (!S) return;
-  var n = _wsCounts = wsRedCounts();
+  var n = _wsCounts = wsRedCounts(), moved = false;
   document.querySelectorAll('[data-ws-count]').forEach(function(el) {
-    var k = n[el.dataset.wsCount] || 0;
-    el.textContent = k ? String(k) : '';
+    var k = n[el.dataset.wsCount] || 0, t = k ? String(k) : '';
+    if (el.classList.contains('inv-viewtab-count') && el.textContent !== t) moved = true;
+    el.textContent = t;
     el.classList.toggle('inv-hidden', !k);
   });
+  // A tab's count that came, went or changed its figures changes its row's width: the row is fitted again (the rule or the word).
+  if (moved) wsRowFit();
 }
 
 /* ---------- Doing ---------- */

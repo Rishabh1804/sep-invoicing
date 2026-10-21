@@ -71,12 +71,16 @@ test.describe('P223 Home and its board (phone)', () => {
     expect(await g(page, '_homeClockT')).toBeNull();
     await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
     await expect(card.locator('[data-home-clock]')).toHaveText('9:43 AM');
-    // The Act: Needs you. On the phone the masthead carries no report; the toolbar’s More makes one of the period Home shows.
+    // The Act: Needs you, and today's report, the two the agreed canvas's phone draws (owner, 20 Oct 2026, §24o); the toolbar’s
+    // More makes one of the period Home shows.
     await expect(card.locator('[data-home-needs]')).toContainText('Open Needs you');
-    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
+    await expect(card.locator('[data-action="invHomeReport"]')).toHaveText('Make today’s report');
     await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
     await expect.poll(() => where(page)).toEqual(['pageReports', 'monthly/' + todayIso().slice(0, 8) + '01']);
+    await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
+    await card.locator('[data-action="invHomeReport"]').click();
+    await expect.poll(() => where(page)).toEqual(['pageReports', 'daily/' + todayIso()]);
   });
 
   test('the masthead leads with what is red, in danger, with the ID’s name; a role without Reports has no report to make', async ({ page }) => {
@@ -92,8 +96,9 @@ test.describe('P223 Home and its board (phone)', () => {
     await expect(card).toContainText(/things? needs? you now/);
     await expect(card).toHaveAttribute('data-tone', 'danger');
     await expect(card.locator('.inv-mast-say')).toHaveClass(/inv-dot-danger/);
-    // The phone's masthead carries no report (§24j); the owner makes one from the toolbar's More, the office cannot.
-    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
+    // The masthead's second action is today's report (the canvas's phone draws it, §24o), the owner's as the toolbar's More is;
+    // the office opens no Reports, so neither is drawn for it.
+    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(1);
     expect(await toolbarMoreLabels(page)).toContain('Make a report');
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
@@ -265,8 +270,9 @@ test.describe('P223 Home and its board (phone)', () => {
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     await unlock(page, 'U-own', PINS.owner);
-    // The presets are U2R's (§24i), each packing with no hole; the phone's Owner leaves out Do first, Turnaround and Days to pay.
-    expect(await ids(page)).toEqual(['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'atttoday', 'q-smooth']);
+    // The presets are U2R's (§24i), each packing with no hole; the phone's Owner holds all fourteen, in the order the canvas's phone
+    // draws them (the agreed artifact, 20 Oct 2026).
+    expect(await ids(page)).toEqual(['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'turn', 'dtp', 'atttoday', 'q-smooth', 'dofirst']);
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
     expect(await ids(page)).toEqual(['needs', 'quick', 'unbilled', 'quote', 'weather', 'pipe', 'recent', 'tata', 'coming']);
@@ -319,7 +325,7 @@ test.describe('P223 Home and its board (phone)', () => {
     });
     await loadAppWithState(page, sweepState());
     const list = await ids(page);
-    const preset = ['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'atttoday', 'q-smooth'];
+    const preset = ['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'turn', 'dtp', 'atttoday', 'q-smooth', 'dofirst'];
     expect(list.slice(0, preset.length)).toEqual(preset);
     expect(list.slice(preset.length)).toEqual(['quick', 'needs', 'unbilled', 'stockdays', 'sync', 'zinc']);
     // Pulse's own record is left as it was: an older build in another window still reads it.

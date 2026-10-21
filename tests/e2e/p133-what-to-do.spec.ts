@@ -59,10 +59,12 @@ test.describe('P133: what to do', () => {
     // 1. Is the plant running smoothly? What could stop it, soonest first: the line that is out, with its reorder list.
     const smooth = await openQ(page, 'smooth');
     await expect(smooth.locator('[data-story-say]')).toContainText('Pickling acid out');
-    // The card on the board leads with the same move, its action at its end.
-    const onCard = page.locator('#homeBoard [data-tdy-q="smooth"] [data-adv-move]').first();
+    // The card on the board leads with the same move, its action at its end: What you can do's first card. What stands in the way
+    // leads with the same line, a row naming its move (the canvas's Briefing).
+    const onCard = page.locator('#homeBoard [data-tdy-q="smooth"] [data-tdy-moves] [data-adv-move]').first();
     await expect(onCard).toHaveAttribute('data-adv-move', 'stock:PA');
     await expect(onCard.locator('[data-action="invAdvGo"]')).toHaveText('Reorder list');
+    await expect(page.locator('#homeBoard [data-tdy-q="smooth"] [data-tdy-rows] .inv-brief-row').first()).toHaveAttribute('data-adv-move', 'stock:PA');
     const first = smooth.locator('[data-adv-move]').first();
     await expect(first).toHaveAttribute('data-adv-move', 'stock:PA');
     await expect(first).toContainText('Order Pickling acid: it is out');

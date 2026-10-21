@@ -101,10 +101,12 @@ test.describe('P159 why it moved', () => {
       inv('A1', 1, '2026-10-05', 100, 9), inv('B1', 2, '2026-10-06', 300, 20)] }));
     await openPulse(page);
     const why = page.locator('#statsWhy');
-    // A Briefing card since U2R: the causes as statement lines under their caption, the change ruled under them with its sign.
-    await expect(why.locator('.inv-widget-cap').first()).toHaveText('Realisation, ₹15.00 → ₹17.25/kg');
+    // A Briefing card since U2R, as the canvas draws it: the answer a sentence against the month before by its name, the
+    // realisation either side its title; the causes as lines with their bars under it, the change ruled under them with its sign.
+    await expect(why.locator('[data-why-say]')).toHaveText('The price rose ₹2.25 a kilo against September');
+    await expect(why.locator('[data-why-say]')).toHaveAttribute('title', 'Realisation ₹15.00 → ₹17.25 a kilo');
     await expect(why.locator('[data-why="real"]')).toHaveAttribute('title', /₹15\.00 → ₹17\.25\/kg/);
-    await expect(why.locator('[data-why="real"]')).toContainText('+₹2.25/kg');
+    await expect(why.locator('[data-why="real"]')).toContainText('+₹2.25');
     await expect(why.locator('[data-why-cause="mix"]')).toHaveCount(2);
     await expect(why.locator('[data-why-early]')).toHaveCount(0);
     // What changed? says it in its story, which its head opens whole.

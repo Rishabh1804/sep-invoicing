@@ -217,7 +217,7 @@ function statsPeriodCost(period, tonnage) {
   var r = statsRangeIso(period);
   var live = tonnage && tonnage.kg > 0 ? liveCost(r.from, r.to, tonnage.kg) : null;
   var isLive = !!(live && live.perKg > 0);
-  return { perKg: isLive ? live.perKg : (S.defaultCostPerKg || 0), label: isLive ? 'live cost ' : 'cost ' };
+  return { perKg: isLive ? live.perKg : (S.defaultCostPerKg || 0), label: isLive ? 'live cost ' : 'cost ', measuredShare: isLive ? live.measuredShare : null };
 }
 
 /* The live cost per kg divides the whole plant's cost by the tonnage of the WEIGHED lines alone: numerator over

@@ -1911,10 +1911,11 @@ function inrCard(v) {
 /* An amount on a board as HTML, its exact figure its title: as a figure (its sign a step smaller, the rupee raised and small, the
    lakh or crore as a unit after it), or `inline` as the words of a sentence or a line. */
 function inrFigHtml(v, o) {
-  var c = inrCard(v), t = ' title="' + escHtml(c.exact) + '"';
+  var c = inrCard(v), t = ' title="' + escHtml(c.exact) + '"', words = o && o.words ? escHtml(o.words) : '';
   if (o && o.inline) return '<span class="inv-nowrap"' + t + '>' + escHtml(c.text) + '</span>';
+  // o.words: what the figure is, after its unit (the canvas's "₹8.42 L owed", "₹3.49 L in the bank").
   return '<span class="inv-nowrap"' + t + '>' + (c.neg ? '<span class="inv-widget-sign">\u2212</span>' : '') + '<span class="inv-cur">\u20B9</span>' + escHtml(c.num) +
-    (c.unit ? '<span class="inv-unit">' + c.unit + '</span>' : '') + '</span>';
+    (c.unit || words ? '<span class="inv-unit">' + (c.unit || '') + (c.unit && words ? ' ' : '') + words + '</span>' : '') + '</span>';
 }
 
 /* ===== A FIGURE SAYS WHETHER IT IS GOOD (owner, 29 Sep 2026) =====

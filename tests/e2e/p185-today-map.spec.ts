@@ -127,12 +127,13 @@ test.describe('P185: Today on the phone', () => {
     const mids = await head.evaluate(el => Array.from(el.children).map(c => { const r = (c as HTMLElement).getBoundingClientRect(); return r.top + r.height / 2; }));
     expect(mids.length).toBe(3);
     expect(Math.max(...mids) - Math.min(...mids), 'the head is one row').toBeLessThan(8);
-    // Why it moved, In one line (The period in figures since UI pass 3) and the pace: each a widget with its line.
+    // Why it moved, In one line (The period in figures since UI pass 3) and the pace: each a widget with its line (Why it moved
+    // a Briefing since U2R: its line is the answer, a sentence).
     for (const id of ['statsWhy', 'statsOverview', 'statsPace']) {
       const card = page.locator('#' + id);
       await expect(card).toHaveCount(1);
       await expect(card).toHaveClass(/inv-widget/);
-      await expect(card.locator('.inv-widget-line')).not.toHaveText('');
+      await expect(card.locator('.inv-widget-line, .inv-brief-ans').first()).not.toHaveText('');
     }
     // The day card leads, then the toolbar, then the board.
     const order = await page.locator('#homeDash > *').evaluateAll(els => els.map(e => e.matches('[data-home-daycard]') ? 'day'

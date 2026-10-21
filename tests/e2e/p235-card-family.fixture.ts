@@ -36,7 +36,8 @@ export async function skeletonProblems(page: Page, where: string): Promise<strin
       const want = ['inv-widget-head', 'inv-widget-choose', 'inv-widget-body', 'inv-widget-foot'];
       let last = -1;
       kids.forEach(k => { const i = want.indexOf(k); if (i < 0) out.push(at + ': a part out of the skeleton: ' + k); else if (i <= last) out.push(at + ': ' + k + ' out of order'); else last = i; });
-      const says = ['inv-widget-fig', 'inv-widget-line', 'inv-widget-sub'];
+      // A Briefing's answer is a sentence in the figure's place (§24d): what the card says, first.
+      const says = ['inv-brief-ans', 'inv-widget-fig', 'inv-widget-line', 'inv-widget-sub'];
       let seen = -1, shown = false;
       Array.from(body.children).forEach(k => {
         const c = (k as HTMLElement).className.split(' ')[0], i = says.indexOf(c);
@@ -66,10 +67,12 @@ export async function skeletonProblems(page: Page, where: string): Promise<strin
         if (!/inset/.test(sh) || sh.indexOf(mark) < 0) out.push(at + ': ' + tone + ' with no top edge in its mark (' + sh + ')');
         if (def.type === 'outside') out.push(at + ': the world outside edged ' + tone);
       } else if (/inset/.test(sh)) out.push(at + ': an edge on a ' + tone + ' card');
-      // The title whole at its size (the short one at Small).
+      // The title whole at its size (the short one at Small; a desktop's Small its own where a phone's short would say less, the
+      // canvas's "Cash coming in?" against the phone's "Getting paid?").
       const t = card.querySelector('.inv-widget-title') as HTMLElement | null;
       if (t) {
-        const name = size === 's' && def.short ? def.short : def.title;
+        const desk = document.body.classList.contains('inv-desktop');
+        const name = size === 's' ? (desk && def.shortDesk) || def.short || def.title : def.title;
         if (t.textContent !== name) out.push(at + ': title "' + t.textContent + '"');
         if (t.scrollWidth > t.clientWidth + 1) out.push(at + ': title cut: "' + name + '" ' + t.scrollWidth + ' > ' + t.clientWidth);
       }

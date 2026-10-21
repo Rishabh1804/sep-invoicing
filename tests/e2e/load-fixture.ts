@@ -362,7 +362,7 @@ export const LOOKS: string[] = [
   'nofill edge:B1 r0 flat p6/28',    // inv-row under its parent, indented
   'nofill edge:B1 r0 flat p8/28',    // inv-row-auto under its parent, indented
   'nofill edge:T1 r0 flat p0/0',     // inv-hero-sheet: what a hero opens to draws only its head rule; inv-docket-row, a rule over each
-  'nofill edge:T1 r0 flat p6/0',     // inv-plant-row, a Plant card's line or machine
+  'nofill edge:T1 r0 flat p6/0',     // inv-plant-row, a Plant card's line or machine; inv-ledger-line in a barred Ledger (Why it moved)
   'nofill edge:T1 r0 flat p2/0',     // inv-crew-row, a Crew card's row
   'nofill edge:T1 r0 flat p4/0',     // inv-brief-move, a Briefing's move; inv-ledger-total, the total ruled under a Ledger's lines
   'fill edge:B1 r0 flat p0/0',       // inv-row-children, a row's own lines on the page colour

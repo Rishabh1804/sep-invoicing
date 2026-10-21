@@ -46,8 +46,7 @@ export async function presetsWhole(page: Page) {
   for (const p of ['owner', 'office', 'supervisor', 'floor']) {
     const list = await page.evaluate(p => {
       const w = window as any, ps = w.WDG_PRESETS[p], phone = w.wdgLay() === 'phone';
-      return ps.home.filter((x: string[]) => !(phone && ps.phoneOut && ps.phoneOut.indexOf(x[0]) >= 0))
-        .map((x: string[]) => [x[0], w.wdgFitSize(w.wdgDef(x[0]), phone && x[1] !== 's' ? 'm' : x[1])]);
+      return ps.home.map((x: string[]) => [x[0], w.wdgFitSize(w.wdgDef(x[0]), phone && x[1] !== 's' ? 'm' : x[1])]);
     }, p);
     await drawBoard(page, list);
     const g = await grid(page), at = await placed(page);
@@ -103,10 +102,12 @@ export async function holesAndSlots(page: Page) {
 
 /* The fit: a card too full lets go of its optional parts, then its list's last rows; More counts them; a Ledger's rest line is their
    sum, so the lines still add up to the total ruled under them. */
-export async function fitLetsGo(page: Page) {
+/* `owedAt`: the size Owed lets its debts go at. A phone's Medium gives its room to the verdict, the age bar and its key, and lets the
+   debts go whole (fitGivesBack): there the debts are a Large's. */
+export async function fitLetsGo(page: Page, owedAt: 'm' | 'l' = 'm') {
   await loadAppWithState(page, longBook());
   await geistReady(page);
-  await drawBoard(page, [['owed', 'm'], ['unbilled', 'm']]);
+  await drawBoard(page, [['owed', owedAt], ['unbilled', 'm']]);
   const led = await page.evaluate(() => {
     const card = document.querySelector('#homeBoard .inv-widget[data-w="owed"]') as HTMLElement;
     const lines = Array.from(card.querySelectorAll('.inv-ledger > .inv-ledger-line')) as HTMLElement[];
@@ -135,4 +136,25 @@ export async function fitLetsGo(page: Page) {
   await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() });
   await drawBoard(page, [['owed', 'm'], ['unbilled', 'm']]);
   await expect(page.locator('#homeBoard [data-wdg-more]')).toHaveCount(0);
+}
+
+/* What the fit let go first comes back where a list's going freed the room it needs (UI pass 3 §24h): on a phone's Medium, Owed's
+   debts all go, and its age key, cut first as a part it can do without, is drawn again under the bar, the card running past nothing. */
+export async function fitGivesBack(page: Page) {
+  await loadAppWithState(page, longBook());
+  await geistReady(page);
+  await drawBoard(page, [['owed', 'm']]);
+  const r = await page.evaluate(() => {
+    const card = document.querySelector('#homeBoard .inv-widget[data-w="owed"]') as HTMLElement;
+    const seen = (el: Element | null) => !!el && (el as HTMLElement).getClientRects().length > 0;
+    const key = card.querySelector('.inv-meter-key');
+    const lines = Array.from(card.querySelectorAll('.inv-ledger > .inv-ledger-line:not(.inv-ledger-total, .inv-ledger-rest)'));
+    return { key: seen(key), keyCut: !!key && key.hasAttribute('data-wdg-cut'), meter: seen(card.querySelector('.inv-meter')),
+      linesShown: lines.filter(seen).length, over: card.scrollHeight - card.clientHeight };
+  });
+  expect(r.linesShown).toBe(0);
+  expect(r.meter).toBe(true);
+  expect(r.keyCut).toBe(false);
+  expect(r.key).toBe(true);
+  expect(r.over).toBeLessThanOrEqual(1);
 }

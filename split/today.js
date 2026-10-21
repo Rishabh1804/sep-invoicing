@@ -538,7 +538,7 @@ function homeDayFacts() {
       var p = predMonthPace();
       if (p && p.prevRev > 0) {
         var ahead = p.projRev >= p.prevRev;
-        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + inrCard(p.projRev).text + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevLabel, money: true });
+        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + inrCard(p.projRev).text + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevName, money: true });
       }
     } catch (e) { /* the pace's own widget says what went wrong */ }
   }
@@ -551,12 +551,12 @@ function homeMastHtml() {
     .sort(function(a, b) { return (HOME_TONE_RANK[b] || 0) - (HOME_TONE_RANK[a] || 0); })[0] || 'ok';
   var open = tdyTasks().length, wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
   var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '"><span>' + escHtml(lead.text) + '</span>' +
-    (lead.tasks && open && _isDesktop ? '<span class="inv-mast-count">· ' + open + ' open</span>' : '') + '</p>';
+    (lead.tasks && open && _isDesktop ? '<span class="inv-mast-count">' + open + ' open</span>' : '') + '</p>';
   var items = rest.map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
   if (wx) items.push('<li data-home-wx>' + wx + '</li>');
   var act = '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
     (open && !_isDesktop ? ' · ' + open : '') + '</button>' +
-    (_isDesktop && tdySees('pageReports') ? '<button type="button" class="inv-btn inv-btn-link" data-action="invHomeReport">Make today’s report</button>' : '');
+    (tdySees('pageReports') ? '<button type="button" class="inv-btn inv-btn-link" data-action="invHomeReport">Make today’s report</button>' : '');
   var clock = homeClockText(now).split(' ');
   return '<header class="inv-mast" data-home-day data-verdict data-tone="' + uiTone(tone) + '" aria-label="' + escHtml(lead.text) + '">' +
     '<p class="inv-mast-date">' + escHtml(homeGreeting(now)) + '</p>' + say +
@@ -647,7 +647,7 @@ function renderHomeBoard() {
   if (typeof grdHeld === 'function' && grdHeld()) return;
   var n = wdgAddable('home');
   el.innerHTML = '<div data-home-daycard>' + homeMastHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
-    (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">Add a widget · ' +
+    (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">' + iconSvg('plus') + 'Add a widget · ' +
       n + ' to choose from</button></div>' : '');
   wdgBoardDraw(document.getElementById('homeBoard'), 'home');
   homeClockStart();
@@ -669,7 +669,7 @@ function homeLeave() {
 function homeArrive() {
   homeClockStart();
   var host = document.getElementById('homeBoard');
-  if (host && tdyView() === 'home') wdgLiveStart(host, 'home');
+  if (host && tdyView() === 'home') { wdgArriveRedraw(host, 'home'); wdgLiveStart(host, 'home'); }
 }
 
 function tdyAction(action, btn) {

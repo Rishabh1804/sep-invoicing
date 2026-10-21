@@ -1123,7 +1123,7 @@ family's parts named (§6.33–§6.36), 36 looks to 46:
 | `nofill edge:none r0 well p0/0` | a tab row (§6.4): its rule, an inset line |
 | `nofill edge:B1 r0 flat p12/4`, `nofill edge:B1 r0 flat p8/0` | the masthead (§6.36): flat, a hairline under it, on the desktop and the phone |
 | `nofill edge:T1 r0 flat p0/0` | a hero's sheet (§6.21): only its head rule; a Docket's row, a rule over each |
-| `nofill edge:T1 r0 flat p6/0`, `nofill edge:T1 r0 flat p2/0`, `nofill edge:T1 r0 flat p4/0` | a Plant card's row, a Crew card's row, a Briefing's move and the total ruled under a Ledger (§6.34) |
+| `nofill edge:T1 r0 flat p6/0`, `nofill edge:T1 r0 flat p2/0`, `nofill edge:T1 r0 flat p4/0` | a Plant card's row and a barred Ledger's line, a Crew card's row, a Briefing's move and the total ruled under a Ledger (§6.34) |
 | `nofill edge:B1 r0 flat p10/12`, `nofill edge:B1 r0 flat p8/12` | a flush panel's head; a row at its density (`inv-row-auto`, in a widget `p8/0`) |
 | `nofill edge:B1 r0 flat p16/12` | a panel's body |
 | `nofill edge:B1 r0 flat p12/12` | a strip of tiles in a flush panel (`inv-tiles-flush`) |
@@ -1217,13 +1217,15 @@ the masthead (§6.36).
   layout's order, so the tab order and a screen reader read the order arranged. The columns come from the board's own width (12
   from 60rem, 6 from 36rem, 2 under it). Under the board, its foot: *Add a widget · N to choose from*.
 - **The fit** (`wdgFit`, measured on the card laid out): first what the card can do without, all together (`WDG_FIT_OPT`: a part
-  marked `data-wdg-opt`, a tile's line of the months before and the words under its figure, never its change; a chart's key); then
+  marked `data-wdg-opt`, a tile's line of the months before and the words under its figure, never its change; a chart's key and an
+  age bar's); then
   columns that stand side by side, each on its own; then the list's last rows one at a time (`WDG_FIT_ROWS`), the More row saying how
   many and a Ledger's rest line their sum. A column left with only its caption goes, and so does a list whose rows all went. A
   verdict or detail past its lines keeps its whole text as its `title`. Nothing is cut halfway (P224, P237).
-- **One space**: the room a card does not fill stands between what it says and what it shows (the first part after the figure,
-  verdict, detail or a Briefing's answer takes the slack above it); a Small's picture is pushed to its foot (`data-wdg-push`). Never
-  a strip of empty card under the last line.
+- **One space**: the room a card does not fill is one space, above its foot (the agreed canvas, UI pass 3 §24o): what it says and
+  what it shows run down from the head, a Small's picture is pushed to the body's foot (`data-wdg-push`) and a bare chart takes the
+  room left. What the fit let go first comes back, all together, where a list's going freed the room it needs, so a card never keeps
+  a gap where its rows were.
 - **Columns at Large** (`wdgColsHtml(parts, {drop})`: `inv-widget-cols`, `inv-widget-col`, a column's caption `inv-widget-cap`):
   three from 60rem of card, two from 36rem (`data-col-drop` the part that gives way), stacked under it.
 - **A chart in a card is bare** (`opts.bare`): no box, readout or *Table*, each datum keeping its `<title>`. It is drawn into the
@@ -1233,7 +1235,8 @@ the masthead (§6.36).
   an hour, toned, the period to date and a window hatched), a meter or gauge (`chartMeter`), the seats (§6.34) and the tray.
 - **Money on a board is short** (§24k): `inrCard(v)` (*₹66,476 · ₹3.50 L · ₹1.24 Cr*, every step through `gstRound`) and
   `inrFigHtml(v)` (its parts drawn as a figure), the exact amount the element's `title`; a sentence's amounts through `wdgShortMoney`,
-  or in drawn HTML `wdgShortMoneyIn`, the whole sentence its title. A rate keeps its paise, a chart keeps `formatInrShort`, a
+  in drawn HTML `wdgShortMoneyIn`, and in HTML a card builds from its own figures `wdgShortMoneyHtml` (a Briefing's facts), the whole
+  sentence or the figure's exact amount its title. A rate keeps its paise, a chart keeps `formatInrShort`, a
   Ledger's lines are whole rupees (§6.34). Every other screen keeps the paise.
 - **States, one set** (§6.32): `ok` draws the body; `empty`, `early`, `notset`, `offline`, `loading` and `error` draw `uiBlankHtml` at
   the card's size (a Small's on one line), never a blank card and never a zero standing for unknown. The blank's one action is the
@@ -1249,14 +1252,29 @@ the masthead (§6.36).
   with Remove. A widget a role may not see is in no gallery and on no board. A tap that changes the gallery swaps its parts inside the
   dialog, never the dialog.
 - **The presets** (`WDG_PRESETS`, §24i): Owner, Office, Supervisor and Floor, each drawn from what its role sees, each packing with
-  no hole on both layouts, packing on or off. On the phone a Small stays Small and the rest is Medium, and the Owner's leaves out
-  *Do first*, *Turnaround* and *Days to pay* (`phoneOut`) to keep Home within four phone screens (3.92 on the long book; 4.17 with
-  Do first alone left out).
+  no hole on both layouts, packing on or off. On the phone a Small stays Small and the rest is Medium, and the Owner's holds all
+  fourteen in the agreed canvas's order (4.67 phone screens on the long book, over I10's four for Home: P195's budget for it is 5,
+  the owner's call at U2R's stop, UI pass 3 §1a-14).
 - **A widget's own controls**: a button inside a card names its widget with `data-wid` (`data-w` is the card's alone); an action the
-  framework does not know goes to the widget's `act`, a change inside the card (or in a dialog naming it, `data-wdg-for`) to its
-  `change`; `feed: true` draws it again when a news or weather copy lands (`sep-feeds`). A Choose is a choice, not typed work, and
+  framework does not know goes to the widget's `act` **only when it is named `invWdg…`** (events.js hands the framework no other: Quick
+  actions' *Continue* on a page kept on the device was named otherwise and did nothing, P240); a change inside the card (or in a
+  dialog naming it, `data-wdg-for`) to its `change`; `feed: true` draws it again when a news or weather copy lands (`sep-feeds`);
+  `arrive: true` draws it again whenever its board is shown again without being drawn whole (`wdgArriveRedraw`), for a widget that
+  reads what is not the book (Quick actions' *Started here and not saved*: Create's form, the pages kept on the device). A Choose is a choice, not typed work, and
   carries `data-nodirty`. Nothing is focused when a board is drawn: opening Home's board skips the first-control focus every other
   screen gets (`switchTab`'s step 8), since a ring on its first card read as a card pressed; Tab starts there all the same.
+- **Parts any type may hold** (built to the agreed canvas, UI pass 3 §24o): facts a line each, the figure leading in Geist
+  (`wdgFactLinesHtml(lines, {caption, viz, attrs})`, `inv-widget-facts`: *How it was weighed*); gauges a line each, the label, the
+  gauge marked where it is judged and the reading (`wdgGaugeRowsHtml`, `inv-gauges`, `inv-gauge-row`: *Stock days*); a small table
+  whose body rows the fit lets go of (`wdgTableHtml(head, rows)`, `inv-wtable`, `inv-wtable-row`: *This week, by area*); a gauge with
+  its key under it (`wdgGaugeHtml`, `inv-widget-gauge`; `wdgTrackKeyHtml`, `inv-track-key`: the ends of a small picture, each `{l, s}`
+  where a phone's Small says the short words, `inv-long` and `inv-short`); an answer's tail (`inv-tail`), left off on a phone's card.
+  A card's chart: a sparkline's area (`inv-spark-area`), the period not yet ended hatched (`inv-chart-hatched`, `inv-chart-stripe`; a
+  point that says nothing `inv-chart-pt-quiet`), a meter's hatch (`inv-meter-hatch`, `inv-meter-hatched`); every other screen's
+  charts keep the period to date lighter (§6.17).
+- **A board is drawn for whoever is in**: Home is kept between visits, and drawn again when the person signed in is not the one it
+  was drawn for (`homeDrawnKey`, the guard's `grdDrawKey`): a supervisor refused the screen the owner left open had landed on the
+  owner's board, money and all (P240).
 - **Rules**: a widget reads its screen's own functions and the views (§6 of UI pass 3), never a second arithmetic, and hands its
   figures to its type's builders (§6.34): no widget writes a row's markup of its own. Its words are a line, never a paragraph (P195's
   blocks); its colour is its tone's, never a series colour standing for good or bad.
@@ -1267,12 +1285,12 @@ refuses one without, and a Small with no `short` title) and hands its figures to
 
 | Type | Surface | Its widgets | What only it draws |
 |---|---|---|---|
-| **Ledger** · money | warm, `--ty-ledger` | `money`, `cash`, `owed`, `dtp`, `gst`, `mtd`, `pace`, `clientprice`, `kilo`, `zincpaid`, `figures` | `wdgLedgerHtml(lines, total, o)`, `inv-ledger`: a line (`inv-ledger-line`: the label and its meta `inv-ledger-meta`, a dotted leader `inv-ledger-lead`, the amount `inv-ledger-amt` at the right) in whole rupees (`wdgRs`), each line's exact amount its title; the total (`inv-ledger-total`, ruled once above and twice below) drawn only where the lines add up to it, to half a rupee a line; a cut list's rest (`inv-ledger-rest`: its count and their sum). `o.rate` makes a ledger of rates, to the paisa with its unit (`data-rate`). The age bar's key (`wdgMeterKeyHtml`, `inv-meter-key`). |
-| **Docket** · documents in motion | the card's | `unbilled`, `recent`, `pipe`, `turn`, `quote` | `wdgDocketRowHtml(o)`, `inv-docket-row`: the number in Geist Mono (`inv-docket-num inv-id`; a party's row has none, `data-nonum`), the party and its meta, then the amount (`inv-docket-amt`) and the state as steps (`inv-docket-steps`: a pip a state, those passed, the one it stands at in the tone of its age, those to come), or an end of its own, then the row's own action. `wdgDocketStagesHtml(stages)`: the pipeline's stages as one strip in a well (`inv-docket-stages`, `inv-docket-stage`, the stage it leads with lifted; a stage a row on a card under 32rem). |
-| **Plant** · lines and machines | cool, `--ty-plant` | `floornow`, `prodday`, `eff`, `heat`, `risk`, `powercuts`, `stockdays` | `wdgPlantRowHtml(o)`, `inv-plant-row`: the lamp ringed in its tone (`inv-plant-lamp`, an outline, never a shadow), the nameplate (`inv-plate`: the name as the app writes it, in Geist Mono in a small well), what it runs and its meta, the reading and its unit (`inv-reading`), a word, the gauge under it with its mark (`inv-plant-gauge`), its own action. The day strip, 6 AM to 6 AM (`chartDayStrip`). |
+| **Ledger** · money | warm, `--ty-ledger` | `money`, `cash`, `owed`, `dtp`, `gst`, `mtd`, `pace`, `clientprice`, `kilo`, `zincpaid`, `figures` | `wdgLedgerHtml(lines, total, o)`, `inv-ledger`: a line (`inv-ledger-line`: the label and its meta `inv-ledger-meta`, a dotted leader `inv-ledger-lead`, the amount `inv-ledger-amt` at the right) in whole rupees (`wdgRs`), each line's exact amount its title; the total (`inv-ledger-total`, ruled once above and twice below) drawn only where the lines add up to it, to half a rupee a line; a cut list's rest (`inv-ledger-rest`: its count and their sum). `o.rate` makes a ledger of rates, to the paisa with its unit (`data-rate`). `o.bars` puts a bar after each label, from a middle rule, left for less and right for more on one scale (`inv-ledger-bar`, `inv-ledger-bar-less`, `inv-ledger-bar-mid`, `inv-ledger-bar-more`: *Why it moved*'s causes): the ledger is then a grid of three columns and its lines subgrids, the amounts as wide as the widest, so a crore never runs past the card. The age bar's key (`wdgMeterKeyHtml`, `inv-meter-key`), a part the fit can do without. |
+| **Docket** · documents in motion | the card's | `unbilled`, `recent`, `pipe`, `turn`, `quote` | `wdgDocketRowHtml(o)`, `inv-docket-row`: the number in Geist Mono (`inv-docket-num inv-id`; a party's row has none, `data-nonum`), the party and its meta, then the amount (`inv-docket-amt`) and the state as steps (`inv-docket-steps`: a pip a state, those passed, the one it stands at in the tone of its age, those to come), or an end of its own, then the row's own action. `wdgDocketStagesHtml(stages)`: the pipeline's stages as one strip in a well (`inv-docket-stages`, `inv-docket-stage`, the stage it leads with lifted; a stage a row on a card under 32rem; a stage's word `inv-docket-stage-word`). The steps named once over their column (`wdgDocketKeyHtml(words, caption)`, `inv-docket-key`, `inv-docket-key-steps`), inside the list so it goes with its last row. Pips (`wdgPipsHtml`, `inv-pips`, `inv-pip`): the last few documents a pip each, the oldest first, in the tone of how each went. |
+| **Plant** · lines and machines | cool, `--ty-plant` | `floornow`, `prodday`, `eff`, `heat`, `risk`, `powercuts`, `stockdays` | `wdgPlantRowHtml(o)`, `inv-plant-row`: the lamp ringed in its tone (`inv-plant-lamp`, an outline, never a shadow), the nameplate (`inv-plate`: the name as the app writes it, in Geist Mono in a small well), what it runs and its meta, the reading and its unit (`inv-reading`), a word, the gauge under it with its mark (`inv-plant-gauge`), its own action; a line's efficiency at the row's end in place of the reading (`wdgPlantEffHtml`, `inv-plant-eff`, `inv-plant-eff-fig`: the figure in its tone over a gauge marked where it is judged). The day strip, 6 AM to 6 AM (`chartDayStrip`), and the day in lanes (`chartDayLanes`: `inv-daylanes`, `-labels`, `-svg`; a lane a line, `inv-lane`, its runs `inv-lane-run`, overtime `inv-lane-ot`, the cuts hatched across every lane `inv-lane-cut`, `inv-lane-hatch`, the general shift's ends `inv-lane-shift`, now `inv-lane-now`, `inv-lane-now-word`), its spans shares of the width and its lanes and words their own pixels. |
 | **Crew** · people | the card's | `atttoday`, `attweek`, `ot` | `wdgSeatsHtml(o)`, `inv-seats`: a seat a hand the day needs (`inv-seat`, `data-seat`: on, short ringed in `--warning-mark`, over ringed in `--info-mark`); `wdgCrewRowHtml(o)`, `inv-crew-row`: an area, its seats and its word; who is away by name (`inv-crew-away`); weeks as bars against the 90% gate, the week to date hatched. |
-| **Briefing** · the questions | the card's | `q-smooth`, `q-money`, `q-clients`, `q-plant`, `q-cash`, `q-changed`, `dofirst`, `why`, `coming`, `needs`, `corr` | the answer as a sentence (`inv-brief-ans`: 19 px semibold, 17 at Small, 22 at Large), facts on one line (`inv-brief-facts`), a question's story without its tiles and charts (`inv-brief-story`); `wdgMovesHtml(moves, large)`: the moves as rows (`inv-brief-move`: its lamp, its sentence, its worth and what it rests on, its action small and tinted), at Large as cards in wells three across from 40rem of card (`inv-brief-movecard`, the worth `inv-brief-worth`); `wdgWhenRowHtml(o)`, `inv-brief-when`: a dated row led by its day in a small well (`inv-brief-day`, *Today* in the accent's soft colour); a list of rows (`inv-brief-list`). |
-| **Outside** · the world outside | the card's; never edged or tinted | `tata`, `weather`, `zinc` | `wdgWireHtml(items)`, `inv-wire-item`: a headline (`inv-wire-head`, two lines at most) and its dateline (`inv-wire-dateline`, Geist Mono), an `a` to the article in a new tab with `noopener noreferrer`, its link https or http only; Tata's figures (`inv-mkt-*`); the hours ahead (`inv-wx-*`). No Act; the Source always shown, with its Refresh and the feed's credit. |
+| **Briefing** · the questions | the card's | `q-smooth`, `q-money`, `q-clients`, `q-plant`, `q-cash`, `q-changed`, `dofirst`, `why`, `coming`, `needs`, `corr` | the answer as a sentence (`inv-brief-ans`: 19 px semibold, 17 at Small, 22 at Large), facts on one line (`inv-brief-facts`), a question's story without its tiles and charts (`inv-brief-story`); `wdgMovesHtml(moves, large)`: the moves as rows (`inv-brief-move`: its lamp, its sentence, its worth and what it rests on, its action small and tinted), at Large as cards in wells three across from 40rem of card (`inv-brief-movecard`, the worth `inv-brief-worth`); `wdgWhenRowHtml(o)`, `inv-brief-when`: a dated row led by its day in a small well (`inv-brief-day`, *Today* in the accent's soft colour); a list of rows (`inv-brief-list`). What stands in the way as rows under the answer (`wdgBriefRowsHtml`, `inv-brief-rows`, `inv-brief-row`: its lamp `inv-brief-lamp`, what and why, its figure `inv-brief-row-val`), each opening its move. |
+| **Outside** · the world outside | the card's; never edged or tinted | `tata`, `weather`, `zinc` | `wdgWireHtml(items)`, `inv-wire-item`: a headline (`inv-wire-head`, two lines at most) and its dateline (`inv-wire-dateline`, Geist Mono), an `a` to the article in a new tab with `noopener noreferrer`, its link https or http only; Tata's figures (`inv-mkt-*`), the figures after the lead a row each (`wdgWireFigsHtml`, `inv-wire-figs`, `inv-wire-fig`: its name, its count, its change in its tone); the hours ahead (`inv-wx-*`). No Act; the Source always shown, with its Refresh and the feed's credit. |
 | **Tools** · starting things | the card's | `quick`, `sync` | `wdgTrayHtml(keys)`, `inv-tray`: keys on a sunk tray (`inv-tray-key`: the card's surface lifted by `--lift-key`, `--r-ctl`, the icon in the accent over its word), three across, six from 40rem of card, two on a phone's Small. No figure. |
 
 - **The two surfaces are tokens per palette** (`--c-ty-ledger`, `--c-ty-plant`, read only through `--ty-ledger` and `--ty-plant`),

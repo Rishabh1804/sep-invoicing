@@ -29,7 +29,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // Raised 3 → 3.5 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): material past its turnaround target is a red
   // task in Now, the long book's twelve clients folded into one card (3.09).
   'Home › Needs you': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Home': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Raised 4 → 5 by U2R (20 Oct 2026), said in the PR and put to the owner at the stop (§1a-14, I10): the agreed canvas's phone
+  // holds all fourteen Owner cards, and Home measures 4.67 (3,392 px, the canvas's own 3,388), over I10's four.
+  'Home › Home': { screens: 5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },

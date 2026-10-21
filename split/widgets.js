@@ -6,17 +6,19 @@
 
    This module is the framework and holds no widget's arithmetic: the card, the board, the states, the presets by role, where a
    layout is kept, arranging and the gallery. Each widget is an entry in WIDGET_DEFS (widgetcards.js, by wdgDefine):
-     { id, title, short (its title at Small), q, section, type (ledger | docket | plant | crew | brief | outside | tools), sizes,
-       needs, go, live, feed, card, choose: {def, opts(ctx), label, at, html(ctx)}, data(ctx), draw(d, size, ctx),
+     { id, title, short (its title at Small), q, section, icon (its head's, else its section's), type (ledger | docket | plant | crew |
+       brief | outside | tools), sizes,
+       needs, go, live, feed, arrive, card, choose: {def, opts(ctx), label, at, html(ctx)}, data(ctx), draw(d, size, ctx),
        viz(d, size, box), more(d, card), actRow(d, size, ctx), source(d, size, ctx), after(el, d, size), act(action, btn, card),
        change(el, card, board) }
-   `data` reads the views (dataview.js) and the functions its screen already draws with and returns {state, tone, fig, say,
-   detail, …}; the framework draws the card in one order (§24b, I14): its head (the door, the Choose at Large), the figure, the
-   verdict (its lamp and words), the detail, then what `draw` returns (the type's parts, through the builders below), More at
+   `data` reads the views (dataview.js) and the functions its screen already draws with and returns {state, tone, fig | ans, say,
+   detail, …}; the framework draws the card in one order (§24b, I14): its head (the door, the Choose at Large), the figure (a
+   Briefing's answer, a sentence, in its place), the verdict (its lamp and words), the detail, then what `draw` returns (the type's parts, through the builders below), More at
    the list's end, the Act and the Source. `viz` draws a bare chart into the room the card leaves it, once the card is laid out.
    A widget that throws draws its error state and the rest of the board is drawn. `act` takes a tap on a button of its own (an
-   invWdg… action the framework does not know), `change` a pick in a <select> of its own; `feed` marks a widget that reads a
-   feed's copy (feeds.js), drawn again where it stands when a copy lands.
+   invWdg… action the framework does not know: an action named otherwise never reaches it), `change` a pick in a <select> of its
+   own; `feed` marks a widget that reads a feed's copy (feeds.js), drawn again where it stands when a copy lands; `arrive` one that
+   reads what is not the book, drawn again whenever its board is shown again (wdgArriveRedraw).
 
    The card (§24b, §24c) is quiet while all is well: its type's surface, a hairline edge, lifted; amber adds a top edge, red the
    edge and a red tint in place of the surface. It is exactly its size's height on a board packed dense (§24h). A layout is kept
@@ -41,6 +43,9 @@ var WDG_TONES = { danger: 1, warning: 1, ok: 1, info: 1, neutral: 1 };
 
 /* A widget joins the set. Refused (and said to a test build) when its id is taken, it allows no size, it names no type, or it has
    a Small and no short title (§24g): one bad entry must not take the board down. */
+/* A card's title at its size: the whole title, the short one at Small, and at a Small on the desktop, half again as wide as the
+   phone's, `shortDesk` where it has one (the canvas's Unbilled challans, Unbilled on the phone). */
+function wdgTitleAt(def, size) { return size === 's' ? (_isDesktop && def.shortDesk) || def.short || def.title : def.title; }
 function wdgDefine(def) {
   var why = !def || typeof def.id !== 'string' || !def.id ? 'it has no id' : _wdgIdx[def.id] ? 'its id is taken' : !Array.isArray(def.sizes) ? 'it allows no size'
     : WDG_TYPES.indexOf(def.type) < 0 ? 'it names no type' : typeof def.draw !== 'function' ? 'it has no draw' : '';
@@ -132,13 +137,13 @@ function wdgGo(def) {
 /* ---------- Presets by role (§7g, §24i) ----------
    A board starts from its role's preset; any change makes it the person's own, and Reset returns to the preset. Each preset holds
    what its role sees by default (grdRoleDefaults) and packs with no hole on both layouts, packing on or off. The phone keeps the
-   desktop's order: a Small stays Small, the rest Medium; the phone's Owner preset leaves out Do first (each question's Act and
-   Large cards carry the same moves), and Turnaround and Days to pay, both slow to move and a tap away (Floor's Overview, Money →
-   Receivables): with Do first alone left out Home measured 4.17 phone screens on the long book, over I10's four (§1a-14). A widget
-   the role may not see, or the build does not have, is left out when the preset is drawn. */
+   desktop's order: a Small stays Small, the rest Medium. The phone's Owner holds all fourteen, as the canvas the owner agreed draws
+   it (Home card types, 17 Oct 2026; owner, 20 Oct 2026: "This was the agreed upon artifact"): Home is longer than I10's four phone
+   screens by it, which that canvas set (§1a-14). A widget the role may not see, or the build does not have, is left out when the
+   preset is drawn. */
 var WDG_PRESETS = {
   owner: { label: 'Owner', home: [['mtd', 's'], ['q-money', 's'], ['prodday', 's'], ['cash', 's'], ['pace', 'm'], ['coming', 'm'], ['tata', 'l'],
-    ['floornow', 'm'], ['risk', 's'], ['turn', 's'], ['dtp', 's'], ['atttoday', 's'], ['q-smooth', 'm'], ['dofirst', 'm']], phoneOut: ['dofirst', 'turn', 'dtp'] },
+    ['floornow', 'm'], ['risk', 's'], ['turn', 's'], ['dtp', 's'], ['atttoday', 's'], ['q-smooth', 'm'], ['dofirst', 'm']] },
   office: { label: 'Office', home: [['needs', 'm'], ['quick', 's'], ['unbilled', 's'], ['quote', 's'], ['weather', 's'], ['pipe', 'm'], ['recent', 'm'],
     ['tata', 'm'], ['coming', 'm']] },
   supervisor: { label: 'Supervisor', home: [['floornow', 'l'], ['eff', 'm'], ['prodday', 's'], ['atttoday', 's'], ['risk', 's'], ['weather', 's'],
@@ -153,8 +158,8 @@ function wdgRole() {
 }
 function wdgPresetKey() { var r = wdgRole(); return WDG_PRESETS[r] ? r : 'owner'; }
 function wdgPresetList(board, lay) {
-  var p = WDG_PRESETS[wdgPresetKey()] || WDG_PRESETS.owner, out = lay === 'phone' ? p.phoneOut || [] : [];
-  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]) && out.indexOf(x[0]) < 0; }).map(function(x) {
+  var p = WDG_PRESETS[wdgPresetKey()] || WDG_PRESETS.owner;
+  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]); }).map(function(x) {
     return [x[0], wdgFitSize(wdgDef(x[0]), lay === 'phone' && x[1] !== 's' ? 'm' : x[1])];
   });
 }
@@ -291,6 +296,8 @@ function wdgChooseHtml(def, ctx) {
 function wdgBodyHtml(def, size, d, ctx, tone) {
   if (d.state !== 'ok') return wdgStateHtml(def, size, d);
   var h = '';
+  // A Briefing's answer is a sentence in the figure's place (§24d: 19px, 17 on a Small, 22 at Large), its key figure in its tone.
+  if (d.ans) h += '<p class="inv-brief-ans"' + (d.ansAttrs || '') + '>' + d.ans + '</p>';
   if (d.fig) h += '<div class="inv-widget-fig"' + (d.figAttrs || '') + '>' + d.fig + '</div>';
   var say = d.sayHtml != null && d.sayHtml !== '' ? d.sayHtml : d.say ? escHtml(d.say) : '';
   if (say) h += '<div class="inv-widget-line"' + (d.sayAttrs || '') + '><span class="inv-dot inv-dot-' + uiTone(d.sayTone || tone) + ' inv-widget-say">' + say + '</span></div>';
@@ -298,6 +305,10 @@ function wdgBodyHtml(def, size, d, ctx, tone) {
   if (det && (size !== 's' || !d.detailNotSmall)) h += '<div class="inv-widget-sub"' + (d.detailAttrs || '') + '>' + det + '</div>';
   var parts = '';
   try { parts = def.draw(d, size, ctx) || ''; } catch (e) { wdgErr(def, e); d.state = 'error'; return wdgStateHtml(def, size, d); }
+  // A Large in columns may lead its first column with its figure, verdict and detail (`headInCol`, the canvas's Tata card): the
+  // columns then start at the body's top, side by side with them.
+  var lead = /^<div class="inv-widget-cols"[^>]*><div class="inv-widget-col"[^>]*>/.exec(parts);
+  if (d.headInCol && h && lead) { parts = lead[0] + h + parts.slice(lead[0].length); h = ''; }
   h += parts;
   // The room for its bare chart, where the widget draws one at this size and its data has one to draw (`noViz` says it has none).
   if (typeof def.viz === 'function' && !d.noViz && parts.indexOf('data-wdg-viz') < 0 && (!def.vizAt || def.vizAt.indexOf(size) >= 0)) h += wdgVizHtml(size === 's' ? ' data-wdg-push' : '');
@@ -346,6 +357,14 @@ function wdgShortMoneyIn(root) {
   });
   was.forEach(function(text, el) { if (!el.title) el.title = text; });
 }
+/* The same over an HTML string a card builds from its own figures (a Briefing's facts): each amount shortened keeps its exact figure
+   as its element's title. */
+function wdgShortMoneyHtml(html) {
+  var t = document.createElement('template');
+  t.innerHTML = html || '';
+  wdgShortMoneyIn(t.content);
+  return t.innerHTML;
+}
 /* Whole rupees with the sign a figure takes (U+2212, design §5.4): a Ledger's statement line. */
 function wdgRs(v) { var n = gstRound(Number(v) || 0, 0); return (n < 0 ? '\u2212' : '') + finRs(Math.abs(n)); }
 /* A Ledger's amount: whole rupees, or a rate to the paisa with its unit; `signed`, a rise carries its + (a bridge's causes). */
@@ -367,7 +386,7 @@ function wdgSourceHtml(src, def) {
     : [src.credit ? { credit: src.credit } : null].concat(src.facts || []).concat(src.refresh ? [{ refresh: src.refresh, busy: src.busy }] : []);
   var out = parts.filter(function(p) { return p != null && p !== ''; }).map(function(p) {
     if (typeof p === 'string') return '<span>' + escHtml(p) + '</span>';
-    if (p.credit) return '<a class="inv-btn-link" href="' + escHtml(p.credit.href) + '" target="_blank" rel="noopener noreferrer">' + escHtml(p.credit.label) + '</a>';
+    if (p.credit) return '<a class="inv-btn-link" data-credit href="' + escHtml(p.credit.href) + '" target="_blank" rel="noopener noreferrer">' + escHtml(p.credit.label) + '</a>';
     if (p.refresh) {
       var act = WDG_REFRESH_ACTION[p.refresh] || 'invFeedRefresh';
       return '<button type="button" class="inv-btn-link inv-widget-refresh" data-action="' + act + '" data-kind="' + escHtml(p.refresh) + '"' + (def ? ' data-wid="' + escHtml(def.id) + '"' : '') +
@@ -398,7 +417,7 @@ function wdgFootHtml(def, size, d, ctx) {
    More reads it (def.more). */
 var _wdgDrawn = {};
 /* A card (§24b): <section class="inv-widget"> on its type's surface, its tone said by the lamp, the figure where judged and, from
-   amber, the top edge (§24c); its head the section's icon, the title (its short title at Small) and the door's chevron, the Choose
+   amber, the top edge (§24c); its head its icon (the canvas's, else its section's), the title (its short title at Small) and the door's chevron, the Choose
    at its right at Large; its body the figure, the verdict, the detail and the type's parts; its foot the Act and the Source. In
    arrange mode its handle, its place, its size and its Remove ride over the head (§7e). An Outside card is never edged or tinted:
    the world outside is to know, info at most. */
@@ -413,14 +432,14 @@ function wdgCardHtml(def, size, o) {
   var body = wdgBodyHtml(def, size, d, ctx, tone);
   if (d.state !== 'ok') tone = 'neutral';
   _wdgDrawn[(o.preview ? 'preview|' : board + '|') + def.id] = { d: d, ctx: ctx };
-  var sec = wdgSection(def.section), id = escHtml(def.id), full = escHtml(def.title), title = escHtml(size === 's' && def.short ? def.short : def.title);
+  var sec = wdgSection(def.section), id = escHtml(def.id), full = escHtml(def.title), title = escHtml(wdgTitleAt(def, size));
   var door = wdgCanGo(def) && !o.preview
     ? '<button type="button" class="inv-widget-door" data-action="invWdgGo" data-wid="' + id + '" aria-label="' + full + ': open">' +
       '<span class="inv-widget-title"' + (title !== full ? ' title="' + full + '"' : '') + '>' + title + '</span>' + iconSvg('next', 'inv-widget-chev') + '</button>'
     : '<span class="inv-widget-door"><span class="inv-widget-title"' + (title !== full ? ' title="' + full + '"' : '') + '>' + title + '</span></span>';
   var choose = d.state === 'ok' && !o.preview && wdgChooseAt(def, size) ? wdgChooseHtml(def, ctx) : '';
   var head = (o.arranging ? wdgArrangeCtlHtml(def, size, o) : '') +
-    '<div class="inv-widget-head"><span class="inv-widget-ico" aria-hidden="true">' + iconSvg(sec.icon) + '</span>' + door +
+    '<div class="inv-widget-head"><span class="inv-widget-ico" aria-hidden="true">' + iconSvg(def.icon || sec.icon) + '</span>' + door +
     (choose && _isDesktop ? choose : '') + '</div>' + (choose && !_isDesktop ? '<div class="inv-widget-choose">' + choose + '</div>' : '');
   var foot = o.preview ? '' : wdgFootHtml(def, size, d, ctx);
   // The widget's own hooks: those its data gives (a screen's hero's id and data-card, in whatever state it says), else its def's
@@ -467,11 +486,11 @@ function wdgVizDraw(card) {
    in its rhythm) saying how many, and a Ledger's rest line their sum so the lines still add up; last, a verdict past its two lines
    is cut at a word, its whole text its title. Nothing is cut halfway and nothing runs past the card (P224, P237). Measured only
    where the card is laid out. A chart's room is at its smallest while the card is fitted (wdgVizDraw fills it after). */
-var WDG_FIT_ROWS = '.inv-row, .inv-ledger-line:not(.inv-ledger-total), .inv-docket-row, .inv-plant-row, .inv-brief-move, .inv-brief-movecard, .inv-brief-when, ' +
-  '.inv-wire-item, .inv-crew-row, .inv-deck-item, .inv-step, .inv-row-fold, .inv-chart-ranked-row, [data-story-say], .inv-docket-stage';
+var WDG_FIT_ROWS = '.inv-row, .inv-ledger-line:not(.inv-ledger-total), .inv-docket-row, .inv-plant-row, .inv-brief-move, .inv-brief-movecard, .inv-brief-when, .inv-brief-row, ' +
+  '.inv-wire-item, .inv-crew-row, .inv-deck-item, .inv-step, .inv-row-fold, .inv-chart-ranked-row, [data-story-say], .inv-docket-stage, .inv-wtable-row:not([data-head])';
 /* What a card can do without, all together: a part marked so, a tile's line of the months before and the words under its figure (never
    its change against the period before), a chart's key. */
-var WDG_FIT_OPT = '[data-wdg-opt], .inv-tile-viz, .inv-widget-body .inv-tile-sub:not([data-tile-delta], [id$="Delta"]), .inv-widget-body .inv-chart-keys';
+var WDG_FIT_OPT = '[data-wdg-opt], .inv-tile-viz, .inv-widget-body .inv-tile-sub:not([data-tile-delta], [id$="Delta"]), .inv-widget-body .inv-chart-keys, .inv-widget-body .inv-meter-key';
 function wdgFit(card) {
   if (!card || !card.isConnected || !card.offsetParent) return;
   var body = card.querySelector('.inv-widget-body');
@@ -481,8 +500,10 @@ function wdgFit(card) {
   var over = overOf(body);
   var cols = body.querySelector(':scope > .inv-widget-cols');
   var sideBySide = cols && getComputedStyle(cols).display === 'grid';
-  if (over() || sideBySide && Array.prototype.some.call(cols.children, function(c) { return overOf(c)(); })) {
-    var opt = Array.prototype.filter.call(body.querySelectorAll(WDG_FIT_OPT), function(el) { return !el.hidden && !el.closest('[data-wdg-cut]'); });
+  var colsOver = function() { return sideBySide && Array.prototype.some.call(cols.children, function(c) { return overOf(c)(); }); };
+  var opt = [];
+  if (over() || colsOver()) {
+    opt = Array.prototype.filter.call(body.querySelectorAll(WDG_FIT_OPT), function(el) { return !el.hidden && !el.closest('[data-wdg-cut]'); });
     if (opt.length) opt.forEach(cut);
   }
   // Side by side, each column is fitted on its own: a column's last rows let go, its More (or a Ledger's rest line) in it.
@@ -500,6 +521,12 @@ function wdgFit(card) {
     var left = Array.prototype.filter.call(c.children, function(k) { return !k.hidden && !k.hasAttribute('data-wdg-cut') && !k.classList.contains('inv-widget-cap'); });
     if (!left.length) cut(c);
   });
+  // What went first comes back, all together, where the rows' going left the room it needs: a list that went whole frees more than
+  // the card was short of (Owed's debts on a phone's Medium leave its age key the room), and the card is never left with a gap.
+  if (opt.length && !over() && !colsOver()) {
+    opt.forEach(function(el) { el.removeAttribute('data-wdg-cut'); el.hidden = false; });
+    if (over() || colsOver()) opt.forEach(cut);
+  }
   // The verdict, two lines at most, and the detail under it: where their words run past them, the whole is the title.
   Array.prototype.forEach.call(card.querySelectorAll('.inv-widget-say, .inv-widget-sub, .inv-brief-ans, [data-story-say] > .inv-dot, .inv-brief-move-say, .inv-crew-away, .inv-tile-sub'), function(s) {
     if (s.scrollHeight > s.clientHeight + 1 && !s.title) s.title = s.textContent.replace(/\s+/g, ' ').trim();
@@ -515,7 +542,11 @@ function wdgFitRows(card, body, over, cut) {
   var noun = function(el) { var h = el && el.closest('[data-noun]'); return h ? h.getAttribute('data-noun') : ''; };
   var place = function() {
     // The rows let go of: a Ledger's lines are summed into one rest line before its total; any other list ends in its More row.
-    var led = hid.filter(function(r) { return r.classList.contains('inv-ledger-line'); }), other = hid.filter(function(r) { return !r.classList.contains('inv-ledger-line'); });
+    // A list that let go of every row went whole (below), and is counted by nobody: the More is the list still showing rows.
+    var kept = hid.filter(function(r) { return !r.parentElement.closest('[data-wdg-cut]'); });
+    var led = kept.filter(function(r) { return r.classList.contains('inv-ledger-line'); }), other = kept.filter(function(r) { return !r.classList.contains('inv-ledger-line'); });
+    if (!led.length && rest && rest.parentNode) rest.parentNode.removeChild(rest);
+    if (!other.length && more && more.parentNode) more.parentNode.removeChild(more);
     if (led.length) {
       var sum = led.reduce(function(s, r) { return s + (Number(r.getAttribute('data-amt')) || 0); }, 0), n0 = noun(led[0]);
       var lg = led[0].closest('.inv-ledger'), unit = lg && lg.hasAttribute('data-rate') ? lg.getAttribute('data-rate') : null, signed = !!(lg && lg.hasAttribute('data-signed'));
@@ -531,16 +562,25 @@ function wdgFitRows(card, body, over, cut) {
       if (rest.parentNode !== lastLed.parentNode || rest.previousSibling !== lastLed) lastLed.parentNode.insertBefore(rest, lastLed.nextSibling);
     }
     if (other.length) {
-      var n1 = noun(other[0]);
+      var n1 = noun(other[0]), lst = other[0].closest('[data-more]'), tail = lst ? lst.getAttribute('data-more') : '';
       if (!more) { more = document.createElement('div'); more.className = 'inv-widget-more'; more.setAttribute('data-wdg-more', ''); }
-      var label = escHtml(other.length + ' more' + (n1 ? ' ' + wdgNoun(n1, other.length) : ''));
+      var label = escHtml(other.length + ' more' + (tail ? ' ' + tail : n1 ? ' ' + wdgNoun(n1, other.length) : ''));
       more.innerHTML = canMore ? '<button type="button" class="inv-widget-more-btn" data-action="invWdgMore" data-wid="' + id + '">' + label + iconSvg('next', 'inv-widget-chev') + '</button>'
         : '<span class="inv-widget-more-btn">' + label + '</span>';
       var lastOther = rows.filter(function(r) { return !r.classList.contains('inv-ledger-line') && !r.hidden; }).pop() || other[0];
       if (more.parentNode !== lastOther.parentNode || more.previousSibling !== lastOther) lastOther.parentNode.insertBefore(more, lastOther.nextSibling);
     }
   };
-  while (rows.length && over()) { var r = rows.pop(); cut(r); hid.unshift(r); place(); }
+  var visibleIn = function(lst) {
+    return Array.prototype.some.call(lst.querySelectorAll(WDG_FIT_ROWS), function(x) { return !x.hidden && !x.closest('[hidden], [data-wdg-cut], [data-wdg-more]'); });
+  };
+  while (rows.length && over()) {
+    var r = rows.pop(); cut(r); hid.unshift(r);
+    // A list with no row left goes at once, its caption and key with it, so the room they held goes to the list before it.
+    var lst = r.closest('[data-wdg-list]');
+    if (lst && lst !== body && !lst.hasAttribute('data-wdg-cut') && !visibleIn(lst)) cut(lst);
+    place();
+  }
   // A sheet or a list whose rows all went goes with them, and a list of moves with its head.
   Array.prototype.forEach.call(body.querySelectorAll('.inv-hero-sheet, .inv-hero-moves, [data-wdg-list]'), function(sh) {
     if (!sh.querySelector(WDG_FIT_ROWS.split(', ').map(function(s) { return s + ':not([data-wdg-cut])'; }).join(', ')) && sh.querySelector(WDG_FIT_ROWS) && !sh.querySelector('[data-wdg-more]')) cut(sh);
@@ -556,11 +596,45 @@ function wdgColsHtml(parts, o) {
   var list = (parts || []).filter(function(p) { return p != null && String(p).trim() !== ''; });
   if (list.length < 2) return list.map(function(p) { return /^<div class="inv-widget-viz"[^>]*data-wdg-viz/.test(p) ? p : '<div class="inv-widget-col">' + p + '</div>'; }).join('');
   var drop = list.length > 2 ? (o.drop != null ? o.drop : list.length - 1) : -1;
-  return '<div class="inv-widget-cols" data-cols="' + list.length + '">' + list.map(function(p, i) {
+  return '<div class="inv-widget-cols" data-cols="' + list.length + '"' + (o.shape ? ' data-shape="' + escHtml(o.shape) + '"' : '') + '>' + list.map(function(p, i) {
     var a = i === drop ? ' data-col-drop' : '';
     if (/^<div class="inv-widget-viz"[^>]*data-wdg-viz/.test(p)) return p.replace(/^<div class="inv-widget-viz"/, '<div class="inv-widget-viz"' + a);
     return '<div class="inv-widget-col"' + a + '>' + p + '</div>';
   }).join('') + '</div>';
+}
+/* Facts on one line (a Briefing's, the canvas's "Realised ₹11.08 a kilo · Live cost ₹28.66 · 6.0 t billed"): each a few words, its
+   figure bold, wrapping whole where the column is narrow. parts: HTML, every name in it escaped by its maker. */
+function wdgFactsHtml(parts, attrs) {
+  var list = (parts || []).filter(Boolean);
+  // Money on a board is short (§24k): a question's facts carry its story's exact amounts.
+  return list.length ? wdgShortMoneyHtml('<p class="inv-brief-facts"' + (attrs || '') + '>' + list.map(function(p) { return '<span>' + p + '</span>'; }).join('') + '</p>') : '';
+}
+/* Facts a line each, the figure leading in Geist ("<b>210 kg</b> written or on record"), under a caption and a picture where given
+   (the canvas's How it was weighed). lines: [[figure, words]]. */
+function wdgFactLinesHtml(lines, o) {
+  o = o || {};
+  return '<div class="inv-widget-facts"' + (o.attrs || '') + '>' + (o.caption ? '<p class="inv-widget-cap">' + escHtml(o.caption) + '</p>' : '') + (o.viz || '') +
+    (lines || []).map(function(x) { return '<span><b>' + escHtml(x[0]) + '</b> ' + escHtml(x[1] || '') + '</span>'; }).join('') + '</div>';
+}
+/* Gauges a line each (the canvas's Stock days): its label, the gauge marked where it is judged, and its reading at the end.
+   rows: [{label, v, max, mark, tone, text, title}]. */
+function wdgGaugeRowsHtml(rows, attrs) {
+  return '<div class="inv-gauges"' + (attrs || '') + '>' + (rows || []).map(function(r) {
+    return '<div class="inv-gauge-row"><span title="' + escHtml(r.label || '') + '">' + escHtml(r.label || '') + '</span>' +
+      chartMeter([{ v: Math.max(0, Number(r.v) || 0), tone: r.tone || 'neutral' }], { max: r.max, mark: r.mark, title: r.title || '' }) +
+      '<span>' + escHtml(r.text || '') + '</span></div>';
+  }).join('') + '</div>';
+}
+/* A small table on a card (the canvas's This week, by area): its head, then a row each, a cell a string or {text, tone}, the
+   first column the name and the others figures at the right. A body row is a row the fit can let go of. */
+function wdgTableHtml(head, rows, attrs) {
+  var cell = function(c, h) {
+    var o = c && typeof c === 'object' ? c : { text: c };
+    return '<span role="' + (h ? 'columnheader' : 'cell') + '">' + (o.tone && !h ? figHtml(escHtml(String(o.text)), o.tone) : escHtml(String(o.text == null ? '' : o.text))) + '</span>';
+  };
+  return '<div class="inv-wtable" role="table" data-wdg-list data-noun="row"' + (attrs || '') + '><div class="inv-wtable-row" role="row" data-head>' +
+    (head || []).map(function(h) { return cell(h, true); }).join('') + '</div>' +
+    (rows || []).map(function(r) { return '<div class="inv-wtable-row" role="row">' + r.map(function(c) { return cell(c); }).join('') + '</div>'; }).join('') + '</div>';
 }
 /* A list's noun by its count ("move", "moves"): the noun is given singular. */
 function wdgNoun(n, k) { return k === 1 ? n : /s$/.test(n) ? n : /y$/.test(n) && !/[aeiou]y$/.test(n) ? n.slice(0, -1) + 'ies' : n + 's'; }
@@ -582,28 +656,64 @@ function wdgLedgerHtml(lines, total, o) {
   var list = (lines || []).filter(Boolean), rate = !!o.rate, dp = rate ? 2 : 0;
   var fmt = function(v) { return wdgLedgerFmt(v, rate, o.unit, o.signed); };
   var num = function(x) { return x.text == null && x.amt != null && isFinite(Number(x.amt)); };
-  var line = function(x, cls) {
+  // o.bars: each line its bar from a middle rule where its leader was (left for less, right for more, every bar on one scale), its
+  // words under its name (the canvas's Why it moved: causes that add up to the change). The total keeps its leader.
+  var barMax = o.bars ? Math.max.apply(null, list.map(function(x) { return num(x) ? Math.abs(Number(x.amt)) : 0; }).concat([0])) : 0;
+  var bar = function(x) {
+    var v = num(x) ? Number(x.amt) : 0, w = barMax > 0 && Math.abs(v) > 0 ? Math.max(1.5, Math.abs(v) / barMax * 46) : 0;
+    return '<svg class="inv-ledger-bar" viewBox="0 0 96 12" preserveAspectRatio="none" aria-hidden="true"><line class="inv-ledger-bar-mid" x1="48" x2="48" y1="0" y2="12"/>' +
+      (w ? '<rect class="inv-ledger-bar-' + (v < 0 ? 'less' : 'more') + '" x="' + _chartN(v < 0 ? 48 - w : 48) + '" y="2" width="' + _chartN(w) + '" height="8"/>' : '') + '</svg>';
+  };
+  var line = function(x, cls, isTotal) {
     var has = num(x), r = has ? gstRound(Number(x.amt), dp) : null;
     var shown = x.text != null ? figHtml(escHtml(x.text), x.tone || null) : has ? figHtml(escHtml(fmt(Number(x.amt))), x.tone || null) : '&mdash;';
     var title = x.title || (has && !rate ? formatCurrency(Number(x.amt)) : '');
     var amt = '<span class="inv-ledger-amt"' + (title ? ' title="' + escHtml(title) + '"' : '') + '>' + shown + '</span>';
-    var lab = '<span class="inv-ledger-label">' + escHtml(x.label) + (x.meta ? '<span class="inv-ledger-meta">' + escHtml(x.meta) + '</span>' : '') + '</span>';
-    var inner = lab + '<span class="inv-ledger-lead"></span>' + amt, data = has ? ' data-amt="' + r + '"' : '';
+    // A meta a phone's card leaves off (metaTail: the canvas's "Likely range" alone on the phone).
+    var barred = o.bars && !isTotal;
+    var lab = '<span class="inv-ledger-label">' + (barred ? '<span class="inv-row-title">' + escHtml(x.label) + '</span>' : escHtml(x.label)) +
+      (x.meta ? '<span class="inv-ledger-meta' + (x.metaTail ? ' inv-tail' : '') + '">' + escHtml(x.meta) + '</span>' : '') + '</span>';
+    var inner = lab + (barred ? bar(x) : '<span class="inv-ledger-lead"></span>') + amt, data = has ? ' data-amt="' + r + '"' : '';
     if (x.go) return '<button type="button" class="inv-ledger-line' + (cls || '') + '"' + data + wdgPressAttrs(x.go) + (x.attrs || '') + '>' + inner + '</button>';
     return '<div class="inv-ledger-line' + (cls || '') + '"' + data + (x.attrs || '') + '>' + inner + '</div>';
   };
   var sum = list.reduce(function(s, x) { return s + (num(x) ? gstRound(Number(x.amt), dp) : 0); }, 0);
   var adds = total && num(total) && list.length && list.every(num) && Math.abs(sum - gstRound(Number(total.amt), dp)) <= (rate ? 0.005 : 0.5) * Math.max(1, list.length);
   return '<div class="inv-ledger" data-wdg-list' + (o.noun ? ' data-noun="' + escHtml(o.noun) + '"' : '') + (rate ? ' data-rate="' + escHtml(o.unit || '') + '"' : '') +
-    (o.signed ? ' data-signed' : '') + (o.attrs || '') + '>' +
-    list.map(function(x) { return line(x); }).join('') + (total ? line(total, adds ? ' inv-ledger-total' : '') : '') + '</div>';
+    (o.signed ? ' data-signed' : '') + (o.bars ? ' data-bars' : '') + (o.attrs || '') + '>' +
+    list.map(function(x) { return line(x); }).join('') + (total ? line(total, adds ? ' inv-ledger-total' : '', true) : '') + '</div>';
 }
 /* An age bar's key (§24d): four columns, each its swatch, its band and its sum. bands: [{label, amt, tone}]. */
-function wdgMeterKeyHtml(bands) {
+function wdgMeterKeyHtml(bands, o) {
+  // o.whole: each sum in whole rupees (a Large's, as its ledger's lines), else short.
+  var whole = o && o.whole;
   return '<div class="inv-meter-key">' + (bands || []).map(function(b) {
     return '<span class="inv-meter-key-item"><span class="inv-dot inv-dot-' + uiTone(b.tone) + '">' + escHtml(b.label) + '</span><span class="inv-meter-key-amt" title="' +
-      escHtml(formatCurrency(b.amt)) + '">' + escHtml(inrCard(b.amt).text) + '</span></span>';
+      escHtml(formatCurrency(b.amt)) + '">' + escHtml(whole ? wdgLedgerFmt(b.amt) : inrCard(b.amt).text) + '</span></span>';
   }).join('') + '</div>';
+}
+/* The ends of a small picture said under it (the canvas's key): a gauge's zero and its mark, the hours a Small's bars span, what
+   its pips are of. `left` and `right` a few words each (one alone stands at the left), or a list spaced along it (an hour axis). Any
+   of them may be {l, s}: the long words, and the short ones a phone's Small says in their place (the canvas's "Last 10"). */
+function wdgTrackKeyItem(x) {
+  if (x && typeof x === 'object') return '<span title="' + escHtml(x.l) + '"><span class="inv-long">' + escHtml(x.l) + '</span><span class="inv-short">' + escHtml(x.s) + '</span></span>';
+  return '<span>' + escHtml(x) + '</span>';
+}
+function wdgTrackKeyHtml(left, right) {
+  var list = Array.isArray(left) ? left : [left, right];
+  return '<div class="inv-track-key">' + list.filter(function(x) { return x != null && x !== ''; }).map(wdgTrackKeyItem).join('') + '</div>';
+}
+
+function wdgGaugeHtml(o) {
+  var m = chartMeter([{ v: Math.max(0, Number(o.v) || 0), tone: o.tone || 'neutral' }], { max: o.max, mark: o.mark, title: o.title || '' });
+  return m ? '<div class="inv-widget-gauge"' + (o.flow ? '' : ' data-wdg-push') + (o.attrs || '') + '>' + m + (o.left != null || o.right != null ? wdgTrackKeyHtml(o.left, o.right) : '') + '</div>' : '';
+}
+/* Pips (Docket): the last few documents a pip each, the oldest first, in the tone of how each went (back on time ok, late its tone,
+   none yet neutral); `say` what they are, which a screen reader reads, and `left` / `right` their key. */
+function wdgPipsHtml(list, say, left, right) {
+  return '<div class="inv-widget-gauge" data-wdg-push><span class="inv-pips" role="img" aria-label="' + escHtml(say || '') + '" title="' + escHtml(say || '') + '">' +
+    (list || []).map(function(p) { return '<span class="inv-pip" data-tone="' + uiTone(p.tone || 'ok') + '"></span>'; }).join('') + '</span>' +
+    (left != null || right != null ? wdgTrackKeyHtml(left, right) : '') + '</div>';
 }
 /* Docket: a row read across like a register: the document's number in Geist Mono, the party and its meta, the amount and its state
    as steps (a pip a state: those passed, the one it stands at in the tone of its age, those to come), and the row's own one action.
@@ -616,15 +726,27 @@ function wdgDocketStepsHtml(st) {
   return '<span class="inv-docket-steps" role="img" aria-label="' + escHtml(st.say || '') + '" title="' + escHtml(st.say || '') + '">' + pips + '</span>';
 }
 function wdgDocketRowHtml(o) {
+  // `mid`: the steps stand in a column of their own with their words under them (`stepsText`), the row's end its action alone
+  // (a challan on its way to its invoice: the canvas's Pipeline rows).
+  if (o.mid) {
+    var midEnd = '<span class="inv-docket-end">' + wdgDocketStepsHtml(o.steps) + (o.stepsText ? '<span class="inv-row-meta">' + escHtml(o.stepsText) + '</span>' : '') + '</span>';
+    o = Object.assign({}, o, { end: midEnd, mainAttrs: ' data-mid' });
+  }
   var num = o.num != null && o.num !== '';
   var main = (num ? '<span class="inv-docket-num inv-id">' + escHtml(o.num) + '</span>' : '') + '<span class="inv-docket-party"><span class="inv-row-title">' + escHtml(o.party || '') + '</span>' +
     (o.meta ? '<span class="inv-row-meta">' + escHtml(o.meta) + '</span>' : '') + '</span>';
   // The end: the amount and the steps, or what the row says in their place (`end`, HTML its caller built: a turnaround's days).
   var end = '<span class="inv-docket-end">' + (o.end != null ? o.end : (o.amt != null ? '<span class="inv-docket-amt">' + inrFigHtml(o.amt, { inline: true }) + '</span>' : '') +
     wdgDocketStepsHtml(o.steps)) + '</span>';
-  var act = wdgRowActHtml(o.act), nn = num ? '' : ' data-nonum';
+  var act = wdgRowActHtml(o.act), nn = (num ? '' : ' data-nonum') + (o.mainAttrs || '');
   return '<div class="inv-docket-row"' + (o.attrs || '') + '>' + (o.go ? '<button type="button" class="inv-docket-main"' + nn + wdgPressAttrs(o.go) +
     (o.go.label ? ' aria-label="' + escHtml(o.go.label) + '"' : '') + '>' + main + end + '</button>' : '<span class="inv-docket-main"' + nn + '>' + main + end + '</span>') + act + '</div>';
+}
+/* The steps a list's rows are drawn in, named once over their column ("Created Printed Dispatched Delivered Filed"), the list's
+   caption at its left where it has one. Drawn inside the list, so it goes when every row has. */
+function wdgDocketKeyHtml(words, caption) {
+  return '<div class="inv-docket-key">' + (caption ? '<span class="inv-widget-cap">' + escHtml(caption) + '</span>' : '') +
+    '<span class="inv-docket-key-steps" aria-hidden="true">' + (words || []).map(function(w) { return '<span>' + escHtml(w) + '</span>'; }).join('') + '</span></div>';
 }
 /* A row's own one action (§24e): a small tinted button, or a link where it is one (a call). a: {label, action | jump, attrs, href}. */
 function wdgRowActHtml(a) {
@@ -636,9 +758,10 @@ function wdgRowActHtml(a) {
    lifted, each opening Pipeline at that stage. stages: [{key, label, n, amt, tone, lead, go: {action, attrs}}]. */
 function wdgDocketStagesHtml(stages) {
   return '<div class="inv-docket-stages" data-wdg-list data-noun="stage">' + (stages || []).map(function(s) {
-    var inner = '<span class="inv-docket-stage-label">' + escHtml(s.label) + '</span><span class="inv-docket-stage-n">' + escHtml(String(s.n)) + '</span>' +
-      (s.amt != null ? '<span class="inv-docket-stage-amt">' + inrFigHtml(s.amt, { inline: true }) + '</span>' : '<span class="inv-docket-stage-amt">&mdash;</span>') +
-      (s.word ? '<span class="inv-dot inv-dot-' + uiTone(s.tone) + '">' + escHtml(s.word) + '</span>' : '');
+    var lamp = s.tone && s.tone !== 'neutral' ? '<span class="inv-dot inv-dot-' + uiTone(s.tone) + '"' + (s.word ? ' title="' + escHtml(s.word) + '"' : '') + '></span>' : '';
+    var inner = '<span class="inv-docket-stage-label">' + escHtml(s.label) + '</span><span class="inv-docket-stage-n">' + escHtml(String(s.n)) + lamp + '</span>' +
+      '<span class="inv-docket-stage-amt">' + (s.amt != null ? inrFigHtml(s.amt, { inline: true }) : '&mdash;') +
+      (s.word ? '<span class="inv-docket-stage-word"> · ' + escHtml(s.word) + '</span>' : '') + '</span>';
     var a = ' data-stage="' + escHtml(s.key) + '"' + (s.lead ? ' data-lead' : '');
     return s.go ? '<button type="button" class="inv-docket-stage"' + a + wdgPressAttrs(s.go) + '>' + inner + '</button>'
       : '<span class="inv-docket-stage"' + a + '>' + inner + '</span>';
@@ -646,14 +769,19 @@ function wdgDocketStagesHtml(stages) {
 }
 /* Plant: a line or a unit a row: its lamp ringed in its tone, its nameplate (as the app writes it, in Geist Mono in a small well),
    what it runs and its meta, its reading with its unit, and a gauge under it. o: {tone, plate, runs, meta, reading, unit, gauge (HTML),
-   word, go: {action, attrs, label}, attrs}. */
+   word, eff: {text, tone, v, max, mark, title}, go: {action, attrs, label}, attrs}: `eff` ends the row in a column, the figure in its
+   tone over a gauge marked where it is judged (a line's efficiency, the canvas's floor now), in place of the reading. */
+function wdgPlantEffHtml(e) {
+  var m = chartMeter([{ v: Math.max(0, Number(e.v) || 0), tone: e.tone || 'neutral' }], { max: e.max || 100, mark: e.mark, title: e.title || '' });
+  return '<span class="inv-plant-eff"><span class="inv-plant-eff-fig">' + (e.tone && e.tone !== 'neutral' ? figHtml(escHtml(e.text), e.tone) : escHtml(e.text)) + '</span>' + m + '</span>';
+}
 function wdgPlantRowHtml(o) {
   var lamp = '<span class="inv-dot inv-dot-' + uiTone(o.tone) + ' inv-plant-lamp"' + (o.word ? ' title="' + escHtml(o.word) + '"' : '') + '></span>';
   var main = lamp + '<span class="inv-plate">' + escHtml(o.plate || '') + '</span><span class="inv-plant-what"><span class="inv-row-title">' + escHtml(o.runs || '') + '</span>' +
     (o.meta ? '<span class="inv-row-meta">' + escHtml(o.meta) + '</span>' : '') + '</span>';
   var reading = o.reading != null && o.reading !== '' ? '<span class="inv-reading">' + escHtml(String(o.reading)) + (o.unit ? '<span class="inv-unit">' + escHtml(o.unit) + '</span>' : '') + '</span>' : '';
   var word = o.word ? '<span class="inv-dot inv-dot-' + uiTone(o.tone) + '">' + escHtml(o.word) + '</span>' : '';
-  var end = '<span class="inv-plant-end">' + reading + word + '</span>';
+  var end = o.eff ? wdgPlantEffHtml(o.eff) : '<span class="inv-plant-end">' + reading + word + '</span>';
   var head = o.go ? '<button type="button" class="inv-plant-main"' + wdgPressAttrs(o.go) + (o.go.label ? ' aria-label="' + escHtml(o.go.label) + '"' : '') + '>' + main + end + '</button>'
     : '<span class="inv-plant-main">' + main + end + '</span>';
   var act = wdgRowActHtml(o.act);
@@ -693,35 +821,91 @@ function wdgMoveWorthHtml(mv) {
 function wdgMoveTitle(s) { return s && wdgShortMoney(s) !== String(s) ? ' title="' + escHtml(s) + '"' : ''; }
 /* A move on the owner's list says so wherever it is drawn (What to do): On your list, in its meta line. */
 function wdgMoveListedHtml(mv) { return typeof advListedKeys === 'function' && advListedKeys()[mv.key] ? ADV_LISTED_HTML : ''; }
+/* A move's sentence on a board (the canvas's Do first): what to do, where its sentence leads with a whole instruction before its
+   colon ("Quote new work at ₹33.09/kg: it clears…" is "Quote new work at ₹33.09/kg"); a head of three words or fewer ("Look into
+   labour") keeps the whole. The whole is the row's title and the move's dialog's. */
+function wdgMoveSay(mv) {
+  var s = String(mv.say || ''), at = s.indexOf(': ');
+  return at > 0 && s.slice(0, at).trim().split(/\s+/).length >= 4 ? s.slice(0, at) : s;
+}
+/* What a move rests on, on a board: its first clause (the rest is the dialog's). */
+function wdgMoveBasis(mv) { return String(mv.basis || '').split(' · ')[0]; }
+/* A move a row: its sentence, then what it is worth and on what (the canvas's "+₹7.98 L a month, on the 54 t spare"); what it rests on
+   only where it has no worth, the whole in its title and its dialog. */
 function wdgMoveRowHtml(mv) {
-  var ref = advRowRef(mv), worth = wdgMoveWorthHtml(mv);
-  var meta = [worth, mv.basis ? escHtml(wdgShortMoney(mv.basis)) : '', wdgMoveListedHtml(mv)].filter(Boolean).join('<span aria-hidden="true"> · </span>');
+  var ref = advRowRef(mv), worth = wdgMoveWorthHtml(mv), say = wdgMoveSay(mv), basis = worth ? '' : wdgMoveBasis(mv);
+  var meta = [worth, basis ? escHtml(wdgShortMoney(basis)) : '', wdgMoveListedHtml(mv)].filter(Boolean).join('<span aria-hidden="true"> · </span>');
+  var whole = [mv.say, mv.basis].filter(Boolean).join(' · ');
   return '<div class="inv-brief-move" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
-    '<button type="button" class="inv-brief-move-main" data-action="invWdgMoveOpen" data-key="' + escHtml(mv.key) + '" data-adv-row="' + escHtml(ref) + '">' +
-    '<span class="inv-dot inv-dot-' + uiTone(mv.tone) + ' inv-brief-move-say"' + wdgMoveTitle(mv.say) + '>' + escHtml(wdgShortMoney(mv.say)) + '</span>' +
+    '<button type="button" class="inv-brief-move-main" data-action="invWdgMoveOpen" data-key="' + escHtml(mv.key) + '" data-adv-row="' + escHtml(ref) + '" title="' + escHtml(whole) + '">' +
+    '<span class="inv-dot inv-dot-' + uiTone(mv.tone) + ' inv-brief-move-say">' + escHtml(wdgShortMoney(say)) + '</span>' +
     (meta ? '<span class="inv-brief-move-worth">' + meta + '</span>' : '') + '</button>' + wdgMoveActHtml(mv, ref) + '</div>';
 }
+/* A worth's words on a card (the canvas's "+₹7.98 L a month"): a short label whole; a long one its period ("a month"), and where
+   what follows is a place ("on the period's 61.3 t spare") that place, for the card's last line. The whole is the move's dialog's. */
+function wdgWorthSplit(w) {
+  var label = typeof advWorthLabel === 'function' ? advWorthLabel(w) : '';
+  if (label.length <= 20) return { unit: label, rest: '' };
+  var m = /^(a month|a year|on the period)(?:\u2019s\s+(.+)|\s+(.+))$/.exec(label);
+  if (!m) return { unit: label, rest: '' };
+  return { unit: m[1], rest: m[2] ? 'on the ' + m[2] : '' };
+}
 function wdgMoveCardHtml(mv) {
-  var ref = advRowRef(mv), w = mv.worth, c = w && w.amount > 0.005 ? inrCard(w.amount) : null;
+  var ref = advRowRef(mv), w = mv.worth, c = w && w.amount > 0.005 ? inrCard(w.amount) : null, ws = c ? wdgWorthSplit(w) : { unit: '', rest: '' };
+  // Its sentence the instruction before its colon (wdgMoveSay); its last line the place its worth is on and what follows the colon,
+  // else the last of what it rests on (the canvas's "On the 54 t spare; it clears the full cost by 10%", "93% of working days recorded").
+  var s = String(mv.say || ''), head = wdgMoveSay(mv), tail = head.length < s.length ? s.slice(head.length).replace(/^:\s*/, '') : '';
+  var rest = [ws.rest, tail].filter(Boolean).join('; ') || String(mv.basis || '').split(' · ').pop();
+  rest = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : '';
   return '<div class="inv-brief-movecard" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
-    '<button type="button" class="inv-brief-move-main" data-action="invWdgMoveOpen" data-key="' + escHtml(mv.key) + '" data-adv-row="' + escHtml(ref) + '">' +
+    '<button type="button" class="inv-brief-move-main" data-action="invWdgMoveOpen" data-key="' + escHtml(mv.key) + '" data-adv-row="' + escHtml(ref) + '" title="' +
+      escHtml([mv.say, mv.basis].filter(Boolean).join(' · ')) + '">' +
     (c ? '<span class="inv-brief-worth" data-adv-worth title="' + escHtml((w.sign < 0 ? '−' : '+') + formatCurrency(w.amount)) + '">' + figHtml((w.sign < 0 ? '−' : '+') + escHtml(c.text), w.sign < 0 ? 'danger' : 'ok') +
-      (typeof advWorthLabel === 'function' && advWorthLabel(w) ? '<span class="inv-unit">' + escHtml(advWorthLabel(w)) + '</span>' : '') + '</span>' : '') +
-    '<span class="inv-dot inv-dot-' + uiTone(mv.tone) + ' inv-brief-move-say"' + wdgMoveTitle(mv.say) + '>' + escHtml(wdgShortMoney(mv.say)) + '</span>' +
-    (mv.basis ? '<span class="inv-brief-move-worth"' + wdgMoveTitle(mv.basis) + '>' + escHtml(wdgShortMoney(mv.basis)) + '</span>' : '') +
+      (ws.unit ? '<span class="inv-unit">' + escHtml(ws.unit) + '</span>' : '') + '</span>' : '') +
+    '<span class="inv-brief-move-say">' + escHtml(wdgShortMoney(head)) + '</span>' +
+    (rest ? '<span class="inv-brief-move-worth">' + escHtml(wdgShortMoney(rest)) + '</span>' : '') +
     (wdgMoveListedHtml(mv) ? '<span class="inv-brief-move-worth">' + ADV_LISTED_HTML + '</span>' : '') + '</button>' + wdgMoveActHtml(mv, ref) + '</div>';
 }
 /* A list of moves (`data-noun` move, so a cut list's More says "4 more moves"); at Large the cards three across from 40rem. */
 function wdgMovesHtml(moves, large, attrs) {
   return '<div class="' + (large ? 'inv-brief-movecards' : 'inv-brief-moves') + '" data-wdg-list data-noun="move"' + (attrs || '') + '>' + (moves || []).map(large ? wdgMoveCardHtml : wdgMoveRowHtml).join('') + '</div>';
 }
+/* A finding a row (Briefing, the canvas's rows under an answer): its lamp (its word the lamp's title, which a screen reader reads),
+   what it is and why, and its figure at the end, a sum short; a tap opens what it names. rows: [{tone, word, title, meta, value
+   (text), amt (rupees), go: {action | jump, attrs, label}, attrs}]. */
+function wdgBriefRowsHtml(rows, attrs) {
+  // Its noun "thing", unless attrs names another (a receipt).
+  return '<div class="inv-brief-rows" data-wdg-list' + (/data-noun=/.test(attrs || '') ? '' : ' data-noun="thing"') + (attrs || '') + '>' + (rows || []).map(function(r) {
+    var end = r.amt != null ? '<span class="inv-brief-row-val">' + inrFigHtml(r.amt, { inline: true }) + '</span>'
+      : r.value != null && r.value !== '' ? '<span class="inv-brief-row-val">' + escHtml(String(r.value)) + '</span>' : '';
+    // A row with no tone and no word draws no lamp (a receipt on a Ledger: what it is and when, its sum).
+    var inner = (r.tone || r.word ? '<span class="inv-dot inv-dot-' + uiTone(r.tone) + ' inv-brief-lamp" role="img" aria-label="' + escHtml(r.word || '') + '" title="' + escHtml(r.word || '') + '"></span>' : '') +
+      '<span class="inv-brief-when-text"><span class="inv-row-title">' + escHtml(r.title || '') + '</span>' + (r.meta ? '<span class="inv-row-meta">' + escHtml(r.meta) + '</span>' : '') + '</span>' + end;
+    return r.go ? '<button type="button" class="inv-brief-row"' + wdgPressAttrs(r.go) + (r.go.label ? ' aria-label="' + escHtml(r.go.label) + '"' : '') + (r.attrs || '') + '>' + inner + '</button>'
+      : '<div class="inv-brief-row"' + (r.attrs || '') + '>' + inner + '</div>';
+  }).join('') + '</div>';
+}
 /* A dated row led by its day in a small well (Briefing): `today` in the accent's soft colour. o: {day, today, title, why, tone, word,
-   go: {action, attrs}, attrs}. */
+   go: {action, attrs}, attrs}. The row ends in its lamp, its word the lamp's title (the canvas's agenda: the day says when, the lamp
+   how near); `wordShown` writes the word beside it. */
 function wdgWhenRowHtml(o) {
-  var inner = '<span class="inv-brief-day"' + (o.today ? ' data-today' : '') + '>' + escHtml(o.day) + '</span><span class="inv-brief-when-text"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
-    (o.why ? '<span class="inv-row-meta">' + escHtml(o.why) + '</span>' : '') + '</span>' + (o.word ? '<span class="inv-dot inv-dot-' + uiTone(o.tone) + '">' + escHtml(o.word) + '</span>' : '');
+  var end = !o.word ? '' : o.wordShown ? '<span class="inv-dot inv-dot-' + uiTone(o.tone) + '">' + escHtml(o.word) + '</span>'
+    : '<span class="inv-dot inv-dot-' + uiTone(o.tone) + ' inv-brief-lamp" role="img" aria-label="' + escHtml(o.word) + '" title="' + escHtml(o.word) + '"></span>';
+  // o.hint: what the row rests on beyond its two lines, its title (the full sentence a phone's line leaves off).
+  var inner = '<span class="inv-brief-day"' + (o.today ? ' data-today' : '') + '>' + escHtml(o.day) + '</span><span class="inv-brief-when-text"' +
+    (o.hint ? ' title="' + escHtml(o.title + ' · ' + (o.why ? o.why + '. ' : '') + o.hint) + '"' : '') + '><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
+    (o.why ? '<span class="inv-row-meta">' + escHtml(o.why) + '</span>' : '') + '</span>' + end;
   return o.go ? '<button type="button" class="inv-brief-when"' + wdgPressAttrs(o.go) + (o.attrs || '') + '>' + inner + '</button>'
     : '<div class="inv-brief-when"' + (o.attrs || '') + '>' + inner + '</div>';
+}
+/* Outside: the figures after the lead a row each (the canvas's Tata card): its name, its count and its change in its tone.
+   rows: [{label, value (text), chg (text), tone}]. */
+function wdgWireFigsHtml(rows, attrs) {
+  return '<div class="inv-wire-figs"' + (attrs || '') + '>' + (rows || []).map(function(r) {
+    var t = r.tone === 'ok' || r.tone === 'warning' || r.tone === 'danger' ? r.tone : null;
+    return '<div class="inv-wire-fig"><span>' + escHtml(r.label || '') + '</span><span class="inv-num">' + escHtml(r.value || '') +
+      (r.chg ? '<span>' + figHtml(escHtml(r.chg), t) + '</span>' : '') + '</span></div>';
+  }).join('') + '</div>';
 }
 /* Outside: headlines with their dateline, each opening its article outside the app. items: [{title, url, site, when}]. A headline is
    untrusted text: escaped, its link https or http only, rel noopener noreferrer, a new tab. */
@@ -737,7 +921,9 @@ function wdgWireHtml(items, attrs) {
    accent over its word. keys: [{label, icon, action | jump, attrs}]; attrs the tray's own (data-wdg-push). */
 function wdgTrayHtml(keys, label, attrs) {
   return '<div class="inv-tray" role="group" aria-label="' + escHtml(label || 'Actions') + '"' + (attrs || '') + '>' + (keys || []).map(function(k) {
-    return '<button type="button" class="inv-tray-key"' + wdgPressAttrs(k) + '>' + iconSvg(k.icon) + '<span>' + escHtml(k.label) + '</span></button>';
+    // A word shortened for the room ("Paste") keeps its whole name for a screen reader and the pointer ("Paste message").
+    var full = k.title && k.title !== k.label ? ' aria-label="' + escHtml(k.title) + '" title="' + escHtml(k.title) + '"' : '';
+    return '<button type="button" class="inv-tray-key"' + wdgPressAttrs(k) + full + '>' + iconSvg(k.icon) + '<span>' + escHtml(k.label) + '</span></button>';
   }).join('') + '</div>';
 }
 
@@ -893,6 +1079,17 @@ function wdgLiveStart(host, board) {
   }, 15000);
 }
 function wdgLiveStop(board) { if (_wdgLive[board]) { clearInterval(_wdgLive[board]); delete _wdgLive[board]; } }
+/* A widget that reads what is not the book (`arrive`: Quick actions' Started here and not saved reads Create's form and the pages
+   kept on this device) is drawn again whenever its board is shown again without being drawn whole: no save marks the board for it,
+   so an invoice thrown away on Create had stayed listed. */
+function wdgArriveRedraw(host, board) {
+  var el = host && host.querySelector('.inv-wboard[data-board="' + board + '"]');
+  if (!el) return;
+  wdgShown(board).forEach(function(x) {
+    var d = wdgDef(x[0]), card = d && d.arrive ? el.querySelector('.inv-widget[data-w="' + CSS.escape(d.id) + '"]') : null;
+    if (card) wdgRedrawOne(card);
+  });
+}
 
 /* ---------- Arranging (§7e, §24h) ----------
    Customise puts the board in arrange mode, a layer over the screen (Back, Escape and Done leave it; a swipe does nothing while
@@ -906,7 +1103,7 @@ function wdgArrangeCtlHtml(def, size, o) {
       return '<button type="button" class="inv-seg-btn" data-action="invWdgSize" data-wid="' + id + '" data-size="' + s + '" aria-pressed="' + (s === size) + '" aria-label="' +
         WDG_SIZE_NAMES[s] + '">' + WDG_SIZE_SHORT[s] + '</button>';
     }).join('') + '</span>' : '';
-  var name = escHtml(size === 's' && def.short ? def.short : def.title);
+  var name = escHtml(wdgTitleAt(def, size));
   return '<div class="inv-widget-ctl">' +
     '<button type="button" class="inv-widget-handle" data-wdg-handle="' + id + '" aria-label="Move ' + title + ', ' + (o.i + 1) + ' of ' + o.n + '">' + iconSvg('grip') + '</button>' +
     '<span class="inv-widget-ctl-name"><span class="inv-widget-title">' + name + '</span><span class="inv-widget-place" data-wdg-place>' + (o.i + 1) + ' of ' + o.n + '</span></span>' + sizes +

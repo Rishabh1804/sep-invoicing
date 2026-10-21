@@ -153,7 +153,9 @@ function tabRender(tabId, isDirty) {
     // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
     // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both). Home's dashboard
     // (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late.
-    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr()) { renderHome(); _tabDirty.home = false; }
+    // And for whoever is in: Home drawn for somebody else is drawn again (a person's board is their own).
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr() ||
+      _homeDrawnFor !== homeDrawnKey()) { renderHome(); _tabDirty.home = false; }
     else if (tdyView() === 'home' && typeof homeArrive === 'function') homeArrive();
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
@@ -338,11 +340,16 @@ function homePriorSameDays() {
 var _homeDrawnView = '';   // the view of Home drawn last (tabRender)
 var _homeDrawnPeriod = '';   // the period the dashboard was drawn on last: Stats and Home share one (tabRender)
 var _homeDrawnDay = '';      // the day Home was drawn on last (tabRender)
+var _homeDrawnFor = '';      // whom Home was drawn for last (homeDrawnKey): a person's board and masthead are their own
+/* Who Home is drawn for: the person signed in and their role's settings (guard.js grdDrawKey), null with the guard off. Home is kept
+   between visits, so a board drawn for one person was shown to the next to sign in (the clerk's masthead and board to the owner). */
+function homeDrawnKey() { return typeof grdOn === 'function' && grdOn() && typeof grdDrawKey === 'function' ? grdDrawKey(grdUser()) : null; }
 function renderHome() {
   if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
   _homeDrawnPeriod = _statsPeriod;
   _homeDrawnDay = localDateStr();
+  _homeDrawnFor = homeDrawnKey();
   tdyApplyView();
   // The bar's red counts on either view: Needs you had none drawn, so they stood as the start counted them (QA2-7).
   if (tdyView() === 'needs') renderNeeds(); else renderHomeBoard();

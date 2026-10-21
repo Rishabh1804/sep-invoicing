@@ -10,7 +10,8 @@ import { drawBoard } from './p224-widget-sweep.fixture';
 // and one text button at most; the Source is the card's last line and its links are only Refresh and a feed's credit; a Choose is
 // drawn only at the sizes its widget offers it; nothing secondary, ghost, primary or a chip in a card; every target 44 px on the phone.
 
-const ITEM = ['.inv-docket-row', '.inv-plant-row', '.inv-ledger-line', '.inv-brief-move', '.inv-brief-movecard', '.inv-brief-when', '.inv-crew-row',
+// A Briefing's row (`inv-brief-row`: the canvas's rows of what stands in the way, a receipt not yet placed) is an item, its tap its own.
+const ITEM = ['.inv-docket-row', '.inv-plant-row', '.inv-ledger-line', '.inv-brief-move', '.inv-brief-movecard', '.inv-brief-when', '.inv-brief-row', '.inv-crew-row',
   '.inv-wire-item', '.inv-tray', '.inv-docket-stage', '.inv-tile', '.inv-chart-ranked-row', '.inv-row', 'svg', '.inv-chart-keys', '.inv-blank',
   '.inv-mkt-week'].join(', ');
 

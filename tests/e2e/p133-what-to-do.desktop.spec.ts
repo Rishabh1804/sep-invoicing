@@ -36,8 +36,9 @@ test('a move keeps its sentence readable in its card, its call is a link drawn a
   await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
 
   // Every visible move: inside its question (or Do first), its sentence at least 16rem wide or alone on its line above its action.
-  // A move is a card in a well at Large, a row at Medium (U2R §24d), or a row under an insight of What changed?.
-  const rows = await page.locator('#homeDash [data-adv-move]:visible').evaluateAll(els => els.map(el => {
+  // A move is a card in a well at Large, a row at Medium (U2R §24d), or a row under an insight of What changed?. A row of what
+  // stands in the way names its move too (`inv-brief-row`, the canvas's Briefing) and opens it: it is the move's line, not the move.
+  const rows = await page.locator('#homeDash [data-adv-move]:not(.inv-brief-row):visible').evaluateAll(els => els.map(el => {
     const card = el.closest('[data-tdy-q], [data-card="first"]')!.getBoundingClientRect(), r = el.getBoundingClientRect();
     const main = el.querySelector('.inv-brief-move-main, .inv-deck-body, .inv-row-main')!.getBoundingClientRect();
     const endEl = el.querySelector(':scope > .inv-btn, :scope > a.inv-btn, .inv-deck-foot, .inv-row-end'), end = endEl ? endEl.getBoundingClientRect() : null;

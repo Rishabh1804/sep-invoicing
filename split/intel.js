@@ -267,6 +267,8 @@ function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap"
    under each; Home's question widgets draw them (widgetcards.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
    margins and the To-do's tasks are worked out once. The clients card also hands on what it found (`worst`, `mover`) for
    the moves, and the plant card its capacity. */
+/* The period an answer speaks of, in its words (a question's Large: "on every kilo this month"). */
+var STATS_PERIOD_WORDS = { mtd: 'this month', qtd: 'this quarter', ytd: 'this year', all: 'over the book' };
 function statsStoryCards(a, ctx) {
   var period = a.period, filtered = a.filtered, prior = a.prior, tonnage = a.tonnage, periodCost = a.periodCost;
   var r = statsRangeIso(period), plabel = PERIOD_LABELS[period] || '';
@@ -305,9 +307,22 @@ function statsStoryCards(a, ctx) {
       : (contrib >= 0 ? 'Leaving ' : 'Losing ') + figHtml(escHtml(formatCurrency(Math.abs(contrib))), moneyTone || null) + ' on every kilo',
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
+    // The line under the answer on Home's card (the canvas's "The live cost is ₹28.66 a kilo").
+    line: cost != null ? 'The live cost is <b>' + escHtml(formatCurrency(cost)) + '</b> a kilo' : '',
     viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
       labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: moneyTone || '', toDate: atNow(mm) }) : '',
     tone: moneyTone || 'neutral' };
+  // A question's Large (the canvas's Briefing): the answer said whole, its facts on one line, the six months as a chart drawn bare.
+  if (contrib != null) c1.vital.ansL = (contrib >= 0 ? 'Yes: we make ' : 'No: we lose ') + figHtml(escHtml(formatCurrency(Math.abs(contrib))), moneyTone || null) +
+    ' on every kilo ' + escHtml(STATS_PERIOD_WORDS[period] || '');
+  c1.facts = real == null ? [] : ['Realised <b>' + escHtml(formatCurrency(real)) + '</b> a kilo'].concat(cost != null ? ['Live cost <b>' + escHtml(formatCurrency(cost)) + '</b>'] : [],
+    ['<b>' + escHtml(formatNum(kg / 1000, 1) + ' t') + '</b> billed']);
+  c1.chart = mm.length >= 2 ? function(o) {
+    return chartLines(mm.map(function(x) { return x.label; }), [{ label: 'Realised, a kilo', values: mm.map(function(x) { return gstRound(x.real); }), slot: 1 },
+      { label: 'The live cost, a kilo', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), slot: 'other', dashed: true }],
+      Object.assign({ unit: 'rate', ariaLabel: 'Realised and the live cost, a kilo, by month', toDate: atNow(mm), keyPlain: true, quiet: true,
+        tickFmt: function(v) { return Math.abs(v) < 1e-9 ? '0' : '₹' + formatNum(v, 0); } }, o));
+  } : null;
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
@@ -348,6 +363,18 @@ function statsStoryCards(a, ctx) {
       tone: lead ? figToneAgainst(lead.net, m.fullKg, 5) : 'ok' }
     : { fig: '&mdash;', title: 'No weighed billing', ans: 'No weighed billing yet', sub: '', viz: '', tone: 'neutral' };
   c2.mover = mover;
+  if (lead) c2.vital.ansL = escHtml(lead.name) + ' fills ' + Math.round(lead.kg / m.kg * 100) + '% of the plant at ' + figHtml(escHtml(formatCurrency(lead.net)), figToneAgainst(lead.net, m.fullKg, 5)) +
+    ' a kilo, under the full cost';
+  c2.facts = lead ? ['<b>' + escHtml(formatCurrency(lead.net)) + '</b> a kilo', '<b>' + escHtml(formatCurrency(-lead.vsFull)) + '</b> under the full cost', '<b>' + escHtml(formatCurrency(-lead.money)) + '</b> on the period']
+    : vc ? ['<b>' + Math.round(vc.kg / m.kg * 100) + '%</b> of the plant', '<b>' + escHtml(formatCurrency(vc.net)) + '</b> a kilo'] : [];
+  c2.chart = big.length ? function(o) {
+    // As many of the four as the room holds whole (a ranked row is two lines and its bar, about 52 px).
+    var n = o && o.h > 0 ? Math.max(1, Math.min(4, Math.floor(o.h / 52))) : 4;
+    return chartRankedBars(big.slice(0, n).map(function(x) {
+      return { label: x.name, value: x.kg, display: formatNum(x.kg / 1000, 1) + ' t', sub: formatCurrency(x.net) + '/kg · ' + Math.round(x.kg / m.kg * 100) + '% of the plant',
+        tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : 'good', action: 'invStatsClientDrill', clientId: x.id };
+    }), Object.assign({ unit: 'kg' }, o));
+  } : null;
   cards.clients = c2;
 
   // 3. Is the plant full?
@@ -375,6 +402,11 @@ function statsStoryCards(a, ctx) {
     tone: capPct == null ? 'neutral' : figToneCapacity(capPct * 100) };
   c3.cap = cap;
   c3.capPct = capPct;
+  c3.facts = capPct == null ? [] : ['<b>' + Math.round(capPct * 100) + '%</b> of two shifts', '<b>' + escHtml(formatNum(Math.max(0, cap - kg) / 1000, 1) + ' t') + '</b> spare',
+    '<b>' + escHtml(formatNum(kg / 1000, 1) + ' t') + '</b> plated'];
+  c3.chart = mk.length >= 2 ? function(o) {
+    return chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), Object.assign({ unit: 'count', ariaLabel: 'Tonnes plated by month', toDate: atNow(mk) }, o));
+  } : null;
   cards.plant = c3;
 
   // 4. What changed? The most urgent insights, as sentences, and the month's pace. Each insight is followed by its own
@@ -409,6 +441,7 @@ function statsStoryCards(a, ctx) {
       sub: escHtml(ins[0].title), viz: '', tone: uiTone(ins[0].tone) }
     : { fig: '&mdash;', title: 'Nothing stands out', ans: 'Nothing stands out', sub: '', viz: '', tone: 'ok' };
   c4.ins = ins;
+  c4.facts = p ? ['<b>' + p.done + ' of ' + p.total + '</b> working days in', '<b>' + escHtml(inrCard(p.prevRev).text) + '</b> in ' + escHtml(p.prevLabel)] : [];
   cards.changed = c4;
 
   // 5. Is cash coming in? Only with a statement.
@@ -429,6 +462,19 @@ function statsStoryCards(a, ctx) {
       body += say(c5, cashTone, 'Owed ' + formatCurrency(owed) + (old90 > 0.5 ? ', ' + formatCurrency(old90) + ' of it over 90 days' : old60 > 0.5 ? ', ' + formatCurrency(old60) + ' of it over 60 days' : '') +
         (bBook ? '; arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
+      var fc = typeof finForecast === 'function' ? finForecast(60) : null, termsD = flowCfg().termsDays, payD = bBook ? Math.round(bBook.median) : null;
+      var dueWk = [], due28 = 0;
+      for (var wi = 0; wi < 6; wi++) {
+        var wsum = 0;
+        for (var di = 1; di <= 7; di++) { var dd = isoAddDays(localDateStr(), wi * 7 + di); wsum += fc && fc.dueIn ? fc.dueIn[dd] || 0 : 0; }
+        dueWk.push(gstRound(wsum));
+        if (wi < 4) due28 += wsum;
+      }
+      c5.facts = ['In the bank <b>' + escHtml(finRs(bLast.balance)) + '</b>', 'Owed <b>' + escHtml(finRs(owed)) + '</b>'].concat(payD != null ? ['Clients pay in <b>' + payD + ' days</b>'] : []);
+      c5.chart = fc && fc.dueIn && due28 > 0.5 ? function(o) {
+        return chartBars(dueWk.map(function(v, i) { return { label: 'Wk ' + (i + 1), value: v, tone: i < 4 ? null : 'other' }; }),
+          Object.assign({ unit: 'money', ariaLabel: 'Due from clients, week by week, six weeks' }, o));
+      } : null;
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
         ans: 'Owed ' + figHtml(escHtml(inrCard(owed).text), owedTone && owedTone !== 'ok' ? owedTone : null) +
           (old90 > 0.5 ? ', ' + escHtml(inrCard(old90).text) + ' past 90 days' : bBook ? ', paid in ' + Math.round(bBook.median) + ' days' : ''),
@@ -437,6 +483,15 @@ function statsStoryCards(a, ctx) {
         viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
         tone: cashTone };
+      // The canvas's Cash coming in?: what is due in the next four weeks as the answer, how fast clients pay against the terms under
+      // it, and the six weeks as small bars, the four the answer counts dark. Only where the forecast can say when clients pay.
+      if (fc && fc.dueIn && due28 > 0.5 && payD != null) {
+        // A phone's Small says it shorter (inv-short, a card under 13rem).
+        c5.vital.ans = figHtml(escHtml(inrCard(due28).text), 'ok') + '<span class="inv-long"> is due in the next four weeks</span><span class="inv-short"> due in four weeks</span>';
+        c5.vital.ansL = figHtml(escHtml(inrCard(due28).text), 'ok') + ' is due from clients in the next four weeks';
+        c5.vital.line = 'Clients pay in ' + payD + ' days, ' + (payD <= termsD ? 'inside their terms' : todoPlural(payD - termsD, 'day') + ' past the ' + termsD + '-day terms');
+        c5.vital.viz = chartMiniBars(dueWk.map(function(v, i) { return { v: v, on: i < 4, label: 'Week ' + (i + 1), text: formatCurrency(v) }; }), { title: 'Due from clients, the next six weeks; the four the answer counts dark' });
+      }
       cards.cash = c5;
     } catch (e) { /* no cash story without a readable statement */ }
   }

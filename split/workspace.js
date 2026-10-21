@@ -212,7 +212,8 @@ function wsShellDraw(tabId) {
   // the app is at, so a jump made without a tap is named too.
   var title = document.getElementById('topbarTitle'), ctx = document.getElementById('topbarCtx');
   if (title) title.textContent = !w ? (PAGE_TITLES[tabId] || 'SEP Invoicing') : (!_isDesktop && on < 0 ? PAGE_TITLES[tabId] || w.label : w.label);
-  if (ctx) { var loc = navLoc(); ctx.textContent = _isDesktop ? navPlaceText(Object.assign({ loc: loc }, navLabel(loc)), true) : ''; }
+  // A view that only says the workspace's name again (Home's Home) adds nothing: the bar reads "Home" (the canvas).
+  if (ctx) { var loc = navLoc(), said = _isDesktop ? navPlaceText(Object.assign({ loc: loc }, navLabel(loc)), true) : ''; ctx.textContent = w && said === w.label ? '' : said; }
   wsDrawRow(w, views, on);
   markSideActive(tabId);
   // The kind of screen on show (tabs.js): a view moved inside a page moves it too.

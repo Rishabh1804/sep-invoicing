@@ -162,7 +162,7 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
 ├── quote.js           ← Quotations: Office → Sales → Quotations, a number at issue, revisions, the reprice moves, the printed quotation (~990 lines)
-├── charts.js          ← Reusable SVG charts (charts v3): line, bar, pie, ranked bars, and the eight of UI pass 3 (diverging, histogram, dots, scatter with `chartFit`, heat, dumbbell, stack to 100%, ring); a card's sparkline, meter and day on one bar; a colour by its slot (`seriesSlot`), never its rank; a table behind every boxed chart; a card's chart bare (`opts.bare`, drawn at the card's own pixels) and its small bars (`chartMiniBars`) (~1,380 lines)
+├── charts.js          ← Reusable SVG charts (charts v3): line, bar, pie, ranked bars, and the eight of UI pass 3 (diverging, histogram, dots, scatter with `chartFit`, heat, dumbbell, stack to 100%, ring); a card's sparkline, meter and day on one bar; a colour by its slot (`seriesSlot`), never its rank; a table behind every boxed chart; a card's chart bare (`opts.bare`, drawn at the card's own pixels), its small bars (`chartMiniBars`), the day in lanes (`chartDayLanes`) and a Ledger's bar (`chartLedgerBar`) (~1,390 lines)
 ├── staff.js           ← Floor → People: Attendance (Day · Week · Month), the Roster and its import, extra hours; each view led by its verdict (~2,630 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)

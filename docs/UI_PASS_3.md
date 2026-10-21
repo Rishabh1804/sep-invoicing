@@ -2073,7 +2073,8 @@ why:
 - **A move card's worth names its period**, *a month*, *a year* or *on the period*, as the move's own sentence reads it (a quotation's worth is
   the period's spare filled, not a month's).
 - **The attendance gate's mark is solid and labelled *gate 90%***: a dashed mark read as a period not yet ended.
-- **The weather has no wind or humidity** (§1a-21), and the canvas's *Push now* is *Back up now*.
+- **The weather has no wind or humidity** (§1a-21), and the canvas's *Push now* is *Back up now*; the Backup card names its repository
+  in its line's title, where the canvas names none.
 - **Found on the way** (P240): Quick actions' *Continue* on a register page kept on the device did nothing (its action was not named
   `invWdg…`, the only names events.js hands the framework); the card kept an invoice thrown away on Create, since no save marks the
   board for what is not the book (`arrive`, drawn again when the board is shown again); and Home drawn for one person was shown to

@@ -15,10 +15,17 @@ async function openPulse(page: Page) {
   await expect(all).toHaveAttribute('aria-pressed', 'true');
 }
 async function openQ(page: Page, key: string) {
-  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its story and its moves.
+  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its answer and its moves
+  // since U2R; its story and every move with Add to my list are the dialog its head opens (openQDialog).
   const q = page.locator(`[data-tdy-q="${key}"]`);
-  await expect(q.locator('[data-tdy-story]')).toHaveCount(1);
+  await expect(q.locator('[data-tdy-ans]')).toHaveCount(1);
   return q;
+}
+async function openQDialog(page: Page, key: string) {
+  await page.locator(`#homeBoard [data-tdy-q="${key}"] [data-action="invWdgGo"]`).click();
+  const d = page.locator(`[data-tdy-q-open="${key}"]`);
+  await expect(d.locator('[data-tdy-story]')).toHaveCount(1);
+  return d;
 }
 
 test('a move keeps its sentence readable in its card, its call is a link drawn as a button, and the dialog lists moves', async ({ page }) => {
@@ -28,14 +35,16 @@ test('a move keeps its sentence readable in its card, its call is a link drawn a
   for (const k of ['smooth', 'money', 'clients', 'plant', 'cash']) await openQ(page, k);
   await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
 
-  // Every visible move: inside its question (or Do first), its sentence at least 16rem wide or alone on its line above the
-  // buttons. A move is a card, or a row under an insight of What changed? (its story is open on the widget at Large since U2).
-  const rows = await page.locator('#homeDash [data-adv-move]:visible').evaluateAll(els => els.map(el => {
+  // Every visible move: inside its question (or Do first), its sentence at least 16rem wide or alone on its line above its action.
+  // A move is a card in a well at Large, a row at Medium (U2R §24d), or a row under an insight of What changed?. A row of what
+  // stands in the way names its move too (`inv-brief-row`, the canvas's Briefing) and opens it: it is the move's line, not the move.
+  const rows = await page.locator('#homeDash [data-adv-move]:not(.inv-brief-row):visible').evaluateAll(els => els.map(el => {
     const card = el.closest('[data-tdy-q], [data-card="first"]')!.getBoundingClientRect(), r = el.getBoundingClientRect();
-    const main = el.querySelector('.inv-deck-body, .inv-row-main')!.getBoundingClientRect(), end = el.querySelector('.inv-deck-foot, .inv-row-end')!.getBoundingClientRect();
+    const main = el.querySelector('.inv-brief-move-main, .inv-deck-body, .inv-row-main')!.getBoundingClientRect();
+    const endEl = el.querySelector(':scope > .inv-btn, :scope > a.inv-btn, .inv-deck-foot, .inv-row-end'), end = endEl ? endEl.getBoundingClientRect() : null;
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    return { key: (el as HTMLElement).dataset.advMove, inside: r.left >= card.left - 1 && r.right <= card.right + 1 && end.right <= card.right + 1,
-      readable: main.width >= 16 * rem - 1 || end.top >= main.bottom - 1 };
+    return { key: (el as HTMLElement).dataset.advMove, inside: r.left >= card.left - 1 && r.right <= card.right + 1 && (!end || end.right <= card.right + 1),
+      readable: main.width >= 16 * rem - 1 || !end || end.top >= main.bottom - 1 };
   }));
   expect(rows.length).toBeGreaterThan(5);
   for (const r of rows) expect(r, String(r.key)).toMatchObject({ inside: true, readable: true });
@@ -64,6 +73,7 @@ test('a move keeps its sentence readable in its card, its call is a link drawn a
   await page.keyboard.press('Escape');
   await openToday(page);
   await openQ(page, 'smooth');
-  await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
-  await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
+  const smooth = await openQDialog(page, 'smooth');
+  await expect(smooth.locator('[data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+  await expect(smooth.locator('[data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
 });

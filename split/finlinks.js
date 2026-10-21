@@ -149,14 +149,15 @@ function finHomeOpts() {
   var tile = function(tab, anchor, label, value, sub, tone) {
     if (tone) tones.push(tone);
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
-      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + escHtml(inrCard(value).text) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
   var pays = book && book.median != null ? figTonePaysIn(book.median) : null;
   if (pays) tones.push(pays);
-  var tiles = '<div class="inv-tiles inv-tiles-flush">' +
+  // Money on a board is short, its exact figure its title (U2R §24k).
+  var tiles = '<div class="inv-tiles inv-tiles-4">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
-      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
+      : old90 > 0 ? escHtml(inrCard(old90).text) + ' over 90 days' : old60 > 0 ? escHtml(inrCard(old60).text) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
       owedTone || 'ok') +
     (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
@@ -167,12 +168,13 @@ function finHomeOpts() {
       !fc ? '' : fc.overdrawn ? 'danger' : fc.cross ? (fc.noInflow ? 'warning' : 'danger') : '') +
     '</div>';
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
-  var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
+  var short = function(v) { return inrCard(v).text; };
+  var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? short(old90) + ' owed over 90 days' : old60 > 0 ? short(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
   var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
     { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
   return { tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
-    title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
-    viz: meter, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp };
+    title: escHtml(title), sub: escHtml([owed >= 0.5 ? short(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', short(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
+    viz: meter, attrs: ' id="homeFin" data-card="money"', tiles: tiles, age: age, owedTone: owedTone, body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp };
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */

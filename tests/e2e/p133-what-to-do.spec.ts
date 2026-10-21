@@ -20,10 +20,20 @@ async function openPulse(page: Page) {
 }
 /** A question opens to its story and its moves (each is a hero, shut until opened). */
 async function openQ(page: Page, key: string) {
-  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its story and its moves.
-  const q = page.locator(`[data-tdy-q="${key}"]`);
+  // A question is a widget on Home since UI pass 3 (U2). Since U2R its card holds its answer and its moves (at Large, as openPulse
+  // lays them out), and its whole, the story and every move with Add to my list, is the dialog its head opens.
+  await closeQ(page);
+  await page.locator(`#homeBoard [data-tdy-q="${key}"] [data-action="invWdgGo"]`).click();
+  const q = page.locator(`[data-tdy-q-open="${key}"]`);
   await expect(q.locator('[data-tdy-story]')).toHaveCount(1);
   return q;
+}
+/** Shut a question's dialog, if one is open. */
+async function closeQ(page: Page) {
+  while (await page.locator('.inv-scrim-dialog').count()) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(50);
+  }
 }
 /** A task on Needs you, opened to its dialog: its group opened, and its card shown where the deck held it back. */
 async function openTask(page: Page, key: string) {
@@ -44,11 +54,17 @@ test.describe('P133: what to do', () => {
     // The six questions, in the plan's order.
     const order = await page.locator('#homeDash [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
     expect(order).toEqual(['smooth', 'money', 'clients', 'plant', 'cash', 'changed']);
-    for (const k of order as string[]) await expect(page.locator(`[data-tdy-q="${k}"] [data-adv-head]`)).toHaveCount(k === 'changed' ? 0 : 1);
+    for (const k of order as string[]) await expect((await openQ(page, k)).locator('[data-adv-head]')).toHaveCount(k === 'changed' ? 0 : 1);
 
     // 1. Is the plant running smoothly? What could stop it, soonest first: the line that is out, with its reorder list.
     const smooth = await openQ(page, 'smooth');
     await expect(smooth.locator('[data-story-say]')).toContainText('Pickling acid out');
+    // The card on the board leads with the same move, its action at its end: What you can do's first card. What stands in the way
+    // leads with the same line, a row naming its move (the canvas's Briefing).
+    const onCard = page.locator('#homeBoard [data-tdy-q="smooth"] [data-tdy-moves] [data-adv-move]').first();
+    await expect(onCard).toHaveAttribute('data-adv-move', 'stock:PA');
+    await expect(onCard.locator('[data-action="invAdvGo"]')).toHaveText('Reorder list');
+    await expect(page.locator('#homeBoard [data-tdy-q="smooth"] [data-tdy-rows] .inv-brief-row').first()).toHaveAttribute('data-adv-move', 'stock:PA');
     const first = smooth.locator('[data-adv-move]').first();
     await expect(first).toHaveAttribute('data-adv-move', 'stock:PA');
     await expect(first).toContainText('Order Pickling acid: it is out');
@@ -74,30 +90,34 @@ test.describe('P133: what to do', () => {
     expect(want.net).toBeCloseTo(2, 6);
     expect(want.share).toBeGreaterThan(0.55);
     expect(want.full).toBeGreaterThan(2);
-    await openQ(page, 'clients');
-    const reprice = page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]');
+    const clients = await openQ(page, 'clients');
+    const reprice = clients.locator('[data-adv-move="reprice:1"]');
     await expect(reprice).toContainText(`Ask ${ORION} for ${want.fullText}/kg, the full cost`);
     await expect(reprice.locator('[data-adv-worth]')).toHaveText('+' + want.worthText);
     await expect(reprice).toContainText('a month at the last three months’ tonnage');
     // No labour question among the moves: labour is fixed (owner, 13 Oct 2026), so the contribution table settles it one way.
-    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move^="labour:"]')).toHaveCount(0);
+    await expect(clients.locator('[data-adv-move^="labour:"]')).toHaveCount(0);
 
     // 5. Is cash coming in? The debt over 90 days is a call: a real tel: link with the client's number.
-    const call = page.locator('[data-tdy-q="cash"] [data-adv-move="owed:3"] a[href^="tel:"]');
+    const call = (await openQ(page, 'cash')).locator('[data-adv-move="owed:3"] a[href^="tel:"]');
     await expect(call).toHaveAttribute('href', LYRA_TEL);
     await expect(call).toHaveText('Call');
 
     // Add to my list: one task of the owner's own carrying the move's place; the move then says it is on the list.
+    await openQ(page, 'smooth');
     await smooth.locator('[data-adv-move="stock:PA"] [data-action="invAdvTask"]').click();
     await expect(smooth.locator('[data-adv-move="stock:PA"] [data-adv-listed]')).toHaveText('On your list');
     const tasks = (await readStoredState(page)).todo.tasks;
     expect(tasks.length).toBe(1);
     expect(tasks[0]).toMatchObject({ text: 'Order Pickling acid', due: todayIso(), advKey: 'stock:PA', go: { kind: 'reorder' }, goLabel: 'Reorder list', doneAt: null });
     // Drawn again, it still is.
+    await closeQ(page);
     await g(page, 'renderHome()');
-    await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
-    await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
+    await openQ(page, 'smooth');
+    await expect(smooth.locator('[data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+    await expect(smooth.locator('[data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
     // The task's button lands on the place: the task is on Needs you, due today.
+    await closeQ(page);
     await page.locator('#wsTabs [data-v="needs"]').click();
     const mine = page.locator('#homeNeeds [data-todo="mine"]').filter({ hasText: 'Order Pickling acid' });
     await mine.locator('[data-action="invTodoGo"]').click();
@@ -107,8 +127,7 @@ test.describe('P133: what to do', () => {
     // Draft quotation opens the form on a new, unsaved draft: its largest parts by the piece at the target × kg a piece,
     // the part with no weight by the kilo. Nothing is stored until Save draft.
     await openPulse(page);
-    await openQ(page, 'clients');
-    await page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"] [data-action="invAdvGo"]').click();
+    await (await openQ(page, 'clients')).locator('[data-adv-move="reprice:1"] [data-action="invAdvGo"]').click();
     await expect(page.locator('#pageClients.inv-page-active')).toBeVisible();
     await expect(page.locator('#clientsPageContent .inv-pagehead-title')).toHaveText('New quotation');
     await expect(page.locator('#clientsPageContent [data-qt-draft-note]')).toContainText(want.fullText + '/kg, the full cost then');
@@ -200,7 +219,7 @@ test.describe('P133: what to do', () => {
     const full = await g(page, `(function() { var a = statsPulseArgs('all'), r = statsRangeIso('all'); return gstRound(liveCost(r.from, r.to, a.tonnage.kg).perKg); })()`) as number;
     const lines = await g(page, `_advMoves['reprice:1'].go.lines.map(function(l) { return [l.partNumber, l.basis, l.rate]; })`);
     expect(lines).toEqual([['CLAMP 101X50', 'kg', full], ['BRACKET 77', 'kg', full], ['WASHER 9', 'kg', full]]);
-    await expect(page.locator('[data-tdy-q="clients"] [data-adv-hint]')).toContainText(`A weight per piece for ${ORION}’s CLAMP 101X50, BRACKET 77, WASHER 9 quotes them by the piece`);
+    await expect((await openQ(page, 'clients')).locator('[data-adv-hint]')).toContainText(`A weight per piece for ${ORION}’s CLAMP 101X50, BRACKET 77, WASHER 9 quotes them by the piece`);
   });
 
   test('a book with no data shows no move, and each question says what would make one appear', async ({ page }) => {

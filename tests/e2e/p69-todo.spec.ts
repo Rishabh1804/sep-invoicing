@@ -149,7 +149,12 @@ test.describe('P69: To-do', () => {
     const home = page.locator('[data-w="needs"]');
     await expect(home.locator('[data-todo="mine"] .inv-row-tick .inv-check')).toHaveCount(1);
     await expect(home.locator('[data-todo="app"]')).toHaveCount(1);
-    await page.locator('[data-action="invHomeQuick"][data-go="task"]').click();
+    // The widget's Act (U2R): Add a task, the quick actions' key the same (both open Needs you on the field).
+    await home.locator('.inv-widget-act [data-action="invHomeQuick"][data-go="task"]').click();
+    await expect(page.locator('#homeNeeds')).toBeVisible();
+    await expect(page.locator('#todoNew')).toBeFocused();
+    await page.locator('#wsTabs [data-v="home"]').click();
+    await page.locator('[data-w="quick"] [data-action="invHomeQuick"][data-go="task"]').click();
     await expect(page.locator('#homeNeeds')).toBeVisible();
     await expect(page.locator('#todoNew')).toBeFocused();
   });

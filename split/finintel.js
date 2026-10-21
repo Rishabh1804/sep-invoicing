@@ -110,6 +110,8 @@ function finForecast(days) {
   // the usual and a month, or over 90 days) is not expected at all: on a book with unplaced receipts it is
   // most likely already paid, and otherwise it is a debt to chase, not cash to plan on.
   var nOpen = 0, amtOpen = 0, late = 0, lateAmt = 0, stale = 0, staleAmt = 0, unread = 0, unreadAmt = 0;
+  // What the open invoices are expected to bring in, by day (`dueIn`, the middle reading): the answer Home's Is cash coming in? gives.
+  var dueIn = {}, inDue = function(date, amt) { if (date > today && date <= end) dueIn[date] = (dueIn[date] || 0) + amt; };
   recv.forEach(function(r) {
     var d = bankDaysToPay(r.client.id, hist), med = d && d.n >= 3 ? d.median : bookMed;
     // Nothing yet says when clients pay (no receipt set against an invoice): the invoice is owed, and not counted in.
@@ -119,9 +121,9 @@ function finForecast(days) {
       var age = isoDaysBetween(o.date, today), due = isoAddDays(o.date, Math.round(med));
       if (age > 90 || age > Math.max(2 * med, med + 30)) { stale++; staleAmt += o.due; return; }
       if (due <= today) {
-        for (var k = 1; k <= 28; k++) add(isoAddDays(today, k), 'in', 0, o.due / 28, o.due / 28);
+        for (var k = 1; k <= 28; k++) { add(isoAddDays(today, k), 'in', 0, o.due / 28, o.due / 28); inDue(isoAddDays(today, k), o.due / 28); }
         late++; lateAmt += o.due;
-      } else add(due, 'in', o.due, o.due, o.due);
+      } else { add(due, 'in', o.due, o.due, o.due); inDue(due, o.due); }
       nOpen++; amtOpen += o.due;
     });
   });
@@ -255,15 +257,15 @@ function finForecast(days) {
   var stale = isoDaysBetween(last.date, today);
   if (stale > 3) rest('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.',
     'Starts from the balance on ' + stockShortDate(last.date), finRs(last.balance), stale + ' days of payments since not on it', true);
-  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, facts: facts, noInflow: noInflow };
+  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, facts: facts, noInflow: noInflow, dueIn: dueIn };
 }
 
 /* The forecast drawn: the balance every third day with its P25–P75 band, the zero rule where it dips (the Overview's forecast and
-   Home's cash widget, widgetcards.js). */
-function finForecastChart(fc) {
+   Home's cash widget, widgetcards.js, which passes `extra`: bare at the room its card leaves, chartLines' own options). */
+function finForecastChart(fc, extra) {
   var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   return chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
-    { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
+    Object.assign({ band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' }, extra || {}));
 }
 function finForecastHtml() {
   var fc = finForecast(60);

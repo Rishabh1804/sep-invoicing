@@ -1009,7 +1009,8 @@ function uiFactorTileHtml(f) {
   var tone = /^(danger|warning|ok|info|neutral)$/.test(f.tone) ? ' inv-tile-' + f.tone : '';
   var badge = f.badge ? ' <span class="inv-badge inv-badge-' + uiTone(f.badge[0]) + '">' + escHtml(f.badge[1]) + '</span>' : '';
   var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + badge + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
-    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '') + (f.delta ? '<div class="inv-tile-sub" data-tile-delta>' + f.delta + '</div>' : '');
+    (f.sub ? '<div class="inv-tile-sub"' + (f.subTitle ? ' title="' + escHtml(f.subTitle) + '"' : '') + '>' + escHtml(f.sub) + '</div>' : '') +
+    (f.delta ? '<div class="inv-tile-sub" data-tile-delta>' + f.delta + '</div>' : '');
   if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
     (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
   return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
@@ -1885,6 +1886,36 @@ function formatInrShort(v) {
   if (v < 99950) return '\u20B9' + (v / 1e3).toFixed(1) + 'K';
   if (v < 9995000) return '\u20B9' + (v / 1e5).toFixed(1) + 'L';
   return '\u20B9' + (v / 1e7).toFixed(1) + 'Cr';
+}
+/* Money on a board (UI pass 3 \u00A724k, the owner's call 3): whole rupees under a lakh, lakhs to two places from a lakh, crores from a
+   crore, each step through gstRound (HR-8): \u20B966,476 \u00B7 \u20B93.50 L \u00B7 \u20B91.24 Cr. `text` the whole, `num` and `unit` its parts (3.50,
+   L), `neg` its sign (said \u2212, U+2212), `exact` the amount to the paisa (formatCurrency), which every short figure carries as its
+   title. A rate is not an amount and keeps its paise (\u20B917.67 a kilo); a chart keeps formatInrShort; every other screen keeps the
+   paise: the call is the boards'. */
+function inrCard(v) {
+  v = Number(v) || 0;
+  var a = Math.abs(v), r = gstRound(a, 0), num, unit = '';
+  if (r < 100000) num = r.toLocaleString('en-IN');
+  else {
+    var L = gstRound(a / 1e5, 2);
+    if (L < 100) { num = L.toFixed(2); unit = 'L'; }
+    else {
+      var parts = gstRound(a / 1e7, 2).toFixed(2).split('.');
+      num = Number(parts[0]).toLocaleString('en-IN') + '.' + parts[1];
+      unit = 'Cr';
+    }
+  }
+  var neg = v < 0 && (r > 0 || unit !== '');
+  return { text: (neg ? '\u2212' : '') + '\u20B9' + num + (unit ? ' ' + unit : ''), num: num, unit: unit, neg: neg, exact: formatCurrency(v) };
+}
+/* An amount on a board as HTML, its exact figure its title: as a figure (its sign a step smaller, the rupee raised and small, the
+   lakh or crore as a unit after it), or `inline` as the words of a sentence or a line. */
+function inrFigHtml(v, o) {
+  var c = inrCard(v), t = ' title="' + escHtml(c.exact) + '"', words = o && o.words ? escHtml(o.words) : '';
+  if (o && o.inline) return '<span class="inv-nowrap"' + t + '>' + escHtml(c.text) + '</span>';
+  // o.words: what the figure is, after its unit (the canvas's "₹8.42 L owed", "₹3.49 L in the bank").
+  return '<span class="inv-nowrap"' + t + '>' + (c.neg ? '<span class="inv-widget-sign">\u2212</span>' : '') + '<span class="inv-cur">\u20B9</span>' + escHtml(c.num) +
+    (c.unit || words ? '<span class="inv-unit">' + (c.unit || '') + (c.unit && words ? ' ' : '') + words + '</span>' : '') + '</span>';
 }
 
 /* ===== A FIGURE SAYS WHETHER IT IS GOOD (owner, 29 Sep 2026) =====

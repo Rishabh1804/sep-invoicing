@@ -46,7 +46,8 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
   test('the six quick actions follow their card: three across under 40rem, six from it, every label whole; each reaches its screen', async ({ page }) => {
     await load(page, { staff: STAFF } as any);
     await openPulse(page);
-    const qa = page.locator('[data-w="quick"] .inv-btn-grid .inv-btn');
+    // The keys on their tray since U2R (a Tools card, §24d), the rule unchanged.
+    const qa = page.locator('[data-w="quick"] .inv-tray .inv-tray-key');
     await expect(qa).toHaveCount(6);
     // UI pass 3: a widget's launch buttons follow the card, not the window (design §6.3). The card at Medium is half the board, under
     // 40rem at 1280 px: two rows of three, each label under its icon. The window rule had set six across in a half-board card, a label

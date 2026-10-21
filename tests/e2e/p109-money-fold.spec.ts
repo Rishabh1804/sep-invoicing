@@ -349,7 +349,9 @@ test('B9: a zinc rate set late yesterday reads a day old this morning', async ({
   // A minute before midnight, on the page's own clock: under 24 hours ago, but yesterday.
   await ev(page, `S.zinc.updatedAt = new Date(new Date().setHours(0, 0, 0, 0)).getTime() - 60000; renderZincCard()`);
   expect(await ev(page, `zincAgeDays()`)).toBe(1);
-  await expect(page.locator('[data-w="zinc"] [data-zinc-age]')).toContainText('updated 1 day ago');
+  // The age is the zinc card's verdict since U2R (a sentence, so capitalised), and its Source says it too.
+  await expect(page.locator('[data-w="zinc"] [data-zinc-age]')).toHaveText(/^Updated 1 day ago/);
+  await expect(page.locator('[data-w="zinc"] .inv-widget-src')).toContainText('updated 1 day ago');
 });
 
 /* ---------- B10: a version 4 compound file ---------- */

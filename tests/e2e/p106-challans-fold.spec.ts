@@ -407,7 +407,9 @@ test.describe('P106: Performance reads silence, a month in progress and gauges a
     const months = await g(page, 'cpMonthly(1, 12).map(function(m){ return m.month; })');
     expect(months[months.length - 1]).toBe(todayIso().slice(0, 7));
     const tile = page.locator('[data-cp-trend] .inv-tile').first();
-    await expect(tile).toContainText('Month to date');
+    // The tile names this month and says it runs to date: "Oct 26 to date" since U2R (it read "Month to date · Oct 26").
+    const thisMonth = await g(page, `formatTrendLabel(${JSON.stringify(todayIso().slice(0, 7))}, 'month')`);
+    await expect(tile).toContainText(thisMonth + ' to date');
     await expect(tile).toContainText('level with same days last month');
     await expect(page.locator('[data-cp-trend] .inv-tile', { hasText: 'Realisation' })).toContainText('live cost');
     await expect(page.locator('[data-cp-trend] .inv-tile', { hasText: 'Average month' })).toContainText('full month');

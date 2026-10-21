@@ -15,7 +15,8 @@
    - A move that cannot be worked out is left out; a question with none says what would make one appear.
 
    A move: {key, tone: 'red'|'amber'|'info'|'ok', say, worth: {amount, sign, per: 'month'|'period'|'year'|null, label?} |
-   null, basis, go: a todoGo descriptor, goLabel, href: 'tel:…' | 'mailto:…' | null, hrefLabel, task}. `say`, `basis` and
+   null, basis, go: a todoGo descriptor, goLabel, actLabel (a card's button where it says more than the place: "Order <line>"),
+   href: 'tel:…' | 'mailto:…' | null, hrefLabel, task}. `say`, `basis` and
    `task` are plain text, escaped where drawn. `key` names the decision, so the same move drawn on two cards is one, and a
    task added from it marks both. */
 
@@ -213,10 +214,15 @@ function advStockMoves(ctx) {
       st.rate && st.rate.rate ? 'uses ' + stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : 'no daily use on record',
       r && r.price != null ? (r.lastFrom && r.supplier !== r.lastFrom ? 'order from ' + r.supplier + ' at ' + formatCurrency(r.price) + '/' + unit + ', ' + suppLeadText(r.pick && r.pick.lead)
         : 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit) : 'no price on record'].filter(Boolean).join(' · ');
-    return { key: 'stock:' + it.id, tone: 'red', soon: out ? 0 : Math.max(0, st.daysLeft || 0), cat: 0, what: it.name + (out ? ' out' : ' running out'),
+    // The card's row (Home's question at Medium, the canvas's rows): what it is, what it uses, what is left on the shelf.
+    var row = { title: it.name + (out ? ' is out' : ' runs out in ' + stockDaysText(st.daysLeft, !!(st.rate && st.rate.tentative))),
+      meta: st.rate && st.rate.rate ? 'Uses ' + stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : 'No daily use on record',
+      value: st.level != null ? stockFmtQty(Math.max(0, st.level)) + ' ' + unit : '' };
+    return { key: 'stock:' + it.id, tone: 'red', soon: out ? 0 : Math.max(0, st.daysLeft || 0), cat: 0, what: it.name + (out ? ' out' : ' running out'), row: row,
       say: 'Order ' + it.name + (out ? ': it is out' : ': about ' + stockDaysText(st.daysLeft, !!(st.rate && st.rate.tentative)) + ' left'),
       worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + unit + ' at the last price, before GST' } : null,
-      basis: basis, go: { kind: 'reorder' }, goLabel: 'Reorder list', task: 'Order ' + it.name };
+      basis: basis, go: { kind: 'reorder' }, goLabel: 'Reorder list', actLabel: 'Order ' + (/^[A-Z][a-z]/.test(it.name) ? it.name.charAt(0).toLowerCase() + it.name.slice(1) : it.name),
+      task: 'Order ' + it.name };
   });
 }
 function advWageMoves(ctx) {
@@ -228,7 +234,10 @@ function advWageMoves(ctx) {
   if (!(f.predicted > 0)) return [];
   var basis = f.basis === 'pace' ? f.week.recordedDays + ' of ' + f.week.workingDays + ' working days recorded, the rest at this week’s pace'
     : f.basis === 'median' ? 'nothing recorded this week yet: the median week stands in' : 'every working day recorded';
+  var weekly = staffActive().filter(function(w) { return w.comp === 'hourly' || w.comp === 'daily'; }).length;
   return [{ key: 'wages:' + sat, tone: until === 0 ? 'amber' : 'info', soon: until, cat: 1, what: 'the payout ' + (until === 0 ? 'today' : 'on Saturday'),
+    row: { title: 'The payout is due ' + (until === 0 ? 'today' : until === 1 ? 'tomorrow' : 'on Saturday'), meta: (weekly ? todoPlural(weekly, 'weekly hand') + ' and the EXTRA' : 'The weekly tiers and the EXTRA'),
+      amt: gstRound(f.predicted) },
     say: 'Have ' + advRs(f.predicted) + ' ready for ' + (until === 0 ? 'today’s' : 'Saturday’s') + ' payout',
     worth: { amount: f.predicted, sign: -1, label: 'due ' + (until === 0 ? 'today' : formatDate(sat)) },
     basis: basis + (f.median != null ? ' · median week ' + advRs(f.median) : ''), go: { kind: 'payWeek' }, goLabel: 'Pay', task: 'Weekly payout, ' + formatDate(sat) }];
@@ -243,6 +252,8 @@ function advPowerMoves(ctx) {
   var opts = (a.options || []).filter(function(o) { return o.payLo != null && o.gain > 0; });
   var rec = opts.find(function(o) { return o.key === 'ts'; }) || opts.slice().sort(function(p, q) { return p.payLo - q.payLo; })[0] || null;
   return [{ key: 'power:' + m, tone: 'amber', soon: 1, cat: 2, what: todoPlural(mm.cuts, 'power cut') + ' this month',
+    row: { title: todoPlural(mm.cuts, 'power cut') + ' this month', meta: mm.min ? powerDur(mm.min) + ' dark' + (mm.open ? ', ' + mm.open + ' with no time back' : '') : 'No time back recorded',
+      amt: mm.cost > 0 ? gstRound(mm.cost) : null },
     say: (rec ? 'Take up ' + (ADV_OPTION_NAME[rec.key] || rec.label) : 'Read the power case') + ': ' + todoPlural(mm.cuts, 'cut') + ' this month cost ' + advRs(mm.cost),
     worth: rec ? { amount: rec.gain, sign: 1, per: 'year', label: 'a year, the case’s gain' } : (mm.cost > 0 ? { amount: mm.cost, sign: -1, label: 'this month, in damage' } : null),
     basis: (rec ? 'pays back in ' + _pcMonths(rec.payLo) + ' to ' + _pcMonths(rec.payHi) + ' · ' : '') +
@@ -263,6 +274,7 @@ function advStaffMoves(ctx) {
     var booked = gstRound(sd.reduce(function(s, d) { return s + (d.booked || 0); }, 0));
     var most = sd.reduce(function(t, d) { return d.short > t.short ? d : t; }, sd[0]);
     out.push({ key: 'staff:' + u.id, tone: 'amber', soon: 1, cat: 3, what: u.label + ' short of its number',
+      row: { title: u.label + ' short of its number', meta: 'Short on ' + sd.length + ' of the last ' + days.length + ' working days', value: booked > 0 ? formatNum(booked, 1).replace(/\.0$/, '') + ' h EXTRA' : 'short ' + most.short },
       say: 'Bring ' + u.label + ' up to its number: short on ' + sd.length + ' of the last ' + days.length + ' working days',
       worth: booked > 0 && rate > 0 ? { amount: booked * rate, sign: -1, label: 'in EXTRA booked on those days' } : null,
       basis: 'short by up to ' + todoPlural(most.short, 'hand') + ' against its ' + most.norm + ' · ' + (booked > 0 ? formatNum(booked, 1) + ' h of EXTRA booked to it' : 'no EXTRA booked to it'),
@@ -278,9 +290,31 @@ function advProdMoves(ctx) {
   var staffed = prodStaffedLines((S.attendance || {})[ctx.today]), gen = prodGeneralLines()[ctx.today] || {};
   return PROD_LINES.filter(function(l) { return staffed[l] && !gen[l]; }).map(function(l) {
     return { key: 'prod:' + l + ':' + ctx.today, tone: 'info', soon: 0, cat: 4, what: PROD_LINE_LABEL[l] + ' with no record today',
+      row: { title: PROD_LINE_LABEL[l] + ' has no record today', meta: 'Staffed on the general shift', value: '' },
       say: 'Read ' + PROD_LINE_LABEL[l] + '’s register: no production recorded for it today', worth: null,
       basis: 'staffed on today’s general shift, and no plating counted for it yet',
       go: { kind: 'prodLines', line: l, day: ctx.today }, goLabel: 'Production', task: 'Record ' + PROD_LINE_LABEL[l] + '’s production, ' + formatDate(ctx.today) };
+  });
+}
+/* Units down on the plant register for days (the To-do's plantDown rule), a move a line: how many of its units, since when. */
+function advUnitsMoves(ctx) {
+  var tasks = ctx.rule('plantDown');
+  if (!tasks.length || typeof pltUnits !== 'function') return [];
+  var units = pltUnits(), by = {};
+  tasks.forEach(function(t) {
+    var id = String(t.key || '').replace(/^plantDown:/, ''), u = units.find(function(x) { return x.id === id; });
+    if (u) (by[u.station] = by[u.station] || []).push({ u: u, t: t });
+  });
+  return Object.keys(by).map(function(st) {
+    var list = by[st], cap = pltCapacity(st), name = pltStationName(st), red = list.some(function(x) { return x.t.tone === 'red'; });
+    var oldest = list.reduce(function(a, x) { return !a || (x.u.since || '') < (a.u.since || '') ? x : a; }, null), days = pltDaysIn(oldest.u) || 0;
+    var kind = list.every(function(x) { return x.u.kind === 'barrel'; }) ? 'barrel' : 'unit', since = oldest.u.since ? (days <= 6 ? attDayName(oldest.u.since) : formatDate(oldest.u.since)) : '';
+    var status = pltStatus(oldest.u.status)[1];
+    var what = name + ': ' + list.length + (cap.n ? ' of ' + cap.n : '') + ' ' + (list.length === 1 && !cap.n ? kind : kind + 's') + ' down';
+    return { key: 'plant:' + st, tone: red ? 'red' : 'amber', soon: 1, cat: 2, what: what,
+      row: { title: what, meta: status + (since ? ' since ' + since : '') + (oldest.u.reason ? ' · ' + oldest.u.reason : ''), value: todoPlural(days, 'day') },
+      say: 'Get ' + name + ' running again: ' + list.length + ' ' + (list.length === 1 ? kind : kind + 's') + ' down, the longest ' + todoPlural(days, 'day'),
+      worth: null, basis: pltCapWords(cap), go: { kind: 'production', tab: 'equipment' }, goLabel: 'Equipment', task: 'Get ' + name + ' running again' };
   });
 }
 function advBackupMoves(ctx) {
@@ -288,13 +322,14 @@ function advBackupMoves(ctx) {
   if (!todoCfg().backup) return [];
   var t = ctx.rule('backup')[0];
   if (!t) return [];
-  return [{ key: 'backup', tone: 'info', soon: 7, cat: 5, what: advLower(t.sub), say: 'Back up the book: ' + advLower(t.sub), worth: null, basis: t.why,
+  return [{ key: 'backup', tone: 'info', soon: 7, cat: 5, what: advLower(t.sub), row: { title: 'No backup lately', meta: t.sub, value: '' },
+    say: 'Back up the book: ' + advLower(t.sub), worth: null, basis: t.why,
     go: t.go, goLabel: 'Backup', task: 'Back up the book' }];
 }
 function advQSmooth(ctx) {
   ctx.seen = {};
   var moves = [].concat(advSafe(function() { return advStockMoves(ctx); }, []), advSafe(function() { return advWageMoves(ctx); }, []),
-    advSafe(function() { return advPowerMoves(ctx); }, []), advSafe(function() { return advStaffMoves(ctx); }, []),
+    advSafe(function() { return advPowerMoves(ctx); }, []), advSafe(function() { return advUnitsMoves(ctx); }, []), advSafe(function() { return advStaffMoves(ctx); }, []),
     advSafe(function() { return advProdMoves(ctx); }, []), advSafe(function() { return advBackupMoves(ctx); }, []));
   // What could stop it soonest first: a line out today before a cut this month.
   moves.sort(function(a, b) { return a.soon - b.soon || ADV_TONE_RANK[a.tone] - ADV_TONE_RANK[b.tone] || a.cat - b.cat; });
@@ -307,6 +342,11 @@ function advQSmooth(ctx) {
   moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
   // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): how many things could stop the plant, coded by how soon.
   var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
+    // The answer as one sentence (U2R §24f: a question's Small), its count in its tone.
+    // " this week" is the answer's tail: a phone's card leaves it off (the canvas's "4 things could stop the plant").
+    // The count and its noun in the tone (the canvas's "4 things").
+    ans: moves.length ? figHtml(moves.length + (moves.length === 1 ? ' thing' : ' things'), uiTone(worst === 'ok' ? 'info' : worst)) + ' could stop the plant' +
+      '<span class="inv-tail"> this week</span>' : 'Nothing stands in the way this week',
     // No words under the figure: the story's sentence under it names the same things (Home's widget draws both).
     sub: '',
     viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
@@ -790,6 +830,27 @@ function advMovesDeckHtml(moves, listKey, n, word) {
   var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
   return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
+/* A move's own dialog (§24e, U2R): what it says, what it is worth and what that rests on, its action (the dialog's one primary) and
+   Add to my list (On your list once it is). A tap on a move in a card, anywhere but its action, opens it: the card's row ends in its
+   action alone, so Add to my list is here. The same keys and refs as the row, so its buttons act as the row's do; its action shuts
+   the dialog on the way (todoGo). */
+function advMoveOpen(key, ref) {
+  var mv = (ref && _advRows[ref]) || _advMoves[key];
+  if (!mv) { showToast('That move has changed: open the card again', 'warning'); return; }
+  var r = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"', k = ' data-key="' + escHtml(mv.key) + '"';
+  var w = mv.worth && mv.worth.amount > 0.005 ? mv.worth : null, sign = w && w.sign < 0 ? '−' : '+';
+  var worth = w ? '<div class="inv-row inv-row-2" data-adv-worth title="' + escHtml(sign + formatCurrency(w.amount)) + '"><span class="inv-row-main"><span class="inv-row-title">What it is worth</span>' +
+    (advWorthLabel(w) ? '<span class="inv-row-meta">' + escHtml(advWorthLabel(w)) + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end inv-num">' + figHtml(escHtml(sign + inrCard(w.amount).text), w.sign < 0 ? 'danger' : 'ok') + '</span></div>' : '';
+  var body = '<div class="inv-panel inv-panel-flush" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
+    '<div class="inv-row inv-row-auto"><span class="inv-row-lead">' + todoGlyph(mv.tone) + '</span><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' +
+    escHtml(mv.say) + '</span>' + (mv.basis ? '<span class="inv-row-meta inv-row-wrap" data-adv-basis>' + escHtml(mv.basis) + '</span>' : '') + '</span></div>' + worth + '</div>';
+  var act = mv.href ? '<a class="inv-btn inv-btn-primary" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-primary" data-action="invAdvGo"' + k + r + '>' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = advListedKeys()[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invAdvTask"' + k + r + '>Add to my list</button>';
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="What you can do" data-adv-dialog>' + dialogHeadHtml('What you can do') + body +
+    '<div class="inv-dialog-foot">' + add + act + '</div></div>', { dismiss: true });
+}
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */
@@ -808,6 +869,12 @@ function advAddTask(key, ref) {
     if (go && document.activeElement === document.body) { try { go.focus({ preventScroll: true }); } catch (e) { /* focus is a courtesy */ } }
   });
   if (typeof todoRefreshViews === 'function') todoRefreshViews();
+  // Every card on a board holding the move is drawn again, so its row reads On your list (U2R: the row ends in its action alone).
+  var seen = {};
+  document.querySelectorAll('.inv-wboard .inv-widget [data-adv-move]').forEach(function(m) {
+    var card = m.closest('.inv-widget'), id = card && card.dataset.w;
+    if (id && m.getAttribute('data-adv-move') === key && !seen[id] && typeof wdgRefresh === 'function') { seen[id] = true; wdgRefresh(id); }
+  });
   showToast('Added to your list');
 }
 

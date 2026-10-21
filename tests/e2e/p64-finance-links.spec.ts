@@ -52,8 +52,10 @@ test('Home: the Money strip reads the balance, what is owed and the runway, and 
   await loadAppWithState(page, state());
   await openWidget(page, 'money');
   const strip = page.locator('#homeFin');
-  await expect(strip.locator('[data-home-fin="Balance"]')).toContainText('₹2,50,000');
-  await expect(strip.locator('[data-home-fin="Owed to us"]')).toContainText('₹5,900');
+  // Money on a board is short since U2R, its exact amount its title (§24k).
+  await expect(strip.locator('[data-home-fin="Balance"] .inv-tile-value')).toHaveText('₹2.50 L');
+  await expect(strip.locator('[data-home-fin="Balance"] .inv-tile-value')).toHaveAttribute('title', '₹2,50,000.00');
+  await expect(strip.locator('[data-home-fin="Owed to us"] .inv-tile-value')).toHaveText('₹5,900');
   await expect(strip.locator('[data-home-fin="Runway"]')).toBeVisible();
   await strip.locator('[data-home-fin="Owed to us"]').click();
   await onFinanceTab(page, 'receipts');
@@ -103,7 +105,8 @@ test('Pulse: In one line carries the cash; Stats: contribution by client says wh
   await ev(page, `_statsPeriod = 'all'`);
   // In one line is Pulse's since the tab map (TM2b), where Stats → Overview's was.
   await openPulse(page);
-  await expect(page.locator('#statsCash')).toContainText('₹2,50,000.00');
+  // Short on a board since U2R, the exact balance its title (§24k).
+  await expect(page.locator('#statsCash [title="₹2,50,000.00"]')).toContainText('2.50');
   await expect(page.locator('#statsCash')).toContainText('clients pay in 20 days');
   await switchTab(page, 'pageStats');
   await page.locator('[data-action="invStatsTab"][data-tab="clients"]').click();

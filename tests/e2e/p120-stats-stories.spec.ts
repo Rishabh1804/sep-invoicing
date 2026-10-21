@@ -44,10 +44,19 @@ test('Pulse leads with the questions, each answered in a sentence, before the fi
   // Is the plant running smoothly? leads (Direction B, P133), then the questions this spec was written for.
   await expect(qs.first()).toHaveAttribute('data-tdy-q', 'smooth');
   for (const k of ['smooth', 'money', 'clients', 'plant', 'changed']) await expect(page.locator(`[data-tdy-q="${k}"]`)).toBeVisible();
-  // Each holds its story: the sentence that says what it means (a widget at Large since UI pass 3, U2, drawn whole).
-  await expect(page.locator('[data-tdy-q="money"] [data-story-say]')).toContainText(/every kilo/);
-  await expect(page.locator('[data-tdy-q="clients"] [data-story-say]').first()).toContainText('ALPHA WORKS fills');
-  await expect(page.locator('[data-tdy-q="plant"] [data-story-say]')).toContainText(/two shifts/);
+  // Each is answered in a sentence on its card (U2R: the answer, its key figure in its tone)...
+  await expect(page.locator('[data-tdy-q="money"] [data-tdy-ans]')).toContainText(/every kilo/);
+  await expect(page.locator('[data-tdy-q="clients"] [data-tdy-ans]')).toContainText('ALPHA WORKS');
+  // ...and holds its story, the sentences that say what it means: whole in the dialog its head opens (its Medium card's body too).
+  const story = async (k: string) => {
+    while (await page.locator('.inv-scrim-dialog').count()) { await page.keyboard.press('Escape'); await page.waitForTimeout(50); }
+    await page.locator(`#homeBoard [data-tdy-q="${k}"] [data-action="invWdgGo"]`).click();
+    return page.locator(`[data-tdy-q-open="${k}"] [data-tdy-story] [data-story-say]`);
+  };
+  await expect(await story('money')).toContainText(/every kilo/);
+  await expect((await story('clients')).first()).toContainText('ALPHA WORKS fills');
+  await expect(await story('plant')).toContainText(/two shifts/);
+  while (await page.locator('.inv-scrim-dialog').count()) { await page.keyboard.press('Escape'); await page.waitForTimeout(50); }
   // The board draws its widgets in the order laid out: Pulse's, here, the questions before the figures they read (The period in
   // figures, Pulse's In one line); the insights are tasks on Needs you.
   const order = await page.locator('#homeBoard .inv-widget').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.w as string));

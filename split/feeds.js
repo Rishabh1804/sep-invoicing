@@ -514,21 +514,32 @@ function feedDayViz() {
       '<span class="inv-wx-temp">' + escHtml(w.now.tempText) + '</span>' + (say ? '<span class="inv-wx-say">' + escHtml(say) + '</span>' : '') + '</span>' };
 }
 function feedWeatherVizHtml() { var v = feedDayViz(); return v ? v.html : ''; }
-/* For `weather` (§9d): once 30 days are kept, how many of the plant's cut days had rain or thunder forecast, the two counts side by side
-   (never a cause). {state ('early' under 30 days kept), blank, kept, need, since, cutDays, wetCutDays, say}. */
+/* For `weather` (§9d): once 30 days are kept, the plant's cuts set beside the forecast the book kept for their days, two counts side
+   by side and never a cause (the book keeps a day's forecast, not the hour a cut began):
+   - of the cut days in the last 30 with a forecast kept, how many had rain or thunder forecast (`wetCutDays` of `cutDays`);
+   - of the last 10 cuts on days with a forecast kept, how many came on a day thunder was forecast (`stormCuts` of `cuts`).
+   {state ('early' under 30 days kept), blank, kept, need, since, cutDays, wetCutDays, cuts, stormCuts, say}. */
 function feedWeatherCutDays() {
   var w = mktRead().weather, days = Object.keys(w).filter(function(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d) && w[d] && typeof w[d] === 'object'; }).sort();
-  var base = { kept: days.length, need: MKT_WEATHER_EARLY, since: days[0] || '', cutDays: 0, wetCutDays: 0, say: '' };
+  var base = { kept: days.length, need: MKT_WEATHER_EARLY, since: days[0] || '', cutDays: 0, wetCutDays: 0, cuts: 0, stormCuts: 0, say: '' };
   if (days.length < MKT_WEATHER_EARLY) return feedBlank(base, 'early', 'Not enough yet: ' + days.length + ' of ' + MKT_WEATHER_EARLY + ' days kept', 'A day is kept each time the weather is fetched.');
-  var cut = {};
-  try { (typeof dvRows === 'function' ? dvRows('power_cuts') : []).forEach(function(r) { if (r && r.date) cut[r.date] = 1; }); } catch (e) { /* no cuts read: none counted */ }
-  days.forEach(function(d) {
-    if (!cut[d]) return;
+  var rows = [];
+  try { rows = typeof dvRows === 'function' ? dvRows('power_cuts') : []; } catch (e) { rows = []; /* no cuts read: none counted */ }
+  var kept = rows.filter(function(r) { return r && r.date && w[r.date] && typeof w[r.date] === 'object'; });
+  var from = isoAddDays(localDateStr(), -29), seen = {};
+  kept.forEach(function(r) {
+    if (r.date < from || seen[r.date]) return;
+    seen[r.date] = 1;
     base.cutDays++;
-    if (w[d].thunder === true || w[d].rain > 0) base.wetCutDays++;
+    if (w[r.date].thunder === true || w[r.date].rain > 0) base.wetCutDays++;
   });
+  // The last ten, newest first: by the day, then the minute the cut began.
+  var at = function(r) { return r.date + ' ' + String(r.from || ''); };
+  var last = kept.slice().sort(function(a, b) { return at(a) < at(b) ? 1 : at(a) > at(b) ? -1 : 0; }).slice(0, 10);
+  base.cuts = last.length;
+  base.stormCuts = last.filter(function(r) { return w[r.date].thunder === true; }).length;
   base.state = 'ok';
-  base.say = 'Of ' + base.cutDays + ' cut day' + (base.cutDays === 1 ? '' : 's') + ' since ' + stockShortDate(base.since) + ', ' + base.wetCutDays + ' had rain, as forecast that day';
+  base.say = 'Of ' + base.cutDays + ' cut day' + (base.cutDays === 1 ? '' : 's') + ' in the last 30, ' + base.wetCutDays + ' had rain forecast that day';
   return base;
 }
 
@@ -899,9 +910,11 @@ function mktMonthsPartHtml() {
 function mktWeekHtml(week) {
   return '<div class="inv-mkt-week" data-mkt-week>' + week.days.map(function(d) {
     var title = d.date + ': ' + (d.usual ? d.word : d.word + (d.why ? ', ' + d.why : ''));
-    return '<div class="inv-mkt-day" data-day="' + d.date + '"' + (d.tone !== 'neutral' ? ' data-tone="' + d.tone + '"' : '') + ' title="' + escHtml(title) + '">' +
-      // The cell says works or shut; that a Sunday is only usually shut is its title's (the tone says a day the calendar names).
-      '<span class="inv-mkt-day-dow">' + d.dow + '</span><span class="inv-mkt-day-d">' + d.d + '</span><span class="inv-mkt-day-s">' + escHtml(d.state) + '</span></div>';
+    // A day says shut, or works where the calendar names it (a Sunday worked); a usual working day says nothing more (the canvas).
+    // That a Sunday is only usually shut is its title's; the tone says a day the calendar names; a usual shut day is drawn hollow.
+    var word = d.state === 'shut' || !d.usual ? '<span class="inv-mkt-day-s">' + escHtml(d.state) + '</span>' : '';
+    return '<div class="inv-mkt-day" data-day="' + d.date + '"' + (d.tone !== 'neutral' ? ' data-tone="' + d.tone + '"' : '') + (d.state === 'shut' ? ' data-shut' : '') +
+      ' title="' + escHtml(title) + '"><span class="inv-mkt-day-dow">' + d.dow + '</span><span class="inv-mkt-day-d">' + d.d + '</span>' + word + '</div>';
   }).join('') + '</div>';
 }
 var MKT_SRC_WORD = { news: 'from the news', circular: 'from Tata’s circular', owner: 'typed here' };

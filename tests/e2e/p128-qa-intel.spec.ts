@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget, withWidgets, openHome } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, waitForBoot, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget, withWidgets, openHome } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P128: the intelligence screens' QA findings (30 Sep 2026) — Clients → Performance, the Stats stories and figures,
@@ -178,12 +178,15 @@ test.describe('P128: Clients → Performance', () => {
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(Math.min(n, 10));
     if (n > 10) await steady.locator('[data-action="invShowMore"]').click();
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(n);
-    // The page was 3.1 phone screens on this book with every steady part and Materials worked drawn open.
+    // The page was 3.1 phone screens on this book with every steady part and Materials worked drawn open. The limit was set at 2.4
+    // in the fallback face (Liberation, its leading 1.15); in Geist, the face the app ships in (its leading about 1.3), the same
+    // page is 1.3% longer, a line two pixels taller (1625 → 1646 px on this book), so it is the same limit at 2.43 (U2R, §24m).
+    // Measured once the face is in (waitForBoot): straight after the reload it raced the face.
     await page.reload();
-    await page.waitForSelector('body.inv-booted');
+    await waitForBoot(page);
     await page.locator('#cpClientSelect').waitFor();
     const screens = await page.evaluate(() => document.documentElement.scrollHeight / window.innerHeight);
-    expect(screens).toBeLessThan(2.4);
+    expect(screens).toBeLessThan(2.43);
     // The fold is the device's: opened once, it stays open.
     await openCard(page, 'worked');
     // The fold is kept on the details' toggle event, a task of its own: a reload straight after the click can beat it.
@@ -204,13 +207,15 @@ test.describe('P128: Stats', () => {
       inv(2, monthDay(-1, new Date(todayIso() + 'T00:00:00').getDate()), [{ part: 'PART Y1', unit: 'KG', qty: 100, rate: 12 }])];
     invs[0].clientName = evil; invs[1].clientName = 'QUIET OTHER CO';
     await loadAppWithState(page, book([client(1, evil, 'weight', 2), client(2, 'QUIET OTHER CO', 'weight', 12)], invs));
-    // The questions are Pulse's since the tab map (TM2b).
+    // The questions are Home's widgets since UI pass 3; the card answers in a sentence and its head opens the whole story (U2R).
     await openPulse(page);
-    const story = page.locator('[data-tdy-q="clients"]');
+    await expect(page.locator('[data-tdy-q="clients"] [data-tdy-ans]')).toContainText('<img src=x');
+    await page.locator('#homeBoard [data-tdy-q="clients"] [data-action="invWdgGo"]').click();
+    const story = page.locator('[data-tdy-q-open="clients"]');
     await expect(story.locator('[data-story-say]')).toHaveCount(2);
     await expect(story.locator('[data-story-say]').first()).toContainText('<img src=x');
     await expect(story.locator('[data-story-say]').last()).toContainText('<img src=x');
-    await expect(page.locator('#pageHome [data-p128-xss]')).toHaveCount(0);
+    await expect(page.locator('[data-p128-xss]')).toHaveCount(0);
     expect(await g(page, 'window.__p128')).toBeUndefined();
   });
 

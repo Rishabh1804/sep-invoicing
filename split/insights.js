@@ -91,12 +91,18 @@ function predMonthPace() {
   var days = worked.map(function(d) { return perDay[d] || 0; });
   var mean = rev / done, sd = Math.sqrt(days.reduce(function(s, v) { return s + (v - mean) * (v - mean); }, 0) / Math.max(1, days.length - 1));
   var left = total - done, band = sd * Math.sqrt(left);
-  var unbilled = 0;
-  (S.incomingMaterial || []).forEach(function(im) { (im.items || []).forEach(function(it) { if (!it.invoiced) unbilled += imLineOpen(it).amount; }); });
+  var unbilled = 0, unbilledN = 0;
+  (S.incomingMaterial || []).forEach(function(im) {
+    var open = 0;
+    (im.items || []).forEach(function(it) { if (!it.invoiced) open += imLineOpen(it).amount; });
+    unbilled += open;
+    if (open > 0.005) unbilledN++;
+  });
   var prev = insMonthsBack(1)[0], pm = insMonthly([prev]);
   return { rev: rev, kg: kg, done: done, total: total, left: left,
     projRev: gstRound(rev / done * total), projKg: kg / done * total, low: gstRound(Math.max(rev, rev / done * total - band)), high: gstRound(rev / done * total + band),
-    unbilled: gstRound(unbilled), prevRev: pm('', prev).rev, prevKg: pm('', prev).kg, prevLabel: insMonthLabel(prev) };
+    unbilled: gstRound(unbilled), unbilledN: unbilledN, prevRev: pm('', prev).rev, prevKg: pm('', prev).kg, prevLabel: insMonthLabel(prev),
+    prevName: RPT_MONTHS[parseInt(String(prev).slice(5, 7), 10) - 1] || insMonthLabel(prev) };
 }
 
 /* The next PO number, only where the client's POs run in sequence. */

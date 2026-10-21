@@ -81,20 +81,22 @@ test.describe('P182: the five doors and the raised tiles (phone)', () => {
     const t = await g(page, `(function() {
       var tiles = Array.prototype.slice.call(document.querySelectorAll('#homeTiles .inv-tile')).filter(function(x) { return x.offsetParent; });
       var a = tiles[0].getBoundingClientRect(), b = tiles[1].getBoundingClientRect(), cs = getComputedStyle(tiles[0]);
-      var card = tiles[0].closest('.inv-hero, .inv-panel'), cc = getComputedStyle(card);
-      var sheet = tiles[0].closest('.inv-hero-sheet'), ss = sheet ? getComputedStyle(sheet) : null;
+      // The card is a widget since U2R (a hero before it), the strip of tiles straight in its body.
+      var card = tiles[0].closest('.inv-widget, .inv-hero, .inv-panel'), cc = getComputedStyle(card);
+      var strip = tiles[0].closest('.inv-tiles'), ss = getComputedStyle(strip);
       var bar = getComputedStyle(document.querySelector('.inv-navbar'));
-      var probe = document.createElement('i'); probe.style.borderRadius = 'var(--r-tile)'; probe.style.padding = 'var(--r-card)'; document.body.appendChild(probe);
-      var r = getComputedStyle(probe), rTile = parseFloat(r.borderTopLeftRadius), rCard = parseFloat(r.paddingTop); probe.remove();
+      var probe = document.createElement('i'); probe.style.borderRadius = 'var(--r-tile)'; probe.style.padding = 'var(--r-card)'; probe.style.margin = 'var(--r-bar)'; document.body.appendChild(probe);
+      var r = getComputedStyle(probe), rTile = parseFloat(r.borderTopLeftRadius), rCard = parseFloat(r.paddingTop), rBar = parseFloat(r.marginTop); probe.remove();
       return { shadow: cs.boxShadow, radius: parseFloat(cs.borderTopLeftRadius), gap: Math.max(b.left - a.right, b.top - a.bottom),
-        cardShadow: cc.boxShadow, cardRadius: parseFloat(cc.borderTopLeftRadius), rTile: rTile, rCard: rCard,
+        cardShadow: cc.boxShadow, cardRadius: parseFloat(cc.borderTopLeftRadius), cardTone: card.dataset.tone || '', rTile: rTile, rCard: rCard, rBar: rBar,
         barShadow: bar.boxShadow, barRadius: parseFloat(bar.borderTopLeftRadius),
-        sheetFill: ss ? ss.backgroundImage + '|' + ss.backgroundColor : '', sheetBorder: ss ? ss.borderTopStyle : '' };
+        sheetFill: ss.backgroundImage + '|' + ss.backgroundColor, sheetBorder: ss.borderTopStyle };
     })()`) as Record<string, any>;
     const layers = (sh: string) => sh === 'none' ? [] : sh.split(/,(?![^(]*\))/);
-    // The card around the tiles lifts: two shadows, both outside it, and a card's corners.
-    expect(layers(t.cardShadow).length).toBe(2);
-    expect(layers(t.cardShadow).every((x: string) => !/inset/.test(x))).toBe(true);
+    // The card around the tiles lifts: two shadows outside it, and a card's corners; from amber its top edge is one inset line
+    // more (salience follows severity, U2R §24c).
+    expect(layers(t.cardShadow).filter((x: string) => !/inset/.test(x)).length).toBe(2);
+    expect(layers(t.cardShadow).filter((x: string) => /inset/.test(x)).length).toBe(t.cardTone === 'warning' || t.cardTone === 'danger' ? 1 : 0);
     expect(t.cardRadius).toBe(t.rCard);
     // The tile sinks into it: one shadow, inset, and a tile's corners, smaller than the card's.
     expect(layers(t.shadow).length).toBe(1);
@@ -102,12 +104,13 @@ test.describe('P182: the five doors and the raised tiles (phone)', () => {
     expect(t.radius).toBe(t.rTile);
     expect(t.radius).toBeLessThan(t.cardRadius);
     expect(t.gap).toBeGreaterThanOrEqual(7.5);
-    // A sheet holding the strip alone draws no box: the tiles are the wells.
+    // The strip draws no box of its own: the tiles are the wells.
     expect(t.sheetFill).toBe('none|rgba(0, 0, 0, 0)');
     expect(t.sheetBorder).toBe('none');
-    // The phone bar is a floating card: lifted outside it, a card's corners.
+    // The phone bar is a floating card: lifted outside it, with a rounder corner of its own (--r-bar, U2R §24b).
     expect(layers(t.barShadow).length).toBe(2);
-    expect(t.barRadius).toBe(t.rCard);
+    expect(t.barRadius).toBe(t.rBar);
+    expect(t.barRadius).toBeGreaterThan(t.rCard);
     // Stock's tiles filter the lines: pressed, the tile sinks deeper (inset only) and is edged in the accent.
     // Stock is one screen; its filter tiles are its card's factors (TM4d), shut on the phone until opened.
     await switchTab(page, 'pageStock');

@@ -141,6 +141,12 @@ export function recentTs(msAgo = 0): number {
    that touches state may run before this. */
 export async function waitForBoot(page: Page): Promise<void> {
   await page.waitForSelector('body.inv-booted', { state: 'attached' });
+  // Both faces and both their subsets in before anything is measured: with swap, a face still on its way draws the fallback first.
+  await page.evaluate(() => Promise.race([
+    Promise.all(['400 16px Geist', '400 16px "Geist Mono"'].map(f => document.fonts.load(f, 'A₹0').catch(() => null)))
+      .then(() => document.fonts.ready),
+    new Promise(r => setTimeout(r, 3000)),
+  ]).then(() => true));
 }
 
 /* Seeds through the LEGACY localStorage key, which the app migrates into

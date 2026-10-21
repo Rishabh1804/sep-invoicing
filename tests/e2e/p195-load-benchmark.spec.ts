@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loadAppWithState, todayIso } from './fixtures';
-import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixture';
+import { type Load, longBook, measureLoad, walkMap } from './load-fixture';
 
 // P195: the cognitive-load benchmark's instrument (docs/TAB_MAP.md §3b, I10, TM1 item 12; owner, 8–9 Oct 2026: "survey all the
 // screens to make sure the app is up to the mark for our cognitive load benchmark", then the tab map built to it). Every screen
@@ -14,8 +14,10 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 // Knowledge's whole): every screen measured on eleven days of the calendar (a Sunday, a month's first
 // and last days, the financial year's first, the year's), the worst of them kept, the length rounded up to the next half
 // screen. A toolbar's rows are its controls standing side by side, their heights overlapping (TM4: tops binned by 8px had
-// counted a smaller button centred in its row as a second row). The face is pinned
-// (Liberation, as on every runner) and the clock to 11:30 on today, so a screen measures the same on any machine at any hour.
+// counted a smaller button centred in its row as a second row). The face is the app's own, Geist, served from tests/fixtures/fonts
+// (U2R, §24m: until then Liberation, as on every runner, whose leading is 1.15 against Geist's 1.3, so every screen measured each
+// single line two pixels short of what the phone draws), and the clock is pinned to 11:30 on today, so a screen measures the same
+// on any machine at any hour.
 // What is measured is what is drawn: a view or widget the page hides is not on the screen's face (TM2: Pulse had been charged
 // with Needs you's tasks and the widgets TM2c hides).
 
@@ -27,7 +29,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // Raised 3 → 3.5 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): material past its turnaround target is a red
   // task in Now, the long book's twelve clients folded into one card (3.09).
   'Home › Needs you': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Home': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Raised 4 → 5 by U2R (20 Oct 2026), said in the PR and put to the owner at the stop (§1a-14, I10): the agreed canvas's phone
+  // holds all fourteen Owner cards, and Home measures 4.67 (3,392 px, the canvas's own 3,388), over I10's four.
+  'Home › Home': { screens: 5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -43,7 +47,11 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Office › Challans › Awaiting invoice': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Invoices': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Office › Clients › Clients': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  // U2R, §24m: Clients, Equipment and Records measured in Geist, the face the app ships in, are past the half screen they were
+  // rounded to in Liberation (Clients 1.5048 → 1.51, read as 1.50 before; Equipment 1.498 → 1.51; Records 1.00 → 1.02): the same
+  // screens, nothing added, each line two pixels taller in Geist's leading. Each is set at the next half screen, the rule above
+  // applied to the true face, and said at the stop (I10).
+  'Office › Clients › Clients': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Clients › Parts': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Clients › Performance': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Sales › Prospects': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -62,7 +70,7 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Floor › Production › Lines': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › In plant': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › Entries': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › Production › Equipment': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Production › Equipment': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Stock': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Causes': { screens: 2, blocks: 0, chains: 0, toolbarRows: 0 },
@@ -87,7 +95,7 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // there were five (3.56 → 3.40).
   'Knowledge › Library': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Knowledge › Troubleshoot': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Knowledge › Records': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Knowledge › Records': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Knowledge › Training': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
 };
 
@@ -115,7 +123,6 @@ test('every screen of the map is within its load budget on the long book', async
   test.setTimeout(300_000);
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
-  await pinFace(page);
   await page.clock.install({ time: new Date(todayIso() + 'T11:30:00') });
   await loadAppWithState(page, longBook());
   const seen: Record<string, Load> = {};

@@ -44,7 +44,10 @@ test('600 invoiced as 200, 300 and 100: the share left, the status and the unbil
   await expect(await imStatus(page)).toHaveText('Part invoiced');
   // Home: the unbilled amount is the open share, never the whole line.
   await openPulse(page);
-  await expect(page.locator('[data-w="unbilled"]')).toContainText('₹2,300.00');   // 400 × 2.50 + challan 401's 1,300
+  // 400 × 2.50 + challan 401's 1,300: the sum after the card's count of challans (the agreed canvas's "2 to bill, ₹2,300"), short on
+  // a board since U2R, its exact amount its title (§24k).
+  await expect(page.locator('[data-w="unbilled"] .inv-widget-fig')).toHaveText(/^2\s*to bill, ₹2,300$/);
+  await expect(page.locator('[data-w="unbilled"] .inv-widget-fig [title]')).toHaveAttribute('title', '₹2,300.00');
 
   // The picker offers what is left, and says what went before.
   await pickChallan(page, 'samarth', 'IM-301');

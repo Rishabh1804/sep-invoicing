@@ -38,8 +38,8 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U1 | Foundations: the look's tokens (lift, wells, radii, dark elevation), the default palette, icons v3, the chart builders and the table behind every chart, the blank states, the data layer (§3–§6) | Built, 16 Oct 2026 (P226, P227, P228) |
 | U2 | Home and its widgets: the door renamed, the day card with its clock and weather, Pulse folded in, the widget grid, sizes, arranging, the gallery, presets by role; the feeds Worker and its client; Tata's figures and the plant's calendar (§7–§9) | Built, 16 Oct 2026 (P223, P224, P225): every widget §7d marks U2; the Worker is the owner's to deploy (§9e) |
 | ⏸ | **Stop: the owner looks** at Home and the gallery on the phone and the desktop, in both themes (§1a-1) | Looked, 17 Oct 2026: *"looking for a more finished product"*; the card family drawn on a canvas and approved (*"Write the spec"*) |
-| U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026 |
-| ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–20 | |
+| U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026; built, 20 Oct 2026 (P235–P239; design §6.33–§6.36): every widget in its type, the grep checklist empty; then matched to the agreed canvas card by card, the phone holding all fourteen (§24o) |
+| ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–21 | |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
@@ -122,20 +122,33 @@ exactly as they do. The server's own steps (S0–S5) keep their track; only the 
     cannot see by default (Month to date, Owed and Days to pay need money; Turnaround needs Production), so it drew with holes; it now
     holds what the role sees. The supervisor gets a preset of its own (it shared the Floor's, whose pages it outnumbers), and the
     Owner's gains *Attendance* at Small, as the canvas drew it.
-14. **The phone's Owner preset leaves out Do first** if Home measures over four phone screens (I10's cap for Home). By the canvas's own
-    heights the Owner's phone Home is about 4.4 screens with it and 3.9 without; each question's card carries the same moves.
+14. **The phone's Owner preset holds all fourteen, as the agreed canvas's phone draws them** (owner, 20 Oct 2026: *"This was the
+    agreed upon artifact"*), in its order. Home then measures **4.67** phone screens on the long book (3,392 px; the canvas's own phone
+    is 3,388), over I10's four for Home, so P195's budget for Home is set to that measure (5) and said here and in the PR. *The
+    first draft* left Do first, Turnaround and Days to pay off the phone (3.92; with Do first alone off, 4.17). The owner may keep the
+    canvas's length, or name the cards a phone leaves out.
 15. **A chart in a card is bare**: no readout line and no *Table* button (the canvas drew none). The table is on the screen behind,
     which the card's head opens, and the card's verdict says what the chart shows.
 16. **The recent invoices keep their Print at each row's end**, which the canvas did not draw: four taps to print a recent invoice was
     the owner's complaint of 6 Oct 2026.
 17. **A feed's credit stays a link in its Source** (*The GDELT Project*, *MET Norway*), where the canvas wrote the name plain: GDELT's
-    data is free for commercial use with a citation and a link (§1a-7). It is the one link a Source holds besides Refresh.
-18. **Every rate keeps its paise**, zinc's included (₹392.40 a kilo), where the canvas wrote zinc's whole: a rate is not an amount.
-19. **Quick actions' *Started here and not saved* shows the forms the app holds this session**: Create's invoice form, which the app
-    keeps as typed when it is left. No form is kept across a reload today, and a challan's typed work is dropped when it is left (after
-    asking), so the canvas's *a challan typed yesterday* is not built. Keeping drafts is a separate change, the owner's to ask for.
+    data is free for commercial use with a citation and a link (§1a-7). It is drawn quiet, in the Source's own grey as the canvas
+    writes it, so Refresh is the one accent there; it is the one link a Source holds besides Refresh.
+18. **Every rate keeps its paise**, zinc's included (₹392.40 a kilo, MCX estimated, the figure the canvas leads with; the landed rate
+    with the premium under it at Medium), where the canvas wrote zinc's whole: a rate is not an amount.
+19. **Quick actions' *Started here and not saved* shows what the app keeps unsaved**: Create's invoice form, which the app keeps as
+    typed when it is left (this session), and the register pages the person signed in typed on Mine and kept on this device until
+    saved (`sep_inv_face_page`, across a reload). A challan's typed work is dropped when it is left (after asking), so the canvas's *a
+    challan typed yesterday* is not built; keeping a challan's draft is a separate change, the owner's to ask for. With nothing kept
+    the card says where an unsaved invoice waits.
 20. **Every other hero and verdict card keeps its wash until U7** (§14a), which gives them the board's rule (§24c), so the app ends with
     one rule for a card's tone.
+21. **The weather's storms are counted by the day, never by the hour a cut began.** The canvas says *Storms: 3 of the last 10 cuts*,
+    *storms brought 3 of the last 10 cuts* and *Cuts that began in a storm*. The book keeps each day's forecast (`S.market.weather`),
+    not its hours, so the card says what that can bear: *Thunder days: 3 of the last 10 cuts*, *3 of the last 10 cuts fell on a
+    thunder day*, *The last 10 cuts, on a thunder day · 3 of 10*: two counts side by side, never a cause (§9d). Its *humid, light
+    wind* is not built either: the feeds Worker reads no wind or humidity from MET Norway, so the sky's word stands there (*partly
+    cloudy*). Keeping each day's thunder hours would let a later build say *began in a storm*, from the day it starts keeping them.
 
 ## 2. What changes, screen by screen
 
@@ -1328,7 +1341,7 @@ TAB_MAP's I1–I11 hold, with these words for this pass:
 - **I10. Measured, never longer.** P195 measures every screen; a step lowers its screens' budgets to its measure and never raises one.
   **Home's dashboard** is new: its budget is set at U2's measure with the Owner preset on the long book, and may not exceed Pulse's 4
   phone screens. U2R's fixed heights may lengthen it: the phone's Owner preset then leaves out Do first (§24i, §1a-14), and Home's
-  budget is set at U2R's measure, never over 4.
+  budget is set at U2R's measure, never over 4. *As built:* Do first, Turnaround and Days to pay left out, 3.92 (§1a-14).
 - **I11. One look.** Home's dashboard joins `ONE_LOOK` as an overview; Stats' two views (U3) as work screens; P197 holds them.
 - **I12. Paper does not move.** P228 records the computed style of every element under each paper root (the invoice, the test
   certificate, the credit note, the sales register, the quotation, the statement, the pay slip, the attendance and stock sheets, the
@@ -1403,7 +1416,11 @@ the grep checklist's output, anything decided differently and why).
 
 1. **Geist under test first** (its own commit, §24m): the fonts and their licence in `tests/fixtures/fonts/`, routed in the fixtures;
    the suite run on it before anything else moves. A spec that moves with the real face is read and rewritten to the same fact in
-   Geist, never loosened; the commit says which and why.
+   Geist, never loosened; the commit says which and why. *As built:* the routes were later replaced by the test server serving the
+   app's pages with the stylesheet named as `tests/fixtures/fonts/fonts.css` (`tests/e2e/server.mjs`), so no request is intercepted
+   and a second window draws in Geist too. A rare stall had been put down to the routes (about one test in a thousand timed out,
+   ending in *Object with guid response@… was not bound*); it came back without them, so it was not theirs: it is a deadlock
+   inside this sandbox's Chromium that web fonts set off (CLAUDE.md, *Tests*).
 2. **Tokens** (styles.css's block): the corners (`--r-card`, `--r-tile`, `--r-ctl`, `--r-seg`) and `--r-bar`, the wells moved from
    `--r-ctl` to `--r-tile` (the segmented track, the search, a field, the weather's hours, the market's days); the type surfaces per
    palette (`--c-ty-ledger`, `--c-ty-plant`, aliases `--ty-ledger`, `--ty-plant`); `--card-danger`; `--tone-edge`; `--wdg-row`,
@@ -1416,6 +1433,8 @@ the grep checklist's output, anything decided differently and why).
    `wdgSourceHtml`, `wdgChooseHtml`, `wdgFit`'s More); the type builders; the move dialog (`advMoveOpen`, advice.js); `wdgPlace`, the
    board's rows and dense packing, Customise's slots and *Add here*; `wdgFromHero`'s Source; a chart's `opts.bare` (charts.js).
 6. **The widgets** (§24f), each in its type with its short title, Choose, Act and Source; the old feet and second doors gone.
+   *As built:* `q-cash`'s Small title is *Getting paid?*. The table's *Cash coming in?* fitted the phone's 101 px title box by a
+   pixel here and took 106 px on CI, whose text is wider; the card's figure at Small is what is owed to us, which the new words ask.
 7. **The masthead** (§24j): `homeMastHtml`, the tick, the shift before, during and after.
 8. **The presets** (§24i): four, each packing with no hole; the phone's Owner without Do first if Home measures over four screens.
 9. **Specs** (§20): P235–P239 new; the rewrites (§21); P195 and P197 measured, Home's budget set (I10), `LOOKS` regenerated; the guide
@@ -1427,7 +1446,7 @@ the grep checklist's output, anything decided differently and why).
   `inv-chip` in a card's markup in widgetcards.js; `formatCurrency(` in widgetcards.js outside a `title`; `--ff-mono` on a figure's rule.
   Each comes back empty.
 - **Then stop.** The owner looks at Home on the long book, both layouts and both themes, beside the canvas (screenshots in an
-  artifact), and answers §1a's calls 13–20. U3 waits on their word.
+  artifact), and answers §1a's calls 13–21. U3 waits on their word.
 
 ### U3 — Stats (§10)
 
@@ -1548,7 +1567,8 @@ From the survey of 16 Oct 2026 (the fixtures and the 76 files that open Pulse or
 13. **Fonts in a public repository**: Geist and Geist Mono are under the SIL Open Font License 1.1, which permits it with its text
     beside them; under 200 KB, under `tests/` only (the app keeps loading them from Google Fonts).
 14. **Home grows on the phone** with fixed heights: measured by P195; the phone's Owner preset leaves out Do first if it would pass
-    four screens (§24i).
+    four screens (§24i). *First built:* it did pass them with Do first alone out (4.17); Turnaround and Days to pay went too (3.92).
+    *Matched to the canvas* (§24o): all fourteen on the phone, 4.67 screens, P195's budget 5, put to the owner (§1a-14).
 
 ## 23. Builder protocol
 
@@ -1833,11 +1853,11 @@ reading gives; *—* means none.
 | `q-money` | Making money? | — | as above | Invoices net of credit notes · the live cost N% measured · labour counted as fixed | as above |
 | `q-clients` | Who drives it? | — | as above | as above | as above |
 | `q-plant` | Plant full? | — | as above | Invoices, the period · ~2 t a shift, two shifts | as above |
-| `q-cash` | Cash coming in? | — | as above | Bank statement to `<d>` | as above |
+| `q-cash` | Getting paid? | — | as above | Bank statement to `<d>` | as above |
 | `q-changed` | What changed? | — | as above | The month to `<d>` against its pace | as above; its insights as rows |
 | `dofirst` | — | — | — (each move's at its row's end) | Every question's moves, by what each is worth a month | the moves as rows (Large: cards); a move opens its dialog (§24e); *4 more moves* opens Do first's dialog |
-| `why` | — | — | — | Against `<the period before>` · weighed lines only | the causes as rows, the change ruled under them |
-| `coming` | — | — | — | — | the predictions as dated rows; *5 more* lists the rest in place |
+| `why` | — | — | — | Against `<the period before>` · weighed lines only | the answer a sentence (*The price rose ₹2.25 a kilo against September*, realisation either side its title); the causes as lines, each with its bar from the middle (left for less, right for more), the change ruled under them; Large: contribution's and cash's beside it |
+| `coming` | — | — | — | — | the predictions as dated rows; *5 more* lists the rest in place; challans due back on one day one row, three clients or more named as the first and how many more (a row's line two facts at most, P195); thunder in the hours the plant's cuts start a row in info, with the storm count (§1a-21) |
 | `needs` | — | — | *Add a task* (text) | — | *See all* goes (the head opens Needs you) |
 | `corr` | — | the pair: at Large its two pickers (*Across*, *Up*); at Medium one button in the head naming the pair, opening its picker | — | Day by day, working days · N points from `<d>` | *Change the pair* becomes the Choose |
 
@@ -1845,16 +1865,16 @@ reading gives; *—* means none.
 
 | Widget | Small title | Choose | Act | Source | What changes |
 |---|---|---|---|---|---|
-| `tata` | — | the models followed (*All models · Prima · Signa*, `S.market.models`) | — | *The GDELT Project* (its credit, a link) · `<age>` · Refresh · figures typed from the `<month>` release | the model chips leave the foot for the Choose, which filters the headlines; *6 more headlines* opens the Tata dialog on the model picked; Large: three columns from 60rem of card (the figures and the week; the chart, bare; the headlines), two from 36rem, one under |
-| `weather` | Weather | — | — | *MET Norway* (its credit, a link) · `<age>` · Refresh · at the plant's place | — |
-| `zinc` | Zinc rate | — | — | metals.dev · `<age>` · Refresh · MCX estimated from LME | its *Refresh* button becomes the Source's link; the rate keeps its paise (§1a-18) |
+| `tata` | — | the models followed (*All models · Prima · Signa*, `S.market.models`) | — | *The GDELT Project* (its credit, a link, quiet) · `<age>` · Refresh · figures typed from the `<month>` release | the model chips leave the foot for the Choose, which filters the headlines; *6 more headlines* opens the Tata dialog on the model picked; Large: three columns from 60rem of card (the figures and the week; the chart, bare; the headlines, each dateline its day and its time in 24 hours, *17 Oct 09:12*), two from 36rem, one under |
+| `weather` | Weather | — | — | *MET Norway* (its credit, a link, quiet) · `<age>` · Refresh · at the plant's place | Small: the temperature with today's window as its unit (*31° thunder 4–6 PM*), the storm count as the verdict (*Thunder days: 3 of the last 10 cuts*, §1a-21), the next six hours at the foot, the temperature over the hour, a thunder hour tinted in info (four on a phone's Small); Medium: the temperature with the sky's word and, as a reading beside it, the rain still to fall today (*6 mm of rain by 7 PM*, else the day's range); the window and the storm count as the verdict; twelve hours (six under 32rem of card), the hour over its sky and its temperature; then *Cut days with rain, the last 30 days · 4 of 9* and *The last 10 cuts, on a thunder day · 3 of 10* as lines (before 30 days are kept, how many are) |
+| `zinc` | Zinc rate | — | — | metals.dev · `<age>` · Refresh · MCX estimated from LME | MCX a kilo with its paise as the figure (*₹392.40 a kilo, MCX estimated*, §1a-18; *a kilo* alone on a phone's Small); the market's move over the week to its last refresh as the verdict (*Up 1.2% this week*, from the refreshes kept), else how old the rate is (a warning once stale, `[data-zinc-age]`); the refreshes as a line at the foot; Medium: the landed rate with the premium, the line, and LME's arithmetic; its *Refresh* button becomes the Source's link |
 
 **Tools**
 
 | Widget | Small title | Choose | Act | Source | What changes |
 |---|---|---|---|---|---|
-| `quick` | Quick actions | — | — | — | the keys on a tray (Small three, the phone's Small two: *New invoice* and *Paste*; Medium six); Medium: *Started here and not saved*, the forms the app holds this session with **Continue** (§1a-19) |
-| `sync` | Backup | — | *Back up now* or *Register* (tint, small) | — | its verdict *Backed up 12 minutes ago* with its lamp; the repository as its detail |
+| `quick` | Quick actions | — | — | — | the keys on a tray at their own height, an icon over its word (Small three: *New invoice*, *New challan*, *Paste*; the phone's Small two: *Invoice* and *Paste*; Medium six, *Paste message* in full on a desk); a word shortened keeps its whole name for a screen reader; Medium: *Started here and not saved*, Create's invoice and the register pages kept on this device, each with **Continue** (§1a-19), else where an unsaved invoice waits |
+| `sync` | Backup | — | *Back up now* or *Register* (tint, small) | — | its verdict *Backed up 12 minutes ago* with its lamp; its detail which way the last copy went and how big the book is (*From this device · the book is 4.3 MB*; *From this device* alone on a phone's Small), the repository its title (the canvas's *Push now* is *Back up now*, the app's word since U2) |
 
 U3's widgets (`share`, `labour`, `months`, `trend`, `topitems`, `costcheck`, `pricecost`) are Ledgers, built in the family by U3 (§10).
 
@@ -1914,8 +1934,10 @@ wdgDefine({ id: 'owed', title: 'Owed to us, by age', short: 'Owed to us', q: '�
   the total, `.inv-docket-row`, `.inv-plant-row`, `.inv-brief-move`, `.inv-brief-movecard`, `.inv-wire-item`, a chart's rows), the More
   row saying how many and a Ledger's rest line their sum; last, a verdict past its two lines is cut at a word, its whole text its
   `title`. Nothing is cut halfway and nothing runs past the card (P224, P237).
-- **The room a card does not fill** is one space, between what it says and what it shows: a Small's picture is pushed to the body's
-  foot (`data-wdg-push`), and the foot (Act, Source) stands at the card's foot. Never a strip of empty card under the last line.
+- **The room a card does not fill** is one space, above its foot (*as built to the agreed canvas, §24o*; this section first put it
+  between what a card says and what it shows): what it says and what it shows run down from the head, a Small's picture is pushed to
+  the body's foot (`data-wdg-push`), a bare chart takes the room left, and the foot (Act, Source) stands at the card's foot. What the
+  fit let go first comes back, all together, where a list's going freed the room it needs (Owed's age key on a phone's Medium).
 
 ### 24i. The presets
 
@@ -1935,7 +1957,9 @@ Small and everything else is Medium (as U2).
   hole; packing fills what it can and Customise shows the rest.
 - **The phone's Owner preset leaves out `dofirst`** if Home measures over four phone screens on the long book (I10's cap for Home;
   each question's Act and Large cards carry the same moves). By the canvas's own heights the Owner's phone Home is about 4.4 screens
-  with it and 3.9 without; P195 decides, and the step reports both (§1a-14).
+  with it and 3.9 without; P195 decides, and the step reports both (§1a-14). *First built:* 4.17 with `dofirst` alone out, so `turn`
+  and `dtp` went too (`phoneOut`): 3.92. *Then matched to the agreed canvas* (owner, 20 Oct 2026, §24o): the phone holds all
+  fourteen, as its phone draws them, `phoneOut` is gone, and Home measures 4.67; P195's budget for Home is 5, the owner's call.
 - A device on a preset follows the new one; a layout of the person's own is kept (§7g).
 
 ### 24j. The masthead (§8b, amended)
@@ -2027,3 +2051,34 @@ line's room are measured in Geist or not at all:
 - **A Source's facts** are read off the functions each widget already reads (the statement's last day is `finForecast`'s `asOf`, the
   roll's time the day's, the register's last row Production's); at S1 the same days come from the hub's tables (each view's
   newest row, `docs/SERVER.md` §4). No store is added for them.
+
+### 24o. Matched to the canvas (20 Oct 2026)
+
+The owner, 20 Oct 2026, on the canvas *Home card types*: *"This was the agreed upon artifact."* Home was then built to it card by card,
+on both layouts, and shot beside it: the frame (the room above the foot, an icon to every card, the figure in its tone, a gauge with its
+key, the pips, the hour bars, the board's foot), the fourteen Owner cards as *Main* and *HomePhone* draw them, and every other widget on
+its type's board (*Ledger*, *Docket*, *Plant*, *Crew*, *Briefing*, *Outside*, *Tools*). Where the build departs from the canvas, it says
+why:
+
+- **The calls the spec already made stand**: Print on each recent invoice (§1a-16), a feed's credit a link (§1a-17), a rate with its
+  paise (§1a-18), *Started here and not saved* holding what the app keeps (§1a-19), the storms counted by the day (§1a-21).
+- **The phone holds all fourteen** (§1a-14): 4.67 phone screens on the long book, P195's Home budget set to it, the owner's call.
+- **A Ledger's total is ruled only where its lines add up** (§24k): the pace's *Lands at* is a pace, not the sum of the lines over
+  it, so it stands unruled; the canvas ruled it.
+- **A challan's wait is in calendar days**, as the To-do and the challan's own dot count it (`imWaitDays`).
+- **The recent invoices count today's**, the week's only on a day with none yet, and list the week's where six or more were made in
+  it (its More, *N more this week*), else the latest six (ten at Large): a list of the week's two read as a slow week.
+- **Only a card's chart hatches the period not yet ended**: every other screen's charts keep it lighter (§6.17), as the tab map drew it.
+- **The cash question's due money is *due in four weeks***, the forecast's own window, where the canvas wrote 30 days.
+- **A move card's worth names its period**, *a month*, *a year* or *on the period*, as the move's own sentence reads it (a quotation's worth is
+  the period's spare filled, not a month's).
+- **The attendance gate's mark is solid and labelled *gate 90%***: a dashed mark read as a period not yet ended.
+- **The weather has no wind or humidity** (§1a-21), and the canvas's *Push now* is *Back up now*; the Backup card names its repository
+  in its line's title, where the canvas names none.
+- **Found on the way** (P240): Quick actions' *Continue* on a register page kept on the device did nothing (its action was not named
+  `invWdg…`, the only names events.js hands the framework); the card kept an invoice thrown away on Create, since no save marks the
+  board for what is not the book (`arrive`, drawn again when the board is shown again); and Home drawn for one person was shown to
+  the next to sign in, the owner's board to a supervisor refused the screen the owner left open (`homeDrawnKey`; older than this
+  pass). A Briefing's facts carried their story's exact amounts (`wdgShortMoneyHtml`), and the barred Ledger of *Why it moved* ran a
+  crore past the card on the phone (a subgrid, the amounts as wide as the widest).
+

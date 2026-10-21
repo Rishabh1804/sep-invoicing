@@ -94,7 +94,7 @@ function statsOverviewOpts(period, filtered, tonnage) {
   var model = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).length;
   var factors = [
     { label: 'Realisation', fig: real != null ? statsMoney(real) + perKg : '', tone: c.perKg != null ? figToneAgainst(real, c.perKg, 5) : null,
-      sub: kg > 0 ? formatCurrency(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t' : '',
+      sub: kg > 0 ? inrCard(tonnage.revKnown).text + ' on ' + formatNum(kg / 1000, 1) + ' t' : '',
       badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="realisation"' },
     { label: 'Live cost', fig: c.perKg != null ? statsMoney(c.perKg) + perKg : '', sub: 'typed ' + formatCurrency(S.defaultCostPerKg || 0) + '/kg',
       badge: model ? [c.measuredShare >= 0.9 ? 'info' : 'warning', statsPctOf(c.measuredShare) + '% measured'] : null, attrs: ' data-tile="cost"' },
@@ -104,16 +104,19 @@ function statsOverviewOpts(period, filtered, tonnage) {
   if (finHasBank()) {
     var bRows = bankRows(), bLast = bRows[bRows.length - 1], bRecv = finCtx().recv(), bBook = bankBookDaysToPay(bankPayHistory(bRecv));
     var owed = gstRound(bRecv.reduce(function(s, x) { return s + Math.max(0, x.owed); }, 0));
-    factors.push({ label: 'Cash', fig: figWrapHtml(statsMoney(bLast.balance)), tone: bLast.balance < 0 ? 'danger' : null,
-      sub: 'owed ' + formatCurrency(owed) + (bBook ? ', clients pay in ' + Math.round(bBook.median) + ' days' : ''), attrs: ' id="statsCash" data-tile="cash"' });
+    factors.push({ label: 'Cash', fig: inrFigHtml(bLast.balance), tone: bLast.balance < 0 ? 'danger' : null,
+      sub: 'owed ' + inrCard(owed).text + (bBook ? ', clients pay in ' + Math.round(bBook.median) + ' days' : ''), subTitle: 'owed ' + formatCurrency(owed),
+      attrs: ' id="statsCash" data-tile="cash"' });
   }
-  var body = '<div class="inv-hero-sheet"><div class="inv-tiles' + (factors.length === 4 ? ' inv-tiles-4' : ' inv-tiles-3') + '">' + factors.map(uiFactorTileHtml).join('') + '</div></div>';
+  var tiles = '<div class="inv-tiles' + (factors.length === 4 ? ' inv-tiles-4' : ' inv-tiles-3') + '">' + factors.map(uiFactorTileHtml).join('') + '</div>';
   var plated = prodStatsRowHtml(r.from, r.to);
-  if (plated) body += '<div class="inv-hero-sheet">' + plated + '</div>';
   return { tone: tone, eyebrow: '<span>The period in figures</span>', title: escHtml(title),
     fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
-    sub: contrib != null ? escHtml((contrib >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(contrib * kg))) + ' on the period') : '',
-    body: body, attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };
+    // The period's sum short on a board, its exact amount its title (§24k).
+    sub: contrib != null ? (contrib >= 0 ? '+' : '') + inrFigHtml(gstRound(contrib * kg), { inline: true }) + ' on the period' : '',
+    tiles: tiles, plated: plated, measured: c.measuredShare,
+    body: '<div class="inv-hero-sheet">' + tiles + '</div>' + (plated ? '<div class="inv-hero-sheet">' + plated + '</div>' : ''),
+    attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };
 }
 
 /* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */
@@ -264,6 +267,8 @@ function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap"
    under each; Home's question widgets draw them (widgetcards.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
    margins and the To-do's tasks are worked out once. The clients card also hands on what it found (`worst`, `mover`) for
    the moves, and the plant card its capacity. */
+/* The period an answer speaks of, in its words (a question's Large: "on every kilo this month"). */
+var STATS_PERIOD_WORDS = { mtd: 'this month', qtd: 'this quarter', ytd: 'this year', all: 'over the book' };
 function statsStoryCards(a, ctx) {
   var period = a.period, filtered = a.filtered, prior = a.prior, tonnage = a.tonnage, periodCost = a.periodCost;
   var r = statsRangeIso(period), plabel = PERIOD_LABELS[period] || '';
@@ -296,12 +301,28 @@ function statsStoryCards(a, ctx) {
     : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
   // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): the figure that answers it, its words, the six months as a line.
+  // `ans`: the answer as one sentence of 40 characters at most, its figure in its tone (U2R §24f: a question's Small).
   c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
+    ans: contrib == null ? (real != null ? 'Realising ' + escHtml(formatCurrency(real)) + ' a kilo' : kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet')
+      : (contrib >= 0 ? 'Leaving ' : 'Losing ') + figHtml(escHtml(formatCurrency(Math.abs(contrib))), moneyTone || null) + ' on every kilo',
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
+    // The line under the answer on Home's card (the canvas's "The live cost is ₹28.66 a kilo").
+    line: cost != null ? 'The live cost is <b>' + escHtml(formatCurrency(cost)) + '</b> a kilo' : '',
     viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
       labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: moneyTone || '', toDate: atNow(mm) }) : '',
     tone: moneyTone || 'neutral' };
+  // A question's Large (the canvas's Briefing): the answer said whole, its facts on one line, the six months as a chart drawn bare.
+  if (contrib != null) c1.vital.ansL = (contrib >= 0 ? 'Yes: we make ' : 'No: we lose ') + figHtml(escHtml(formatCurrency(Math.abs(contrib))), moneyTone || null) +
+    ' on every kilo ' + escHtml(STATS_PERIOD_WORDS[period] || '');
+  c1.facts = real == null ? [] : ['Realised <b>' + escHtml(formatCurrency(real)) + '</b> a kilo'].concat(cost != null ? ['Live cost <b>' + escHtml(formatCurrency(cost)) + '</b>'] : [],
+    ['<b>' + escHtml(formatNum(kg / 1000, 1) + ' t') + '</b> billed']);
+  c1.chart = mm.length >= 2 ? function(o) {
+    return chartLines(mm.map(function(x) { return x.label; }), [{ label: 'Realised, a kilo', values: mm.map(function(x) { return gstRound(x.real); }), slot: 1 },
+      { label: 'The live cost, a kilo', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), slot: 'other', dashed: true }],
+      Object.assign({ unit: 'rate', ariaLabel: 'Realised and the live cost, a kilo, by month', toDate: atNow(mm), keyPlain: true, quiet: true,
+        tickFmt: function(v) { return Math.abs(v) < 1e-9 ? '0' : '₹' + formatNum(v, 0); } }, o));
+  } : null;
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
@@ -332,13 +353,28 @@ function statsStoryCards(a, ctx) {
   var big = m && m.ranked.length ? m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }) : [];
   var lead = c2.worst = worst && worst.vsFull < 0 ? worst : null;
   var vc = lead || big[0];
+  var vcName = vc ? (String(vc.name).length > 18 ? String(vc.name).slice(0, 17).trim() + '…' : String(vc.name)) : '';
   c2.vital = vc ? { fig: Math.round(vc.kg / m.kg * 100) + '%', title: escHtml(vc.name),
+      ans: lead ? escHtml(vcName) + ' at ' + figHtml(escHtml(formatCurrency(lead.net)), figToneAgainst(lead.net, m.fullKg, 5)) + '/kg, under cost'
+        : escHtml(vcName) + ' fills ' + Math.round(vc.kg / m.kg * 100) + '% of the plant',
       sub: escHtml(lead ? 'of the plant at ' + formatCurrency(lead.net) + '/kg, ' + formatCurrency(-lead.vsFull) + ' under the full cost' : 'of the plant, the largest by tonnage'),
       viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : i % 2 ? 'neutral-2' : 'neutral' }; }),
         { max: m.kg, title: big.slice(0, 4).map(function(x) { return x.name + ' ' + Math.round(x.kg / m.kg * 100) + '%'; }).join(' · ') }),
       tone: lead ? figToneAgainst(lead.net, m.fullKg, 5) : 'ok' }
-    : { fig: '&mdash;', title: 'No weighed billing', sub: '', viz: '', tone: 'neutral' };
+    : { fig: '&mdash;', title: 'No weighed billing', ans: 'No weighed billing yet', sub: '', viz: '', tone: 'neutral' };
   c2.mover = mover;
+  if (lead) c2.vital.ansL = escHtml(lead.name) + ' fills ' + Math.round(lead.kg / m.kg * 100) + '% of the plant at ' + figHtml(escHtml(formatCurrency(lead.net)), figToneAgainst(lead.net, m.fullKg, 5)) +
+    ' a kilo, under the full cost';
+  c2.facts = lead ? ['<b>' + escHtml(formatCurrency(lead.net)) + '</b> a kilo', '<b>' + escHtml(formatCurrency(-lead.vsFull)) + '</b> under the full cost', '<b>' + escHtml(formatCurrency(-lead.money)) + '</b> on the period']
+    : vc ? ['<b>' + Math.round(vc.kg / m.kg * 100) + '%</b> of the plant', '<b>' + escHtml(formatCurrency(vc.net)) + '</b> a kilo'] : [];
+  c2.chart = big.length ? function(o) {
+    // As many of the four as the room holds whole (a ranked row is two lines and its bar, about 52 px).
+    var n = o && o.h > 0 ? Math.max(1, Math.min(4, Math.floor(o.h / 52))) : 4;
+    return chartRankedBars(big.slice(0, n).map(function(x) {
+      return { label: x.name, value: x.kg, display: formatNum(x.kg / 1000, 1) + ' t', sub: formatCurrency(x.net) + '/kg · ' + Math.round(x.kg / m.kg * 100) + '% of the plant',
+        tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : 'good', action: 'invStatsClientDrill', clientId: x.id };
+    }), Object.assign({ unit: 'kg' }, o));
+  } : null;
   cards.clients = c2;
 
   // 3. Is the plant full?
@@ -357,6 +393,8 @@ function statsStoryCards(a, ctx) {
     : say(c3, capPct >= 0.6 ? 'warning' : 'danger', formatNum((cap - kg) / 1000, 1) + ' t of the two shifts went unused' + (avg ? ': at ₹13/kg that is ' + formatCurrency(gstRound((cap - kg) * 13)) + ' of work the plant could have taken on its fixed cost' : '') + '.');
   c3.html = body;
   c3.vital = { fig: capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
+    ans: capPct == null ? 'Nothing weighed yet' : capPct >= 0.8 ? 'Busy: ' + figHtml(Math.round(capPct * 100) + '%', 'ok') + ' of two shifts'
+      : figHtml(Math.round(capPct * 100) + '%', figToneCapacity(capPct * 100)) + ' used, ' + escHtml(formatNum((cap - kg) / 1000, 1)) + ' t spare',
     title: capPct == null ? 'Nothing weighed' : capPct >= 0.8 ? 'Busy' : escHtml(formatNum((cap - kg) / 1000, 1) + ' t spare'),
     sub: escHtml(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t, two shifts'),
     viz: cap > 0 ? chartMeter([{ v: kg, tone: capPct != null ? figToneCapacity(capPct * 100) : 'neutral' }], { max: cap, mark: cap * 0.8,
@@ -364,6 +402,11 @@ function statsStoryCards(a, ctx) {
     tone: capPct == null ? 'neutral' : figToneCapacity(capPct * 100) };
   c3.cap = cap;
   c3.capPct = capPct;
+  c3.facts = capPct == null ? [] : ['<b>' + Math.round(capPct * 100) + '%</b> of two shifts', '<b>' + escHtml(formatNum(Math.max(0, cap - kg) / 1000, 1) + ' t') + '</b> spare',
+    '<b>' + escHtml(formatNum(kg / 1000, 1) + ' t') + '</b> plated'];
+  c3.chart = mk.length >= 2 ? function(o) {
+    return chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), Object.assign({ unit: 'count', ariaLabel: 'Tonnes plated by month', toDate: atNow(mk) }, o));
+  } : null;
   cards.plant = c3;
 
   // 4. What changed? The most urgent insights, as sentences, and the month's pace. Each insight is followed by its own
@@ -388,13 +431,17 @@ function statsStoryCards(a, ctx) {
   if (!c4.answer) c4.answer = { tone: uiTone(ins[0].tone), say: escHtml(ins[0].title) };
   c4.html = body;
   c4.vital = p ? { fig: figWrapHtml(formatCurrency(p.projRev)), title: 'This month is heading for',
+      ans: 'Heading for ' + figHtml(escHtml(inrCard(p.projRev).text), p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : null) +
+        (p.prevRev > 0 ? (p.projRev < p.prevRev ? ', behind' : ', ahead of') + ' last month' : ''),
       sub: escHtml('at its pace, ' + p.done + ' of ' + p.total + ' working days in, against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel),
       viz: chartMeter([{ v: p.projRev, tone: p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok' }], { max: Math.max(p.projRev, p.prevRev), mark: p.prevRev,
         title: formatCurrency(p.projRev) + ' at its pace against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel }),
       tone: p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok' }
-    : ins.length ? { fig: String(ins.length), title: ins.length === 1 ? 'insight raised' : 'insights raised', sub: escHtml(ins[0].title), viz: '', tone: uiTone(ins[0].tone) }
-    : { fig: '&mdash;', title: 'Nothing stands out', sub: '', viz: '', tone: 'ok' };
+    : ins.length ? { fig: String(ins.length), title: ins.length === 1 ? 'insight raised' : 'insights raised', ans: todoPlural(ins.length, 'insight') + ' raised',
+      sub: escHtml(ins[0].title), viz: '', tone: uiTone(ins[0].tone) }
+    : { fig: '&mdash;', title: 'Nothing stands out', ans: 'Nothing stands out', sub: '', viz: '', tone: 'ok' };
   c4.ins = ins;
+  c4.facts = p ? ['<b>' + p.done + ' of ' + p.total + '</b> working days in', '<b>' + escHtml(inrCard(p.prevRev).text) + '</b> in ' + escHtml(p.prevLabel)] : [];
   cards.changed = c4;
 
   // 5. Is cash coming in? Only with a statement.
@@ -415,12 +462,36 @@ function statsStoryCards(a, ctx) {
       body += say(c5, cashTone, 'Owed ' + formatCurrency(owed) + (old90 > 0.5 ? ', ' + formatCurrency(old90) + ' of it over 90 days' : old60 > 0.5 ? ', ' + formatCurrency(old60) + ' of it over 60 days' : '') +
         (bBook ? '; arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
+      var fc = typeof finForecast === 'function' ? finForecast(60) : null, termsD = flowCfg().termsDays, payD = bBook ? Math.round(bBook.median) : null;
+      var dueWk = [], due28 = 0;
+      for (var wi = 0; wi < 6; wi++) {
+        var wsum = 0;
+        for (var di = 1; di <= 7; di++) { var dd = isoAddDays(localDateStr(), wi * 7 + di); wsum += fc && fc.dueIn ? fc.dueIn[dd] || 0 : 0; }
+        dueWk.push(gstRound(wsum));
+        if (wi < 4) due28 += wsum;
+      }
+      c5.facts = ['In the bank <b>' + escHtml(finRs(bLast.balance)) + '</b>', 'Owed <b>' + escHtml(finRs(owed)) + '</b>'].concat(payD != null ? ['Clients pay in <b>' + payD + ' days</b>'] : []);
+      c5.chart = fc && fc.dueIn && due28 > 0.5 ? function(o) {
+        return chartBars(dueWk.map(function(v, i) { return { label: 'Wk ' + (i + 1), value: v, tone: i < 4 ? null : 'other' }; }),
+          Object.assign({ unit: 'money', ariaLabel: 'Due from clients, week by week, six weeks' }, o));
+      } : null;
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
+        ans: 'Owed ' + figHtml(escHtml(inrCard(owed).text), owedTone && owedTone !== 'ok' ? owedTone : null) +
+          (old90 > 0.5 ? ', ' + escHtml(inrCard(old90).text) + ' past 90 days' : bBook ? ', paid in ' + Math.round(bBook.median) + ' days' : ''),
         // Two facts (the tab map, TM6e): what is old, and how fast clients pay; the balance is the card's tile.
         sub: escHtml([old90 > 0.5 ? formatCurrency(old90) + ' over 90 days' : 'in the bank ' + formatCurrency(bLast.balance), bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''].filter(Boolean).join(' · ')),
         viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
         tone: cashTone };
+      // The canvas's Cash coming in?: what is due in the next four weeks as the answer, how fast clients pay against the terms under
+      // it, and the six weeks as small bars, the four the answer counts dark. Only where the forecast can say when clients pay.
+      if (fc && fc.dueIn && due28 > 0.5 && payD != null) {
+        // A phone's Small says it shorter (inv-short, a card under 13rem).
+        c5.vital.ans = figHtml(escHtml(inrCard(due28).text), 'ok') + '<span class="inv-long"> is due in the next four weeks</span><span class="inv-short"> due in four weeks</span>';
+        c5.vital.ansL = figHtml(escHtml(inrCard(due28).text), 'ok') + ' is due from clients in the next four weeks';
+        c5.vital.line = 'Clients pay in ' + payD + ' days, ' + (payD <= termsD ? 'inside their terms' : todoPlural(payD - termsD, 'day') + ' past the ' + termsD + '-day terms');
+        c5.vital.viz = chartMiniBars(dueWk.map(function(v, i) { return { v: v, on: i < 4, label: 'Week ' + (i + 1), text: formatCurrency(v) }; }), { title: 'Due from clients, the next six weeks; the four the answer counts dark' });
+      }
       cards.cash = c5;
     } catch (e) { /* no cash story without a readable statement */ }
   }

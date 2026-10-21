@@ -7,6 +7,35 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 20 Oct 2026: UI pass 3, U2R (the card family), then the second stop (read this first)
+
+- **U2R is built** (`docs/UI_PASS_3.md` §24; PR #154): every card on Home is one family. One skeleton (head, figure, verdict, body,
+  Act, Source), seven types (Ledger, Docket, Plant, Crew, Briefing, Outside, Tools), five action rows (Open, Choose, More, Act,
+  Source); quiet cards with an amber edge and a red tint (salience follows severity); figures in Geist with tabular figures app-wide,
+  identifiers in Geist Mono; money short on a board (*₹3.50 L*, the exact amount its title); a card exactly its size's height on a
+  board packed dense, holes shown as slots while arranging; Home's verdict a flat masthead with the shift before, during and after
+  it; four presets that pack. P235–P239 hold it; design §6.33–§6.36 describe it.
+- **Then Home was matched to the agreed canvas** (owner, 20 Oct 2026: *"This was the agreed upon artifact"*, the canvas *Home card
+  types*; §24o): card by card on both layouts, shot beside it. The phone's Owner preset holds all fourteen (4.67 phone screens on
+  the long book; P195's budget for Home 5, the owner's call, §1a-14). §24o lists where the build departs from the canvas and why;
+  the weather counts storms by the day the book keeps, never by the hour (§1a-21). Found on the way and fixed (P240): **Home drawn
+  for one person was shown to the next to sign in** (older than U2R: the owner's board to a supervisor refused the screen the owner
+  left open), and Quick actions' *Continue* on a register page kept on the device did nothing.
+- **The build stops here for the owner to look** (§24, the last line of U2R): Home on the long book, both layouts and themes, beside
+  the canvas, and §1a's calls 13–21. **U3 waits on their word.**
+- **No data flow changed.** Nothing of the family is a record. A device's layout (`sep_inv_layout`, never in the book) gains each
+  widget's Choose in its `opts` (`opts.<id>.choose`); at S1 it travels in the person's `prefs`.
+- **Fonts under test**: Geist and Geist Mono (latin, variable woff2) and their OFL licence are in `tests/fixtures/fonts/`, served by
+  the test server in place of Google's stylesheet (`tests/e2e/server.mjs`, `fonts.css`), so every spec measures in the real face and
+  no request is intercepted.
+- **A stall in this sandbox, a deadlock inside Chromium** (CLAUDE.md, *Tests*): about one test in 1,500 to 2,000 times out because
+  the page hung just after it loaded (*Object with guid response@… was not bound in the connection* when it closes). Its renderer
+  waits on the Linux font service while every thread-pool worker waits on V8's garbage collection. It began with web fonts under test
+  (Geist) and has not shown on CI.
+- **CI draws text about 0.5% wider than this sandbox** (Chromium 147 against 141): two labels on Performance that fitted by a hair
+  here wrapped on CI and were shortened. A measure that passes here within 1% of its limit can fail there; P195 and Performance were
+  checked with text drawn 0.5% wider. The e2e job took 27 minutes on CI on 20 Oct (2,030 tests, step 1); the suite is 2,063 now.
+
 ## Built 16 Oct 2026: UI pass 3, U1 and U2, then the stop (read this first)
 
 - **The spec is `docs/UI_PASS_3.md`** (nine steps, U1–U9, one PR, #152). **U1** (the look, icons v3, charts v3, the data layer) and

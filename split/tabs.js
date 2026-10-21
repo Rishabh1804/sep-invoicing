@@ -133,8 +133,10 @@ function switchTab(tabId) {
   // Step 8: Focus first interactive element in target tab
   var targetPage = document.getElementById(tabId);
   // Where a keyboard continues from; on a touch screen never a field, which raised the keyboard over every screen
-  // opened whose first control was a search (the QA sweep, 29 Sep 2026).
-  if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
+  // opened whose first control was a search (the QA sweep, 29 Sep 2026). Home's board moves no focus when it is drawn (UI pass 3
+  // §24b: a ring on its first card at load read as a card pressed); a keyboard's Tab starts at its first control all the same.
+  var board = tabId === 'pageHome' && typeof tdyView === 'function' && tdyView() === 'home';
+  if (targetPage && !board) focusFirstInteractive(targetPage, { noText: touchScreen() });
   navArrived();
   if (refused) showToast('Your ID doesn’t open ' + (PAGE_TITLES[refused] || 'that screen'), 'warning');
 }
@@ -151,7 +153,9 @@ function tabRender(tabId, isDirty) {
     // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
     // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both). Home's dashboard
     // (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late.
-    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr()) { renderHome(); _tabDirty.home = false; }
+    // And for whoever is in: Home drawn for somebody else is drawn again (a person's board is their own).
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr() ||
+      _homeDrawnFor !== homeDrawnKey()) { renderHome(); _tabDirty.home = false; }
     else if (tdyView() === 'home' && typeof homeArrive === 'function') homeArrive();
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
@@ -274,8 +278,9 @@ function homeMtdOpts(active, opt) {
   };
   var tiles = tile('Count', 'Invoices', String(active.length), escHtml(month) + ' to date', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '',
       chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') })) +
-    tile('Revenue', 'Revenue', figWrapHtml(formatCurrency(rev)),
-      credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes',
+    // Money on a board is short, its exact figure its title (U2R §24k).
+    tile('Revenue', 'Revenue', inrFigHtml(rev),
+      credited > 0.005 ? 'taxable, net of ' + inrFigHtml(credited, { inline: true }) + ' in credit notes' : 'taxable, net of credit notes',
       has ? figDeltaHtml(rev, prev, lbl, 'up') : '', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }), { tone: revTone }) +
     // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
     tile('Kg', 'Tonnage billed', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet',
@@ -299,9 +304,10 @@ function homeMtdOpts(active, opt) {
   var sub = real == null ? (active.length ? 'Nothing weighed yet, so no realisation' : '')
     : 'Realising ' + formatCurrency(real) + ' a kg' + (cost != null ? (real >= cost ? ', clearing the cost of ' : ' against a cost of ') + formatCurrency(cost) : '');
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = [revTone, realTone].filter(Boolean).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
-  return { tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
+  var span = month + ' 1–' + new Date().getDate();
+  return { tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(span) + '</span>', span: span,
     title: escHtml(title), sub: escHtml(sub), attrs: ' data-card="mtd"', rev: rev, revTone: revTone, revDelta: has ? figDeltaHtml(rev, prev, lbl, 'up') : '',
-    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' };
+    tiles: '<div class="inv-tiles" id="homeTiles">' + tiles + '</div>', body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' };
 }
 /* The month's invoices so far, net of their credit notes (statsInvoices), so Home and Stats read one revenue. */
 function homeMonthInvoices() {
@@ -334,69 +340,24 @@ function homePriorSameDays() {
 var _homeDrawnView = '';   // the view of Home drawn last (tabRender)
 var _homeDrawnPeriod = '';   // the period the dashboard was drawn on last: Stats and Home share one (tabRender)
 var _homeDrawnDay = '';      // the day Home was drawn on last (tabRender)
+var _homeDrawnFor = '';      // whom Home was drawn for last (homeDrawnKey): a person's board and masthead are their own
+/* Who Home is drawn for: the person signed in and their role's settings (guard.js grdDrawKey), null with the guard off. Home is kept
+   between visits, so a board drawn for one person was shown to the next to sign in (the clerk's masthead and board to the owner). */
+function homeDrawnKey() { return typeof grdOn === 'function' && grdOn() && typeof grdDrawKey === 'function' ? grdDrawKey(grdUser()) : null; }
 function renderHome() {
   if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
   _homeDrawnPeriod = _statsPeriod;
   _homeDrawnDay = localDateStr();
+  _homeDrawnFor = homeDrawnKey();
   tdyApplyView();
   // The bar's red counts on either view: Needs you had none drawn, so they stood as the start counted them (QA2-7).
   if (tdyView() === 'needs') renderNeeds(); else renderHomeBoard();
   updateStockBadge();
 }
-/* Unbilled material as a hero's options: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline
-   codes its first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
-function homeUnbilledOpts() {
-  var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null, oldest = null;
-  (S.incomingMaterial || []).forEach(function(im) {
-    var hasPending = false;
-    im.items.forEach(function(it) {
-      if (!it.invoiced) { hasPending = true; pendingAmount += imLineOpen(it).amount; pendingItemCount++; }
-    });
-    if (hasPending) { pendingChallans++; if (im.challanDate && (!oldest || im.challanDate < oldest)) oldest = im.challanDate; }
-    if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
-  });
-  if (!pendingChallans && !latestChallan) return null;
-  var age = oldest ? isoDaysBetween(oldest, localDateStr()) : 0, amberD = todoCfg().challanDays;
-  var tone = !pendingChallans ? 'ok' : age >= amberD * 2 ? 'danger' : age >= amberD ? 'warning' : '';
-  var body = '';
-  if (pendingChallans > 0) {
-    body += '<div class="inv-tiles inv-tiles-flush">' +
-      '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
-      '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
-      '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(pendingAmount)) + '</div>' +
-      '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
-  } else {
-    body += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
-  }
-  if (latestChallan) {
-    body += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
-      '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-      escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
-  }
-  return { tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
-    title: pendingChallans ? escHtml(todoPlural(pendingChallans, 'challan') + ' to invoice') : 'Everything received is invoiced',
-    fig: pendingChallans ? figWrapHtml(escHtml(formatCurrency(pendingAmount))) : '',
-    sub: pendingChallans && oldest ? escHtml('The oldest from ' + formatDate(oldest) + (age > 0 ? ', ' + todoPlural(age, 'day') + ' ago' : ', today')) : '',
-    attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' };
-}
-/* The recent invoices as a hero's options, as Needs you draws them (tdyRecentHtml), `n` of them: the latest and its figure, its
-   rows with their print buttons. With none yet, the way to the first. */
-function homeRecentOpts(n) {
-  var recent = homeRecentInvoices(n || 10);
-  var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
-    iconSvg('file', 'inv-empty-icon') +
-    '<div>No invoices yet</div>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
-    '</div>';
-  return Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
-    attrs: ' data-card="recent-pulse"', body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' });
-}
 /* The invoices made last, newest first. */
 function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
-/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Home → Needs you and the
-   Pulse widget draw the same row). */
+/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Home → Needs you's recent invoices). */
 function homeRecentRowHtml(inv) {
   return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '" data-recent-inv="' + escHtml(inv.id) + '">' +
     '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +

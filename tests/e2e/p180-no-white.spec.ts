@@ -211,32 +211,33 @@ test('Home: every widget is a card, coded by the worst of what it holds; no gene
     localStorage.setItem('sep_inv_layout', JSON.stringify({ v: 1, people: { '-': { home: { preset: 'custom', desk: l, phone: l } } } })); })()`);
   await openHome(page);
   await g(page, `renderHome()`);
+  // A card of its type since U2R, no longer a hero: its tone is its data-tone, said by its surface and edge (§24c).
   const w = await g(page, `Array.prototype.map.call(document.querySelectorAll('#homeBoard .inv-widget'), function (el) {
-    return { k: el.dataset.w, hero: el.classList.contains('inv-hero'), toned: /inv-hero-(danger|warning|ok|info|neutral)/.test(el.className),
+    return { k: el.dataset.w, hero: el.classList.contains('inv-hero'), type: WDG_TYPES.indexOf(el.dataset.type) >= 0, tone: el.dataset.tone,
       panel: !!el.querySelector('.inv-widget-body > .inv-panel') };
   })`) as any[];
   for (const x of w) {
-    expect(x.hero, x.k).toBe(true);
-    expect(x.toned, x.k).toBe(true);
+    expect(x.hero, x.k).toBe(false);
+    expect(x.type, x.k).toBe(true);
+    expect(['danger', 'warning', 'ok', 'info', 'neutral'], x.k).toContain(x.tone);
     expect(x.panel, x.k).toBe(false);
   }
   expect(w.length).toBeGreaterThanOrEqual(8);
   // The card is coded by the worst tone among what it holds: Money by its tiles, the month by its billing and realisation.
   const rank: Record<string, number> = { danger: 3, warning: 2, ok: 1 };
   const worst = (ts: string[]) => ts.filter(t => rank[t]).sort((a, b) => rank[b] - rank[a])[0] || '';
-  const toneOf = (cls: string) => (cls.match(/inv-hero-(danger|warning|ok|info|neutral)/) || [, ''])[1];
-  const money = await g(page, `({ hero: document.getElementById('homeFin').className,
+  const money = await g(page, `({ tone: document.getElementById('homeFin').dataset.tone,
     tiles: Array.prototype.map.call(document.querySelectorAll('#homeFin [data-home-fin]'), function (t) { return (t.className.match(/inv-tile-(danger|warning|ok)/) || [, ''])[1]; }) })`) as any;
-  expect(toneOf(money.hero)).toBe(worst(money.tiles) || 'neutral');
-  const mtd = await g(page, `({ hero: document.querySelector('#homeBoard [data-w="mtd"]').className,
+  expect(money.tone).toBe(worst(money.tiles) || 'neutral');
+  const mtd = await g(page, `({ tone: document.querySelector('#homeBoard [data-w="mtd"]').dataset.tone,
     rev: document.getElementById('mtdRevenue').closest('.inv-tile').getAttribute('data-tone') || '',
     real: (document.getElementById('mtdPerKgTile').className.match(/inv-tile-(danger|warning|ok)/) || [, ''])[1] })`) as any;
-  expect(toneOf(mtd.hero)).toBe(worst([mtd.rev, mtd.real]) || 'neutral');
-  // The quick actions are tinted: none is the plain surface (six at Medium, every one secondary on the board).
-  const quick = await g(page, `Array.prototype.map.call(document.querySelectorAll('[data-w="quick"] .inv-btn-secondary'), function (b) { return getComputedStyle(b).backgroundColor; })`) as string[];
-  const surface = await g(page, `(function () { var d = document.createElement('div'); d.style.background = 'var(--surface)'; document.body.appendChild(d); var c = getComputedStyle(d).backgroundColor; d.remove(); return c; })()`) as string;
+  expect(mtd.tone).toBe(worst([mtd.rev, mtd.real]) || 'neutral');
+  // The quick actions are keys lifted off a sunk tray (a Tools card, §24d): six at Medium, none the tray's colour, each lifted.
+  const quick = await g(page, `(function () { var tray = document.querySelector('[data-w="quick"] .inv-tray'), bg = getComputedStyle(tray).backgroundColor;
+    return Array.prototype.map.call(tray.querySelectorAll('.inv-tray-key'), function (b) { var c = getComputedStyle(b); return { bg: c.backgroundColor, tray: bg, lift: c.boxShadow }; }); })()`) as any[];
   expect(quick.length).toBe(6);
-  for (const c of quick) expect(c).not.toBe(surface);
+  for (const k of quick) { expect(k.bg).not.toBe(k.tray); expect(k.lift).not.toBe('none'); }
 });
 
 test('a tick box is the app’s own: tinted unticked, the accent with its tick when ticked, in both themes', async ({ page }) => {

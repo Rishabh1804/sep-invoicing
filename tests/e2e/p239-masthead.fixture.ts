@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { loadAppWithState, todayIso } from './fixtures';
+import { loadAppWithState, todayIso, toolbarMoreLabels } from './fixtures';
 import { longBook } from './load-fixture';
 import { geistReady } from './p235-family.fixture';
 import { withUsers, unlock, lockNow, PINS, guardBook } from './p140-guard.fixture';
@@ -27,11 +27,20 @@ export async function flatAndOrdered(page: Page, desktop: boolean) {
   expect(parseFloat(look.bottom)).toBeGreaterThan(0);
   expect(look.folds).toBe(0);
   if (desktop) expect(Math.abs(look.h - 148)).toBeLessThan(1);
-  expect(look.kids).toEqual(['inv-mast-date', 'inv-mast-say', 'inv-mast-facts', 'inv-mast-act', 'inv-mast-time']);
-  // What leads it, and on the desktop how many are open after it; the facts each led by their lamp.
+  // Its parts in order: the date, the sentence, the facts and the weather where there are any, the act row, the clock. On the phone the
+  // act row is always drawn: the board's tools stand at its end (owner, 21 Oct 2026; P241).
+  const order = ['inv-mast-date', 'inv-mast-say', 'inv-mast-facts', 'inv-mast-act', 'inv-mast-time'];
+  expect(look.kids).toEqual(order.filter(k => look.kids.includes(k)));
+  for (const k of ['inv-mast-date', 'inv-mast-say', 'inv-mast-time'].concat(desktop ? [] : ['inv-mast-act'])) expect(look.kids).toContain(k);
+  const facts = await page.evaluate(() => { const w = window as any, l = w.homeMastLead(); return l.facts.length + (w.feedWeatherVizHtml() ? 1 : 0); });
+  expect(look.kids.includes('inv-mast-facts')).toBe(facts > 0);
+  // What leads it in its tone; the count of what needs you is the Needs you tab's badge, and on the desktop a link beside a lead that
+  // is not that count; the old count of what is open is gone.
   await expect(m.locator('.inv-mast-say')).toHaveClass(/inv-dot-(danger|warning|ok|info)/);
-  if (desktop) await expect(m.locator('.inv-mast-count')).toContainText('open');
-  else await expect(m.locator('.inv-mast-count')).toHaveCount(0);
+  await expect(m.locator('.inv-mast-count')).toHaveCount(0);
+  const red = await page.evaluate(() => (window as any).homeMastLead().red);
+  if (desktop && red) await expect(m.locator('.inv-btn-link[data-home-needs]')).toHaveText(red + (red === 1 ? ' thing needs' : ' things need') + ' you now');
+  else await expect(m.locator('.inv-btn-link[data-home-needs]')).toHaveCount(0);
   if (!desktop) {
     // The six-second test: the sentence and the clock in Home's first 200 px.
     const at = await page.evaluate(() => {
@@ -79,18 +88,34 @@ export async function clockAndShift(page: Page, desktop: boolean) {
   if (desktop) await expect(track).toBeHidden();
 }
 
-/* The Act: Open Needs you for everyone (with the count on the phone), Make today's report only for a role that opens Reports. */
+/* The Act (owner, 21 Oct 2026: "Lead with the first move"; P241): one tinted button at most, the lead's own (its move's, Open Money,
+   or Open Needs you where the count leads), for every role; the reports are the toolbar's More's, today's and the month's, only for a
+   role that opens Reports; on the phone the board's tools end the act row, on the desktop they keep the row under the masthead. */
 export async function actByRole(page: Page, desktop: boolean) {
   await loadAppWithState(page, guardBook());
   await withUsers(page);
   await unlock(page, 'U-own', PINS.owner);
-  const act = mast(page).locator('.inv-mast-act');
-  await expect(act.locator('[data-home-needs]')).toHaveClass(/inv-btn-tint/);
-  if (desktop) await expect(act.locator('[data-action="invHomeReport"]')).toHaveCount(1);
-  else await expect(act.locator('[data-home-needs]')).toContainText(/Open Needs you( · \d+)?/);
-  // The supervisor does not open Reports: no report link.
+  const check = async (reports: boolean) => {
+    const m = mast(page), act = m.locator('.inv-mast-act');
+    const lead = await page.evaluate(() => { const l = (window as any).homeMastLead(); return { act: !!l.act, move: l.move || null }; });
+    await expect(act.locator(':scope > .inv-btn-tint')).toHaveCount(lead.act ? 1 : 0);
+    if (lead.move) await expect(act.locator(':scope > [data-home-lead="move"]')).toHaveCount(1);
+    await expect(m.locator('[data-action="invHomeReport"]')).toHaveCount(0);
+    if (desktop) {
+      await expect(act.locator('[data-home-toolbar]')).toHaveCount(0);
+      await expect(page.locator('#homeDash > [data-home-toolbar] [data-action="invWdgArrange"]')).toBeVisible();
+    } else {
+      await expect(act.locator('[data-home-toolbar] [data-action="invWdgArrange"]')).toBeVisible();
+      await expect(act.locator('[data-home-toolbar] [data-action="invTbMore"]')).toBeVisible();
+      await expect(page.locator('#homeDash > [data-home-toolbar]')).toHaveCount(0);
+    }
+    const labels = await toolbarMoreLabels(page);
+    if (reports) expect(labels).toEqual(expect.arrayContaining(['Make today’s report', 'Make a report']));
+    else { expect(labels).not.toContain('Make today’s report'); expect(labels).not.toContain('Make a report'); }
+  };
+  await check(true);
+  // The supervisor does not open Reports: no report to make.
   await lockNow(page);
   await unlock(page, 'U-sup', PINS.super);
-  await expect(mast(page).locator('[data-action="invHomeReport"]')).toHaveCount(0);
-  await expect(mast(page).locator('[data-home-needs]')).toBeVisible();
+  await check(false);
 }

@@ -8,11 +8,11 @@ import { adviceState, LYRA_TEL, ORION } from './p133-what-to-do.fixture';
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 
+/** Home with Pulse's questions on its board, read for this month (Home has no period to pick since 21 Oct 2026, owner). */
 async function openPulse(page: Page) {
   await openToday(page);
-  const all = page.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
-  await all.click();
-  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-home-toolbar] [data-action="invStatsPeriod"]')).toHaveCount(0);
+  expect(await g(page, `wdgPeriod('home')`)).toBe('mtd');
 }
 async function openQ(page: Page, key: string) {
   // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its answer and its moves

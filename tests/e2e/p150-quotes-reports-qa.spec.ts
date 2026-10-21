@@ -8,13 +8,11 @@ import { adviceState, ORION } from './p133-what-to-do.fixture';
 // they reach. Each test names its finding. Names, parts and figures are made up; every date is built from today.
 
 const g = (p: Page, expr: string) => p.evaluate(e => (0, eval)(e), expr);
-/** Home over the whole book, with the questions named drawn whole (Today → Pulse's until UI pass 3; Stats → Overview's until the
- *  tab map, TM2b). */
+/** Home, read for this month (its period chips came off on 21 Oct 2026, owner), with the questions named drawn whole (Today →
+ *  Pulse's until UI pass 3; Stats → Overview's until the tab map, TM2b). */
 async function openPulse(p: Page, ...qs: string[]) {
   await openToday(p);
-  const all = p.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
-  await all.click();
-  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  await expect(p.locator('[data-home-toolbar] [data-action="invStatsPeriod"]')).toHaveCount(0);
   // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its answer and its moves
   // since U2R, its story the dialog its head opens.
   for (const k of qs) await expect(p.locator(`[data-tdy-q="${k}"] [data-tdy-ans]`)).toHaveCount(1);
@@ -290,9 +288,9 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
   test('QA5-5: one decision is one key, each move says which full cost it asks for, and a tap acts on the move under it', async ({ page }) => {
     await loadAppWithState(page, adviceState());
     await openPulse(page, 'clients', 'smooth');
-    // The question asks for the period's full cost, and says it is the period's.
+    // The question asks for the period's full cost, and says it is the period's: Home's, this month.
     await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
-    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText('the full cost over the whole book');
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText('the full cost this month');
     // An insight's move asks for its month's, says so, and is the same decision.
     const ins = await g(page, `advTaskMoves({ rule: 'insBelowVar', key: 'insBelowVar:1', clientId: 1, month: '${lastMonth}', net: 2, varKg: 5, fullKg: 9.22, kg: 1000 })
       .map(function(m){ return [m.key, m.say, m.task]; })`) as string[][];
@@ -332,7 +330,10 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await g(page, `todoData().tasks.push({ id: 'T-OLD', text: 'Order Pickling acid', due: '', note: '', link: null, advKey: 'order:PA', createdAt: 1, doneAt: null },
       { id: 'T-OLD2', text: 'Ask for the full cost', due: '', note: '', link: null, advKey: 'reprice:1:${lastMonth}', createdAt: 1, doneAt: null }); renderHome()`);
     await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
-    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"] [data-adv-listed]')).toBeVisible();
+    // Every move of a question is in the dialog its head opens. The card holds what fits, and on some days of the month a client's
+    // fall against the same days last month ranks above the reprice.
+    await page.locator('#homeBoard [data-tdy-q="clients"] [data-action="invWdgGo"]').click();
+    await expect(page.locator('[data-tdy-q-open="clients"] [data-adv-move="reprice:1"] [data-adv-listed]')).toBeVisible();
   });
 
   test('QA5-6: the report reads attendance by Staff → Overview\'s rule: Monday to Saturday, a half day half, over the marks typed', async ({ page }) => {
@@ -456,9 +457,12 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await expect(page.locator('#rptSheet [data-rpt-doc]')).toHaveAttribute('data-kind', 'monthly');
     // A jump to Stats that carries its period opens there, whatever the chip held (the labour move that carried one went with
     // the owner's ruling of 13 Oct 2026; the jump stays).
+    // Stats' chip set to this month on Stats itself (Home has none since 21 Oct 2026), then the jump made from Home.
+    await switchTab(page, 'pageStats');
+    await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="mtd"]').click();
+    expect(await g(page, '_statsPeriod')).toBe('mtd');
     await openPulse(page, 'clients');
     const go = { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: 'all' };
-    await page.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="mtd"]').click();
     await g(page, `todoGo(${JSON.stringify(go)})`);
     expect(await g(page, '_statsPeriod')).toBe('all');
     await expect(page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]')).toHaveAttribute('aria-pressed', 'true');
@@ -487,7 +491,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     expect(await g(page, `qtFind('${q.id}').status`)).toBe('draft');
   });
 
-  test('QA5-14: the picker names the year shown, Stats\' All says the report is a year, and the report reads S.company only', async ({ page }) => {
+  test('QA5-14: the picker names the year shown, a report for the whole book says it is a year, and the report reads S.company only', async ({ page }) => {
     const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
     s.invoices = [{ id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001', date: todayIso(), status: 'active', invoiceState: 'created', clientId: 1,
       clientName: 'TEST CLIENT KG', gstType: 'intra', clientAddress: {}, items: [{ partNumber: 'PLATE', desc: 'PLATE', hsn: '998873', unit: 'KG', qty: 10, rate: 10, amount: 100 }],
@@ -504,10 +508,15 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await page.locator('[data-action="invRptKind"][data-kind="quarterly"]').click();
     const qFrom = await doc.getAttribute('data-from');
     await expect(page.locator('#rptPick')).toHaveValue(qFrom!);
-    // Pulse over the whole book: the report is the year to date, and it says so.
+    // Home's Make a report is this month's (Home reads this month since 21 Oct 2026, owner): a monthly report, no toast.
     await openPulse(page);
     await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
+    await expect(doc).toHaveAttribute('data-kind', 'monthly');
+    await expect(doc).toHaveAttribute('data-from', todayIso().slice(0, 7) + '-01');
+    // A report asked for the whole book (rptFromStats, the door any period's report goes through) is the year to date, and it
+    // says so.
+    await g(page, `rptFromStats('all')`);
     await expect(doc).toHaveAttribute('data-kind', 'yearly');
     await expect(page.locator('.inv-toast')).toContainText('not the whole book');
     // No company name: none printed, rather than one written into the build.

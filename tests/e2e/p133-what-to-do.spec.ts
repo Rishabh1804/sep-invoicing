@@ -10,13 +10,12 @@ import { adviceState, dayOff, LYRA_TEL, ORION, ORION_KGPC, ORION_MONTH_KG, VEGA,
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 
-/** Today → Pulse over the whole book: the period every figure below is read for (the questions were Stats → Overview's until
- *  the tab map, TM2b). */
+/** Home with Pulse's questions on its board: this month, the period every figure below is read for (Home has no period of its own
+ *  to pick since 21 Oct 2026, owner: the chips came off; the questions were Stats → Overview's until the tab map, TM2b). */
 async function openPulse(page: Page) {
   await openToday(page);
-  const all = page.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
-  await all.click();
-  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-home-toolbar] [data-action="invStatsPeriod"]')).toHaveCount(0);
+  expect(await g(page, `wdgPeriod('home')`)).toBe('mtd');
 }
 /** A question opens to its story and its moves (each is a hero, shut until opened). */
 async function openQ(page: Page, key: string) {
@@ -80,8 +79,8 @@ test.describe('P133: what to do', () => {
     // worth (full − what it pays) × its kilos a month at the last three months' pace.
     // The figures worked out here from the live cost and the book, rounded the app's way (gstRound).
     const want = await g(page, `(function() {
-      var a = statsPulseArgs('all'), r = statsRangeIso('all'), c = liveCost(r.from, r.to, a.tonnage.kg);
-      var x = statsClientMargins('all', a.filtered, a.tonnage).ranked.find(function(y) { return y.id === 1; });
+      var a = statsPulseArgs('mtd'), r = statsRangeIso('mtd'), c = liveCost(r.from, r.to, a.tonnage.kg);
+      var x = statsClientMargins('mtd', a.filtered, a.tonnage).ranked.find(function(y) { return y.id === 1; });
       var full = gstRound(c.perKg);
       return { full: full, net: x.net, share: x.kg / a.tonnage.kg, fullText: formatCurrency(full),
         worthText: formatCurrency(gstRound((full - 2) * ${ORION_MONTH_KG})),
@@ -216,7 +215,7 @@ test.describe('P133: what to do', () => {
     s.clients[0].pieceWeights = [];
     await loadAppWithState(page, s);
     await openPulse(page);
-    const full = await g(page, `(function() { var a = statsPulseArgs('all'), r = statsRangeIso('all'); return gstRound(liveCost(r.from, r.to, a.tonnage.kg).perKg); })()`) as number;
+    const full = await g(page, `(function() { var a = statsPulseArgs('mtd'), r = statsRangeIso('mtd'); return gstRound(liveCost(r.from, r.to, a.tonnage.kg).perKg); })()`) as number;
     const lines = await g(page, `_advMoves['reprice:1'].go.lines.map(function(l) { return [l.partNumber, l.basis, l.rate]; })`);
     expect(lines).toEqual([['CLAMP 101X50', 'kg', full], ['BRACKET 77', 'kg', full], ['WASHER 9', 'kg', full]]);
     await expect((await openQ(page, 'clients')).locator('[data-adv-hint]')).toContainText(`A weight per piece for ${ORION}’s CLAMP 101X50, BRACKET 77, WASHER 9 quotes them by the piece`);

@@ -3,7 +3,7 @@ import { emptyState, loadAppWithState, noSeedIM, openPulse, switchTab, toolbarMo
 import { longBook } from './load-fixture';
 
 // P185 desktop: the tab map, step TM2 on the desktop. The same places as the phone's (p185-today-map.spec.ts), in the desktop's
-// form: Pulse's three cards (widgets on Home since UI pass 3) and every verdict card open, the period as wide as its segments beside More, the Planner's tables
+// form: Pulse's three cards (widgets on Home since UI pass 3) and every verdict card open, Customise and More at the end of Home's toolbar row (its period came off on 21 Oct 2026), the Planner's tables
 // kept, its toolbar one row with "Roll the trials", and Needs you's Add, Snoozed and Done in the tasks' stack. Made-up book.
 
 test.describe('P185: Today on the desktop', () => {
@@ -21,7 +21,7 @@ test.describe('P185: Today on the desktop', () => {
     await expect(page.locator('#todoNew')).toBeFocused();
   });
 
-  test('Home: Why it moved, In one line and the pace are widgets drawn whole; the period as wide as its segments; More holds the rest', async ({ page }) => {
+  test('Home: Why it moved, In one line and the pace are widgets drawn whole; no period, Customise and More at the row’s end; More holds the rest', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await openPulse(page);
     // Pulse's three cards are widgets on Home's board since UI pass 3 (U2): drawn whole, with no fold to open.
@@ -29,10 +29,17 @@ test.describe('P185: Today on the desktop', () => {
       await expect(page.locator('#' + id), id).toHaveClass(/inv-widget/);
       await expect(page.locator('#' + id + ' .inv-widget-body'), id).toBeVisible();
     }
-    const w = await page.locator('[data-home-toolbar]').evaluate(el => ({ head: el.getBoundingClientRect().width, seg: (el.querySelector('.inv-seg') as HTMLElement).getBoundingClientRect().width }));
-    expect(w.seg).toBeLessThan(w.head / 2);
+    // Home reads this month (owner, 21 Oct 2026: the period chips came off): the toolbar is its own row under the masthead, the board's
+    // tools at its end.
+    const head = page.locator('#homeDash > [data-home-toolbar]');
+    await expect(head).toHaveCount(1);
+    await expect(head.locator('.inv-seg')).toHaveCount(0);
+    const w = await head.evaluate(el => { const r = el.getBoundingClientRect(), a = (el.firstElementChild as HTMLElement).getBoundingClientRect(), b = (el.lastElementChild as HTMLElement).getBoundingClientRect();
+      return { left: r.left, right: r.right, width: r.width, first: a.left, last: b.right }; });
+    expect(w.first).toBeGreaterThan(w.left + w.width / 2);
+    expect(Math.abs(w.right - w.last)).toBeLessThanOrEqual(1);
     await toolbarMore(page);
-    await expect(page.locator('[data-tb-more-dialog] [data-tb-pick]')).toHaveText(['Make a report', 'Open Stats', 'Reset Home']);
+    await expect(page.locator('[data-tb-more-dialog] [data-tb-pick]')).toHaveText(['Make today’s report', 'Make a report', 'Plant shut…', 'Open Stats', 'Reset Home']);
   });
 
   test('Stats’ verdict cards are open; the Planner keeps its tables and one toolbar row', async ({ page }) => {

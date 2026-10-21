@@ -11,35 +11,52 @@ var KB_APP_GUIDES = [
   _kbg('today', 'Using the app: Home', 'The dashboard, your widgets, and what needs you now', ['pageHome'],
     'Home is the first screen. It has 2 views: **Home**, the dashboard, and **Needs you**. After them are its Insights: Stats, Reports and the Planner.\n\n' +
     '# The masthead\n- The masthead is at the top of Home. It shows the greeting, the date and the time. The time changes each minute.\n' +
-    '- Under the time, it shows when the general shift starts or ends. Before 5:00 PM, a bar shows how much of the shift is gone.\n' +
-    '- The sentence is the first item that needs you: a cash low point, red tasks, a line that is half down, or the pace of the month.\n' +
-    '- To see all your tasks, tap **Open Needs you**. To make the report of today, tap **Make today’s report**.\n\n' +
-    '# Read a widget\n- Under the masthead is the period (**MTD**, **QTD**, **YTD**, **All**). Stats uses the same period. Under the period are the widgets.\n' +
-    '- Each widget answers 1 question. Its title is at the top. To open the screen of the widget, tap its title.\n' +
+    '- Under the time, it shows when the general shift starts or ends. On a computer, a bar shows how much of the shift is gone.\n' +
+    '- On a day that the plant is shut, the masthead says so in place of the shift. For example: **Plant shut · Durga Puja**.\n' +
+    '- The sentence is the first thing to do today. A red item comes first, then an amber item. A larger item that is only to know never comes first.\n' +
+    '- It can be a cash low point, a move with its own button such as **Call**, or the count of red tasks.\n' +
+    '- To see what a move is worth and why, tap its sentence. When nothing needs you, the sentence says **Nothing needs you now**.\n' +
+    '- Under the sentence are the facts of the day and the weather now, for example **31° thunder 6–8 PM**.\n' +
+    '- The red number on **Needs you** is the count of the tasks that need you now. It goes when none is left.\n\n' +
+    '# Customise and More\n- On a phone, **Customise** and **More** are at the right end of the masthead’s buttons. On a computer, they are on the row under the masthead.\n' +
+    '- **More** holds **Make today’s report**, **Make a report** (this month), **Plant shut…**, **Open Stats** and **Reset Home**.\n' +
+    '- Home always shows this month. To see another period, open Stats.\n\n' +
+    '# Read a widget\n- Each widget answers 1 question. Its title is at the top. To open the screen of the widget, tap its title.\n' +
     '- Under the title is the figure, then a sentence with a dot. The colour of the dot tells you if the figure is good.\n' +
-    '- A widget is quiet when all is well. An amber line at its top means: examine it soon. A red line and a red tint mean: act now.\n' +
+    '- An amber line at the top of a widget means: examine it today. A red line and a red tint mean: act now.\n' +
+    '- A widget about a trend, for example the month against the last, never has a line or a tint. Its figure and its dot keep their colour.\n' +
+    '- On a phone, each widget is only as tall as what it holds. A quiet widget is short.\n' +
     '- Money on Home is short: ₹3.50 L is 3.5 lakh, ₹1.24 Cr is 1.24 crore. To see the full amount, point to it or hold it.\n' +
     '- A list that is too long for its widget shows how many more rows there are. To see all of them, tap that last row.\n' +
     '- Under the list is the action of the widget, for example **Place the 23 receipts**. A row can also have its own action, for example **Print**.\n' +
     '- The small line at the bottom tells you where the figures come from. For the news, the weather and zinc, tap **Refresh** to get them again.\n' +
     '- Some large widgets let you choose what they show, for example **By client** or **By age**. Your choice stays.\n\n' +
-    '# The questions and the moves\n- Each question widget answers in 1 sentence. A large question widget also shows the moves that you can make.\n' +
-    '- To see what a move is worth and why, tap the move. To keep it as a task, tap **Add to my list**.\n' +
-    '- **Do first** shows the moves that are worth most, across all the questions.\n\n' +
+    '# The widgets on Home\n- A phone shows about 7 widgets. Each other widget is under **Add a widget**.\n' +
+    '- **Month to date** shows what is billed, against the same days last month. It also shows where the month lands at its pace.\n' +
+    '- **The floor now** shows each line, its units and its hands. Before the first run of the day, it shows the last day plated.\n' +
+    '- On a day the plant is shut, **The floor now** shows 1 line. If nothing is recorded by 11 AM, it shows **Mark today shut**.\n' +
+    '- **What’s coming** shows the next events, soonest first. For example: cash below zero, a stock line that runs out, or the next challan of a client.\n' +
+    '- Each question widget answers in 1 sentence. A large question widget also shows the moves that you can make. To keep a move as a task, tap **Add to my list**.\n' +
+    '- **Do first**, **This month at its pace**, **Production, the last day**, **Attendance today** and **Weather at the plant** are under **Add a widget**.\n\n' +
+    '# Mark the plant shut\n1. Tap **More**. Then tap **Plant shut…**.\n2. Set **From** and **To**. For 1 day, keep both on the same day.\n' +
+    '3. Type why the plant is shut, for example **Durga Puja**.\n4. Tap **Mark shut**.\n' +
+    '- The days are not working days for the pace and the turnaround. Pay does not change: a paid holiday is set in Settings → Labour.\n' +
+    '- To remove a day, open **Plant shut…** again. Then tap **Remove** next to the day.\n' +
+    '- If the floor works on a day marked shut, the masthead and Needs you show it as a working day. The pace still leaves it out, as it leaves out a Sunday.\n\n' +
     '# The world outside and the analysis\n- **Tata Motors, Jamshedpur** shows the figures of the month that you typed from the release of Tata. To type a month, tap the title of the widget.\n' +
     '- Large, it also shows the week of the plant and the headlines. To see the headlines of 1 model only, choose the model at its top.\n' +
-    '- **Weather at the plant** shows the weather now and the next 12 hours. After 30 days, it also shows the cut days that had rain.\n' +
-    '- The news and the weather come from the feeds Worker. Until the Worker is set up, these widgets say so. To set it up, read **Setting up: the news and weather**.\n' +
-    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap the pair at its top. The widget shows a pattern, not proof.\n' +
-    '- **What’s coming** shows the next events, soonest first. For example: cash below zero, a stock line that runs out, or the next challan of a client.\n\n' +
+    '- The news and the weather come from the feeds Worker, or straight from GDELT and MET Norway. To set them up, read **Setting up: the news and weather**.\n' +
+    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap the pair at its top. The widget shows a pattern, not proof.\n\n' +
     '# Arrange the widgets\n1. Tap **Customise**.\n2. To move a widget, drag its handle. On a phone, hold the handle for a moment, then drag it.\n' +
     '3. To move a widget with the keys, select its handle. Then push an arrow key, Home or End.\n4. To change the size of a widget, tap **S**, **M** or **L**.\n' +
     '5. To remove a widget, tap **×**. To get it back, tap **Undo** in the message.\n6. To fill an empty space, tap **Add here** in it. Then tap **Add here** on a widget.\n7. When you are done, tap **Done**.\n' +
+    '- While you arrange, each widget shows the full space of its size.\n' +
     '- To add a widget at the end, tap **Add a widget**. Tap a type, then tap **Add to Home** on the widget.\n' +
     '- When you are not arranging, a later widget moves up into an empty space that fits it. The order you set stays the same.\n' +
     '- NOTE: **Reset** puts back the widgets of your role on this screen. It asks you first. The other screen keeps its widgets.\n' +
     '- Your arrangement is yours, and it stays on this device. The phone and the computer each keep their own arrangement.\n\n' +
     '# Needs you\n- The day’s 5 inputs are the in-time roll, the pickling loads, the stock message, the production records and the out-time roll. Each input shows **in**, **late** or **not yet**.\n' +
+    '- On a day the plant is shut, each input shows **Not expected**.\n' +
     '- Under the inputs are all the open tasks, in 3 groups: **Now**, **This week** and **Later**.\n- To see why the app raised a task and what clears it, tap the task.\n- A red task is late or wrong. An amber task needs an examination soon.\n' +
     '- To add a task of your own, type it in the field above the tasks. Then tap **Add** or push Enter.\n- To give your task a due date, a note and a link, tap **Details**.\n' +
     '- When your task is done, tick it. The app moves it to **Done**, which is folded at the bottom. To open the task again, tap its tick.\n- A task that you snoozed stays under **Snoozed**. To show it again, tap **Wake**.',
@@ -47,7 +64,9 @@ var KB_APP_GUIDES = [
     // Version 5: Home (UI pass 3, 16 Oct 2026): the dashboard, its day card, the widgets, Customise and the gallery; Pulse folded into it.
     // Version 6: the card family (U2R, §24): the masthead, how to read a widget (its figure, its colour, short money, More, the action,
     // where the figures come from, a Choose), the moves and their dialog, Add here.
-    { version: 6 }),
+    // Version 7: the owner's look of 21 Oct 2026 (P241): no period on Home, the masthead's lead red first and its weather, the red count
+    // on Needs you, the tools in the masthead on a phone, about 7 widgets, an edge only for today, Plant shut.
+    { version: 7 }),
   _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how the app calculates their figures', ['pageStats', 'pageHome'],
     'Stats has 3 tabs. All 3 tabs use 1 period, which is the same period as Home. Each tab starts with a card that shows its status. On a phone, tap the card to see its figures.\n\n' +
     '# By client\n- Contribution by client shows the worst client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n' +
@@ -603,30 +622,42 @@ var KB_APP_GUIDES = [
     '- **Reset PIN** on a user gives the user a new PIN. **Deactivate** keeps the history of the user and stops their sign-in. The other devices get an added, reset or deactivated user with the next push and pull.',
     { roles: ['owner'], version: 1 }),
   // The news and the weather (feeds.js, docs/UI_PASS_3.md §9e): every role reads it, since a widget with no feed links it.
-  _kbg('feeds', 'Setting up: the news and weather', 'The feeds Worker on Cloudflare, its address in the app, and what the app sends', ['pageHome'],
-    'The news and the weather come through the shop’s own **feeds Worker** on Cloudflare. The Worker gets the news from the GDELT Project and the weather from MET Norway. The app asks only the Worker.\n\n' +
-    '# In Cloudflare, once\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
-    '2. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
-    '3. In the Worker’s **Settings → Variables**, add `ALLOWED_ORIGINS`. Type each address of the app, with a comma between them. Settings in the app shows the address of this app.\n' +
-    '4. Add `CONTACT` too. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
-    '5. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
+  _kbg('feeds', 'Setting up: the news and weather', 'Where the news and the weather come from, the place of the plant, and what the app sends', ['pageHome'],
+    'The news comes from the GDELT Project and the weather from MET Norway. The shop can put its own **feeds Worker** on Cloudflare between them and the app. If the Worker is not there, the app asks GDELT and MET Norway straight from this device.\n\n' +
+    '# The place of the plant\n- The weather needs the place of the plant. The app uses, in this order: the latitude and longitude typed in Settings, the place of the Office QR, the address of the company.\n' +
+    '- For the address, the app asks OpenStreetMap once, with the parts of the address that have no number. It keeps the place on this device only, never in the book.\n' +
+    '- If OpenStreetMap does not find the address, the app asks again after a day. To give the place yourself, type the latitude and the longitude in Settings.\n\n' +
+    '# With no Worker\n- When the Worker cannot be reached, the app asks GDELT and MET Norway itself. It does not ask the Worker again for 6 hours.\n' +
+    '- When the Worker answers **Check**, the 6 hours stop on this device. Another device asks the Worker again within 6 hours, or when you tap **Check** on it.\n' +
+    '- Settings → Connections → **News and weather** says **straight from GDELT** or **straight from MET Norway** next to each feed.\n' +
+    '- GDELT answers 1 request in 5 seconds from one address. The app asks the 4 news topics 6 seconds apart.\n\n' +
+    '# The Worker in Cloudflare, once (optional)\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
+    '2. Name the Worker `sep-feeds`, as `wrangler.toml` names it. If the 2 names are different, Cloudflare stops the build.\n' +
+    '3. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
+    '4. Set the build watch path to `server/feeds/*`. Then only a change to the Worker starts a build.\n' +
+    '5. In the Worker’s **Settings → Variables and Secrets**, add `CONTACT` as text. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
+    '6. Do not add `ALLOWED_ORIGINS` there. It comes from `wrangler.toml`, and each deploy writes it again. If the app opens at an address that is not in it, add the address in `wrangler.toml`.\n' +
+    '7. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
     '# In the app\n1. Open Settings → Connections → **News and weather**. Make sure that **Show the news and the weather** is ticked.\n' +
-    '2. If the Worker is not at the address shown, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
-    '3. Type the latitude and the longitude of the plant. If the Office QR has a place, the app uses that place. Tap **Save**.\n' +
+    '2. If a Worker is set up at another address, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
+    '3. If the place shown is not the plant, type its latitude and longitude. Tap **Save**.\n' +
     '4. Open Home. The app gets the news and the weather. Then it asks again only when Home opens and its copy is more than 30 minutes old.\n\n' +
-    '# What Check says\n- **Reached**: the Worker answered.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
-    '- **Not reachable**: nothing answered. Make sure that the custom domain is set. Make sure that `ALLOWED_ORIGINS` has the address of this app.\n' +
+    '# What Check says\n- **Reached**: the Worker answered. Home asks the Worker next.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
+    '- **Not reachable**: nothing answered. With no Worker, the app asks the sources straight.\n' +
     '- **No answer in 8 seconds**: try again later.\n\n' +
     '# What the app sends\n- The 4 news topics: the sales, Jamshedpur, the models and the exports.\n- The models that you follow, as words.\n' +
-    '- The place of the plant, to 2 decimals. This is approximately 1 km.\n- Nothing from the book: no record, no figure and no name.\n' +
+    '- The place of the plant, to 2 decimals. This is approximately 1 km. To find the place, the parts of the address that have no number.\n- Nothing else from the book: no record, no figure and no name.\n' +
     '- The app keeps the headlines and the forecast on this device only. Each day’s forecast also goes into the book, to compare with the power cuts.\n' +
     '- The app asks only when Home opens or when you tap **Refresh**. It never asks while the device is offline, and never more than once a minute.\n\n' +
     '# Tata Motors’ figures\n- Tata Motors gives its sales each month. From the 2nd of the month, the app adds a task to type the month before.\n' +
     '- Tap the task, or **Tata Motors’ figures and the plant’s week** in Settings. Type each figure from the release: this year and the same month a year before.\n' +
     '- Leave a figure blank if the release does not give it.\n- A headline can give a figure. The app shows it with **Use**. Compare it with the release before you save.\n' +
     '- A headline can say that the plant is shut or works on a day. The app shows it with **Add**. The calendar changes only when you tap.\n\n' +
-    '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The app shows both under its news and its weather.',
-    { roles: [], version: 1 })
+    '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The place: OpenStreetMap. The app shows the credits under its news and its weather.',
+    // Version 2 (owner, 21 Oct 2026: "Ask the sources directly"): the sources straight where no Worker answers, and the place from the address.
+    // Version 3 (21 Oct 2026, the Worker set up on Cloudflare): its name as wrangler.toml has it, ALLOWED_ORIGINS left to the repository
+    // (a deploy writes it again), and Check ending the 6 hours.
+    { roles: [], version: 3 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of

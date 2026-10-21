@@ -13,30 +13,56 @@ const grid = (page: Page) => page.evaluate(() => {
   const g = document.querySelector('#homeBoard .inv-wgrid') as HTMLElement, cs = getComputedStyle(g);
   return { row: parseFloat(cs.gridAutoRows), gap: parseFloat(cs.rowGap), cols: (window as any).wdgGridCols(g) };
 });
-/* Each card's place as the browser drew it: its row and column (1-based) from its box, and its spans. */
+/* Each card's place as the browser drew it: its row and column (1-based) from its box, and its spans. The phone's board hugs its cards
+   (owner, 21 Oct 2026: "Cards only as tall as needed"; P241): its rows are as tall as what they hold, each card one of them, so a row
+   is read off where the cards stand. */
 const placed = (page: Page) => page.evaluate(() => {
   const g = document.querySelector('#homeBoard .inv-wgrid') as HTMLElement, cs = getComputedStyle(g), gr = g.getBoundingClientRect();
-  const row = parseFloat(cs.gridAutoRows), gap = parseFloat(cs.rowGap), cols = (window as any).wdgGridCols(g);
+  const row = parseFloat(cs.gridAutoRows), gap = parseFloat(cs.rowGap), cols = (window as any).wdgGridCols(g), fixed = isFinite(row);
   const colW = (gr.width - parseFloat(cs.columnGap) * (cols - 1)) / cols, cgap = parseFloat(cs.columnGap);
-  return Array.from(g.querySelectorAll(':scope > .inv-widget')).map(el => {
+  const els = Array.from(g.querySelectorAll(':scope > .inv-widget'));
+  const tops = Array.from(new Set(els.map(el => Math.round(el.getBoundingClientRect().top - gr.top)))).sort((a, b) => a - b);
+  return els.map(el => {
     const r = el.getBoundingClientRect();
-    return { id: (el as HTMLElement).dataset.w, size: (el as HTMLElement).dataset.size, r: Math.round((r.top - gr.top) / (row + gap)) + 1, c: Math.round((r.left - gr.left) / (colW + cgap)) + 1,
-      w: Math.round((r.width + cgap) / (colW + cgap)), h: Math.round((r.height + gap) / (row + gap)) };
+    return { id: (el as HTMLElement).dataset.w, size: (el as HTMLElement).dataset.size,
+      r: fixed ? Math.round((r.top - gr.top) / (row + gap)) + 1 : tops.indexOf(Math.round(r.top - gr.top)) + 1, c: Math.round((r.left - gr.left) / (colW + cgap)) + 1,
+      w: Math.round((r.width + cgap) / (colW + cgap)), h: fixed ? Math.round((r.height + gap) / (row + gap)) : 1 };
   });
 });
+const cardHeights = (page: Page) => page.locator('#homeBoard .inv-widget').evaluateAll(els => els.map(e => [(e as HTMLElement).dataset.w, (e as HTMLElement).dataset.size, e.getBoundingClientRect().height]));
 
 export async function sizesExact(page: Page) {
   await loadAppWithState(page, longBook());
   await geistReady(page);
   await drawBoard(page, [['mtd', 's'], ['q-money', 's'], ['cash', 'm'], ['owed', 'l']]);
-  const g = await grid(page), phone = g.cols <= 2;
-  const h = await page.locator('#homeBoard .inv-widget').evaluateAll(els => els.map(e => [(e as HTMLElement).dataset.size, e.getBoundingClientRect().height]));
-  for (const [size, px] of h as Array<[string, number]>) {
-    const rows = size === 's' ? 1 : size === 'l' && phone ? 3 : 2;
-    expect(Math.abs(px - (rows * g.row + (rows - 1) * g.gap)), size + ' is ' + rows + ' rows').toBeLessThan(1);
+  let g = await grid(page);
+  const phone = g.cols <= 2;
+  // The phone's board hugs its cards (P241): its rows are read while arranging, where each size is its whole box.
+  if (phone) {
+    await page.locator('#homeDash [data-action="invWdgArrange"]').click();
+    await expect(page.locator('#homeBoard .inv-wboard[data-arranging]')).toHaveCount(1);
+    g = await grid(page);
   }
+  const rowsOf = (size: string) => size === 's' ? 1 : size === 'l' && phone ? 3 : 2;
+  const cap = (size: string) => rowsOf(size) * g.row + (rowsOf(size) - 1) * g.gap;
+  for (const [id, size, px] of await cardHeights(page) as Array<[string, string, number]>)
+    expect(Math.abs(px - cap(size)), id + '@' + size + ' is ' + rowsOf(size) + ' rows').toBeLessThan(1);
   // The rows are the tokens' (§24b): 172 px and a 16 px gap on a board of 6 or 12 columns, 168 and 12 on the phone's 2.
   expect([Math.round(g.row), Math.round(g.gap)]).toEqual(phone ? [168, 12] : [172, 16]);
+  if (!phone) return;
+  // Arranging done, each card is as tall as what it holds and never past its size: a Small as tall as the Small beside it, the
+  // Medium and the Large no taller than their rows, and none holding a gap under its last part.
+  await page.locator('[data-action="invWdgDone"]').first().click();
+  await expect(page.locator('#homeBoard .inv-wboard[data-arranging]')).toHaveCount(0);
+  const h = await cardHeights(page) as Array<[string, string, number]>;
+  for (const [id, size, px] of h) expect(px, id + '@' + size + ' within its size').toBeLessThanOrEqual(cap(size) + 0.5);
+  const smalls = h.filter(x => x[1] === 's').map(x => x[2]);
+  expect(Math.abs(smalls[0] - smalls[1])).toBeLessThan(1);
+  const gaps = await page.locator('#homeBoard .inv-widget[data-size="m"], #homeBoard .inv-widget[data-size="l"]').evaluateAll(els => els.map(card => {
+    const parts = Array.from(card.querySelectorAll(':scope > *')).filter(k => (k as HTMLElement).getClientRects().length);
+    return card.getBoundingClientRect().bottom - parts[parts.length - 1].getBoundingClientRect().bottom;
+  }));
+  for (const gap of gaps) expect(gap).toBeLessThan(2);
 }
 
 /* Every preset as its layout draws it, packing on (dense) and off (arranging): no hole in either. */
@@ -44,10 +70,9 @@ export async function presetsWhole(page: Page) {
   await loadAppWithState(page, longBook());
   await geistReady(page);
   for (const p of ['owner', 'office', 'supervisor', 'floor']) {
-    const list = await page.evaluate(p => {
-      const w = window as any, ps = w.WDG_PRESETS[p], phone = w.wdgLay() === 'phone';
-      return ps.home.map((x: string[]) => [x[0], w.wdgFitSize(w.wdgDef(x[0]), phone && x[1] !== 's' ? 'm' : x[1])]);
-    }, p);
+    // As the layout on show draws it (wdgPresetList): on the phone a Small stays Small and the rest are Medium, and an entry marked
+    // for the desktop alone is left out (P241).
+    const list = await page.evaluate(p => { const w = window as any; return w.wdgPresetList('home', w.wdgLay(), p); }, p);
     await drawBoard(page, list);
     const g = await grid(page), at = await placed(page);
     const occ = new Set<string>();

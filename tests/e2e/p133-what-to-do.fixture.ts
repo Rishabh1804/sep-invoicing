@@ -2,8 +2,8 @@ import { emptyState, noSeedIM, todayIso, workingDaysBack, type SepState } from '
 
 // P133 (Direction B, step 1; owner, 1 Oct 2026): every question the app answers ends in the moves that answer it.
 // A made-up book, every date built from today, with something for each question to act on:
-// - ORION CLAMPS, billed by the piece at ₹2/kg, fills 60% of the tonnage, far below any full cost; its two largest parts
-//   carry a weight per piece on its card, its third (WASHER 9) does not;
+// - ORION CLAMPS, billed by the piece at ₹2/kg, fills this month's tonnage (60% of the 90 days'), far below any full cost; its two
+//   largest parts carry a weight per piece on its card, its third (WASHER 9) does not;
 // - VEGA FASTENERS pays ₹40/kg, sent challans every week until 50 days ago and has gone quiet (a phone on its card);
 // - LYRA PRESSINGS owes an invoice of 100 days, on a bank statement that reaches back past it (a phone on its card);
 // - a stock line out, a power cut today, VAT A1 two hands short of its four on four working days with EXTRA booked,
@@ -12,6 +12,9 @@ import { emptyState, noSeedIM, todayIso, workingDaysBack, type SepState } from '
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (d: Date) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 export const dayOff = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return iso(d); };
+/* A day this month: n days back, or the 1st where that is earlier. Home reads this month (owner, 21 Oct 2026: the period chips came
+   off Home), so the account its questions act on bills this month, whatever day the suite runs. */
+export const inMonth = (n: number) => { const d = dayOff(-n), first = todayIso().slice(0, 8) + '01'; return d < first ? first : d; };
 
 export const ORION = 'ORION CLAMPS';
 export const VEGA = 'VEGA FASTENERS';
@@ -50,8 +53,8 @@ export function adviceState(): SepState {
       rates: [{ ratePerKg: 30, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [] },
   ];
   s.invoices = [
-    // ORION: 6,000 clamps (1,500 kg), 1,250 brackets (500 kg) and 400 washers (20 kg) on each of three invoices: ₹2/kg.
-    ...[10, 20, 30].map((d, i) => invoice(1 + i, dayOff(-d), 1, ORION, [nos('CLAMP 101X50', 6000, 0.5), nos('BRACKET 77', 1250, 0.8), nos('WASHER 9', 400, 0.1)])),
+    // ORION: 6,000 clamps (1,500 kg), 1,250 brackets (500 kg) and 400 washers (20 kg) on each of three invoices this month: ₹2/kg.
+    ...[2, 6, 10].map((d, i) => invoice(1 + i, inMonth(d), 1, ORION, [nos('CLAMP 101X50', 6000, 0.5), nos('BRACKET 77', 1250, 0.8), nos('WASHER 9', 400, 0.1)])),
     // VEGA: 3,000 kg in the last 90 days, none in the last 30.
     invoice(4, dayOff(-40), 2, VEGA, [kg('FLANGE 12', 1500, 40)]), invoice(5, dayOff(-60), 2, VEGA, [kg('FLANGE 12', 1500, 40)]),
     // LYRA: one invoice of 100 days, never paid.

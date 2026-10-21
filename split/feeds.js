@@ -88,18 +88,89 @@ function feedUrlOk(u) {
   return (x.origin + x.pathname).replace(/\/+$/, '');
 }
 /* What the feeds are set to: on (the default), the address, and the plant's place. The place is the feeds' own where typed, else the
-   Office QR's (S.checkinCfg, checkin.js), read here and never copied into the book; with neither, the weather is not set. */
+   Office QR's (S.checkinCfg, checkin.js), else the company's address placed on the map (feedGeoRec, owner, 21 Oct 2026: "we have the
+   location for our plant available in the database, yet it asks to set the plant place"), each read here and never copied into the
+   book; with none, the weather is not set. */
 function feedCfg() {
-  var c = (S && S.feedsCfg) || {}, ck = (S && S.checkinCfg) || {};
+  var c = (S && S.feedsCfg) || {}, ck = (S && S.checkinCfg) || {}, name = String(c.place || '').trim().slice(0, 40);
   var lat = feedNum(c.lat, -90, 90), lon = feedNum(c.lon, -180, 180), from = '';
   if (lat != null && lon != null) from = 'feeds';
   else {
     lat = feedNum(ck.lat, -90, 90); lon = feedNum(ck.lng, -180, 180);
-    if (lat != null && lon != null) from = 'checkin'; else lat = lon = null;
+    if (lat != null && lon != null) from = 'checkin';
+    else {
+      var g = feedGeoRec();
+      if (g) { lat = g.lat; lon = g.lon; from = 'address'; if (!name) name = g.name; } else lat = lon = null;
+    }
   }
   var blank = c.url == null || String(c.url).trim() === '';
   return { on: c.on !== false, url: blank ? feedDefaults().url : feedUrlOk(c.url), lat: lat, lon: lon,
-    place: String(c.place || '').trim().slice(0, 40), placeFrom: from };
+    place: name, placeFrom: from };
+}
+
+/* ---------- The plant's place from the company's address (OpenStreetMap's Nominatim) ----------
+   The address on every invoice (S.company) placed on the map once, the answer kept on this device beside the feeds' copies
+   (sep_inv_feeds.geo: {key (the address as asked), lat, lon, name, at, tried, why}) and never in the book: a phone looks it up once,
+   and a changed address is looked up again. Nominatim's terms: at most one ask a second, the site named (the referrer), and an
+   answer cached: here at most three asks, 1.2 s apart, once an address (a day apart after one that found nothing). The address is
+   asked from its plainest parts: the parts with no figure in them (8-B, 1st Phase and the PIN code left out), the locality with
+   its town first ("Adityapur, Jamshedpur"), then all of them, then the town. The weather wants about a kilometre (two decimals). */
+var FEED_GEO_URL = 'https://nominatim.openstreetmap.org/search';
+var FEED_GEO_RETRY_MS = 24 * 3600000;
+var _feedGeoBusy = null;
+function feedGeoParts() {
+  var co = (S && S.company) || {};
+  return [co.add1, co.add2, co.add3].join(',').split(/\s*(?:,|\s-\s|\n)\s*/).map(function(x) { return String(x || '').replace(/\s+/g, ' ').trim(); })
+    .filter(function(x) { return x && !/\d/.test(x) && x.length <= 40; });
+}
+function feedGeoKey() { var parts = feedGeoParts(); return parts.length ? parts.join(', ').toLowerCase() : ''; }
+/* The address placed, for the address as it now reads; null when it was not, or not yet. */
+function feedGeoRec() {
+  var r = feedStoreRec('geo'), key = feedGeoKey();
+  return r && key && r.key === key && feedNum(r.lat, -90, 90) != null && feedNum(r.lon, -180, 180) != null ? r : null;
+}
+/* The asks, plainest first: the locality and its town, every part, the town. */
+function feedGeoQueries() {
+  var parts = feedGeoParts(), q = [];
+  if (parts.length >= 2) q.push(parts.slice(-2).join(', '));
+  if (parts.length > 2) q.push(parts.join(', '));
+  if (parts.length) q.push(parts[parts.length - 1]);
+  return q.filter(function(x, i) { return q.indexOf(x) === i; });
+}
+/* Looks the address up when it has no place yet (and none typed or from the Office QR); resolves {ok} or {ok: false, why}. Under
+   test only when a fixture says so (window.__sepGeoOn), since a spec must not reach the internet. */
+function feedGeoEnsure() {
+  if (_feedGeoBusy) return _feedGeoBusy;
+  var c = (S && S.feedsCfg) || {}, ck = (S && S.checkinCfg) || {};
+  if (feedNum(c.lat, -90, 90) != null || feedNum(ck.lat, -90, 90) != null) return Promise.resolve({ ok: false, why: 'set' });
+  var key = feedGeoKey(), rec = feedStoreRec('geo') || {}, now = Date.now();
+  if (!key) return Promise.resolve({ ok: false, why: 'noaddress' });
+  if (rec.key === key && (rec.lat != null || (rec.tried && now - rec.tried < FEED_GEO_RETRY_MS))) return Promise.resolve({ ok: rec.lat != null });
+  if (!feedOnline() || feedHidden()) return Promise.resolve({ ok: false, why: 'offline' });
+  try { if (navigator.webdriver && window.__sepGeoOn !== true) return Promise.resolve({ ok: false, why: 'test' }); } catch (e) { /* none */ }
+  var qs = feedGeoQueries(), i = 0, parts = feedGeoParts();
+  feedStorePut('geo', { key: key, tried: now });
+  var next = function() {
+    if (i >= qs.length) return Promise.resolve(null);
+    var q = qs[i++], wait = i > 1 ? new Promise(function(res) { setTimeout(res, 1200); }) : Promise.resolve();
+    return wait.then(function() {
+      return feedGet(FEED_GEO_URL + '?format=jsonv2&limit=1&countrycodes=in&q=' + encodeURIComponent(q), { referrer: true });
+    }).then(function(r) {
+      var hit = null;
+      if (r.ok) { try { var j = JSON.parse(r.text); hit = Array.isArray(j) && j[0] ? j[0] : null; } catch (e) { hit = null; } }
+      var lat = hit ? feedNum(Number(hit.lat), -90, 90) : null, lon = hit ? feedNum(Number(hit.lon), -180, 180) : null;
+      return lat != null && lon != null ? { lat: Math.round(lat * 10000) / 10000, lon: Math.round(lon * 10000) / 10000, q: q } : next();
+    });
+  };
+  _feedGeoBusy = next().then(function(hit) {
+    var name = parts.length >= 2 ? parts[parts.length - 2] : parts[0] || '';
+    feedStorePut('geo', hit ? { key: key, lat: hit.lat, lon: hit.lon, name: name.slice(0, 40), asked: hit.q, at: Date.now(), tried: now }
+      : { key: key, tried: now, why: 'notfound' });
+    _feedGeoBusy = null;
+    if (hit) feedTell({ kind: 'weather', place: true });
+    return { ok: !!hit };
+  }).catch(function() { _feedGeoBusy = null; return { ok: false, why: 'unreachable' }; });
+  return _feedGeoBusy;
 }
 /* Under test the feeds stay quiet, as errors.js does, unless a fixture asks for them (P225's feedsOn). */
 function feedLive() { try { return !navigator.webdriver || window.__sepFeedsOn === true; } catch (e) { return true; } }
@@ -162,14 +233,15 @@ function feedBlocked(kind) {
 }
 
 /* ---------- Asking ---------- */
-/* One GET to the Worker, answered within FEED_TIMEOUT_MS: {ok, json} or {ok: false, why: 'refused' (an HTTP error, with its
-   status) | 'slow' | 'unreachable' (no answer: no network, a wrong address, or the Worker not allowing this app) | 'nonsense'}.
-   Never throws, and never reports: a feed failing is not the app failing. */
-function feedAsk(base, path, query) {
-  var url = base + path + (query ? '?' + query : ''), slow = false;
-  var ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  var timer = setTimeout(function() { slow = true; if (ctl) ctl.abort(); }, FEED_TIMEOUT_MS);
-  var opts = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' };
+/* One GET answered within FEED_TIMEOUT_MS (or `o.timeout`): {ok, text} or {ok: false, why: 'refused' (an HTTP error, with its
+   status) | 'slow' | 'unreachable' (no answer: no network, a wrong address, or the server not allowing this app) | 'nonsense'}.
+   `o.referrer`: the site is named (strict-origin: https://rishabh1804.github.io/, never the screen), as Nominatim and MET Norway ask
+   a browser to say who is asking; otherwise no referrer. Never throws, and never reports: a feed failing is not the app failing. */
+function feedGet(url, o) {
+  o = o || {};
+  var slow = false, ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  var timer = setTimeout(function() { slow = true; if (ctl) ctl.abort(); }, o.timeout || FEED_TIMEOUT_MS);
+  var opts = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: o.referrer ? 'strict-origin' : 'no-referrer' };
   if (ctl) opts.signal = ctl.signal;
   var p;
   try { p = fetch(url, opts); } catch (e) { p = Promise.reject(e); }
@@ -178,10 +250,186 @@ function feedAsk(base, path, query) {
     return res.text().then(function(t) {
       if (slow) return { ok: false, why: 'slow' };
       if (typeof t !== 'string' || t.length > FEED_MAX_CHARS) return { ok: false, why: 'nonsense' };
-      try { return { ok: true, json: JSON.parse(t) }; } catch (e) { return { ok: false, why: 'nonsense' }; }
+      return { ok: true, text: t };
     });
   }).catch(function() { return { ok: false, why: slow ? 'slow' : 'unreachable' }; })
     .then(function(r) { clearTimeout(timer); return r; });
+}
+/* One GET to the feeds service: {ok, json}, else as feedGet. */
+function feedAsk(base, path, query) {
+  return feedGet(base + path + (query ? '?' + query : '')).then(function(r) {
+    if (!r.ok) return r;
+    try { return { ok: true, json: JSON.parse(r.text) }; } catch (e) { return { ok: false, why: 'nonsense' }; }
+  });
+}
+function feedSleep(ms) { return new Promise(function(res) { setTimeout(res, ms); }); }
+
+/* ---------- Straight from the sources (owner, 21 Oct 2026: "Ask the sources directly") ----------
+   The feeds service (S.feedsCfg.url, server/feeds) was never set up, so nothing ever arrived. Where it cannot be reached, the app
+   asks the sources itself, as the service would and in its shape (server/feeds/src/news.js, weather.js), each answer then read by
+   the same checks as the service's (feedNormNews, feedNormWeather): GDELT's DOC 2.0 for the news (open to a browser; its topics
+   asked 6 s apart, as it asks) and MET Norway's forecast for the weather (open to a browser, the site named). What leaves the
+   device is the same: the topics, the model words and the plant's place to two decimals. Once the service cannot be reached, it is
+   not asked again for six hours (sep_inv_feeds.direct); one that answers is used whenever it does. Under test only where a fixture
+   says so (window.__sepFeedsDirect), so a spec never reaches the internet. */
+var FEED_GDELT_URL = 'https://api.gdeltproject.org/api/v2/doc/doc';
+var FEED_MET_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
+var FEED_DIRECT_HOLD_MS = 6 * 3600000;
+var FEED_GDELT_GAP_MS = 6000;
+var FEED_GDELT_Q = {
+  'tata-cv': function() { return '"tata motors" (sales OR trucks OR "commercial vehicles") sourcecountry:IN'; },
+  'tata-plant': function() { return '"tata motors" jamshedpur'; },
+  'tata-models': function(models) {
+    var p = models.map(function(m) { return '"tata ' + String(m).toLowerCase() + '"'; });
+    return p.length > 1 ? '(' + p.join(' OR ') + ')' : p[0];
+  },
+  'tata-exports': function() { return '"tata motors" (exports OR "international business")'; }
+};
+function feedDirectOk() { try { return !navigator.webdriver || window.__sepFeedsDirect === true; } catch (e) { return true; } }
+/* A headline as a person reads it: its tags dropped and its entities decoded by an inert parse (nothing in it runs or loads),
+   then one line of 200 characters at most. Drawn later through escHtml like every headline. */
+function feedHeadline(raw) {
+  if (typeof raw !== 'string') return '';
+  var text = function(s) { return new DOMParser().parseFromString('<!doctype html><body>' + s, 'text/html').body.textContent || ''; }, t;
+  // Tags written as entities (&lt;b&gt;) are tags once decoded: a second parse drops them, as the service's reader does.
+  try { t = text(raw); if (/<\/?[A-Za-z][^<>]*>/.test(t)) t = text(t); } catch (e) { t = raw.replace(/<[^>]*>/g, ' '); }
+  return feedText(t, 200);
+}
+/* GDELT has sent JSON a strict reader refuses (a raw control character, a stray backslash): read strictly, else mended once. */
+function feedLooseJson(text) {
+  try { return JSON.parse(text); } catch (e) {
+    try {
+      return JSON.parse(String(text).replace(/[\u0000-\u001f]/g, ' ').replace(/\\(.?)/g, function(w, n) { return n && '"\\/bfnrtu'.indexOf(n) >= 0 ? w : n; }));
+    } catch (e2) { return undefined; }
+  }
+}
+/* GDELT's article list as the service's items: at most 25, newest first, each title and link once. null when it is not one. */
+function feedGdeltItems(text) {
+  var j = feedLooseJson(text);
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
+  if (!Array.isArray(j.articles)) return Object.keys(j).length ? null : [];
+  var seen = {}, out = [];
+  j.articles.forEach(function(a) {
+    if (out.length >= 25 || !a || typeof a !== 'object') return;
+    var url = feedSafeUrl(a.url), title = feedHeadline(a.title), k = title.toLowerCase().replace(/[^0-9a-z\u00c0-\uffff]+/g, ' ').trim();
+    if (!url || !title || seen['t' + k] || seen['u' + url]) return;
+    seen['t' + k] = seen['u' + url] = 1;
+    out.push({ title: title, url: url, source: feedHost(url), at: feedIso(a.seendate), lang: feedText(a.language, 24) });
+  });
+  return out;
+}
+/* The news straight from GDELT: each topic asked in turn, 6 s apart. A topic that fails keeps what the last copy had. */
+function feedDirectNews() {
+  var models = mktModelsSent(), topics = FEED_TOPICS.map(function(t) { return t[0]; }).filter(function(t) { return t !== 'tata-models' || models.length; });
+  var prev = feedNewsRec(), had = prev && prev.data && prev.data.topics ? prev.data.topics : {};
+  var out = { at: new Date().toISOString(), topics: {} }, got = 0, i = 0, last = null;
+  var step = function() {
+    if (i >= topics.length) return Promise.resolve(got ? { ok: true, json: out } : last || { ok: false, why: 'unreachable' });
+    var id = topics[i++], url = FEED_GDELT_URL + '?query=' + encodeURIComponent(FEED_GDELT_Q[id](models)) + '&mode=ArtList&format=json&maxrecords=25&timespan=14d&sort=DateDesc';
+    return (i > 1 ? feedSleep(FEED_GDELT_GAP_MS) : Promise.resolve()).then(function() { return feedGet(url, { timeout: 12000 }); }).then(function(r) {
+      var items = r.ok ? feedGdeltItems(r.text) : null;
+      if (items) { got++; out.topics[id] = { at: new Date().toISOString(), items: items }; }
+      else { last = r.ok ? { ok: false, why: 'nonsense' } : r; if (had[id]) out.topics[id] = had[id]; }
+      return step();
+    });
+  };
+  return step();
+}
+/* MET Norway's compact forecast as the service answers it (weather.js readForecast, weatherAnswer): the next 48 hours with an
+   hour's forecast, and 7 days by India's calendar day (UTC+5:30), a day's figures from its steps ahead of now. null when it
+   holds no forecast. */
+function feedMetAnswer(j, nowMs) {
+  var props = j && typeof j === 'object' ? j.properties : null, steps = props && Array.isArray(props.timeseries) ? props.timeseries : null;
+  if (!steps) return null;
+  var HOUR = 3600000, DAY = 86400000, IST = 330 * 60000;
+  var n = function(v, lo, hi) { return typeof v === 'number' && isFinite(v) && v >= lo && v <= hi ? v : undefined; };
+  var per = function(p) {
+    if (!p || typeof p !== 'object') return undefined;
+    var o = {}, sym = p.summary && p.summary.symbol_code, d = p.details && typeof p.details === 'object' ? p.details : {};
+    if (typeof sym === 'string' && /^[a-z][a-z0-9_]{0,39}$/.test(sym)) o.sym = sym;
+    if (n(d.precipitation_amount, 0, 1000) !== undefined) o.rain = d.precipitation_amount;
+    if (n(d.air_temperature_max, -100, 70) !== undefined) o.tmax = d.air_temperature_max;
+    if (n(d.air_temperature_min, -100, 70) !== undefined) o.tmin = d.air_temperature_min;
+    return Object.keys(o).length ? o : undefined;
+  };
+  var series = [];
+  steps.forEach(function(s) {
+    if (!s || typeof s.time !== 'string') return;
+    var t = Date.parse(s.time);
+    if (!isFinite(t)) return;
+    var d = s.data && typeof s.data === 'object' ? s.data : {}, row = { t: t };
+    var temp = n(d.instant && d.instant.details && d.instant.details.air_temperature, -100, 70);
+    if (temp !== undefined) row.temp = temp;
+    var p1 = per(d.next_1_hours), p6 = per(d.next_6_hours), p12 = per(d.next_12_hours);
+    if (p1) row.p1 = p1;
+    if (p6) row.p6 = p6;
+    if (p12) row.p12 = p12;
+    series.push(row);
+  });
+  if (!series.length) return null;
+  series.sort(function(a, b) { return a.t - b.t; });
+  var iso = function(ms) { return new Date(ms).toISOString(); }, indiaDate = function(ms) { return iso(ms + IST).slice(0, 10); };
+  var from = Math.floor(nowMs / HOUR) * HOUR, ahead = series.filter(function(s) { return s.t >= from; });
+  var hours = [];
+  ahead.forEach(function(s) {
+    if (!s.p1 || hours.length >= 48) return;
+    hours.push({ t: iso(s.t), temp: s.temp != null ? s.temp : null, symbol: s.p1.sym || null, rain: s.p1.rain != null ? s.p1.rain : null });
+  });
+  var byDate = {}, dayOf = function(date) { return byDate[date] || (byDate[date] = { date: date, tMax: null, tMin: null, rain: null, thunder: false, symbol: null, rank: 9 }); };
+  var temp = function(d, v) { if (d.tMax === null || v > d.tMax) d.tMax = v; if (d.tMin === null || v < d.tMin) d.tMin = v; };
+  var symbol = function(d, sym, rank) { if (sym && rank < d.rank) { d.symbol = sym; d.rank = rank; } };
+  var covered = -Infinity;
+  ahead.forEach(function(s) {
+    if (s.temp !== undefined) temp(dayOf(indiaDate(s.t)), s.temp);
+    var p = null, len = 0;
+    if (s.p1) { p = s.p1; len = HOUR; } else if (s.p6) { p = s.p6; len = 6 * HOUR; } else if (s.p12) { p = s.p12; len = 12 * HOUR; }
+    if (p && s.t >= covered) {
+      covered = s.t + len;
+      var d = dayOf(indiaDate(s.t + len / 2));
+      if (p.rain !== undefined) d.rain = (d.rain || 0) + p.rain;
+      if (p.tmax !== undefined) temp(d, p.tmax);
+      if (p.tmin !== undefined) temp(d, p.tmin);
+      if (p.sym && p.sym.indexOf('thunder') >= 0) d.thunder = true;
+      symbol(d, p.sym, 3);
+    }
+    var ofDay = ((s.t % DAY) + DAY) % DAY;
+    if (ofDay === 0 && s.p12) symbol(dayOf(indiaDate(s.t)), s.p12.sym, 1);
+    else if (ofDay === 6 * HOUR && s.p6) symbol(dayOf(indiaDate(s.t)), s.p6.sym, 2);
+  });
+  var today = indiaDate(nowMs), round1 = function(x) { return Math.round(x * 10) / 10; };
+  var days = Object.keys(byDate).sort().filter(function(k) { return k >= today; }).slice(0, 7).map(function(k) {
+    var d = byDate[k];
+    return { date: d.date, tMax: d.tMax === null ? null : round1(d.tMax), tMin: d.tMin === null ? null : round1(d.tMin),
+      rain: d.rain === null ? null : round1(d.rain), thunder: d.thunder || !!(d.symbol && d.symbol.indexOf('thunder') >= 0), symbol: d.symbol };
+  });
+  var up = Date.parse(props.meta && props.meta.updated_at);
+  return { at: iso(nowMs), updated: isFinite(up) ? iso(up) : null, hours: hours, days: days };
+}
+/* The weather straight from MET Norway, at the plant's place to two decimals. */
+function feedDirectWeather() {
+  var key = feedWeatherQuery();
+  if (!key) return Promise.resolve({ ok: false, why: 'noplace' });
+  return feedGet(FEED_MET_URL + '?' + key, { referrer: true, timeout: 12000 }).then(function(r) {
+    if (!r.ok) return r;
+    var j;
+    try { j = JSON.parse(r.text); } catch (e) { return { ok: false, why: 'nonsense' }; }
+    var w = feedMetAnswer(j, Date.now());
+    return w ? { ok: true, json: w } : { ok: false, why: 'nonsense' };
+  });
+}
+/* The service first, unless it could not be reached in the last six hours; where it cannot be (no answer, an answer that is not
+   its own, or a 404 or 5xx: no service at the address), the sources themselves. The answer says which (`via`). */
+function feedAskVia(kind, base, key) {
+  var d = feedStoreRec('direct'), held = !!(d && d.at && Date.now() - d.at < FEED_DIRECT_HOLD_MS);
+  var direct = function() { return (kind === 'news' ? feedDirectNews() : feedDirectWeather()).then(function(r) { r.via = 'direct'; return r; }); };
+  if (held && feedDirectOk()) return direct();
+  return feedAsk(base, '/' + kind, key).then(function(r) {
+    if (r.ok) { if (d && d.at) feedStorePut('direct', {}); r.via = 'service'; return r; }
+    var gone = r.why === 'unreachable' || r.why === 'nonsense' || (r.why === 'refused' && (r.status === 404 || r.status >= 500));
+    if (!gone || !feedDirectOk()) return r;
+    feedStorePut('direct', { at: Date.now(), why: r.why, status: r.status || null });
+    return direct();
+  });
 }
 /* A feed asked, its answer read and kept. Resolves {ok} or {ok: false, why, status, wait (seconds, for 'gap')}. One ask at a time a
    feed: a second call while one is in flight shares it. */
@@ -195,15 +443,15 @@ function feedFetch(kind) {
   var key = feedKey(kind), base = feedCfg().url;
   rec.tried = now;
   feedStorePut(kind, rec);
-  var p = feedAsk(base, '/' + kind, key).then(function(r) {
+  var p = feedAskVia(kind, base, key).then(function(r) {
     var data = r.ok ? (kind === 'news' ? feedNormNews(r.json) : feedNormWeather(r.json)) : null;
-    if (r.ok && !data) r = { ok: false, why: 'nonsense' };
+    if (r.ok && !data) r = { ok: false, why: 'nonsense', via: r.via };
     var cur = feedStoreRec(kind) || {};
-    if (r.ok) cur = { key: key, at: Date.now(), data: data, tried: cur.tried || now, why: '' };
-    else { cur.why = r.why; cur.status = r.status || null; cur.failedAt = Date.now(); }
+    if (r.ok) cur = { key: key, at: Date.now(), data: data, tried: cur.tried || now, why: '', via: r.via || 'service' };
+    else { cur.why = r.why; cur.status = r.status || null; cur.failedAt = Date.now(); cur.failVia = r.via || 'service'; }
     feedStorePut(kind, cur);
     if (r.ok && kind === 'weather') mktWeatherKeep();
-    return r.ok ? { ok: true } : { ok: false, why: r.why, status: r.status || null };
+    return r.ok ? { ok: true, via: r.via || 'service' } : { ok: false, why: r.why, status: r.status || null, via: r.via || 'service' };
   }).catch(function() { return { ok: false, why: 'unreachable' }; }).then(function(res) {
     _feedBusy[kind] = null;
     feedTell({ kind: kind, ok: !!res.ok, why: res.why || '' });
@@ -220,6 +468,8 @@ function feedTell(detail) {
    asked, unless it may not be now (off, offline, hidden, under test, asked within the minute). Resolves when the asks end. */
 function feedEnsure() {
   var asks = [];
+  // No place for the weather yet: the company's address is looked up first (once), then the weather is asked at it.
+  if (feedBlocked('weather') === 'noplace') asks.push(feedGeoEnsure().then(function(r) { return r && r.ok ? feedFetch('weather') : r; }));
   FEED_KINDS.forEach(function(kind) {
     if (feedBlocked(kind)) return;
     var rec = feedStoreRec(kind), now = Date.now();
@@ -295,7 +545,14 @@ var FEED_WHY_TEXT = {
   refused: 'the feeds Worker refused the ask', slow: 'no answer in 8 seconds', unreachable: 'the feeds Worker could not be reached',
   nonsense: 'the answer was not the feeds Worker’s'
 };
-function feedWhyText(why, status) {
+/* Asked of the sources themselves (feedAskVia), a failure is theirs: GDELT's or MET Norway's. */
+var FEED_SOURCE = { news: 'GDELT', weather: 'MET Norway' };
+function feedWhyText(why, status, via, kind) {
+  if (via === 'direct') {
+    var who = FEED_SOURCE[kind] || 'the source';
+    return why === 'refused' ? who + ' answered ' + (status || 'no') : why === 'slow' ? who + ' did not answer in 12 seconds'
+      : why === 'unreachable' ? who + ' could not be reached' : why === 'nonsense' ? who + ' sent what could not be read (it may be asking for a pause)' : '';
+  }
   if (why === 'refused' && status) return 'the feeds Worker answered ' + status;
   return FEED_WHY_TEXT[why] || '';
 }
@@ -320,7 +577,9 @@ function feedNoCopy(base, kind, old) {
   if (!feedOnline()) return feedBlank(base, 'offline', 'Offline: the ' + n + ' comes back with a signal', '');
   if (!feedLive()) return feedBlank(base, 'offline', 'The ' + n + ' is not fetched in this browser', 'It is under test.');
   if (rec && rec.why) {
-    var said = feedWhyText(rec.why, rec.status).replace(/^./, function(c) { return c.toUpperCase(); }) + (rec.failedAt ? ', ' + ghRelTime(rec.failedAt) : '');
+    var said = feedWhyText(rec.why, rec.status, rec.failVia, kind).replace(/^./, function(c) { return c.toUpperCase(); }) + (rec.failedAt ? ', ' + ghRelTime(rec.failedAt) : '');
+    // Asked of the sources themselves and failed: nothing is to be set up; it is asked again with the next look at Home.
+    if (!rec.at && rec.failVia === 'direct') return feedBlank(base, 'offline', 'The ' + n + ' could not be fetched yet', said + '. It is asked again when Home is next opened.');
     if (!rec.at) {
       var b = feedBlank(base, 'notset', 'The ' + n + ' is not set up yet', said + '. Its guide: Setting up: the news and weather.');
       b.blank.action = feedDoorHtml('guide');
@@ -363,7 +622,7 @@ function feedAge(kind) {
 function feedFlags(base, kind) {
   var a = feedAge(kind), rec = feedStoreRec(kind);
   return Object.assign(base, { age: a, ago: a ? a.text : '', stale: !!(a && a.stale), old: !!(a && a.old), offline: !feedOnline(), busy: !!_feedBusy[kind],
-    failed: rec && rec.why ? feedWhyText(rec.why, rec.status) : '' });
+    failed: rec && rec.why ? feedWhyText(rec.why, rec.status, rec.failVia, kind) : '' });
 }
 
 /* ---------- The news ---------- */
@@ -1117,7 +1376,8 @@ async function mktClose() {
 function feedStatusHtml() {
   var n = feedNews({ n: 1 }), w = feedWeather();
   var row = function(kind, title, d, ok) {
-    var meta = d.state === 'ok' || (d.state === 'empty' && d.age) ? ok + (d.ago ? ' · ' + d.ago : '') + (d.stale ? ' · the Worker’s last copy' : '') + (d.offline ? ' · offline' : '')
+    var via = (feedStoreRec(kind) || {}).via === 'direct' ? ' · straight from ' + FEED_SOURCE[kind] : '';
+    var meta = d.state === 'ok' || (d.state === 'empty' && d.age) ? ok + (d.ago ? ' · ' + d.ago : '') + via + (d.stale ? ' · the Worker’s last copy' : '') + (d.offline ? ' · offline' : '')
       : d.blank ? d.blank.title + (d.blank.body ? ': ' + d.blank.body : '') : '';
     return '<div class="inv-row inv-row-2" data-feed-status-row="' + kind + '"><span class="inv-row-main"><span class="inv-row-title">' + title + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span><span class="inv-row-end">' +
@@ -1138,6 +1398,9 @@ function feedFieldsHtml() {
   var c = (S && S.feedsCfg) || {}, cfg = feedCfg(), ck = (S && S.checkinCfg) || {};
   var qr = feedNum(ck.lat, -90, 90) != null && feedNum(ck.lng, -180, 180) != null;
   var lat = feedNum(c.lat, -90, 90) != null ? c.lat : qr ? ck.lat : '', lon = feedNum(c.lon, -180, 180) != null ? c.lon : qr ? ck.lng : '';
+  // The address placed is shown, never filled in: saved, a filled field would write it into the book as typed.
+  var geo = cfg.placeFrom === 'address' ? feedGeoRec() : null;
+  var ph = function(v) { return geo && v != null ? ' placeholder="' + escHtml(v.toFixed(2)) + '"' : ''; };
   var origin = '';
   try { origin = location.origin && /^https?:/.test(location.origin) ? location.origin : ''; } catch (e) { origin = ''; }
   return '<div class="inv-field"><label class="inv-field-check" for="setFeedOn"><input type="checkbox" id="setFeedOn" class="inv-check"' + (cfg.on ? ' checked' : '') + '>' +
@@ -1146,14 +1409,16 @@ function feedFieldsHtml() {
     '<div class="inv-field"><label class="inv-field-label" for="setFeedUrl">The feeds Worker’s address</label>' +
       '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><input class="inv-input inv-toolbar-item" id="setFeedUrl" type="url" autocomplete="off" value="' + escHtml(c.url == null ? feedDefaults().url : c.url) + '" placeholder="' + escHtml(feedDefaults().url) + '">' +
       '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFeedCheck">Check</button></div>' +
-      '<div class="inv-field-hint">Blank is ' + escHtml(feedDefaults().url) + '. <strong>Check</strong> asks the address and says what came back.</div></div>' +
+      '<div class="inv-field-hint">Blank is ' + escHtml(feedDefaults().url) + '. <strong>Check</strong> asks the address and says what came back. Optional: where it cannot be reached, the app asks GDELT and MET Norway itself.</div></div>' +
     '<div class="inv-callout" data-feed-check aria-live="polite"></div>' +
     '<div class="inv-fields">' +
-      '<div class="inv-field"><label class="inv-field-label" for="setFeedLat">The plant’s latitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-90" max="90" id="setFeedLat" value="' + escHtml(lat == null ? '' : String(lat)) + '"></div>' +
-      '<div class="inv-field"><label class="inv-field-label" for="setFeedLon">The plant’s longitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-180" max="180" id="setFeedLon" value="' + escHtml(lon == null ? '' : String(lon)) + '"></div>' +
+      '<div class="inv-field"><label class="inv-field-label" for="setFeedLat">The plant’s latitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-90" max="90" id="setFeedLat" value="' + escHtml(lat == null ? '' : String(lat)) + '"' + ph(cfg.lat) + '></div>' +
+      '<div class="inv-field"><label class="inv-field-label" for="setFeedLon">The plant’s longitude</label><input class="inv-input inv-input-num" type="number" inputmode="decimal" step="any" min="-180" max="180" id="setFeedLon" value="' + escHtml(lon == null ? '' : String(lon)) + '"' + ph(cfg.lon) + '></div>' +
     '</div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="setFeedPlace">A short name for the place</label><input class="inv-input" id="setFeedPlace" maxlength="40" autocomplete="off" value="' + escHtml(c.place || '') + '">' +
-      '<div class="inv-field-hint">' + (cfg.placeFrom === 'checkin' ? 'The place is the Office QR’s, until another is typed here.' : qr ? 'The Office QR has a place too: this one is used.' : 'The weather is asked for this place, to 2 decimals (about a kilometre).') + '</div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="setFeedPlace">A short name for the place</label><input class="inv-input" id="setFeedPlace" maxlength="40" autocomplete="off" value="' + escHtml(c.place || '') + '"' + (geo && geo.name ? ' placeholder="' + escHtml(geo.name) + '"' : '') + '>' +
+      '<div class="inv-field-hint" data-feed-place="' + escHtml(cfg.placeFrom || 'none') + '">' + (cfg.placeFrom === 'checkin' ? 'The place is the Office QR’s, until another is typed here.'
+        : geo ? 'From the company’s address: ' + escHtml(geo.name || 'the plant') + ' at ' + cfg.lat.toFixed(2) + ', ' + cfg.lon.toFixed(2) + ', placed on OpenStreetMap. Type another place to use it instead.'
+        : qr ? 'The Office QR has a place too: this one is used.' : 'The weather is asked for this place, to 2 decimals (about a kilometre). Left blank, the company’s address is placed on the map.') + '</div></div>' +
     '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMktOpen">Tata Motors’ figures and the plant’s week</button></div>' +
     feedStatusHtml() +
     (origin ? '<p class="inv-note inv-mt-8">This app’s address, for the Worker’s ALLOWED_ORIGINS: <span class="inv-id">' + escHtml(origin) + '</span></p>' : '') +
@@ -1191,6 +1456,8 @@ function feedCheck() {
   return feedAsk(url, '/health', '').then(function(r) {
     if (r.ok && r.json && typeof r.json === 'object' && r.json.ok === true) {
       var t = Date.parse(r.json.at || '');
+      // The Worker answers, so the six hours the app holds it off after it could not be reached are over: Home asks it next.
+      if ((feedStoreRec('direct') || {}).at) feedStorePut('direct', {});
       say('ok', 'Reached: the feeds Worker answered' + (isFinite(t) ? ', its clock at ' + formatTimestamp(t) : '') + '.');
       return true;
     }
@@ -1211,9 +1478,9 @@ var FEED_SETTINGS_SEC = {
     return escHtml(feedHost(c.url) + (c.lat != null ? ' · ' + (c.place || 'the plant') + ' at ' + c.lat.toFixed(2) + ', ' + c.lon.toFixed(2) : ' · no place set'));
   },
   body: function() { return feedFieldsHtml(); },
-  why: 'The news comes from the GDELT Project and the weather from MET Norway, through the shop’s own feeds Worker on Cloudflare. ' +
+  why: 'The news comes from the GDELT Project and the weather from MET Norway, through the shop’s own feeds Worker on Cloudflare where it is set up, else asked of them straight from this device. ' +
     'The app asks only when Home is opened and its copy is over 30 minutes old, or when Refresh is tapped, and never offline. ' +
-    'It sends the four news topics, the models followed and the plant’s place to two decimals: nothing of the book. ' +
+    'It sends the four news topics, the models followed and the plant’s place to two decimals: nothing of the book. With no place typed and none on the Office QR, the company’s address is placed once on OpenStreetMap. ' +
     'The copy stays on this device. A headline that gives a month’s figure, or names the plant shut on a day, is offered in the Tata dialog, never applied.',
   save: function() { return feedSaveCfg(); }
 };
@@ -1247,7 +1514,7 @@ function mktAction(action, btn) {
       var kind = btn.dataset.kind;
       feedRefresh(kind).then(function(r) {
         if (r && r.why === 'gap') showToast('Asked a moment ago: again in ' + r.wait + ' s', 'info');
-        else if (r && !r.ok && r.why && FEED_WHY_TEXT[r.why]) showToast('The ' + (FEED_NAME[kind] || 'feed') + ' was not fetched: ' + feedWhyText(r.why, r.status), 'warning');
+        else if (r && !r.ok && r.why && FEED_WHY_TEXT[r.why]) showToast('The ' + (FEED_NAME[kind] || 'feed') + ' was not fetched: ' + feedWhyText(r.why, r.status, r.via, kind), 'warning');
         else if (r && !r.ok && r.why === 'offline') showToast('This device is offline', 'warning');
       });
       return true;

@@ -88,15 +88,17 @@ test.describe('P182: the five doors and the raised tiles (phone)', () => {
       var probe = document.createElement('i'); probe.style.borderRadius = 'var(--r-tile)'; probe.style.padding = 'var(--r-card)'; probe.style.margin = 'var(--r-bar)'; document.body.appendChild(probe);
       var r = getComputedStyle(probe), rTile = parseFloat(r.borderTopLeftRadius), rCard = parseFloat(r.paddingTop), rBar = parseFloat(r.marginTop); probe.remove();
       return { shadow: cs.boxShadow, radius: parseFloat(cs.borderTopLeftRadius), gap: Math.max(b.left - a.right, b.top - a.bottom),
-        cardShadow: cc.boxShadow, cardRadius: parseFloat(cc.borderTopLeftRadius), cardTone: card.dataset.tone || '', rTile: rTile, rCard: rCard, rBar: rBar,
+        cardShadow: cc.boxShadow, cardRadius: parseFloat(cc.borderTopLeftRadius), cardTone: card.dataset.tone || '', trend: card.hasAttribute('data-trend'), rTile: rTile, rCard: rCard, rBar: rBar,
         barShadow: bar.boxShadow, barRadius: parseFloat(bar.borderTopLeftRadius),
         sheetFill: ss.backgroundImage + '|' + ss.backgroundColor, sheetBorder: ss.borderTopStyle };
     })()`) as Record<string, any>;
     const layers = (sh: string) => sh === 'none' ? [] : sh.split(/,(?![^(]*\))/);
     // The card around the tiles lifts: two shadows outside it, and a card's corners; from amber its top edge is one inset line
-    // more (salience follows severity, U2R §24c).
+    // more (salience follows severity, U2R §24c), unless it is a trend, never edged (owner, 21 Oct 2026: "Red only for today").
+    // Month to date, which holds the tiles, is one: the month against the last.
+    expect(t.trend).toBe(true);
     expect(layers(t.cardShadow).filter((x: string) => !/inset/.test(x)).length).toBe(2);
-    expect(layers(t.cardShadow).filter((x: string) => /inset/.test(x)).length).toBe(t.cardTone === 'warning' || t.cardTone === 'danger' ? 1 : 0);
+    expect(layers(t.cardShadow).filter((x: string) => /inset/.test(x)).length).toBe((t.cardTone === 'warning' || t.cardTone === 'danger') && !t.trend ? 1 : 0);
     expect(t.cardRadius).toBe(t.rCard);
     // The tile sinks into it: one shadow, inset, and a tile's corners, smaller than the card's.
     expect(layers(t.shadow).length).toBe(1);

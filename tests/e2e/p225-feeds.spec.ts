@@ -135,7 +135,8 @@ test.describe('P225: the feeds, the copy on the device and when the app asks', (
     await ensure(page);
     expect(calls).toHaveLength(4);
     await at(page, 33);
-    expect(await W(page)(() => (window as any).feedRefresh('weather'))).toEqual({ ok: true });
+    // An answer says the way it came: the feeds Worker (`service`), or the sources themselves where it cannot be reached (P241).
+    expect(await W(page)(() => (window as any).feedRefresh('weather'))).toEqual({ ok: true, via: 'service' });
     expect(calls).toHaveLength(5);
     // Hidden: nothing asked.
     await at(page, 80);
@@ -194,10 +195,11 @@ test.describe('P225: the feeds, the copy on the device and when the app asks', (
     // Asked again within the minute: not asked; after it, refused again.
     expect(await W(page)(() => (window as any).feedRefresh('news'))).toMatchObject({ ok: false, why: 'gap' });
     await at(page, 2);
-    expect(await W(page)(() => (window as any).feedRefresh('news'))).toEqual({ ok: false, why: 'refused', status: 500 });
+    // Under test the sources are never asked in its place unless a spec says so (P241): the Worker's refusal stands.
+    expect(await W(page)(() => (window as any).feedRefresh('news'))).toEqual({ ok: false, why: 'refused', status: 500, via: 'service' });
     // It lands once: from then on a failure keeps the copy.
     mode = 'ok'; await at(page, 4);
-    expect(await W(page)(() => (window as any).feedRefresh())).toEqual([{ ok: true }, { ok: true }]);
+    expect(await W(page)(() => (window as any).feedRefresh())).toEqual([{ ok: true, via: 'service' }, { ok: true, via: 'service' }]);
     const kept = (await feedCopy(page)).news.data;
     await W(page)(() => { (window as any).FEED_TIMEOUT_MS = 300; });
     const cases: Array<[string, string, string]> = [['html', 'nonsense', 'the answer was not the feeds Worker’s'], ['shape', 'nonsense', 'the answer was not the feeds Worker’s'],

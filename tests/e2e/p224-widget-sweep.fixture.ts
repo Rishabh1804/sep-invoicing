@@ -91,7 +91,8 @@ export async function walkWidgets(page: Page, layout: string) {
     await page.emulateMedia({ colorScheme: 'light' });
     // Each preset as its role would see it (the guard off, so every widget a preset names is drawn), and three random boards.
     for (const p of PRESETS) {
-      const list = await page.evaluate(p => { const w = window as any, ps = w.WDG_PRESETS[p].home; return ps.filter((x: string[]) => w.wdgDef(x[0])).map((x: string[]) => [x[0], w.wdgFitSize(w.wdgDef(x[0]), x[1])]); }, p);
+      // As the layout on show draws it (wdgPresetList): an entry marked for the desktop alone is not on the phone (P241).
+      const list = await page.evaluate(p => { const w = window as any; return w.wdgPresetList('home', w.wdgLay(), p); }, p);
       await drawBoard(page, list);
       await check(`${layout} ${book} the ${p} preset`);
     }

@@ -1254,7 +1254,8 @@ function chartMiniBars(bars, opts) {
   opts = opts || {};
   var list = (bars || []).filter(Boolean);
   if (!list.length) return '';
-  var max = Math.max.apply(null, list.map(function(b) { return Number(b.v) || 0; }).concat([0]));
+  // A bar may carry where it lands (`proj`, the month at its pace): its outline is drawn to that height, dashed, over the bar.
+  var max = Math.max.apply(null, list.map(function(b) { return Math.max(Number(b.v) || 0, Number(b.proj) || 0); }).concat([0]));
   var W = list.length * 10, H = 32, slot = 10, bw = 7;
   var hatch = function(x0, y0, w, h, cls) {
     var s = '';
@@ -1267,12 +1268,15 @@ function chartMiniBars(bars, opts) {
   };
   var body = list.map(function(b, i) {
     var v = Number(b.v) || 0, h = max > 0 ? Math.max(v > 0 ? 1.5 : 0, v / max * (H - 1)) : 0, x = i * slot + (slot - bw) / 2, y = H - h;
-    var label = (b.label || '') + (b.todate ? ' to date' : ''), read = label + (b.text ? ': ' + b.text : '');
+    var label = (b.label || '') + (b.todate ? ' to date' : ''), read = label + (b.text ? ': ' + b.text : '') + (b.projText ? ', ' + b.projText : '');
+    var ph = b.proj > v && max > 0 ? b.proj / max * (H - 1) : 0;
     var tone = /^(ok|info|warning|danger)$/.test(b.tone) ? ' data-tone="' + b.tone + '"' : '';
     var band = b.hatch && b.hatch !== true ? hatch(i * slot, 0, slot, H, ' inv-minibar-hatch-' + escHtml(uiTone(b.hatch))) : '';
     return '<g class="inv-minibar-slot"><title>' + escHtml(read) + '</title>' + band +
       '<rect class="inv-minibar' + (b.todate ? ' inv-chart-todate' : '') + '"' + tone + (b.on && !tone ? ' data-on' : '') + ' x="' + _chartN(x) + '" y="' + _chartN(y) + '" width="' + bw + '" height="' + _chartN(Math.max(h, 0)) + '"/>' +
-      (b.hatch === true && h > 0 ? hatch(x, y, bw, h, '') : '') + '<rect class="inv-minibar-base" x="' + (i * slot) + '" y="' + (H - 0.5) + '" width="' + slot + '" height="0.5"/></g>';
+      (b.hatch === true && h > 0 ? hatch(x, y, bw, h, '') : '') +
+      (ph > 0 ? '<rect class="inv-minibar-proj" x="' + _chartN(x) + '" y="' + _chartN(H - ph) + '" width="' + bw + '" height="' + _chartN(ph) + '"/>' : '') +
+      '<rect class="inv-minibar-base" x="' + (i * slot) + '" y="' + (H - 0.5) + '" width="' + slot + '" height="0.5"/></g>';
   }).join('');
   return '<svg class="inv-minibars" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + escHtml(opts.title || '') + '">' + body + '</svg>';
 }

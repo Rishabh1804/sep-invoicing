@@ -624,10 +624,11 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Home → More → Make a report: the period Home shows, as a report (Stats → Overview's until the tab map, TM2b). All is the
-   whole book, which no report covers (a financial year at most): it opens the year to date and says so (QA5-14). */
-function rptFromStats() {
-  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
+/* Home → More → Make a report: the period Home shows, as a report (Stats → Overview's until the tab map, TM2b): this month, which
+   the door names (data-period, since Home's period is no longer Stats'). All is the whole book, which no report covers (a financial
+   year at most): it opens the year to date and says so (QA5-14). */
+function rptFromStats(per) {
+  per = per || (typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd');
   rptSet(per === 'qtd' ? 'quarterly' : per === 'ytd' || per === 'all' ? 'yearly' : 'monthly', localDateStr());
   switchTab('pageReports');
   if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book. Step back a year with ‹.', 'info');
@@ -661,7 +662,7 @@ function rptAction(action, btn) {
     }
     case 'invRptNow': rptSet(p.kind, localDateStr()); renderReports(); break;
     case 'invRptPrint': rptPrint(); break;
-    case 'invRptFromStats': rptFromStats(); break;
+    case 'invRptFromStats': rptFromStats(btn.dataset.period); break;
     default: return false;
   }
   return true;

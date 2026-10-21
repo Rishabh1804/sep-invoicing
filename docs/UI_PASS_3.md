@@ -39,7 +39,9 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U2 | Home and its widgets: the door renamed, the day card with its clock and weather, Pulse folded in, the widget grid, sizes, arranging, the gallery, presets by role; the feeds Worker and its client; Tata's figures and the plant's calendar (§7–§9) | Built, 16 Oct 2026 (P223, P224, P225): every widget §7d marks U2; the Worker is the owner's to deploy (§9e) |
 | ⏸ | **Stop: the owner looks** at Home and the gallery on the phone and the desktop, in both themes (§1a-1) | Looked, 17 Oct 2026: *"looking for a more finished product"*; the card family drawn on a canvas and approved (*"Write the spec"*) |
 | U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026; built, 20 Oct 2026 (P235–P239; design §6.33–§6.36): every widget in its type, the grep checklist empty; then matched to the agreed canvas card by card, the phone holding all fourteen (§24o) |
-| ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–21 | |
+| ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–21 | Looked, 21 Oct 2026: Home's review (§25: the plant's place, the news, the Needs you count, a holiday, the weather, the period chips; *"Home screen should not feel heavy"*), which answers §1a-14 |
+| U2H | Home leads: the masthead's first move, about seven cards on the phone, cards as tall as they need, edges only for today; the news and the weather straight from the sources, the place from the address; a day the plant is shut; Needs you's count a badge (§25) | Built, 21 Oct 2026 (P241) |
+| ⏸ | **Stop: the owner looks** at Home again, both layouts | |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
@@ -126,7 +128,8 @@ exactly as they do. The server's own steps (S0–S5) keep their track; only the 
     agreed upon artifact"*), in its order. Home then measures **4.67** phone screens on the long book (3,392 px; the canvas's own phone
     is 3,388), over I10's four for Home, so P195's budget for Home is set to that measure (5) and said here and in the PR. *The
     first draft* left Do first, Turnaround and Days to pay off the phone (3.92; with Do first alone off, 4.17). The owner may keep the
-    canvas's length, or name the cards a phone leaves out.
+    canvas's length, or name the cards a phone leaves out. **Answered 21 Oct 2026: about seven cards on the phone** (*"About 7 cards
+    on the phone"*, §25g); Home measures 2.38 phone screens on the long book, and P195's budget for it is lowered to 2.5.
 15. **A chart in a card is bare**: no readout line and no *Table* button (the canvas drew none). The table is on the screen behind,
     which the card's head opens, and the card's verdict says what the chart shows.
 16. **The recent invoices keep their Print at each row's end**, which the canvas did not draw: four taps to print a recent invoice was
@@ -1448,6 +1451,23 @@ the grep checklist's output, anything decided differently and why).
 - **Then stop.** The owner looks at Home on the long book, both layouts and both themes, beside the canvas (screenshots in an
   artifact), and answers §1a's calls 13–21. U3 waits on their word.
 
+### U2H — Home leads (§25)
+
+The owner's review of 21 Oct 2026, built the same day, in this order:
+1. **The words** (§25j): `lcLead`, `clientShortName`, What's coming's counts.
+2. **The period chips off Home** (§25f): `wdgPeriod`; Make a report on the month.
+3. **Needs you's count a badge** (§25c): `wsTabCountHtml`, `inv-viewtab-count`.
+4. **A day the plant does not work** (§25d): `plantDayOff`, Plant shut…, `flowCfg.shutWhy`, `statsWorkingDayList`, The floor now's day off.
+5. **The news and the weather from the sources** (§25a, §25b): `feedAskVia`, `feedDirectNews`, `feedDirectWeather`, `feedGeoEnsure`.
+6. **The masthead's lead** (§25e): `homeMastLead`, then the phone's tools in its act row.
+7. **About seven cards on the phone** (§25g): the presets; Month to date's pace; The floor now's last day and hands.
+8. **Cards as tall as they need on the phone** (§25h).
+9. **Edges only for today** (§25i): `trend`.
+10. **Specs and docs**: P241 new (17 tests on both layouts); P134, P195, P223, P224, P225, P235, P237, P239 and the walker's fixtures
+    (`load-fixture.ts`) rewritten to the same facts; the guides *Using the app: Home* (v7) and *Setting up: the news and weather* (v2);
+    the design doc (§6.33, §6.35, §6.36), CLAUDE.md and this file.
+- **Then stop** for the owner to look at Home again. U3 waits on their word.
+
 ### U3 — Stats (§10)
 
 The two views, Stats' verdict, its board and preset (`pricecost` added), the Tables and their export, the redirects; the U3 widgets
@@ -1664,6 +1684,8 @@ Every card on a board is one frame, drawn by the framework (`wdgCardHtml`, §24g
 - **Nothing is focused when a board is drawn** (the canvas review found a focus ring on a card at load): the draw moves no focus.
 
 ### 24c. Salience follows severity (call 1)
+
+*Amended 21 Oct 2026 (§25i): a trend is never edged; the edge is for what asks for something today.*
 
 | Tone | Surface | Top edge | Figure | Lamp |
 |---|---|---|---|---|
@@ -1918,6 +1940,8 @@ wdgDefine({ id: 'owed', title: 'Owed to us, by age', short: 'Owed to us', q: '�
 
 ### 24h. Heights, packing and the fit (call 4)
 
+*Amended 21 Oct 2026 (§25h): on the phone a card is as tall as what it holds, up to its size's height; the desktop keeps the rows below.*
+
 - **The grid** (`.inv-wgrid`): `grid-auto-rows: var(--wdg-row)`, `gap: var(--wdg-gap)`, `grid-auto-flow: row dense`; a Small spans
   one row, a Medium and a Large two, the phone's Large three; the columns as U2 built them (12 from 60rem of board, 6 from 36rem, 2
   under). A card fills its area (`height: 100%`) and nothing runs past it. **`--wdg-cap-*` are retired**, and the board leaves
@@ -1941,6 +1965,8 @@ wdgDefine({ id: 'owed', title: 'Owed to us, by age', short: 'Owed to us', q: '�
 
 ### 24i. The presets
 
+*Redrawn 21 Oct 2026 (§25g): about seven cards on the phone. The table below is U2R's.*
+
 Each preset is drawn from what its role sees by default (`grdRoleDefaults`, guard.js) and **packs with no hole on both layouts, with
 packing on or off**. U2's Office preset held four widgets its role cannot see (money's and Production's), so it drew with holes; and
 the supervisor shared the Floor preset, whose pages it outnumbers. On the phone a preset keeps the desktop's order, a Small stays
@@ -1963,6 +1989,9 @@ Small and everything else is Medium (as U2).
 - A device on a preset follows the new one; a layout of the person's own is kept (§7g).
 
 ### 24j. The masthead (§8b, amended)
+
+*Amended 21 Oct 2026 (§25e): one lead, the first thing to do with its own button; the tools on the phone at its act row's end; a day
+the plant is shut said in place of the shift (§25d).*
 
 The day card becomes a **masthead**: Home's verdict drawn flat on the page, under the top bar, never a card.
 
@@ -2082,3 +2111,183 @@ why:
   pass). A Briefing's facts carried their story's exact amounts (`wdgShortMoneyHtml`), and the barred Ledger of *Why it moved* ran a
   crore past the card on the phone (a subgrid, the amounts as wide as the widest).
 
+
+## 25. Home leads (21 Oct 2026)
+
+The owner looked at U2R's Home on the phone, 21 Oct 2026: *"Also, we have the location for our plant available in the database, yet it
+asks to set the plant place. Tata Motors news is not updating, neither are its figures? And, what does Needs you . 27 stand for? If
+that's the total number of tasks that needs me then that should be shown as notification dots. Today is a holiday, yet the masthead
+says shift ends at 5. Masthead should also contain the weather in it, like we had in the canvas. Screenshot shows the formatting error.
+Let's remove the MTD, QTD, YTD, all filters - they are not needed on the home screen and increases cognitive load. What else do you think
+should be improved or changed for the home screen? Home screen should not feel heavy, and should lead and prioritise the user, control
+attention, makes information effortless, has a clear objective."* Asked how, they chose for the news and the weather *"Ask the sources
+directly"*, and for Home *"Lead with the first move, About 7 cards on the phone, Cards only as tall as needed, Red only for today"*. Then,
+of the phone: *"move the layout option and options dots into the masthead, that way we utilise the space efficiently."*
+
+Built the same day (P241; the specs that read U2R's Home rewritten to the same facts where they now live, never weakened). It answers
+§1a-14: the phone holds about seven cards, not fourteen. The calls 13 and 15–21 stand as U2R took them.
+
+### 25a. The plant's place from the address
+
+- **The weather's place**, in this order (`feedCfg`, feeds.js): the place typed in Settings → Connections → News and weather; else the
+  Office QR's (`S.checkinCfg`); else **the company's address placed on the map** (`feedGeoEnsure`, OpenStreetMap's Nominatim). With none,
+  the weather is not set, as before.
+- **Asked once an address**: the parts of `S.company`'s address with no figure in them (the plot number, the phase and the PIN code left
+  out), first the locality with its town, then all the parts, then the town alone; at most three asks, 1.2 seconds apart, the site named
+  (Nominatim asks for one a second and a referrer). The answer is kept to four decimals and sent to the weather at two (about a
+  kilometre).
+- **Kept on the device, never in the book** (`sep_inv_feeds.geo`: the address as asked, the place, when, and why where nothing was
+  found). A changed address is looked up again; one that found nothing is asked again after a day.
+- **Settings shows the place found as the fields' placeholders**, never as their values: saved, a filled field would write it into
+  the book as typed. Under test only where a fixture says so (`window.__sepGeoOn`).
+
+### 25b. The news and the weather straight from the sources
+
+- **The feeds Worker (§9a) was never deployed, so nothing arrived.** The app asks it first; where it cannot be reached (no answer, an
+  answer not its own, a 404 or a 5xx), it asks the sources itself, as the Worker would and in its shape (`feedAskVia`): GDELT's DOC 2.0
+  for the news (the topics asked six seconds apart, as GDELT asks, and the models followed) and MET Norway's compact forecast for the
+  weather (the site named). Each answer is read by the Worker's own checks (`feedNormNews`, `feedNormWeather`).
+- **What leaves the device is unchanged**: the topics, the models' words and the plant's place to two decimals.
+- **Once the Worker cannot be reached, it is not asked again for six hours** (`sep_inv_feeds.direct`); one that answers is used
+  whenever it does, and Settings' **Check** reaching it ends the six hours on that device (`feedCheck`), so the Worker set up later is
+  asked at once. Each copy says how it came (`via`), and Settings' status row says *straight from GDELT* or *straight from MET Norway*.
+- **A source that fails is named** (*GDELT could not be reached*), and the card says it is asked again when Home is next opened, never
+  *not set up*.
+- **The three sources answer a browser**: MET Norway and Nominatim send `access-control-allow-origin: *` (checked from the sandbox, 21 Oct
+  2026), and GDELT's documentation sets the same header on all its output. GDELT's refusal for asking too often (429, one ask every
+  5 seconds an address) carries no such header, so a browser reads it as no answer, the case above. A phone behind an address many
+  share could meet it; the owner's own Worker would not.
+- **The Worker stays the owner's choice**: one copy for every device, the topics changed in one place. The guide *Setting up: the news
+  and weather* (v2) says both ways.
+- **Tata's monthly figures are still typed from Tata's release** (§1a-8, §9c), and the To-do asks for them from the 2nd. With the news
+  arriving, a headline that carries the month's figures is offered, never applied.
+- Under test only where a fixture says so (`window.__sepFeedsDirect`, beside `__sepFeedsOn`): a spec never reaches the internet.
+
+### 25c. Needs you's count, a badge
+
+- *Needs you · 27* was the open tasks after the masthead's button, as the canvas drew it. It is gone.
+- **The red rows that need you now** (the Home door's own count, `wsRedCounts`) are a badge on Needs you's tab, beside its word
+  (`inv-viewtab-count`, `wsTabCountHtml`, `data-ws-count="today"`), and on the Home door as before. Hidden at nought. It is the
+  door's size (16 px), raised beside the word, and on the phone its tab gives back its right padding: Home's row then fits a 393 px
+  phone with two figures in CI's wider text, with 5.3 px to spare (one figure, 11.4 px; P183).
+
+### 25d. A day the plant does not work
+
+- **`plantDayOff(iso)`** (floor.js): a day marked shut (`flowCfg.holidays`, its reason in `flowCfg.shutWhy`), a paid holiday (Settings
+  → Labour) or a Sunday. A day the floor recorded work on (marks, a run, a load) is a working day whatever it is: a Sunday worked.
+- **Marked from Home → More → Plant shut…** (`plantShutOpen`): From, To and Why, a month at most at a time; the days marked from 30
+  days back listed with Remove; behind Settings' permission (`grdGate('settings')`). The days are written as full dates into the
+  days the plant is shut, which Settings → Checks & alerts → Turnaround and terms lists. Its yearly MM-DD days stay, and a day taken
+  off there takes its reason with it.
+- **On such a day**:
+  - the masthead says it in place of the shift, with no track: *Plant shut · Durga Puja*, *Sunday: plant shut*, *Paid holiday: plant
+    shut*;
+  - Needs you's inputs read *Not expected: plant shut, Durga Puja*;
+  - *The floor now* is one quiet line (*Plant shut today: Durga Puja*) with the last day plated under it;
+  - a line half down is not the day's news;
+  - *What's coming* leaves out its storm row (thunder forecast in the hours cuts start): a shut plant has no work for a cut to stop.
+- **The working days the month's pace, the capacity and a day's use are read over leave out the days marked shut**
+  (`statsWorkingDayList`), as the turnaround's already did. A paid holiday is still counted there: what pays a day is Labour's, and a
+  festival is not a paid holiday.
+- **Mark today shut**: *The floor now* offers it as its Act's text button when nothing is recorded by 11 AM on a day the calendar calls
+  a working day, to a role that may change settings.
+- **Pay is not touched.**
+
+### 25e. The masthead leads with the first move
+
+- **One lead** (`homeMastLead`, today.js), the first that holds:
+  1. money in danger (the bank account overdrawn, or cash below zero within 14 days), with **Open Money**;
+  2. else the red move worth most across the questions (`tdyFirstMoves`): its sentence a button that opens the move's dialog, and its
+     own action as the masthead's one tinted button (*Reorder list*, *Call*, *Open*);
+  3. else the things that need you now, counted, with **Open Needs you**;
+  4. else the amber move worth most;
+  5. else a fact of the day (a line half down);
+  6. else *Nothing needs you now*.
+
+  A *to know* move never leads, whatever it is worth: a backup reminder had led over a stock line out. The masthead's tone is its
+  lead's.
+- **Beside a lead that is not the count**, *N things need you now* is a link to Needs you, on the desktop.
+- **The facts**: a line half down where it is not the lead, then the weather now, as the canvas drew it. The pace left the masthead:
+  where the month lands is Month to date's (§25g).
+- **Make today's report moved to the toolbar's More**, beside *Make a report*: the masthead holds one button.
+- **On the phone**:
+  - the date and the clock share the first row, so the lead takes the whole width (two lines, where it took four beside the clock);
+  - the board's tools (*Customise* as an icon, and More, both ghost buttons) stand at the end of the act row, so the toolbar has no row
+    of its own;
+  - the count's link is left out, since the badge just above says it.
+
+  On the desktop the toolbar keeps its row under the masthead. While arranging, the toolbar has its row on both layouts.
+
+### 25f. The period chips came off Home
+
+- **Home reads this month** (`wdgPeriod('home')`): its questions, *Why it moved*, *The period in figures* and the rest. Stats keeps its
+  own period (`_statsPeriod`), and a period changed there no longer redraws Home.
+- More's *Make a report* opens this month's report (`data-period`), and *Make today's report* the day's.
+
+### 25g. About seven cards on the phone
+
+Each preset is redrawn (`WDG_PRESETS`; an entry marked `desk` is the desktop's alone). Each packs with no hole on both layouts, with
+packing on and off:
+
+| Preset | Desktop, in order | The phone |
+|---|---|---|
+| Owner | `mtd` s · `q-money` s · `cash` s · `owed` s · `floornow` m · `coming` m · `q-smooth` m · `tata` m | the first seven |
+| Office | `quick` s · `unbilled` s · `pipe` s · `quote` s · `recent` m · `coming` m · `tata` l | the first six |
+| Supervisor | `floornow` l · `eff` m · `risk` s · `powercuts` s · `stockdays` s · `turn` s · `attweek` m · `ot` m | the first seven |
+| Floor | `floornow` l · `stockdays` s · `quick` s · `turn` s · `eff` s · `heat` m · `coming` m | all seven |
+
+What left a board is said elsewhere:
+- *Do first*: the masthead's lead is the move worth most.
+- *Needs you*: the tab's badge, and the masthead's count where it leads.
+- *The weather*: the masthead's fact.
+- *This month at its pace*: Month to date says where the month lands (*On pace for ₹5.20 L · likely ₹4.80 L – ₹5.60 L*, its exact
+  figures and what it rests on its title), and its Small's bars outline the landing (`chartMiniBars`'s `proj`, `inv-minibar-proj`).
+- *Production, the last day* and *Attendance today*: The floor now says the last day plated until today's first run, puts each line's
+  hands against the day's number in its row, and leads with a line that has half its units down (`wcFlrHalfDown`).
+
+Each is one tap away, under *Add a widget*. A device on a preset follows the new one; a layout of the person's own is kept, and *Reset
+Home* returns to the preset.
+
+### 25h. Cards only as tall as needed, on the phone
+
+- **On the phone's board** (under 36rem of board) a row is as tall as the cards in it (`grid-auto-rows: auto`). Each card is capped at
+  its size's height (a Small one row, a Medium two, a Large three), and the fit lets go of what will not fit, as on any board. Two
+  Smalls side by side are as tall as the taller.
+- **A bare chart keeps its size's room** (`--wdg-viz-h-s`, `-m`, `-l`: 2.75, 7.5 and 10rem).
+- **While arranging, each card takes its size's whole box**, so a hole shows as a slot. The desktop keeps its fixed rows (§24h).
+- **A quiet card says itself in one line**: Cash with an old statement says *Statement 12 days old*, the low point under it.
+
+### 25i. Red only for today
+
+- **A card is edged amber or red (§24c) only for what asks for something today.** A trend (`trend` on `wdgDefine`: true, or a function
+  of the card's figures) keeps its figure and its lamp in their tone, and is never edged or tinted (`data-trend`).
+- **The trends**: Days to pay, Month to date, Power cuts, Plated each day, Line efficiency, Zinc against the market, Attendance by week,
+  Overtime by area, *Does one move the other?*, What each client pays a kilo, Where a kilo's cost goes, *Why it moved*, *The period in
+  figures*, *This month at its pace*, the questions *Are we making money?*, *Who is driving it?*, *Is the plant full?* and *What
+  changed?*, and Production on a day before today.
+- *Is the plant running smoothly?*, *Is cash coming in?* and every card about today keep their edges.
+
+### 25j. The words
+
+- **`lcLead(s)`** (state.js): a sentence's first letter is lowered where it joins another only for an ordinary word. A name in
+  capitals, two capitalised words, a day or a month keep their own: *oM SHEET METALS* and *Made mon 19 Oct* had been drawn.
+- **`clientShortName(name)`**: a client in a sentence or a card is named without its legal ending (PVT LTD, P. LTD., (P) LTD, LIMITED,
+  LLP). *PAWAN AUTO P LTD* had lost only its LTD. The record keeps the whole name, and a move's sentence reads the same (`advNameOf`).
+- **What's coming counts its rows** in its sentence (*3 challans expected by Fri 23*, *4 things dated by Fri 23*). It had repeated its
+  first row's words.
+
+### 25k. Measured
+
+- **Home on the phone, the long book** (P195): 4.71 phone screens before, 2.38 after; Home's budget is lowered from 5 to 2.5.
+- **The owner's book** (a scratch render at 3:45 PM on 21 Oct 2026, never in the repo): the phone 4.69 screens and 14 cards before,
+  2.29 and 7 after; the desktop 2.85 screens and 14 cards before, 1.8 and 8 after.
+
+### 25l. The book and the server
+
+- **One field in the book**: `flowCfg.shutWhy` (`{YYYY-MM-DD or MM-DD: why}`), beside `flowCfg.holidays`. The change log reads it as
+  days and their reasons (`chgFlowProj`). It travels in the backups, GitHub and the merge, and on the hub in `flowCfg`'s one record (a
+  settings object, `docs/SERVER.md`).
+- **On the device only**: the address placed (`sep_inv_feeds.geo`) and whether the Worker answered (`sep_inv_feeds.direct`).
+- **New requests from the device**: Nominatim (the company's address, once an address), and GDELT and MET Norway (where the Worker cannot
+  be reached). Each names the site's origin as its referrer, and none carries anything of the book but the address's words and the
+  place to two decimals.

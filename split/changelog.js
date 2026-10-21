@@ -159,7 +159,8 @@ var CHG_TRACK = [
   { path: 'todoCheck', kind: 'cfg', sec: 'To-do', dflt: function() { return typeof TODO_CHECK_DEFAULTS !== 'undefined' ? TODO_CHECK_DEFAULTS : getDefaultState().todoCheck; } },
   { path: 'costModel', kind: 'cfg', sec: 'Live cost fallbacks', dflt: function() { return typeof COST_MODEL_DEFAULTS !== 'undefined' ? COST_MODEL_DEFAULTS : getDefaultState().costModel; } },
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
-  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
+  // The days the plant is shut are read as days and their reasons (Home's Plant shut, floor.js), never "2 items" or "set".
+  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', proj: chgFlowProj, dflt: function() { return chgFlowProj(getDefaultState().flowCfg); } },
   { path: 'printer', kind: 'cfg', sec: 'Office printer', dflt: function() { return getDefaultState().printer; } },
   { path: 'feedsCfg', kind: 'cfg', sec: 'News and weather', dflt: function() { return getDefaultState().feedsCfg; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
@@ -549,6 +550,12 @@ function chgWalkArr(va, vb, p, k, depth, ctx) {
     return;
   }
   for (var i = 0; i < Math.min(va.length, vb.length); i++) chgCompare(va[i], vb[i], p + '[' + i + ']', k, depth, ctx);
+}
+function chgFlowProj(v) {
+  v = v || {};
+  var why = v.shutWhy && typeof v.shutWhy === 'object' ? v.shutWhy : {};
+  return { turnDays: v.turnDays, termsDays: v.termsDays, holidays: Array.isArray(v.holidays) ? v.holidays.join(', ') : '',
+    shutWhy: Object.keys(why).sort().map(function(k) { return k + ' ' + why[k]; }).join('; ') };
 }
 function chgVal(v, k) {
   if (chgNullish(v)) return null;

@@ -42,10 +42,8 @@ export function lookSuite(layout: 'phone' | 'desktop') {
         expect(inset(b.shadow), `${what}: every shadow inset (${b.shadow})`).toBe(true);
         return b;
       };
-      // Pulse: the period's track, a tile in a card, a meter's bar.
+      // Pulse: a tile in a card, a meter's bar (the segmented track is Stats' period below: Home's came off on 21 Oct 2026).
       await openPulse(page);
-      const seg = await well('#pageHome .inv-seg', 'the segmented track');
-      expect(seg.fill, 'the track is the well').toBe(veil);
       const tile = await well('#homeTiles .inv-tile', 'a tile in a card');
       expect(tile.radius, 'a tile’s corners').toBe(parseFloat(await token(page, '--r-tile', 'border-top-left-radius')));
       expect(tile.fill === veil || /gradient/.test(tile.image), 'a tile is the well, or a well of its tone').toBe(true);
@@ -59,8 +57,11 @@ export function lookSuite(layout: 'phone' | 'desktop') {
       const meter = await well('#pageHome svg.inv-meter', 'a meter');
       expect(meter.radius).toBeGreaterThan(0);
       expect(await page.locator('#pageHome .inv-meter-track').first().evaluate(el => getComputedStyle(el).fill)).toBe(veil);
-      // The pressed segment is a pill of the card's surface, lifted in the track; the rest are bare.
-      const pill = await page.locator('#pageHome .inv-seg-btn[aria-pressed="true"]').first().evaluate(el => {
+      // Stats: the period's track is a well, and its pressed segment a pill of the card's surface, lifted in the track; the rest are bare.
+      await switchTab(page, 'pageStats');
+      const seg = await well('#pageStats .inv-seg', 'the segmented track');
+      expect(seg.fill, 'the track is the well').toBe(veil);
+      const pill = await page.locator('#pageStats .inv-seg-btn[aria-pressed="true"]').first().evaluate(el => {
         const cs = getComputedStyle(el), a = getComputedStyle(el, '::after');
         return { fill: cs.backgroundColor, clip: cs.backgroundClip, h: el.getBoundingClientRect().height, after: a.boxShadow };
       });

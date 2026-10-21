@@ -59,8 +59,9 @@ function getDefaultState() {
     labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
-    // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice.
-    flowCfg: { turnDays: 1, termsDays: 45, holidays: [] },
+    // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice;
+    // the days the plant is shut (MM-DD every year, or a full date) and why, which Home's Plant shut marks (floor.js).
+    flowCfg: { turnDays: 1, termsDays: 45, holidays: [], shutWhy: {} },
     // The office printer (remoteprint.js): sent to over GitHub, printed by the print station.
     printer: { on: false, name: '', address: '', cartridge: '' },
     // The news and the weather (feeds.js, UI pass 3 §9): the owner's feeds Worker and the plant's place. No place ships: it is
@@ -1296,7 +1297,7 @@ var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
    The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
    (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
 function uiToolbarMoreHtml(items, opts) {
-  var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon);
+  var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon), ghost = !!(opts && opts.ghost);
   if (!list.length) return '';
   var n = 0, worst = '';
   var rows = list.map(function(x) {
@@ -1307,7 +1308,7 @@ function uiToolbarMoreHtml(items, opts) {
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
       (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';
   }).join('');
-  return '<span data-tb-more><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm' + (icon ? ' inv-btn-icon' : '') + '" data-action="invTbMore" aria-haspopup="dialog"' + (icon ? ' aria-label="More"' : '') + '>' + UI_ICON_MORE + (icon ? '' : 'More') +
+  return '<span data-tb-more><button type="button" class="inv-btn ' + (ghost ? 'inv-btn-ghost' : 'inv-btn-secondary') + ' inv-btn-sm' + (icon ? ' inv-btn-icon' : '') + '" data-action="invTbMore" aria-haspopup="dialog"' + (icon ? ' aria-label="More"' : '') + '>' + UI_ICON_MORE + (icon ? '' : 'More') +
     (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
 }
 /* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count
@@ -1859,6 +1860,21 @@ function saveRegFilter() {
 function escHtml(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+/* A sentence's first letter lowered where it joins another ("Thu 22: next challan from …"), only for an ordinary word: a name
+   written in capitals (OM SHEET METALS, VAT A2), one of two capitalised words (Tata Motors), a day or a month keeps its own. Lowering it whatever it was had printed "oM SHEET
+   METALS" and "Made mon 19 Oct" (owner, 21 Oct 2026). */
+function lcLead(s) {
+  s = String(s == null ? '' : s);
+  if (!/^[A-Z][a-z]/.test(s) || /^[A-Z][a-z]+\s+[A-Z]/.test(s) || /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/.test(s)) return s;
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+/* A client's name as a sentence or a card says it: its legal ending left off (PVT LTD, P. LTD., (P) LTD, LIMITED, LLP), the whole
+   name the record's. "PAWAN AUTO P LTD" had lost only its LTD. */
+function clientShortName(name) {
+  var s = String(name || '').trim();
+  var t = s.replace(/[\s,.]*(?:\(P\)|\bP\.?|\bPVT\.?|\bPRIVATE)?[\s.]*\b(?:LTD|LIMITED)\.?$/i, '').replace(/[\s,.]*\bLLP\.?$/i, '').trim();
+  return t || s;
 }
 
 function formatCurrency(n) {

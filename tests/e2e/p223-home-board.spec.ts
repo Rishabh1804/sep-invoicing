@@ -23,7 +23,10 @@ test.describe('P223 Home and its board (phone)', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Home');
     const tabs = page.locator('#wsTabs .inv-viewtab');
     await expect(tabs.nth(0)).toHaveText('Home');
-    await expect(tabs.nth(1)).toHaveText('Needs you');
+    // Needs you's label, then its red count as a badge (owner, 21 Oct 2026: "that should be shown as notification dots"; P241).
+    expect(await tabs.nth(1).evaluate(e => (e.firstChild as Text).textContent!.trim())).toBe('Needs you');
+    const red = await page.evaluate(() => (window as any).tdyTasks().filter((r: any) => r.tone === 'red').length);
+    await expect(tabs.nth(1)).toHaveText(red ? 'Needs you ' + red : 'Needs you');
     await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#homeDash [data-home-day]')).toBeVisible();
     await expect(page.locator('#homeNeeds')).toBeHidden();
@@ -60,6 +63,9 @@ test.describe('P223 Home and its board (phone)', () => {
     await expect(card).toContainText('Nothing needs you now');
     await expect(card).toHaveAttribute('data-tone', 'ok');
     await expect(card.locator('.inv-mast-say')).toHaveClass(/inv-dot-ok/);
+    // Nothing to act on: the masthead draws no button of its own, only the board's tools at its act row's end on the phone (P241).
+    await expect(card.locator('.inv-mast-act > .inv-btn')).toHaveCount(0);
+    await expect(card.locator('[data-home-needs]')).toHaveCount(0);
     // On the minute: the clock changes and nothing else on the page is drawn again.
     const before = await page.evaluate(() => document.querySelectorAll('#homeDash *').length);
     await page.clock.runFor(60000);
@@ -71,15 +77,14 @@ test.describe('P223 Home and its board (phone)', () => {
     expect(await g(page, '_homeClockT')).toBeNull();
     await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
     await expect(card.locator('[data-home-clock]')).toHaveText('9:43 AM');
-    // The Act: Needs you, and today's report, the two the agreed canvas's phone draws (owner, 20 Oct 2026, §24o); the toolbar’s
-    // More makes one of the period Home shows.
-    await expect(card.locator('[data-home-needs]')).toContainText('Open Needs you');
-    await expect(card.locator('[data-action="invHomeReport"]')).toHaveText('Make today’s report');
+    // The reports are the toolbar's More's (the masthead keeps one action since 21 Oct 2026): this month's, the month Home reads,
+    // and today's.
+    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
     await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
     await expect.poll(() => where(page)).toEqual(['pageReports', 'monthly/' + todayIso().slice(0, 8) + '01']);
     await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
-    await card.locator('[data-action="invHomeReport"]').click();
+    await toolbarMore(page, 'Make today’s report');
     await expect.poll(() => where(page)).toEqual(['pageReports', 'daily/' + todayIso()]);
   });
 
@@ -91,20 +96,22 @@ test.describe('P223 Home and its board (phone)', () => {
     const card = page.locator('#homeDash [data-home-day]');
     await expect(card).toContainText('Good afternoon, Asha · ');
     await expect(card.locator('[data-home-shift]')).toHaveText('Shift ends 5:00 PM');
-    // A red task leads: the stock line out on the guard's book.
+    // What is red leads: the stock line out on the guard's book, as its move, before a move to know worth more (P241); its count
+    // is Needs you's badge.
     await g(page, `S.stock.entries.push({ id: 'u1', itemId: 'N', kind: 'used', qty: 12, date: localDateStr(), at: Date.now() }); saveState(); renderHome()`);
-    await expect(card).toContainText(/things? needs? you now/);
+    await expect(card.locator('.inv-mast-say')).toHaveText('Order Nitric acid: it is out');
+    await expect(card.locator('.inv-mast-act [data-home-lead="move"]')).toHaveText('Reorder list');
     await expect(card).toHaveAttribute('data-tone', 'danger');
     await expect(card.locator('.inv-mast-say')).toHaveClass(/inv-dot-danger/);
-    // The masthead's second action is today's report (the canvas's phone draws it, §24o), the owner's as the toolbar's More is;
-    // the office opens no Reports, so neither is drawn for it.
-    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(1);
-    expect(await toolbarMoreLabels(page)).toContain('Make a report');
+    await expect(page.locator('#wsTabs [data-v="needs"] [data-ws-count="today"]')).toHaveText(/^[1-9]\d*$/);
+    // Today's report and the month's are the toolbar's More's, the owner's; the office opens no Reports, so neither is offered it.
+    expect(await toolbarMoreLabels(page)).toEqual(expect.arrayContaining(['Make today’s report', 'Make a report']));
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
     await expect(card).toContainText('Good afternoon, Chitra · ');
-    await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
-    expect(await toolbarMoreLabels(page)).not.toContain('Make a report');
+    const labels = await toolbarMoreLabels(page);
+    expect(labels).not.toContain('Make a report');
+    expect(labels).not.toContain('Make today’s report');
   });
 
   test('the board is two columns on the phone: a Small spans one, a Medium and a Large the row', async ({ page }) => {
@@ -270,12 +277,12 @@ test.describe('P223 Home and its board (phone)', () => {
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     await unlock(page, 'U-own', PINS.owner);
-    // The presets are U2R's (§24i), each packing with no hole; the phone's Owner holds all fourteen, in the order the canvas's phone
-    // draws them (the agreed artifact, 20 Oct 2026).
-    expect(await ids(page)).toEqual(['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'turn', 'dtp', 'atttoday', 'q-smooth', 'dofirst']);
+    // The presets (§24i), each packing with no hole: about seven cards on the phone (owner, 21 Oct 2026; P241), the masthead holding
+    // the lead, the count and the weather, Month to date the pace, The floor now the day's production and attendance.
+    expect(await ids(page)).toEqual(['mtd', 'q-money', 'cash', 'owed', 'floornow', 'coming', 'q-smooth']);
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
-    expect(await ids(page)).toEqual(['needs', 'quick', 'unbilled', 'quote', 'weather', 'pipe', 'recent', 'tata', 'coming']);
+    expect(await ids(page)).toEqual(['quick', 'unbilled', 'pipe', 'quote', 'recent', 'coming']);
     await page.locator('[data-home-foot] [data-action="invWdgGallery"]').click();
     const seen = await page.evaluate(() => Array.from(document.querySelectorAll('[data-gallery-w]')).map(c => (c as HTMLElement).dataset.galleryW));
     for (const id of ['money', 'cash', 'owed', 'dtp', 'gst', 'mtd', 'q-money', 'dofirst', 'why', 'figures', 'zinc', 'prodday', 'floornow', 'atttoday', 'sync'])
@@ -284,7 +291,7 @@ test.describe('P223 Home and its board (phone)', () => {
     await page.keyboard.press('Escape');
     await lockNow(page);
     await unlock(page, 'U-sup', PINS.super);
-    expect(await ids(page)).toEqual(['floornow', 'eff', 'prodday', 'atttoday', 'risk', 'weather', 'stockdays', 'attweek', 'ot', 'tata']);
+    expect(await ids(page)).toEqual(['floornow', 'eff', 'risk', 'powercuts', 'stockdays', 'turn', 'attweek']);
   });
 
   test('a layout is the person’s, kept on the device: two people keep two; it never reaches the book, a push or the change log', async ({ page }) => {
@@ -305,7 +312,7 @@ test.describe('P223 Home and its board (phone)', () => {
     expect(await ids(page)).toEqual(mine);
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
-    expect(await ids(page)).toEqual(['needs', 'quick', 'unbilled', 'quote', 'weather', 'pipe', 'recent', 'tata', 'coming']);
+    expect(await ids(page)).toEqual(['quick', 'unbilled', 'pipe', 'quote', 'recent', 'coming']);
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
     expect(await ids(page)).toEqual(mine);
@@ -325,9 +332,11 @@ test.describe('P223 Home and its board (phone)', () => {
     });
     await loadAppWithState(page, sweepState());
     const list = await ids(page);
-    const preset = ['mtd', 'q-money', 'prodday', 'cash', 'pace', 'coming', 'tata', 'floornow', 'risk', 'turn', 'dtp', 'atttoday', 'q-smooth', 'dofirst'];
+    const preset = ['mtd', 'q-money', 'cash', 'owed', 'floornow', 'coming', 'q-smooth'];
     expect(list.slice(0, preset.length)).toEqual(preset);
-    expect(list.slice(preset.length)).toEqual(['quick', 'needs', 'unbilled', 'stockdays', 'sync', 'zinc']);
+    // What Pulse showed and the preset lacks, in Pulse's order: Attendance today and Production, the last day, folded into The floor
+    // now on the presets since 21 Oct 2026, stay on a board that showed them.
+    expect(list.slice(preset.length)).toEqual(['quick', 'needs', 'atttoday', 'unbilled', 'prodday', 'stockdays', 'sync', 'zinc']);
     // Pulse's own record is left as it was: an older build in another window still reads it.
     expect(JSON.parse(await page.evaluate(() => localStorage.getItem('sep_inv_home')!)).order[3]).toBe('todo');
     expect((await stored(page)).people['-'].home.from).toBe('pulse');

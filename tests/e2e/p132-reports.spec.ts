@@ -68,12 +68,13 @@ test("Reports is in Home's Insights, after Stats; each kind draws with its title
 
 test('the figures are the app\'s own: invoiced equals Stats\' headline for the month, labour equals labourForRange', async ({ page }) => {
   await loadAppWithState(page, sweepState());
-  // The headline is Stats → Trends' verdict card, and Make a report is Pulse's (the tab map, TM2b): one period for both.
+  // The headline is Stats → Trends' verdict card, set to this month, and Make a report is Home's, which reads this month (owner,
+  // 21 Oct 2026: Home's period chips came off).
   await openStatsTab(page, 'trends');
   await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="mtd"]').click();
   await openVerdict(page);
   const statsRev = (await page.locator('#statsHeadline [data-tile="revenue"] .inv-tile-value').innerText()).replace(/\s+/g, '');
-  // Make a report from Pulse opens Reports on the same period.
+  // Make a report from Home opens Reports on this month.
   await openPulse(page);
   await toolbarMore(page, 'Make a report');
   await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);

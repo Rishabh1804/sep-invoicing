@@ -123,7 +123,9 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Money');
     // Home's two views are pageHome's own: Home, then Needs you (UI pass 3, U2; Needs you and Pulse until then).
     await switchTab(page, 'pageHome');
-    await expect(row.locator('.inv-viewtab')).toHaveText(['Home', 'Needs you', 'Stats', 'Reports', 'Planner']);
+    // Needs you carries the red count as its badge, beside its word (owner, 21 Oct 2026, P241): this book's red stock line is one.
+    await expect(row.locator('.inv-viewtab')).toHaveText(['Home', 'Needs you 1', 'Stats', 'Reports', 'Planner']);
+    await expect(row.locator('[data-v="needs"] .inv-viewtab-count')).toHaveText('1');
     // A page held without a tab lights its workspace, shows its row with nothing pressed, and names itself.
     await g(page, `switchTab('pageCreate')`);
     await expect(bar(page, 'office')).toHaveClass(/inv-navbar-item-on/);
@@ -135,13 +137,16 @@ test.describe('P134: workspaces on the phone', () => {
   test('a red stock line counts on Floor and on Home; More carried it before', async ({ page }) => {
     await loadAppWithState(page, state());
     await expect(page.locator('[data-ws-count="floor"]')).toHaveText('1');
-    await expect(page.locator('[data-ws-count="today"]')).toHaveText('1');
+    await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toHaveText('1');
+    // Needs you's tab says the same count (owner, 21 Oct 2026, P241): Home is the view on screen, so its row is drawn.
+    await expect(page.locator('#wsTabs [data-v="needs"] [data-ws-count="today"]')).toHaveText('1');
     for (const ws of ['office', 'money']) await expect(page.locator(`.inv-navbar [data-ws-count="${ws}"]`)).toBeHidden();
     await expect(page.locator('[data-ws-count="floor"]')).toHaveClass(/inv-navbar-count/);
-    // A count follows the book: a count put right clears it.
+    // A count follows the book: a count put right clears it, on the door and on the tab.
     await g(page, `S.stock.entries.push({ id: 'n2', itemId: 'N', kind: 'count', qty: 200, date: '${iso(0)}', at: Date.now(), seq: 9 }); updateStockBadge()`);
     await expect(page.locator('.inv-navbar [data-ws-count="floor"]')).toBeHidden();
     await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toBeHidden();
+    await expect(page.locator('#wsTabs [data-v="needs"] [data-ws-count="today"]')).toBeHidden();
   });
 
   test('the address is the page\'s own, and a reload opens it in its workspace', async ({ page }) => {

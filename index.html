@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="17ee7717">
+<meta name="app-build" content="6c5a3750">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -58604,8 +58604,9 @@ function wcComingBook() {
       if (!p || !(p.left > 0)) return;
       var end = payMonthEnd(today.slice(0, 7) + '-01'), ahead = p.prevRev > 0 ? p.projRev >= p.prevRev : null;
       out.push({ key: 'pace', date: end, tone: ahead === false ? 'warning' : ahead ? 'ok' : 'neutral', title: 'The month lands about ' + wcRs(p.projRev),
-        why: (p.prevRev > 0 ? p.prevLabel + ' billed ' + wcRs(p.prevRev) + ' · ' : '') + 'likely ' + wcRs(p.low) + ' – ' + wcRs(p.high),
-        title2: 'At the pace of ' + todoPlural(p.done, 'working day') + ' so far',
+        // One line on a phone's card: the range, then last month's billing; the whole is the row's title.
+        why: 'Likely ' + wcRs(p.low) + '–' + wcRs(p.high) + (p.prevRev > 0 ? ' · ' + p.prevLabel + ' ' + wcRs(p.prevRev) : ''),
+        title2: 'At the pace of ' + todoPlural(p.done, 'working day') + ' so far' + (p.prevRev > 0 ? '; ' + p.prevLabel + ' billed ' + wcRs(p.prevRev) : ''),
         go: { kind: 'register' } });
     });
     if (sees('pageProduction') && typeof flowLines === 'function') guard(function() {

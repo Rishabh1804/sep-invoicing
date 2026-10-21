@@ -2136,8 +2136,9 @@ function wcComingBook() {
       if (!p || !(p.left > 0)) return;
       var end = payMonthEnd(today.slice(0, 7) + '-01'), ahead = p.prevRev > 0 ? p.projRev >= p.prevRev : null;
       out.push({ key: 'pace', date: end, tone: ahead === false ? 'warning' : ahead ? 'ok' : 'neutral', title: 'The month lands about ' + wcRs(p.projRev),
-        why: (p.prevRev > 0 ? p.prevLabel + ' billed ' + wcRs(p.prevRev) + ' · ' : '') + 'likely ' + wcRs(p.low) + ' – ' + wcRs(p.high),
-        title2: 'At the pace of ' + todoPlural(p.done, 'working day') + ' so far',
+        // One line on a phone's card: the range, then last month's billing; the whole is the row's title.
+        why: 'Likely ' + wcRs(p.low) + '–' + wcRs(p.high) + (p.prevRev > 0 ? ' · ' + p.prevLabel + ' ' + wcRs(p.prevRev) : ''),
+        title2: 'At the pace of ' + todoPlural(p.done, 'working day') + ' so far' + (p.prevRev > 0 ? '; ' + p.prevLabel + ' billed ' + wcRs(p.prevRev) : ''),
         go: { kind: 'register' } });
     });
     if (sees('pageProduction') && typeof flowLines === 'function') guard(function() {

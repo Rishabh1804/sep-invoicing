@@ -44,7 +44,7 @@ export function searchBook() {
   s.invoices = [
     inv('INV-834', 834, CLIENTS[0], dayOff(-2), 1000, { challanNo: '834' }),
     inv('INV-8341', 8341, CLIENTS[1], dayOff(-3), 2000),
-    inv('INV-900', 900, CLIENTS[0], dayOff(-1), 5001.80, { grandTotal: 5902.12, poNumber: 'DA1/00877' }),
+    inv('INV-900', 900, CLIENTS[0], dayOff(-1), 5001.80, { grandTotal: 5902.12, poNumber: 'QX1/00877' }),
     inv('INV-901', 901, CLIENTS[2], dayOff(-1), 3000),
   ];
   s.invNextNum = 8342;

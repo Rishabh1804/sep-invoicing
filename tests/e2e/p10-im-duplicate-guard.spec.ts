@@ -6,7 +6,7 @@ import { emptyState, loadAppWithState, switchTab, recentTs, SepState, toolbarMor
  *
  * The fingerprint is deliberately content-based — client + challan date + the
  * multiset of line quantities — because the two hardest real cases both defeat
- * an identifier key: one copy of Dorabji ch 146 had a blank challanNo, and
+ * an identifier key: one copy of a challan had a blank challanNo, and
  * Dilip ch 47 carried the same 282.70 kg under an aliased part number. These
  * specs reproduce both shapes.
  */
@@ -89,8 +89,8 @@ test('P10: an aliased part number on identical weights still trips the guard', a
 });
 
 test('P10: a blank challan number is raised in its own right', async ({ page }) => {
-  // seed.js backfills 50 demo challans when incomingMaterial is empty, so this
-  // starts from the one-record fixture. The quantity is deliberately unique —
+  // seed.js backfilled 50 demo challans into an empty incomingMaterial until 22 Oct 2026 (HR-10), so
+  // this starts from the one-record fixture. The quantity is deliberately unique —
   // a blank challan number is the only trigger under test here.
   await loadAppWithState(page, stateWithChallan());
   await switchTab(page, 'pageIM');

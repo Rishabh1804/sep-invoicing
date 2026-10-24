@@ -7,6 +7,23 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 22 Oct 2026: this repository holds no client's data, HR-10 (read this first)
+
+- **This repository holds no client's data** (owner, 22 Oct 2026; CLAUDE.md, HR-10, and *What the public repository holds*). It is
+  public, and so is the page built from it.
+- **Out of the tree**: the build's starting data (21 clients with GSTINs, 15 with contacts and 19 with rates; 759 parts, 298 with a rate; 50
+  seeded challans and the two first-run seeds' seven more), a once-only migration that gave a client its vehicle and P.O. pattern,
+  and the identifiers and records the day's sweep found copied from the book into comments, specs and docs (part numbers, P.O.s,
+  vehicles, challan numbers, quantities, payment dates, records under a made-up name, the floor's four-digit codes), each replaced
+  by a made-up value. A new device starts with an empty book and takes its own from a backup or GitHub sync. P242 holds the build's
+  half; P78 is rewritten to a client whose settings are typed, as they are in the book.
+- **The history still holds it, and is left as it is** (owner, 24 Oct 2026: *"Leave it"*): every commit before 22 Oct stays
+  public. The other two ways were making the repository private and rewriting its history; a rewrite would not have reached the
+  pull requests' own copies. Older passages quoting clients' figures are the owner's to keep or move; no client is named in
+  anything new (HR-10 (3)).
+- **A data flow changed, one way**: nothing is seeded on a new device any more (the compile session never read the seeds).
+- **The suite is 2,091 tests** (P242's two added to the 2,089).
+
 ## Built 21 Oct 2026: Home leads, after the owner's look at U2R (read this first)
 
 - **The owner looked at Home on the phone** (21 Oct 2026; `docs/UI_PASS_3.md` §25): the plant's place was asked for though the address

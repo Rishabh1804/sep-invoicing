@@ -2489,13 +2489,13 @@ function getPieceRate(client, onDate, partNumber, desc) {
 
 /* ===== WEIGHT PER PIECE ON RECORD =====
 
-   A KG-billed client's challan states pieces AND kilograms (Dorabji's carries
-   both columns), so a weight per piece on record checks the kilograms the way
+   A KG-billed client's challan states pieces AND kilograms (many carry both
+   columns), so a weight per piece on record checks the kilograms the way
    the rate card checks the rate. Replayed over the 11 Sep backup's 1,068 KG
    lines that carry a piece count: half sit within 0.4% of their own client's
    median, three quarters within 2.3% — and two are a power of ten out
-   (00830: 33 pcs billed as 150.27 kg against 0.448 kg/pc; 00086: 500 pcs as
-   10.4 kg against 0.212), ₹3,000 between them.
+   (00830 and 00086, a piece count keyed ten times out each way), ₹3,000
+   between them.
 
    The CLIENT's figure, never the Items Master's. The master has one row per
    part name and no client: Khetan's BASE PLATE weighs ~0.70 kg a piece on every
@@ -2765,12 +2765,12 @@ function lineFillFromCount(client, item) {
   }
 }
 /* ===== WHAT A CLIENT'S INVOICES ALWAYS CARRY (owner, 27 Sep 2026) =====
-   "Dorabji Auto generally is despatched through only one way of transport … it's the same for every
+   "[A client] generally is despatched through only one way of transport … it's the same for every
    invoice, so let's make it so that the field is already filled out along with PO number, which is
-   usually the same as their challan number with the suffix DA1/xxxxx." A client SETTING, never a
+   usually the same as their challan number with [their prefix]." A client SETTING, never a
    hard-code: `defaultTransport` (the vehicle) and `poFromChallan`, a pattern where `{challan}` is the
-   challan number and `{challan:5}` the same padded to five digits — DA1/{challan:5} makes challan
-   1244 read DA1/01244. The invoice form applies both (create.js, createApplyClientDefaults). */
+   challan number and `{challan:5}` the same padded to five digits — QX1/{challan:5} makes challan
+   1244 read QX1/01244. The invoice form applies both (create.js, createApplyClientDefaults). */
 var PO_TPL_RE = /\{challan(?::(\d{1,2}))?\}/g;
 function clientPoTemplateOk(tpl) { return !tpl || /\{challan(?::\d{1,2})?\}/.test(String(tpl)); }
 /* The challan number a PO is made from: the first challan an invoice cites, its first run of digits

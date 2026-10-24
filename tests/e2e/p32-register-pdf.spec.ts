@@ -114,7 +114,7 @@ test('P32: a register spanning two customers warns before it is sent to one', as
   // discloses the others. Warn, never block: filing it is a legitimate use.
   await loadAppWithState(page, stateWith([
     invoice(1),
-    invoice(2, { clientId: 2, clientName: 'DORABJI ENGINEERING' }),
+    invoice(2, { clientId: 2, clientName: 'DELTA ENGINEERING' }),
   ]));
   await openDoc(page);
   const notice = page.locator('.inv-qc-notice-warn');

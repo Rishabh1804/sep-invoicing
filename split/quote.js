@@ -847,7 +847,7 @@ function qtPartBilledUnits(c, part, basis) {
 function qtUnitWords(u) { return u === 'NOS' ? 'in pieces (NOS)' : 'by the kilo (KG)'; }
 /* What a rate posted to a client's itemRates does where it lands (QA5-2). A row is a pattern, and the first row whose
    pattern a line's part number contains prices the line (getLineItemRate): a row added after TM5181 never priced
-   TM5181-20, and P3302 prices 5206 P3302X too. So the row goes before every row whose pattern the part contains (the
+   TM5181-20, and P3302 prices 7206 P3302X too. So the row goes before every row whose pattern the part contains (the
    more specific row wins), in place of one naming the part exactly; what it still cannot reach, and what it newly takes,
    is named. `list` is the card as it stands; returns it as it would be, and the notes. */
 function qtItemRatePlace(c, list, part, row) {

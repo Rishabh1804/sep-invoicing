@@ -3,11 +3,11 @@
 /*
  * Seven duplicate receipt events went into the books across FY27 unchallenged:
  * 973.75 kg + 826 NOS of phantom receipts, four of which propagated into
- * customer invoices (Dilip ch 47, General ch 932, Khurana ch 202, Dorabji
- * ch 146). Nothing in the app said a word at either end.
+ * customer invoices (Dilip ch 47, General ch 932, Khurana ch 202 and one
+ * more). Nothing in the app said a word at either end.
  *
  * The obvious key — (client, challanNo, challanDate) — misses two of those
- * seven. One copy of Dorabji ch 146 carried a blank challanNo, and Dilip ch 47
+ * seven. One copy of the fourth carried a blank challanNo, and Dilip ch 47
  * carried the same 282.70 kg under an aliased part number. So the fingerprint
  * is content-based instead: client + challan date + the multiset of line
  * quantities. Part names and challan numbers are what the operator retypes;

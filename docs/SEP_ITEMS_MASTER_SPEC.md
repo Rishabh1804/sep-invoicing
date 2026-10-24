@@ -49,9 +49,9 @@ Scrollable list of item cards in `inv-card-list` container. Each card shows:
 
 ```
 ┌─────────────────────────────────────┐
-│ 5069 4370 0108              KG      │
+│ 9107 0000 0108              KG      │
 │ BRACKET                   ₹13.00   │
-│ [0.102 kg]                          │  ← only if stdWeightKg set
+│ [0.125 kg]                          │  ← only if stdWeightKg set
 └─────────────────────────────────────┘
 ```
 

@@ -15,6 +15,10 @@ When in QA mode, switch to **Cipher** (The Codewright): precise, minimalist, cat
 
 **Set by the owner, 24 Sep 2026.** This repo is one of three SEP repos, each worked in its own session, plus a fourth **compile session** that attaches all three and reconciles their data (canonical description: `soma-internal/docs/CROSS_REPO_SESSIONS.md`). `docs/NEXT_SESSION.md` holds the queued work — rate matcher, stock tab, to-do widget, patches — and **this repo's side of every data flow** with the other two. If a session changes one of those flows, say so in the PR.
 
+**This repository holds no client's data: HR-10** (owner, 22 Oct 2026). It is public, and so is the page built from it. The build
+seeds no client, part, price or record, and tests and examples are made up; read *What the public repository holds* (under the hard
+rules) before writing an example from the book.
+
 **Finance & intelligence work in progress — read `docs/FINANCE_INTELLIGENCE_SPEC.md` next.** Set by the owner,
 26 Sep 2026: cheque placement and series, a note for a month's GST paid outside the bank, an interactive finance
 dashboard, a live cost that uses the bank statement, the intelligence rules and forecast, and the tabs linked into
@@ -133,7 +137,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 92 modules, ~75,300 lines total.
+Split-file PWA. 91 modules, ~75,000 lines total.
 
 ```
 split/
@@ -141,7 +145,7 @@ split/
 ├── head.html          ← DOCTYPE, meta, font links (17 lines)
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
-├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
+├── data.js            ← ITEMS_MASTER and SEED_CLIENTS, both empty: the build holds no client's data (HR-10) (8 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More), the blank state (`uiBlankHtml`); money on a board (`inrCard`, `inrFigHtml`: ₹66,476 · ₹3.50 L · ₹1.24 Cr, the exact amount its title); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~2,840 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters (~750 lines)
@@ -231,11 +235,10 @@ split/
 ├── swipe.js           ← Swipe navigation: within the open workspace's views (38 lines)
 ├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail; the redirect table for places that moved (~490 lines)
 ├── search.js          ← Search, keys and new windows: one index of records and screens, the palette, the shortcuts (~930 lines)
-├── seed.js            ← seedIncomingMaterial(), called from boot (10 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -265,7 +268,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,089 tests, both layouts
+pnpm exec playwright test          # 2,091 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -329,7 +332,7 @@ the app from anywhere. `nav.js`:
   (`MORE_TABS`): its own list had left Finance out. P100, P55.
 
 **A long list shows its first rows, and a card taller than a screen folds** (UX overhaul 2, step 6; owner, 29 Sep 2026:
-*"clients detail is also one of those screens - Mehta and Dorabji scroll too far because they have many material IDs"*).
+*"clients detail is also one of those screens - Mehta and [another client] scroll too far because they have many material IDs"*).
 Measured on the real book, the long screens were long because each put a finished or historical list at full length:
 SSS Mehta's Materials ran 23.5 phone screens (101 stopped parts), the bank statement 18. `uiMoreHtml` (state.js) draws a
 list's first thirty rows (ten where each row is a question) and one row, *Show 71 more parts · 101 in all*, that shows the
@@ -527,10 +530,11 @@ populated store wins, so a reload keeps what the test changed. A second call on 
 deletes the database first. Read what a reload would load with `readStoredState(page)`, never from
 localStorage — the state is not there any more.
 
-**`emptyState()` is not empty.** `seed.js` fills `incomingMaterial` with 50 demo challans whenever
-it is an empty array — there is no one-time flag, only the emptiness test — so any spec asserting on
-challan-derived data without supplying its own silently measures the seed. `noSeedIM()` in the
-fixtures blocks it.
+**`emptyState()` is empty, since 22 Oct 2026.** Until then `seed.js` filled `incomingMaterial` with 50 real
+challans whenever it was an empty array, so a spec asserting on challan-derived data without supplying its own
+silently measured the seed. The seed went with the rest of the build's client data (HR-10). `noSeedIM()` in the
+fixtures still adds its placeholder challan (a client id no spec uses), so the specs written against the old trap
+keep their shape.
 
 **Fixtures carry `todayIso()` / `recentTs()`, never hardcoded dates.** Three tests have now
 been found passing only because of when they were written or what they happened not to
@@ -577,7 +581,7 @@ where available / 10. We shall discuss this."* P210.
    read off a bill; the owner will enter the figures where available (Power → Load & bills, a bill's penalty and details).
 10. **The next build's order is to be discussed** with the owner.
 
-## Hard Rules (HR-1 through HR-8)
+## Hard Rules (HR-1 through HR-10)
 
 | HR | Rule |
 |----|------|
@@ -590,6 +594,7 @@ where available / 10. We shall discuss this."* P210.
 | HR-7 | Dark mode coverage on every new element — by reading tokens, which switch with `color-scheme`. No `.dark` class exists. |
 | HR-8 | gstRound() for all currency: to the paisa on the figure as written, half away from zero (read to 15 significant digits, shifted two places in decimal, rounded, shifted back). Never Math.floor for financials. GST rules require proper rounding. It was `Math.round(val * 100) / 100` until 30 Sep 2026, which rounded the binary copy: 1.005 gave 1.00 and 2.675 gave 2.67 (owner: *"change it"*). |
 | HR-9 | **No white.** No fill on screen is lighter than OKLab L 0.97: pure white never, and no off-white that reads as white (owner, 8 Oct 2026: *"we will be avoiding pure white everywhere in the app, this should be an HR"*). The 26 Sep surface `#f8fafa` (L 0.984) read as white beside the coloured cards, so every light ramp was taken down a tinted step (surface 0.96, page 0.93; design principles §3.1). A tick box or radio is drawn by the app (`appearance: none`), since the browser paints its box white. P76's sweep fails on any fill over the ceiling, a gradient's stops included, on every screen, view and dialog, both themes and layouts; P180 proves it sees the 26 Sep surface and reads the stylesheet for white outside paper. |
+| HR-10 | **No client's data in this repository.** It is public, and so is the page built from it. (1) **The build carries none**: no client, part, price or record is seeded (data.js empty, no challan seed; P242). (2) **Nothing new about a client is written here**: no part number, rate, challan, P.O. number or pattern, vehicle, quantity, weight, payment, process term or document, in code, comments, tests or docs. Tests and examples are made up, every figure of them (a record copied under a made-up name is still the client's): part numbers `9xxx 0000 nnnn`, the P.O. prefix `QX1`, vehicles `JH 05ZZ …`, clients like `DELTA AUTO`. (3) **No client is named in anything new**: a new note, comment, spec or example says *a client*, *the piece client* or a made-up name, never a client's own. Older passages that quote clients' figures are the owner's to keep or move to the private codex. *What the public repository holds*, below. |
 
 **Known HR-9 exceptions (do not expand):** paper, which prints white: the printed documents, their on-screen previews (a report,
 the power case, the print view) and a QR code, which a camera reads black on white. They are `PAPER` in `tests/e2e/sweep-fixture.ts`.
@@ -599,6 +604,29 @@ raw colors, and the printed documents' physical measurements (mm/pt) — all thr
 and spacing once in a token block (`.inv-qc-page`, `.inv-cn-doc`, `.inv-print-invoice`) and read
 `var()` in every rule after it. **No `@page` rule anywhere may carry a non-zero margin** — see the
 tax-invoice section below for what a margin box costs; a spec asserts it.
+
+### What the public repository holds
+HR-10, owner, 22 Oct 2026. This repository, its page on GitHub Pages and its history are public. What came out of the tree
+that day:
+- **The build's starting data**: `SEED_CLIENTS` (21 clients, each with its GSTIN, 15 with contacts and 19 with rates), `ITEMS_MASTER`
+  (759 parts, 298 of them with a rate, 171 with a part number of exactly twelve digits), `seed.js` (50 real challans) and the two first-run seeds
+  in init.js (seven more challans, the piece counts of the seeded ones). A new device starts with an empty book and takes its own from a backup
+  or GitHub sync, which writes to the private codex (`soma-internal`, `sep-invoicing-data.json`), never here.
+- **A once-only migration that wrote a client's vehicle and P.O. pattern by name** (`_clientDocDefaults1`): a book it ran on keeps
+  the settings, which are the client's (Client → Edit → On every new invoice).
+- **Identifiers and records copied from the book into comments, specs and these docs, where the day's sweep found them**: part
+  numbers, P.O. numbers and a P.O. pattern, vehicles, challan numbers, quantities and payment dates; records copied into specs under a
+  made-up name (an invoice's weights, amounts and tax; parts' kilograms a piece); and the four-digit codes the floor writes for those
+  parts (a part number's last group, in the production reader's specs). Each is replaced by a made-up value or a description. A
+  record copied under another name is still the client's. The instrument: the owner's book set against every tracked file, each
+  identifier whole, in groups and pairs, and each invoice or challan line as a record (two of its figures in one file). It was not a
+  sweep of every client: older passages that name clients beside their figures remain (HR-10 (3)).
+
+**The history still holds them, and is left as it is** (owner, 24 Oct 2026: *"Leave it"*). Every commit before 22 Oct 2026
+stays public on GitHub. The two other ways were put to the owner: making the repository private, which waits on the app's move
+to Cloudflare (`docs/SERVER.md`, S0) or a plan that serves it, since GitHub Pages serves a private repository only on a paid
+plan; and rewriting the history, which would change every commit, break every open branch and clone, and not reach the pull
+requests' own copies (`refs/pull/*`), which only GitHub can remove.
 
 ## Design System
 
@@ -1026,7 +1054,7 @@ Seven duplicate IM events went into FY27 unchallenged — 973.75 kg + 826 NOS of
 receipts, four of which reached customer invoices (₹8,040.02 taxable, ₹1,170.18 output tax).
 The guard in `im-dupe.js` fingerprints on **`(client, challanDate, line-quantity multiset)`** —
 content, not identifiers, because the two hardest cases defeat an identifier key: one copy of
-Dorabji ch 146 carried a blank `challanNo`, and Dilip ch 47 carried the same 282.70 kg under an
+a client's challan carried a blank `challanNo`, and Dilip ch 47 carried the same 282.70 kg under an
 aliased part number. A blank `challanNo` warns in its own right.
 
 **Warn, never block.** Split challans against one consignment (702/703) are legitimate. The
@@ -1790,7 +1818,7 @@ gauge reads steady (*no gauge written*); a stated gauge that stopped beside a li
 (`cpSiblings`). On the real book to 11 Sep, SSS Mehta's stopped parts went from 73 to 66 and 149X83 reads steady.
 
 **Materials worked** (owner: *"every material worked, how much and when … how many clamps were sent by SSS Mehta in any given period, how
-many by Dorabji. If two parties share the same material code, the distinction must be mentioned"*). Performance → *Materials worked*: a
+many by [another client]. If two parties share the same material code, the distinction must be mentioned"*). Performance → *Materials worked*: a
 period (this month, 3 or 6 months, the FY, all, or dates), a search over part, size and description (*clamp*), and **This client / All
 clients**. Each part is one client's: pieces and kilograms sent (a kilo challan's counted pieces included), challans, invoices, what was
 billed, first and last; it opens to every challan and invoice by date, each a link. A code another client also sends says so (*Code
@@ -2041,8 +2069,8 @@ key by key on an old backup. A blank or zero value falls back to the ruling's 10
 to 0, which would turn every difference red.
 
 **The kilograms are checked too, for a client billed by the kilo whose challans count pieces**
-(owner, 24 Sep 2026: *"for Dorabji and other clients whose rate per kg is done but weight/pc is
-known, do the same mismatch update"*). Dorabji's challan carries a Qty (pieces) column and a Wt.
+(owner, 24 Sep 2026: *"for [a kilo client] and other clients whose rate per kg is done but weight/pc is
+known, do the same mismatch update"*). Such a client's challan carries a Qty (pieces) column and a Wt.
 column, so a weight per piece on record checks the kilograms the way the rate card checks the rate:
 `weightMatch()` compares a KG line's `qty` against `nosQty × kg/pc`.
 
@@ -2063,8 +2091,8 @@ column, so a weight per piece on record checks the kilograms the way the rate ca
   the backup, after filling every client's card: **793 match, 2 ×10, 28 Check, 88 Differs**, 157
   with no weight on record.
 - **The two ×10 slips were PIECE COUNTS, not weights — ruled by the owner, 24 Sep 2026.** **00830**
-  (Dorabji `CLAMP 5079 4920 4205`): 33 pieces that were **330**; the 150.274 kg billed was right.
-  **00086** (`2525 2015 8202`): 500 pieces that were **50**; the 10.4 kg was right. No money moved.
+  (a clamp of one kilo client): its pieces were keyed at a tenth of what came; the kilograms billed were right.
+  **00086** (a bracket of the same client): its pieces keyed at ten times; the kilograms were right. No money moved.
   Both were put right on the invoice and **stayed wrong on the challan** — which is the next
   section.
 
@@ -2083,7 +2111,7 @@ piece count at all, and an invoice line did not record which challan line it cam
   an untouched save must not rewrite the challan. It **keeps what they were** on the challan line as
   `corrections: [{at, invoiceId, invoice, from, to}]`. The challan is the record of the customer's
   paper; overwriting it without trace would lose what an audit asks. History lists each one:
-  *"Challan 1115 corrected from SEP/…/00830: CLAMP 5079 4920 4205 — pieces 33 → 330"*.
+  *"Challan 4115 corrected from SEP/…/00830: CLAMP 9105 0000 4705 — pieces 40 → 400"* (P38's made-up example).
 - **A correction on a NEW invoice reaches the challan too** (owner, 30 Sep 2026: *"correction on the invoice should be reflected
   in the challan with a note"*). A challan line brought into the form remembers what it said (`imLineOrig`, `_fromNew`), and on
   save a field typed over it travels back like an edit's. The quantity is the exception: typing less than the challan is
@@ -2322,9 +2350,9 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
     rule, not required: the pages show 150 and 120 on A2 as well. One gauge is written in; two or three are kept as the entry's
     `gaugeOptions`, set against the family's challans at any of them. A round of a size no rule names (108, 98, 82) is its own run,
     *gauge unknown*, so it never takes a neighbouring run's gauge.
-  - **A floor name is matched to the client's part** (`prodLearnAliases`): a code in brackets (*TINA(0160)*, *TINA(3303)*) that ends
+  - **A floor name is matched to the client's part** (`prodLearnAliases`): a code in brackets (*TINA(0760)*, *TINA(3303)*) that ends
     exactly one of the client's part numbers is that part, and the name alone is learnt for the client (`learn.parts`, now written), on
-    a register save and on an import. A code ending two parts (*KUDAL(0106)*) is asked: Entries → **Which part?** lists the parts
+    a register save and on an import. A code ending two parts (*KUDAL(0706)*) is asked: Entries → **Which part?** lists the parts
     ending in it, then those named like it, then all of the client's (`prodAliasOpen`).
   - **A Samarth round names its part** (owner: *"56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover
     plate. The other 3302 is Assy bracket connector that's 50 per round in VAT A1"*). Two of Samarth's parts end in 3302 and the register
@@ -2343,9 +2371,9 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
     that line**, is asked (*a round of 50 on VAT A1 is Samarth's connector*), never moved (`prodPartRuleOther`; owner: *"71 was the last
     round for Mehta and then 50 is Samarth"*).
   - **Two clients in one round** (owner: *"sometimes two clients are done simultaneously"*): *MEHTA+GENERAL / LINER+188CD / 39+50* is a
-    round of each at the same time, split on the + outside brackets (`prodSplitTop`; *(0106+3313)* stays one part), each share in its own
+    round of each at the same time, split on the + outside brackets (`prodSplitTop`; *(0706+3713)* stays one part), each share in its own
     client's run: a shared round, and the first round after them, continue the run of their own client and part, and a shared START takes
-    its own client's next figure. A ditto under one side carries that side (*〃 + DORABJI* under MEHTA+GENERAL), a ditto alone the whole
+    its own client's next figure. A ditto under one side carries that side (*〃 + DELTA* under MEHTA+GENERAL), a ditto alone the whole
     row. A figure that does not split into as many shares is amber and the row kept whole.
   - **A round outside the gauge rules is a flag, resolvable** (owner: *"The ones that fall outside the range, raise a flag -
     resolvable"*): the run keeps `gaugeUnknown` (its round) until a gauge is picked on it (Entries → *Gauge unknown* → **Pick gauge**, from
@@ -2364,8 +2392,8 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
     it'll become clearer as both would have a different amount of them that can be plated in a round"*; `prodResolveCode`): the one with a
     challan in the 45 days before, else the one with a challan open, else the one on the latest challan, else the one plated before at this
     round on this line (`prodPartRacks`, which never reads a match it made itself). Set on the entry (`partSrc: 'challan' | 'round'`),
-    never learnt for the name. On the 30 Sep page, *(0106)* is 5206 4920 0106, on Dorabji's latest challan. **A figure for a group of codes**
-    (*(0106+3313)*, 25) is two entries, each code matched the same way and the figure shared by what is open on their challans, else by the
+    never learnt for the name. On the 30 Sep page, *(0706)* was the part of that code on the client's latest challan. **A figure for a group of codes**
+    (*(0706+3713)*, 25) is two entries, each code matched the same way and the figure shared by what is open on their challans, else by the
     pieces on each part's latest challan (`qtySrc: 'split'`, said as an estimate).
   - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
     later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
@@ -3320,7 +3348,7 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   search, `A` for Add, and Ctrl+click or a middle click on a door, a tab or a row opens it in a new window (Pipeline's
   stages and challans, Money's doors and Floor → Overview's cards included). The QA chain of 2 Oct 2026: an identifier typed
   ending in a digit matches whole (`00083` never finds `00834`); a challan or a P.O. is known by its own number
-  (`srchDocNums`: `0901/26-27` is 901, never 26 or 27, and the 1 of `DA1` is no number); an invoice is found by its tail
+  (`srchDocNums`: `0901/26-27` is 901, never 26 or 27, and the 1 of `QX1` is no number); an invoice is found by its tail
   (`27/00834`); a series word counts only beside something else that matches (SEP alone finds nothing, *SEP 21* is invoice
   00021 as well as 21 Sep); a worker opens in Roster's pane on the desktop; *Add a bill* works out its month when opened.
 
@@ -3808,25 +3836,25 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
     quiet past the rule above.
   - **Invoice PO and vehicle.** On choosing a client for a new invoice, an empty PO field takes the next
     number **only where the client's POs run in sequence**. Where they rise but skip (a customer numbering
-    across all its suppliers: Dorabji `DA1/01322 → 01333 → 01339`), only the prefix is filled and the hint
+    across all its suppliers, its P.O.s rising a few numbers at a time), only the prefix is filled and the hint
     says so. An empty vehicle field is filled **only where one vehicle carries 60%+** of the client's last
     30; otherwise the usual ones are offered as chips and nothing is typed.
-  - **A client's own vehicle and PO win over the prediction** (owner, 27 Sep 2026: *"Dorabji Auto generally is
+  - **A client's own vehicle and PO win over the prediction** (owner, 27 Sep 2026: *"[A client] generally is
     despatched through only one way of transport … the field is already filled out along with PO number, which is
-    usually the same as their challan number with the suffix DA1/xxxxx"*). Measured on the book: one vehicle on
-    nearly every Dorabji invoice, and the PO equal to `DA1/` + the challan number in five digits on nearly every one
+    usually the same as their challan number with [their prefix]"*). Measured on the book: one vehicle on
+    nearly every invoice of that client, and the PO equal to its prefix + the challan number in five digits on nearly every one
     carrying a PO — a PO *made from the challan*, which is why the sequence prediction only ever found the prefix.
     So it is a **client setting**, never a hard-code: `defaultTransport` and `poFromChallan`, a pattern where
     `{challan}` is the challan number and `{challan:5}` the same padded to five digits (`clientPoFromChallan`,
-    state.js: the first cited challan, its first run of digits, so `0877/26-27` gives `DA1/00877`). Edited on the
+    state.js: the first cited challan, its first run of digits, so `0877/26-27` gives `QX1/00877` under the pattern `QX1/{challan:5}`). Edited on the
     client (*On every new invoice*, with a live example; a pattern without `{challan}` is refused). Every path to a
     new invoice applies them (`createApplyClientDefaults`: choosing the client, ticking a challan, IM → Create
     invoice, a reissue, a client preselected from Stats), **only into a field that is empty or was itself filled
     that way** (`invoiceForm._auto`): a typed value is the operator's for good. An auto PO follows the challans
     ticked (the first one's number, and the hint says *the first of N challans*), and a challan number typed by hand
-    moves it in place. The hint says where it came from (*from DORABJI AUTO's settings*). Where a client has one,
-    insights.js does not predict that field. A once-only migration (`_clientDocDefaults1`, travelling with the
-    state) sets both on DORABJI AUTO **only where both are empty**, so a value the owner typed or cleared stays.
+    moves it in place. The hint says where it came from (*from <the client>'s settings*). Where a client has one,
+    insights.js does not predict that field. A once-only migration (`_clientDocDefaults1`) set both on that client where both were empty;
+    it came out on 22 Oct 2026 with the build's other client data (HR-10), and a book it ran on keeps the settings.
   - **The P.O. date follows the challan date** (owner, 27 Sep 2026: *"we have to enter the PO date, which is
     redundant as almost always it's the same as challan date - that field should be prefilled as it's not
     printed on the invoice"*). Picked by hand, filled from the challans ticked, or IM → Create invoice, the
@@ -4039,9 +4067,9 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   payer settles 15–20 days after the invoice and the rest monthly. A receipt before the client's first invoice
   counts whenever it came; one after it only for a client already billing when the book began (first invoice within
   45 days of the start), since a new client's first payment pays its first invoice. Measured on the real book, 20
-  days is the one window that takes every such receipt (SSS Mehta ₹2,98,770 on 13 Apr, Dorabji 18 Apr, HighCo 29 Apr,
+  days is the one window that takes every such receipt (SSS Mehta ₹2,98,770 on 13 Apr, another client 18 Apr, HighCo 29 Apr,
   RG before its first invoice) and none that paid April (SSS Mehta's 5 May, day 20): 30 days took that one too, and
-  the leftover-money floor only half of Dorabji's. It is a floor: money owed then and never paid is in no receipt,
+  the leftover-money floor only half of that client's. It is a floor: money owed then and never paid is in no receipt,
   so the row says to check it against the ledger. A used figure is stored `suggested: true`. A receipt equal **to the rupee** to one open invoice or a run of them is
   *Exact*; any other is set oldest first and says so. soma-internal's tolerant sweep hit every credit and proved
   nothing, so nothing looser is ever called a match.
@@ -4756,8 +4784,8 @@ file through that door takes every invoice with it. Merging on the *name* rather
 what keeps a worker's existing attendance marks attached, because two devices that typed the
 same person gave them different ids.
 
-That is a deliberate departure from `SEED_CLIENTS`, which does carry real names: a client name
-is on every invoice that leaves the building, a worker's day rate is not.
+`SEED_CLIENTS` carried the clients' names, contacts and rates until 22 Oct 2026, and the build's parts list their
+parts and prices: both are empty now (HR-10).
 
 **The days a roster worked come through the same door**, for the same reason the area complements
 do: a roster with no history has nothing for the Areas card to check, and a history with no roster
@@ -5062,7 +5090,7 @@ keyhole. **Two consequences of the move are load-bearing:**
 
 - **The load is asynchronous, so the bootstrap is.** `let S = null` until `loadState()` resolves;
   `bootState()` assigns it, then `bootApp()` in init.js runs everything that always ran at load
-  (state.js's series reset, seed.js, the bootstrap seeds, `migrateState()`, layout, tab restore)
+  (state.js's series reset, the bootstrap seeds, `migrateState()`, layout, tab restore)
   in the same order, and adds **`inv-booted` to `<body>`**. Until then the shell is visible and
   inert (`pointer-events: none`). **Nothing between state.js and the end of init.js may read `S`
   at load time** — the seeds are functions now for exactly that reason. Tests wait on

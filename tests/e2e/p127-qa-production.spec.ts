@@ -141,18 +141,18 @@ PICKLING TIME 10:20`);
     const item = (id: string, pn: string, qty: number) => ({ id, partNumber: pn, desc: 'BRACKET', hsn: '998873', unit: 'NOS', qty, rate: 1, amount: qty, nosQty: qty });
     await load(page, {
       incomingMaterial: [{ id: 'IM-1', challanNo: '41', challanDate: iso(-3), clientId: 12, clientName: 'DURGA AUTO', vehicleNo: '', receivedDate: iso(-3), createdAt: recentTs(),
-        items: [item('IM-1-0', '5164 5460 4206', 1000), item('IM-1-1', '5206 4920 0160', 500)] }],
+        items: [item('IM-1-0', '9101 0000 4706', 1000), item('IM-1-1', '9102 0000 0760', 500)] }],
       // A load pasted before this build: its part is the code alone, with no part number.
-      ...prod([{ id: 'OLD1', kind: 'pickled', date: iso(-2), time: '09:00', clientId: 12, client: 'DURGA AUTO', part: '0160', qty: 30, unit: 'NOS', basis: 'pickling', src: 'paste', pasteId: 'PP0', at: 1 }]),
+      ...prod([{ id: 'OLD1', kind: 'pickled', date: iso(-2), time: '09:00', clientId: 12, client: 'DURGA AUTO', part: '0760', qty: 30, unit: 'NOS', basis: 'pickling', src: 'paste', pasteId: 'PP0', at: 1 }]),
     });
-    expect(await g(page, `[prodAliasCode('4206'), prodAliasCode('0160'), prodAliasCode(' 0106 '), prodAliasCode('TINA(0160)'), prodAliasCode('CLAMP 165X83')]`))
-      .toEqual(['4206', '0160', '0106', '0160', null]);
+    expect(await g(page, `[prodAliasCode('4706'), prodAliasCode('0760'), prodAliasCode(' 0706 '), prodAliasCode('TINA(0760)'), prodAliasCode('CLAMP 165X83')]`))
+      .toEqual(['4706', '0760', '0706', '0760', null]);
     // The load already held is matched once, at the start.
-    expect(await g(page, `S.production.entries[0].partNumber`)).toBe('5206 4920 0160');
-    await paste(page, `${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n4206-500 nos\nPickling time 9:00am`);
+    expect(await g(page, `S.production.entries[0].partNumber`)).toBe('9102 0000 0760');
+    await paste(page, `${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n4706-500 nos\nPickling time 9:00am`);
     await page.locator('[data-action="invProdSaveReview"]').click();
-    const e = (await readStoredState(page)).production.entries.find((x: any) => x.part === '4206');
-    expect(e.partNumber).toBe('5164 5460 4206');
+    const e = (await readStoredState(page)).production.entries.find((x: any) => x.part === '4706');
+    expect(e.partNumber).toBe('9101 0000 4706');
     // Both are set against their challans: nothing is on the floor with no challan.
     expect(await g(page, `prodInPlant().noChallan.map(function(x){ return x.part; })`)).toEqual([]);
   });
@@ -164,8 +164,8 @@ PICKLING TIME 10:20`);
 8201/8202
 Pickling time 11:30 am
 ${d}, 12:40 pm - Pickler: DURGA AUTO
-4206-1000
-0160--30
+4706-1000
+0760--30
 8201/8202-600
 Pickling time 12:30 pm
 ${d}, 1:40 pm - Pickler: NOVA CLAMPS
@@ -181,7 +181,7 @@ Liner--50 nos
 Pickling time 2:30 pm`);
     expect(msgs.map(m => m.items.map((x: any) => [x.clientId, x.part, x.qty]))).toEqual([
       [[15, '8201/8202', null]],
-      [[12, '4206', 1000], [12, '0160', 30], [12, '8201/8202', 600]],
+      [[12, '4706', 1000], [12, '0760', 30], [12, '8201/8202', 600]],
       [[11, 'LINER', 1000], [11, 'BRACKET 3302', 420]],
       [[11, 'Liner', 50]]]);
     // The dotted date is the loads' day; a date with no year is listed, not taken for a load.
@@ -273,9 +273,9 @@ Pickling time 2:30 pm`);
   test('G4-14: a learnt spelling or part from a file is kept only for an id the file shows under that client’s name here', async ({ page }) => {
     await load(page);
     const learn = await g(page, `(function(){ prodMergeImport({ format: 'sep-production', entries: [
-        { id: 'X1', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 12, client: 'NOVA CLAMPS', part: '0140', qty: 10, unit: 'NOS', at: 2 },
+        { id: 'X1', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 12, client: 'NOVA CLAMPS', part: '0740', qty: 10, unit: 'NOS', at: 2 },
         { id: 'X2', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 11, client: 'Nova clamps', part: '0141', qty: 10, unit: 'NOS', at: 2 }],
-      learn: { clients: { KUMAR: 12, NOVAK: 11 }, parts: { '12|0140|': { partNumber: 'P 0140', gauge: '', how: 'set', at: 1 }, '11|0141|': { partNumber: 'P 0141', gauge: '', how: 'set', at: 1 } } } });
+      learn: { clients: { KUMAR: 12, NOVAK: 11 }, parts: { '12|0740|': { partNumber: 'P 0740', gauge: '', how: 'set', at: 1 }, '11|0141|': { partNumber: 'P 0141', gauge: '', how: 'set', at: 1 } } } });
       return prodData().learn; })()`);
     // The file's 12 is Nova, this book's is Durga: its lessons point at nobody here. The file's 11 is Nova here too.
     expect(learn.clients).toEqual({ NOVAK: 11 });

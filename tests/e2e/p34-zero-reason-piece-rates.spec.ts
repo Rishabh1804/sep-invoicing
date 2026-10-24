@@ -99,7 +99,7 @@ function pieceState(): SepState {
         { partNumber: 'CLAMP 165X83 (NT)', gauge: '40X6', rate: 5.11, effectiveFrom: '2026-09-11' },
         { partNumber: '150X88X3', gauge: '', rate: 1.67, effectiveFrom: '2026-04-01' },
       ] },
-    { id: 1, name: 'DORABJI AUTO', billingMode: 'weight', gstType: 'intra', gstin: '',
+    { id: 1, name: 'DELTA AUTO', billingMode: 'weight', gstType: 'intra', gstin: '',
       rates: [{ ratePerKg: 13.75, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [] },
   ] as any;
   return s;

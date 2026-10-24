@@ -33,7 +33,7 @@ function invoice(part: string, dayAgo: number, opts: { qty?: number; rate?: numb
     status: 'active',
     invoiceState: 'filed',
     clientId: opts.clientId ?? 1,
-    clientName: opts.clientId === 2 ? 'DORABJI AUTO' : 'SSSMEHTA',
+    clientName: opts.clientId === 2 ? 'DELTA AUTO' : 'SSSMEHTA',
     clientGSTIN: '',
     clientAddress: { add1: '', add2: '', add3: '', state: 'JHARKHAND', stateCode: '20' },
     gstType: 'intra',
@@ -52,12 +52,12 @@ function perfState(invoices: unknown[], im: unknown[] = []): SepState {
   s.clients = [
     { id: 1, name: 'SSSMEHTA', billingMode: 'weight', gstType: 'intra', gstin: '', address: '', isActive: true,
       rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [] },
-    { id: 2, name: 'DORABJI AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', address: '', isActive: true,
+    { id: 2, name: 'DELTA AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', address: '', isActive: true,
       rates: [{ ratePerKg: 13, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [] },
   ] as never;
   s.invoices = invoices;
-  // seed.js fills an empty incomingMaterial with 50 demo challans, so a spec
-  // about cadence has to hand it something or measure the seed instead.
+  // seed.js filled an empty incomingMaterial with 50 demo challans until 22 Oct 2026 (HR-10), so a
+  // spec about cadence handed it something or measured the seed instead.
   s.incomingMaterial = im.length > 0 ? im : noSeedIM();
   s.defaultCostPerKg = 8.55;
   return s;
@@ -178,19 +178,19 @@ test('P22: a part that only ever arrived says so instead of showing zero revenue
 test('P22: the view is scoped to one client and switches between them', async ({ page }) => {
   const invoices = [
     ...[60, 40, 20, 5].map((d) => invoice('MEHTA PART', d)),
-    ...[60, 40, 20, 5].map((d) => invoice('DORABJI PART', d, { clientId: 2, rate: 13 })),
+    ...[60, 40, 20, 5].map((d) => invoice('DELTA PART', d, { clientId: 2, rate: 13 })),
   ];
   await loadAppWithState(page, perfState(invoices));
   await openPerf(page);
 
   // Defaults to the largest account by revenue, which is the one worth watching.
   await expect(page.locator('#cpClientSelect')).toHaveValue('2');
-  await expect(page.locator('#clientPerfArea')).toContainText('DORABJI PART');
+  await expect(page.locator('#clientPerfArea')).toContainText('DELTA PART');
   await expect(page.locator('#clientPerfArea')).not.toContainText('MEHTA PART');
 
   await page.locator('#cpClientSelect').selectOption('1');
   await expect(page.locator('#clientPerfArea')).toContainText('MEHTA PART');
-  await expect(page.locator('#clientPerfArea')).not.toContainText('DORABJI PART');
+  await expect(page.locator('#clientPerfArea')).not.toContainText('DELTA PART');
 });
 
 test('P22: month on month can be read as revenue, tonnage or realisation', async ({ page }) => {

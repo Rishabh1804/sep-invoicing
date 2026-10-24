@@ -161,7 +161,7 @@ function _cinput(id, value, cls, extra) {
 
 /* A card on the client (rates, piece rates, piece weights): its rows, then the form that adds to it. A card of more
    than CLIENT_CARD_FOLD rows folds to its head, which gives its count (open or shut remembered on the device): SSS
-   Mehta's piece rates and Dorabji's piece weights, one row per part, ran the sheet far past a screen (owner, 29 Sep
+   Mehta's piece rates and a kilo client's piece weights, one row per part, ran the sheet far past a screen (owner, 29 Sep
    2026; UX overhaul 2, step 6). */
 var CLIENT_CARD_FOLD = 5;
 function _clientCardHtml(title, count, rowsHtml, bodyHtml, id) {
@@ -246,7 +246,7 @@ function _clientDocDefaultsHtml(c) {
     '<div class="inv-field"><label class="inv-field-label" for="ceditTransport">Vehicle no.</label>' +
     _cinput('ceditTransport', c.defaultTransport || '', 'inv-id', ' placeholder="JH 05XX 0000" autocomplete="off"') + '</div>' +
     '<div class="inv-field"><label class="inv-field-label" for="ceditPoTpl">P.O. from the challan no.</label>' +
-    _cinput('ceditPoTpl', c.poFromChallan || '', 'inv-id', ' placeholder="DA1/{challan:5}" autocomplete="off" data-client-id="' + c.id + '"') +
+    _cinput('ceditPoTpl', c.poFromChallan || '', 'inv-id', ' placeholder="PO/{challan:5}" autocomplete="off" data-client-id="' + c.id + '"') +
     '<div class="inv-field-hint">{challan} is the challan number; {challan:5} pads it to five digits.</div>' +
     '<div class="inv-field-hint inv-id" id="ceditPoEx">' + escHtml(_clientPoExampleText(c, c.poFromChallan)) + '</div></div>' +
     '</div></div></div>';
@@ -861,7 +861,7 @@ function _pieceWeightsEditHtml(c) {
   }).join('') || '<div class="inv-empty">No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.</div>';
   var body = (_weightFillReport && _weightFillReport.clientId === c.id ? _weightFillReportHtml(_weightFillReport) : '') +
     '<div class="inv-panel-body"><div class="inv-fields">' +
-    _cfield('ceditWtPart', 'Part', '<input class="inv-input inv-id" id="ceditWtPart" placeholder="2525 2015 8202">') +
+    _cfield('ceditWtPart', 'Part', '<input class="inv-input inv-id" id="ceditWtPart" placeholder="BRACKET 101">') +
     _cfield('ceditWtGauge', 'Gauge', '<input class="inv-input inv-id" id="ceditWtGauge" placeholder="(if any)">') +
     _cfield('ceditWtKg', 'kg per piece', '<input class="inv-input inv-input-num" id="ceditWtKg" type="number" step="0.0001" min="0">') +
     _cfield('ceditWtDate', 'Effective from', '<input class="inv-input inv-id" id="ceditWtDate" type="date" value="' + localDateStr() + '">') +

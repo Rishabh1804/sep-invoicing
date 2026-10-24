@@ -735,7 +735,7 @@ function bankOpeningFor(clientId, from) {
    "most of April payment is actually of March job work"). The shop's fastest payer settles 15-20 days after the
    invoice; the rest pay monthly. So money that reaches the bank before a client's first invoice in the book is 20
    days old paid work from before the book. Measured on the real book, 20 days is the one window that takes every
-   such receipt (SSS Mehta 13 Apr, Dorabji 18 Apr, HighCo 29 Apr, RG before its first invoice) and none that paid
+   such receipt (SSS Mehta 13 Apr, another client 18 Apr, HighCo 29 Apr, RG before its first invoice) and none that paid
    April (SSS Mehta's 5 May, day 20). A receipt before the client's first invoice counts whenever it came; one after
    it counts only for a client already billing when the book began (first invoice within 45 days of the start),
    since a new client's first payment pays its first invoice. A floor, not the answer: money owed at the start and

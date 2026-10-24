@@ -32,7 +32,7 @@ test.describe('P86: matching and learning', () => {
       prodKey(11, 'CLAMP 165X83(40X6)', '40X6') === prodChallanKey({ clientId: 11 }, { partNumber: 'CLAMP165×83 (40×6)', desc: '' }),
       prodKey(11, 'CLAMP 165X83 (40X6)', '40X6') === prodKey(11, 'CLAMP 165X83 (35X6)', '35X6'),
       prodFamilyKey(11, 'CLAMP(40X6)', '40X6') === prodFamilyKey(11, 'CLAMP 165X83 (40X6)', '40X6'),
-      prodIsGeneric('CLAMP(40X6)'), prodIsGeneric('BOX CLAMP'), prodIsGeneric('0140'), prodIsGeneric('CLAMP 165X83(40X6)')
+      prodIsGeneric('CLAMP(40X6)'), prodIsGeneric('BOX CLAMP'), prodIsGeneric('0740'), prodIsGeneric('CLAMP 165X83(40X6)')
     ]`);
     expect(r).toEqual([true, false, true, true, true, false, false]);
   });

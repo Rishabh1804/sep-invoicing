@@ -54,14 +54,14 @@ test.describe('P220: the barrel list and stock messages of October 2026', () => 
     const d = when(-1);
     const m = await read(page, `${d.dmy}, 5:11 pm - Supervisor: ${d.dmy}/ BERRAL PRODUCTION
 ---------------------------------
-KESTREL 150 KG 10:30 AM UNLOAD
+KESTREL 120 KG 10:15 AM UNLOAD
 --------------------------------
-KESTREL 100 KG 11:30 AM UNLOAD
+KESTREL 90 KG 11:45 AM UNLOAD
 ---------------------------------
-DURGA 1040-341 NOS +0108-600 NOS
-1:00 PM UNLOAD
+DURGA 7311-260 NOS +7313-450 NOS
+1:10 PM UNLOAD
 -----------------------------------
-DURGA 4202-210 NOS 2:20 PM UNLOAD
+DURGA 7314-180 NOS 2:40 PM UNLOAD
 ------------------------------------
 LOADING TIME 4:00 PM 90 CD 70 KG
 40 CD 50 KG GENERAL
@@ -69,8 +69,8 @@ LOADING TIME 4:00 PM 90 CD 70 KG
     expect(m[0].kind).toBe('production');
     const it = m[0].items;
     expect(it.map((x: any) => [x.clientId, x.part, x.qty, x.unit, x.to])).toEqual([
-      [13, '', 150, 'KG', '10:30'], [13, '', 100, 'KG', '11:30'],
-      [12, '1040', 341, 'NOS', '13:00'], [12, '0108', 600, 'NOS', '13:00'], [12, '4202', 210, 'NOS', '14:20']]);
+      [13, '', 120, 'KG', '10:15'], [13, '', 90, 'KG', '11:45'],
+      [12, '7311', 260, 'NOS', '13:10'], [12, '7313', 450, 'NOS', '13:10'], [12, '7314', 180, 'NOS', '14:40']]);
     it.forEach((x: any) => expect(x).toMatchObject({ kind: 'plated', line: 'barrel', date: d.iso }));
     // Loaded for the night: listed, never counted here (the next list counts it when it comes out).
     expect(m[0].notes.filter((n: string) => /^Loaded at 4 PM/.test(n))).toHaveLength(2);

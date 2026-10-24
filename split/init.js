@@ -5,33 +5,10 @@
    Bootstrap-only by design (see CLAUDE.md, Persistence): a pull or an import
    never re-fires them. Runs from bootApp() once S exists. */
 function runBootstrapSeeds() {
-/* Phase 4: Seed NOS qty on Dorabji + Highco IM items (one-time migration) */
-if (S.incomingMaterial && S.incomingMaterial.length > 0 && !S._nosQtySeeded) {
-  var nosMap = {"IMI-0001-0":198,"IMI-0001-1":172,"IMI-0002-0":395,"IMI-0002-1":30,"IMI-0002-2":100,"IMI-0003-0":196,"IMI-0004-0":475,"IMI-0004-1":200,"IMI-0005-0":444,"IMI-0005-1":100,"IMI-0005-2":100,"IMI-0006-0":215,"IMI-0007-0":290,"IMI-0008-0":388,"IMI-0008-1":76,"IMI-0008-2":100,"IMI-0009-0":1464,"IMI-0010-0":294,"IMI-0010-1":200,"IMI-0011-0":178,"IMI-0012-0":200,"IMI-0013-0":100,"IMI-0014-0":280,"IMI-0014-1":150,"IMI-0015-0":602,"IMI-0015-1":50,"IMI-0016-0":246,"IMI-0016-1":510,"IMI-0016-2":108,"IMI-0017-0":270,"IMI-0018-0":157,"IMI-0019-0":70,"IMI-0019-1":148,"IMI-0050-0":80};
-  S.incomingMaterial.forEach(function(im) {
-    im.items.forEach(function(it) {
-      if (nosMap[it.id] != null) it.nosQty = nosMap[it.id];
-    });
-  });
-  S._nosQtySeeded = true;
-  saveJSON(STORAGE_KEY, S);
-}
-
-/* Phase 4: Seed 7 scanned challans from Apr 8-9 delivery challan photos */
-if (!S._scanSeed1) {
-  var scanned = [
-    {"id":"IM-SC-036","challanNo":"36","challanDate":"2026-04-08","clientId":1,"clientName":"DORABJI AUTO","vehicleNo":"JH 05BZ 9693","items":[{"id":"IM-SC-036-0","partNumber":"5069 4370 0108","desc":"Bracket 5069 4370 0108 (Kanghi)","hsn":"998873","unit":"KG","qty":60.4,"rate":13,"amount":785.2,"nosQty":592,"invoiced":false,"invoiceId":null},{"id":"IM-SC-036-1","partNumber":"5079 5470 0101","desc":"Bracket 5079 5470 0101 (Chidiya)","hsn":"998873","unit":"KG","qty":64.1,"rate":13,"amount":833.3,"nosQty":504,"invoiced":false,"invoiceId":null},{"id":"IM-SC-036-2","partNumber":"5181 4370 0105","desc":"Bracket 5181 4370 0105","hsn":"998873","unit":"KG","qty":46.4,"rate":13,"amount":603.2,"nosQty":197,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-08","notes":"","createdAt":1775721660000},
-    {"id":"IM-SC-037","challanNo":"37","challanDate":"2026-04-08","clientId":1,"clientName":"DORABJI AUTO","vehicleNo":"JH 05BZ 9693","items":[{"id":"IM-SC-037-0","partNumber":"2525 2015 8202","desc":"Bracket 2525 2015 8202","hsn":"998873","unit":"KG","qty":1.7,"rate":13,"amount":22.1,"nosQty":8,"invoiced":false,"invoiceId":null},{"id":"IM-SC-037-1","partNumber":"5737 0117 3304","desc":"Bracket 5737 0117 3304","hsn":"998873","unit":"KG","qty":57.1,"rate":13,"amount":742.3,"nosQty":1019,"invoiced":false,"invoiceId":null},{"id":"IM-SC-037-2","partNumber":"5567 5450 0103","desc":"Bracket 5567 5450 0103","hsn":"998873","unit":"KG","qty":10.2,"rate":13,"amount":132.6,"nosQty":17,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-08","notes":"","createdAt":1775721661000},
-    {"id":"IM-SC-038","challanNo":"38","challanDate":"2026-04-08","clientId":1,"clientName":"DORABJI AUTO","vehicleNo":"JH 05DN 6730","items":[{"id":"IM-SC-038-0","partNumber":"2715 2671 0140","desc":"Bracket 2715 2671 0140 (New Material)","hsn":"998873","unit":"KG","qty":105.5,"rate":13,"amount":1371.5,"nosQty":300,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-08","notes":"","createdAt":1775721662000},
-    {"id":"IM-SC-039","challanNo":"39","challanDate":"2026-04-08","clientId":1,"clientName":"DORABJI AUTO","vehicleNo":"JH 05DL 3376","items":[{"id":"IM-SC-039-0","partNumber":"5181 4370 0105","desc":"Bracket 5181 4370 0105","hsn":"998873","unit":"KG","qty":23.2,"rate":13,"amount":301.6,"nosQty":98,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-08","notes":"","createdAt":1775721663000},
-    {"id":"IM-SC-041","challanNo":"41","challanDate":"2026-04-09","clientId":1,"clientName":"DORABJI AUTO","vehicleNo":"JH 05DL 4176","items":[{"id":"IM-SC-041-0","partNumber":"5152 4370 3301","desc":"Twist Bracket 5152 4370 3301","hsn":"998873","unit":"KG","qty":23.8,"rate":13,"amount":309.4,"nosQty":100,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-09","notes":"","createdAt":1775721664000},
-    {"id":"IM-SC-M41","challanNo":"41","challanDate":"2026-04-08","clientId":2,"clientName":"SSSMEHTA ENTERPRISES AND INDUSTRIES PVT LTD","vehicleNo":"JH 05DR 2505","items":[{"id":"IM-SC-M41-0","partNumber":"Clamp 106x81","desc":"Clamp 106x81 (25x6)","hsn":"998873","unit":"NOS","qty":237,"rate":2.24,"amount":530.88,"nosQty":237,"invoiced":false,"invoiceId":null},{"id":"IM-SC-M41-1","partNumber":"Clamp 74x81","desc":"Clamp 74x81 (25x6)","hsn":"998873","unit":"NOS","qty":240,"rate":1.81,"amount":434.4,"nosQty":240,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-08","notes":"","createdAt":1775721665000},
-    {"id":"IM-SC-M43","challanNo":"43","challanDate":"2026-04-09","clientId":2,"clientName":"SSSMEHTA ENTERPRISES AND INDUSTRIES PVT LTD","vehicleNo":"JH 05DR 2505","items":[{"id":"IM-SC-M43-0","partNumber":"Clamp 133x83","desc":"Clamp 133x83 (40x6)","hsn":"998873","unit":"NOS","qty":358,"rate":4.24,"amount":1517.92,"nosQty":358,"invoiced":false,"invoiceId":null},{"id":"IM-SC-M43-1","partNumber":"Clamp 165x83","desc":"Clamp 165x83 (40x6)","hsn":"998873","unit":"NOS","qty":365,"rate":4.89,"amount":1784.85,"nosQty":365,"invoiced":false,"invoiceId":null},{"id":"IM-SC-M43-2","partNumber":"Clamp 181x83","desc":"Clamp 181x83 (40x6)","hsn":"998873","unit":"NOS","qty":368,"rate":5.06,"amount":1862.08,"nosQty":368,"invoiced":false,"invoiceId":null}],"receivedDate":"2026-04-09","notes":"","createdAt":1775721666000}
-  ];
-  scanned.forEach(function(ch) { S.incomingMaterial.push(ch); });
-  S._scanSeed1 = true;
-  saveState();
-}
+/* The two seeds that once stood here (`_nosQtySeeded`, `_scanSeed1`) and the 50 demo challans of seed.js wrote real
+   challans, part numbers, vehicles and quantities into an empty book. They came out on 22 Oct 2026 (owner: this
+   repository and its page are public, data.js). Every book that ran them
+   keeps what they wrote and its flags; a new device starts empty and takes its book from a backup or GitHub. */
 
 /* Phase 6b: Remove Belrise trading items (rate > 25) — one-time cleanup.
 
@@ -66,12 +43,13 @@ if (!S._rateCleanup1) {
    it against your own, and running it twice is a no-op. A SEED writes new
    business records, and a one-time data cleanup DELETES them: neither is safe
    to fire at an imported state, because the incoming flags describe the device
-   that wrote the backup and not the records in it. Re-running `_scanSeed1`
-   against a pull would push seven challans a second time — into the one app in
-   this repo with a whole module devoted to duplicate receipts.
+   that wrote the backup and not the records in it. Re-running the old challan
+   seed against a pull would have pushed seven challans a second time — into the
+   one app in this repo with a whole module devoted to duplicate receipts.
 
-   So the seeds (`_nosQtySeeded`, `_scanSeed1`) and the Belrise rate cleanup
-   (`_rateCleanup1`) stay above this line, bootstrap-only, deliberately. */
+   So the Belrise rate cleanup (`_rateCleanup1`) stays above this line,
+   bootstrap-only, deliberately, and so would any seed (none is left: a client's
+   records are never written into the build, data.js). */
 function migrateState() {
 
 /* Phase 5: Migrate existing invoices to lifecycle states */
@@ -458,28 +436,10 @@ if (!S._cnSeriesStart1) {
   }
 })();
 
-/* ===== DORABJI AUTO'S VEHICLE AND PO, AS CLIENT SETTINGS =====
-
-   Owner, 27 Sep 2026: Dorabji Auto is despatched through one vehicle, and its PO is its challan
-   number as DA1/xxxxx. Measured on the book: one vehicle on nearly every invoice, and the PO equal to
-   DA1/ + the challan number in five digits on nearly every invoice that has one. So the client gets
-   the two settings the invoice form reads (`defaultTransport`, `poFromChallan`).
-
-   A structural default on a record the state already holds, never business data: it is set ONLY
-   where both are empty, and once — the flag travels with the state, so a device (or a pulled copy)
-   where the owner cleared them keeps them cleared, and a value the owner typed is never touched.
-   Idempotent, so it runs on a pull and an import as well as the loader. */
-(function() {
-  if (S._clientDocDefaults1) return;
-  (S.clients || []).forEach(function(c) {
-    if (String(c.name || '').trim().toUpperCase() !== 'DORABJI AUTO') return;
-    if (String(c.defaultTransport || '').trim() || String(c.poFromChallan || '').trim()) return;
-    c.defaultTransport = 'JH 05DN 6730';
-    c.poFromChallan = 'DA1/{challan:5}';
-  });
-  S._clientDocDefaults1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
+/* A client's own vehicle and P.O. pattern (`defaultTransport`, `poFromChallan`) are settings typed on the client
+   (Client → Edit → On every new invoice). A once-only migration here set them on one client by name, with its
+   vehicle and its P.O. pattern written into the build (`_clientDocDefaults1`); it came out on 22 Oct 2026 with the
+   other client records the build held (data.js). Every book it ran on keeps the settings it wrote. */
 
 /* ===== SSS MEHTA'S CLAMP GAUGE BY THE ROUND, RECORDED ONCE =====
    Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
@@ -617,8 +577,8 @@ if (!S._cnSeriesStart1) {
 })();
 
 /* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
-   A load written with its code alone ("DORABJI / 4206-1000") read as no part, and sat on the floor with no challan open
-   (P127: 8 of 8 real Dorabji loads, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already
+   A load written with its code alone ("DELTA AUTO / 4242-1000") read as no part, and sat on the floor with no challan open
+   (P127: 8 of 8 real loads of one client, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already
    held are matched once, as a register's or an import's are. The flag travels with the state. */
 (function() {
   if (S._prodBareCodes1) return;
@@ -867,7 +827,6 @@ function bootStep(what, fn) {
 }
 
 function bootApp() {
-  bootStep('the demo challans', seedIncomingMaterial);
   bootStep('the first-run records', runBootstrapSeeds);
   bootStep('bringing the book up to date', migrateState);
   // A device the book says was removed forgets its GitHub token; a token that would not read is said (devices.js).

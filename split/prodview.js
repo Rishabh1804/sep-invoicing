@@ -1168,7 +1168,7 @@ function prodSaveReview() {
     if (k && pick !== undefined && pick !== 'asWritten' && how !== 'unknown' && how !== 'exact') { if (p.learn.clients[k] !== pick) { p.learn.clients[k] = pick; learnt++; } }
     else if (k && pick === 'asWritten' && how === 'learnt') delete p.learn.clients[k];
     else if (k && pick === undefined && it.issues.some(function(x) { return x.code === 'readas'; }) && it.clientId != null) { if (!(k in p.learn.clients)) { p.learn.clients[k] = it.clientId; learnt++; } }
-    // A code the floor writes ("4206", "TINA(0160)") is matched to the client's part, as a register's or a hand entry's is.
+    // A code the floor writes ("4706", "TINA(0760)") is matched to the client's part, as a register's or a hand entry's is.
     if (e.clientId != null && e.kind !== 'downtime') prodLearnAliases([e]);
     p.entries.push(prodSparse(e));
     n++;

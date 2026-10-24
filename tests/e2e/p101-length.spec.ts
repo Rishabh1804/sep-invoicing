@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, type SepState } from './fixtures';
 
 // P101: how much a screen shows (UX overhaul 2, step 6; owner, 29 Sep 2026: "clients detail is also one of those screens -
-// Mehta and Dorabji scroll too far because they have many material IDs"). A long list shows its first rows and one row
+// Mehta and [another client] scroll too far because they have many material IDs"). A long list shows its first rows and one row
 // saying how many more, which shows them in place; group heads go with their rows; totals and counts cover the whole.
 // A card of more than five rows on the client folds to its head; the fold is remembered on the device.
 

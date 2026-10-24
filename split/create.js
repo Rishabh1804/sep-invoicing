@@ -178,7 +178,7 @@ function renderCreateForm() {
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
     const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
     // The field holds the PART NUMBER, as the challan form's does: it showed the description, and a keystroke made
-    // that text the part number ("BRACKET" for 2715 2671 0140), which then travelled back to the challan as a
+    // that text the part number ("BRACKET" for a numbered part), which then travelled back to the challan as a
     // correction. The description, when it says more than the number, is said under the line.
     html += '<div class="inv-line"><span class="inv-line-num">' + (idx + 1) + '</span>' +
       lineField('Part', '<div class="inv-combo">' +
@@ -273,7 +273,7 @@ function renderCreateForm() {
 
 /* ===== THE CLIENT'S OWN VEHICLE AND PO =====
    A client whose invoices always carry the same vehicle, or a PO made from the challan number
-   (Dorabji Auto: DA1/ + the challan number in five digits), has them as settings on the client
+   (a prefix and the challan number in five digits), has them as settings on the client
    (`defaultTransport`, `poFromChallan`; state.js). A new invoice for it — the client chosen, a challan
    ticked, IM → Create invoice, a reissue — takes them into the field when it is empty or was itself
    filled this way (`invoiceForm._auto`): a typed value is the operator's for good. An auto PO follows

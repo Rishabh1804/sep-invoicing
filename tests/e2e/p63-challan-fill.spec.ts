@@ -13,7 +13,7 @@ function state(): SepState {
   s.clients = [
     { id: 1, name: 'KILO WORKS', billingMode: 'weight', gstType: 'intra', gstin: '', address: '', isActive: true,
       rates: [{ ratePerKg: 14, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [],
-      pieceWeights: [{ partNumber: 'BRKT 9', gauge: '', kgPerPiece: 0.448, effectiveFrom: '2020-04-01' }] },
+      pieceWeights: [{ partNumber: 'BRKT 9', gauge: '', kgPerPiece: 0.375, effectiveFrom: '2020-04-01' }] },
     { id: 2, name: 'PIECE PLANT', billingMode: 'piece', gstType: 'intra', gstin: '', address: '', isActive: true,
       rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [],
       pieceRates: [{ partNumber: 'C-CLAMP 66X42', gauge: '30X6', rate: 1.49, effectiveFrom: '2020-04-01' }],
@@ -93,12 +93,12 @@ test('a difference under the flag saves without a reason', async ({ page }) => {
 test('pieces on a weight line fill the kilograms from kg/pc, never over a figure typed', async ({ page }) => {
   await loadAppWithState(page, state());
   await openChallan(page, 'KILO', 'BRKT 9');
-  await expect(page.locator('#imFill0')).toContainText('0.448 kg/pc (client card)');
+  await expect(page.locator('#imFill0')).toContainText('0.375 kg/pc (client card)');
   await line(page, 'nosQty').fill('100');
-  await expect(line(page, 'qty')).toHaveValue('44.800');
-  await expect(line(page, 'amount')).toHaveValue('627.20');
-  await line(page, 'qty').fill('50');           // typed: 50 kg against 49.28 for 110 pcs is within ±3%
+  await expect(line(page, 'qty')).toHaveValue('37.500');
+  await expect(line(page, 'amount')).toHaveValue('525.00');
+  await line(page, 'qty').fill('42');           // typed: 42 kg against 41.25 for 110 pcs is within ±3%
   await line(page, 'nosQty').fill('110');
-  await expect(line(page, 'qty')).toHaveValue('50');
+  await expect(line(page, 'qty')).toHaveValue('42');
   await expect(page.locator('#imFlag0 [data-flag]')).toHaveCount(0);
 });

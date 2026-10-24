@@ -363,12 +363,12 @@ test('I8: a cancelled credit note prints CANCELLED', async ({ page }) => {
 
 test('I9: kilograms held to three places print to three places', async ({ page }) => {
   await loadAppWithState(page, book([inv(1, { items: [
-    { partNumber: 'P1', desc: 'Sample', hsn: '998873', unit: 'KG', qty: 150.274, rate: 13, amount: 1953.56, nosQty: null },
+    { partNumber: 'P1', desc: 'Sample', hsn: '998873', unit: 'KG', qty: 151.125, rate: 13, amount: 1964.63, nosQty: null },
     { partNumber: 'P2', desc: 'Other', hsn: '998873', unit: 'KG', qty: 10, rate: 13, amount: 130, nosQty: null },
   ] })]));
   await g(page, "showPrintPreview('INV-1')");
   const rows = page.locator('.inv-print-invoice').first().locator('.inv-pi-table tbody tr');
-  await expect(rows.nth(0).locator('td').nth(4)).toHaveText('150.274');
+  await expect(rows.nth(0).locator('td').nth(4)).toHaveText('151.125');
   await expect(rows.nth(1).locator('td').nth(4)).toHaveText('10.00');
 });
 

@@ -76,13 +76,13 @@ reopened the tab last used); measure it at step 6.
 5. **Keyboard.** `N` new invoice, `C` new challan, `G` then a letter to jump (`G R` Register), `J`/`K` through a list,
    Enter to open, Esc to close a pane, `?` for the list. None of them fire while a field has focus.
 6. **The length pass. Built** (P101; owner, 29 Sep 2026, brought forward: *"clients detail is also one of those screens -
-   Mehta and Dorabji scroll too far because they have many material IDs"*). Measured again on the 11 Sep book and the 18 Sep
+   Mehta and [another client] scroll too far because they have many material IDs"*). Measured again on the 11 Sep book and the 18 Sep
    statement, locally, counts only (phone screens; desktop in brackets):
 
    | Screen | Before | After | What changed |
    |---|---:|---:|---|
    | Clients → Performance, SSS Mehta | 23.5 (15.8) | 5.3 (4.2) | Materials: ten of each group (Mehta has 101 stopped parts), One-off none until asked |
-   | Clients → Performance, Dorabji | 8.3 (6.3) | 4.6 (3.9) | the same |
+   | Clients → Performance, a kilo client | 8.3 (6.3) | 4.6 (3.9) | the same |
    | Finance → Bank | 18.4 (18.2) | 3.3 (3.1) | the statement's latest thirty rows |
    | Staff → Pay | 10.1 (9.7) | 5.4 (5.0) | *Wages paid, from the bank* folds, open when a leg is off its slip; three months, four weeks |
    | Finance → Payments | 7.1 (6.8) | one line | the wages card is one line that opens Staff → Pay (one fact, one screen) |

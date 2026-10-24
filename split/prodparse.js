@@ -374,10 +374,10 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
    a batch a block between dashed lines, each with what came out of the barrel and when it was unloaded, and at the
    end what went in for the night, unloaded the next morning and listed again on the next day's list:
      15/10/26/ BERRAL PRODUCTION
-     KHURANA 150 KG 10:30 AM UNLOAD
+     KESTREL 120 KG 10:15 AM UNLOAD
      ----------------
-     DELTA 4242-340 NOS +0420-600 NOS
-     1:00 PM UNLOAD
+     DELTA 7311-260 NOS +7313-450 NOS
+     1:10 PM UNLOAD
      ----------------
      LOADING TIME 4:00 PM 90 CD 70 KG
      40 CD 50 KG GENERAL

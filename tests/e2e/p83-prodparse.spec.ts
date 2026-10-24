@@ -52,7 +52,7 @@ test.describe('P83: production messages', () => {
 CLAMP133×83(35×6)-774 nos
 Pickling Time 9:00AM
 ${d.dmy}, 11:05 am - Pickler: Durga auto
-0140- 300 nos
+0740- 300 nos
 KESTREL ENGINEERS
 WASHER--1,245 nos
 Pickling time 10:30
@@ -67,7 +67,7 @@ Pickling time 2:00am`);
     expect(a.codes).toEqual([]);
     // Two clients under one time; "1,245" is a thousand, not a list; no AM/PM is read from when it was sent.
     const [b, c] = msgs[1].items;
-    expect(b).toMatchObject({ clientId: 12, part: '0140', qty: 300, time: '10:30' });
+    expect(b).toMatchObject({ clientId: 12, part: '0740', qty: 300, time: '10:30' });
     expect(c).toMatchObject({ clientId: 13, part: 'WASHER', qty: 1245, time: '10:30' });
     expect(b.codes).toContain('info:meridiem');
     // Since August over half the loads carry no quantity: kept as a load, qty unknown. "2:00am" posted at 3 pm is 2 pm.
@@ -140,14 +140,14 @@ Pickling time 10:40am`);
 GENERAL FORGE 90 CD 60 KG
 --------------- 3 HOL 45 KG
 Durga auto
-0101--995 NOS ,96.970Kg`);
+0701--995 NOS ,96.970Kg`);
     expect(msgs[0].kind).toBe('production');
     const items = msgs[0].items;
     expect(items).toHaveLength(3);
     items.forEach(it => expect(it).toMatchObject({ kind: 'plated', line: 'barrel', slot: 'day', basis: 'relay', date: d.iso }));
     expect(items[0]).toMatchObject({ clientId: 14, part: '90 CD', qty: 60, unit: 'KG' });
     expect(items[1]).toMatchObject({ clientId: 14, part: '3 HOL', qty: 45, unit: 'KG' });
-    expect(items[2]).toMatchObject({ clientId: 12, part: '0101', qty: 995, unit: 'NOS' });
+    expect(items[2]).toMatchObject({ clientId: 12, part: '0701', qty: 995, unit: 'NOS' });
     // The older timed log counted barrels, not pieces: listed, never read.
     const old = await read(page, `${d.dmy}, 6:00 pm - Supervisor: berral production
 Unlod time 10:00am
@@ -207,7 +207,7 @@ Pickling Time 109:00AM`);
 1) ARUN
 2) BALA
 ----production----
-Durga auto 0101--400 nos`);
+Durga auto 0701--400 nos`);
     expect(msgs[0].kind).toBe('roll');
     const [it] = msgs[0].items;
     expect(it).toMatchObject({ kind: 'plated', slot: 'ot', basis: 'relay', line: null, lineHint: 'barrel', clientId: 12, qty: 400, to: '20:00' });
@@ -223,8 +223,8 @@ Durga auto 0101--400 nos`);
         { time: 'START', customer: 'Nova clamps', part: 'CLAMP 165x83', dim: '40x6', qty: null, start: true },
         { time: '9:20', customer: 'Nova clamps', part: 'CLAMP 165x83', dim: '40x6', rackSize: 4, rounds: 27, qty: 108 },
         { time: '10:15', customer: null, part: null, ditto: true, rackSize: 4, rounds: 25, qty: 108 },
-        { time: '2:30', customer: 'Durga auto', part: '0140', qty: 300, struck: true },
-        { time: '3:45', customer: 'Durga auto', part: '0140', qty: 250, over: '205' },
+        { time: '2:30', customer: 'Durga auto', part: '0740', qty: 300, struck: true },
+        { time: '3:45', customer: 'Durga auto', part: '0740', qty: 250, over: '205' },
       ],
     };
     const r = await page.evaluate(({ json, iso }) => {
@@ -272,7 +272,7 @@ VAT A 2
 Durga auto CLAMP
 1360 NOS
 ------berral---extra--work
-Durga--4206-1000 nos`);
+Durga--4706-1000 nos`);
     expect(msgs[0].kind).toBe('roll');
     const it = msgs[0].items.map(x => [x.clientId, x.part, x.qty, x.to, x.lineHint || null, x.slot]);
     expect(it).toEqual([
@@ -280,7 +280,7 @@ Durga--4206-1000 nos`);
       [11, '3301', 600, '06:00', 'vat-a2', 'ot'],
       [11, '0102', 700, '06:00', 'vat-a2', 'ot'],
       [12, 'CLAMP', 1360, '06:00', 'vat-a2', 'ot'],
-      [12, '4206', 1000, '06:00', 'barrel', 'ot'],
+      [12, '4706', 1000, '06:00', 'barrel', 'ot'],
     ]);
   });
 
@@ -293,7 +293,7 @@ Durga--4206-1000 nos`);
 ${d.dmy}, 4:54 pm - Pickler: IMG-20260922-WA0002.jpg (file attached)
 ${d.dmy}, 9:40 am - Pickler: Incoming Material time 9:00Am
 Durga auto
-0140--300 Nos
+0740--300 Nos
 ${d.dmy}, 10:40 am - Pickler: BIG LINER--200 nos
 Pickling time 10:30am`);
     expect(msgs.map(m => m.kind)).toEqual(['other', 'pickling', 'pickling']);

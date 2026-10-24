@@ -232,9 +232,10 @@ test('a migration that throws leaves storage as it was, not half-migrated', asyn
 
 test('a pull does not re-fire the seeds against someone else’s records', async ({ page }) => {
   // The incoming flags describe the device that WROTE the backup, not the
-  // records in it. Re-running the challan seed on a pull would push seven
-  // challans a second time — into the one app in this repo with a whole
-  // module devoted to duplicate receipts.
+  // records in it. Re-running the challan seed on a pull would have pushed
+  // seven challans a second time — into the one app in this repo with a whole
+  // module devoted to duplicate receipts. The seeds are gone (HR-10); a pull
+  // still writes no challan of its own.
   const noFlags = unmigratedAreaState() as Record<string, unknown>;
   delete noFlags._scanSeed1;
   delete noFlags._nosQtySeeded;

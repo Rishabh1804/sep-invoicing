@@ -289,9 +289,9 @@ test('P19: a batch under a week warns but is not blocked', async ({ page }) => {
 });
 
 test('P19: a selection spanning two customers is refused, with the reason', async ({ page }) => {
-  const s = mehtaState([invoice(1, { date: daysAgoIso(10) }), invoice(2, { clientId: 2, clientName: 'DORABJI AUTO' })]);
+  const s = mehtaState([invoice(1, { date: daysAgoIso(10) }), invoice(2, { clientId: 2, clientName: 'DELTA AUTO' })]);
   (s.clients as unknown[]).push({
-    id: 2, name: 'DORABJI AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', address: '',
+    id: 2, name: 'DELTA AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', address: '',
     rates: [{ ratePerKg: 13, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [],
   } as never);
   await loadForBatch(page, s);

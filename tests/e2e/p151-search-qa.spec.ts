@@ -28,8 +28,8 @@ function seriesBook() {
   s.invoices = [
     ser('S-83', 83, CLIENTS[0], dayOff(-9)), ser('S-834', 834, CLIENTS[0], dayOff(-8)), ser('S-835', 835, CLIENTS[1], dayOff(-7)),
     ser('S-836', 836, CLIENTS[2], dayOff(-6)), ser('S-1234', 1234, CLIENTS[0], dayOff(-5)), ser('S-21', 21, CLIENTS[1], dayOff(-4)),
-    ser('S-950', 950, CLIENTS[2], dayOff(-3), { poNumber: 'DA1/00877', challanNo: '0901/26-27' }),
-    ser('S-87', 87, CLIENTS[2], dayOff(-2), { poNumber: 'DA1/00087' }),
+    ser('S-950', 950, CLIENTS[2], dayOff(-3), { poNumber: 'QX1/00877', challanNo: '0901/26-27' }),
+    ser('S-87', 87, CLIENTS[2], dayOff(-2), { poNumber: 'QX1/00087' }),
   ];
   s.invNextNum = 1235;
   s.incomingMaterial = ['0901/26-27', '0902/26-27', '0903/26-27', '0904/26-27', '0905/26-27', '0906/26-27', '27']
@@ -46,17 +46,17 @@ test.describe('P151: search finds what is asked, whole', () => {
     expect(await titles(page, 'invoice')).toEqual(['SEP/2026-27/00083']);
     await search(page, 'SEP/2026-27/00834');
     expect(await titles(page, 'invoice')).toEqual(['SEP/2026-27/00834']);
-    // A P.O.: DA1/00087 is not the start of DA1/00877, and the other way round.
-    await search(page, 'DA1/00087');
+    // A P.O.: QX1/00087 is not the start of QX1/00877, and the other way round.
+    await search(page, 'QX1/00087');
     expect(await titles(page, 'invoice')).toEqual(['SEP/2026-27/00087']);
-    await search(page, 'DA1/00877');
+    await search(page, 'QX1/00877');
     expect(await titles(page, 'invoice')).toEqual(['SEP/2026-27/00950']);
     // One typed ending in a separator still finds what it begins: all eight invoices of the series (five shown, then Show all).
     await search(page, 'sep/2026-27/');
     await expect(page.locator('#srchG-invoice .inv-num')).toHaveText('8');
   });
 
-  test('QA3-4: a challan is its first number, never its year; DA1 is a word, not the number 1', async ({ page }) => {
+  test('QA3-4: a challan is its first number, never its year; QX1 is a word, not the number 1', async ({ page }) => {
     await loadAppWithState(page, seriesBook());
     await openSearch(page);
     // 27 is challan 27, and only it: the six of 26-27 do not answer to their year.
@@ -69,7 +69,7 @@ test.describe('P151: search finds what is asked, whole', () => {
     expect(await titles(page, 'challan')).toEqual(['Ch. 0901/26-27']);
     await search(page, '0901/26-27');
     expect(await titles(page, 'challan')).toEqual(['Ch. 0901/26-27']);
-    // Invoice 00950 cites challan 0901/26-27 under P.O. DA1/00877: its numbers are its own, 901 and 877, never 26, 27 or 1.
+    // Invoice 00950 cites challan 0901/26-27 under P.O. QX1/00877: its numbers are its own, 901 and 877, never 26, 27 or 1.
     const n = await g(page, `(function(){ var d = srchData(); return d.keys[d.byKey['invoice|S-950']].n; })()`) as string;
     expect(n.trim().split(' ').sort()).toEqual(['877', '901', '950']);
     for (const q of ['26', '27', '1']) {
@@ -236,7 +236,7 @@ test.describe('P151: Add, the rolls and the floor', () => {
 1) ARUN
 2) BALA` + (block ? `
 ----production----
-Durga auto 0101--400 nos` : '');
+Durga auto 0701--400 nos` : '');
   // An ordinary roll, for the stock beside it (QA3-10 is not about the head).
   const ROLL = () => `${dmy(-1)}/ in time
 ----VAT A 1----

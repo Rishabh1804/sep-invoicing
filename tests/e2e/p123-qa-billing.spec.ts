@@ -88,10 +88,10 @@ const BEFORE_FY = `${FY}-03-31`;   // the day before this series' year begins
 
 test('G1-1: the invoice line shows its part number, and a keystroke never turns the description into the part', async ({ page }) => {
   await loadAppWithState(page, book({ incomingMaterial: [challan('IM-71', 1, [
-    { id: 'IM-71-0', partNumber: '2715 2671 0140', desc: 'BRACKET', unit: 'KG', qty: 50, rate: 13, amount: 650 }])] }));
+    { id: 'IM-71-0', partNumber: '9106 0000 0740', desc: 'BRACKET', unit: 'KG', qty: 50, rate: 13, amount: 650 }])] }));
   await pickChallan(page, 'kestrel', 'IM-71');
   const part = page.locator('input[data-action="invEditLinePart"][data-idx="0"]');
-  await expect(part).toHaveValue('2715 2671 0140');
+  await expect(part).toHaveValue('9106 0000 0740');
   await expect(page.locator('#invDesc0 [data-line-desc]')).toContainText('BRACKET');
 
   // A space typed and taken back out.
@@ -99,14 +99,14 @@ test('G1-1: the invoice line shows its part number, and a keystroke never turns 
   await part.press('End');
   await part.pressSequentially(' ');
   await part.press('Backspace');
-  expect(await g(page, 'JSON.stringify([invoiceForm.items[0].partNumber, invoiceForm.items[0].desc])')).toBe(JSON.stringify(['2715 2671 0140', 'BRACKET']));
+  expect(await g(page, 'JSON.stringify([invoiceForm.items[0].partNumber, invoiceForm.items[0].desc])')).toBe(JSON.stringify(['9106 0000 0740', 'BRACKET']));
   await g(page, 'dismissAllAutocomplete()');
   await page.locator('#invSaveBtn').click();
   await expect.poll(() => invoiceCount(page)).toBe(1);
   const st = await readStoredState(page);
-  expect(st.invoices[0].items[0]).toMatchObject({ partNumber: '2715 2671 0140', desc: 'BRACKET', imItemId: 'IM-71-0' });
+  expect(st.invoices[0].items[0]).toMatchObject({ partNumber: '9106 0000 0740', desc: 'BRACKET', imItemId: 'IM-71-0' });
   const it = st.incomingMaterial[0].items[0];
-  expect(it.partNumber).toBe('2715 2671 0140');
+  expect(it.partNumber).toBe('9106 0000 0740');
   expect(it.corrections).toBeUndefined();
 });
 

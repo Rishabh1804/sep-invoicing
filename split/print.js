@@ -1,5 +1,5 @@
 /* ===== SHARED RENDER LAYER (Phase 4 — Tier 2) ===== */
-/* A quantity as it is held: kilograms are kept to three places (pieces × kg/pc, 150.274 kg), so the third prints
+/* A quantity as it is held: kilograms are kept to three places (pieces × kg/pc, 151.125 kg), so the third prints
    when there is one. Two places otherwise, as every invoice has always printed. */
 function formatQtyHeld(q) {
   var s = formatNum(q, 3);

@@ -184,7 +184,8 @@ test.describe('P129: a book the browser threw away (G7-2)', () => {
     const remote = await stubRemote(page, 'remotesha');
     await page.goto('/');
     await waitForBoot(page);
-    expect(await g(page, 'S.clients[0].name = "KEPT CLIENT"; saveState()')).toBe(true);
+    // A new device starts with no client (HR-10, 22 Oct 2026): the book this device keeps is the one client added here.
+    expect(await g(page, 'S.clients.push({ id: 1, name: "KEPT CLIENT", billingMode: "weight", isActive: true, rates: [], itemRates: [] }); saveState()')).toBe(true);
     expect(await g(page, 'localStorage.getItem("sep_inv_idb_used")')).toBe('1');
     // Evicted under storage pressure: the database is gone and the marker beside it is not.
     await g(page, `new Promise(function(r) { var q = indexedDB.deleteDatabase('sep-invoicing'); q.onsuccess = q.onerror = q.onblocked = function() { r(1); }; })`);

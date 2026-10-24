@@ -170,9 +170,9 @@ function prodCarryCheck(clientId, part, rack) {
 }
 
 /* ---------- A code two parts end in, matched with the challans ----------
-   Owner, 30 Sep 2026: a code two of the client's parts end in ("(0106)") is "checked and matched with recent IM, if
+   Owner, 30 Sep 2026: a code two of the client's parts end in ("(0706)") is "checked and matched with recent IM, if
    available in the app. After a few matches it'll become clearer as both would have a different amount of them that can be
-   plated in a round"; a group of codes in one figure ("(0106+3313)") is matched the same way. The client's challan lines
+   plated in a round"; a group of codes in one figure ("(0706+3713)") is matched the same way. The client's challan lines
    ending in the code, with what is open on them and the last challan's date: the one with a challan open, or received in
    the 45 days before the day, where only one has; else the one plated before at this round on this line. Never learnt for
    the name, since the name is two parts. */
@@ -263,7 +263,7 @@ function prodGaugeChoices(e) {
 }
 
 /* ---------- A floor name and the part it is ----------
-   The register writes a part by its floor name, often with its code in brackets ("TINA(0160)", "KUDAL(0106)",
+   The register writes a part by its floor name, often with its code in brackets ("TINA(0760)", "KUDAL(0706)",
    "TINA(3303)"). A code that ends exactly one of the client's part numbers on its challans and invoices is that part: the
    entry takes it (`partNumber`) and the floor name is learnt for the client (`learn.parts`), so the name alone finds it
    next time. Two parts ending in the code are left for the owner to pick (Entries → Which part?). */
@@ -279,7 +279,7 @@ function prodClientParts(clientId) {
 function prodAliasCode(part) {
   var s = String(part || ''), m = /\(\s*(\d{3,5})\s*\)|[-\s](\d{4})\s*$/.exec(s);
   if (m) return m[1] || m[2];
-  // A code written bare ("4206", "0160" under the client's name) is the part's code too (P127): the loads read as no part.
+  // A code written bare ("4706", "0760" under the client's name) is the part's code too (P127): the loads read as no part.
   m = /^\s*(\d{3,5})\s*$/.exec(s);
   return m ? m[1] : null;
 }
@@ -819,8 +819,8 @@ function prodMatchAll(idx) {
     });
   });
   // A load its part linked to nothing (docs/ENTRY_FACES.md, F2): the register writes a part as the floor names it, often its
-  // kind alone ("CLAMP", the gauge read off its round as one of a few) or a code ("KUDAL(0106)"), and a load entered on a face
-  // names the book's part ("CLAMP 165X83 (NT)", "5206 4920 0106"). Such a load takes, in the same window, a run of its client
+  // kind alone ("CLAMP", the gauge read off its round as one of a few) or a code ("KUDAL(0706)"), and a load entered on a face
+  // names the book's part ("CLAMP 165X83 (NT)", "9001 0000 0706"). Such a load takes, in the same window, a run of its client
   // sharing a 4-digit code with it, else a run of its kind at a gauge that fits (a run's gauges read off its round included,
   // which the family's key above cannot hold); a named load only a run naming its kind alone, never a run naming another part.
   // Never a run linked above, so no link a part or a family made moves. Measured on the owner's book (the material-flow study,

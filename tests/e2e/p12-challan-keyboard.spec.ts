@@ -192,8 +192,8 @@ test.describe('IM challan form — keyboard navigation', () => {
     await page.keyboard.press('Control+Enter');
 
     await expect(page.locator('.inv-toast')).toContainText('Challan saved');
-    // seed.js fills an empty incomingMaterial with 50 demo challans, so the
-    // assertion is on the row this test created, not on the total.
+    // seed.js filled an empty incomingMaterial with 50 demo challans until 22 Oct 2026 (HR-10), so
+    // the assertion is on the row this test created, not on the total.
     const saved = await page.evaluate(async () => {
       const raw = (await (window as any).readPersistedStateRaw());
       const all = raw ? JSON.parse(raw).incomingMaterial : [];

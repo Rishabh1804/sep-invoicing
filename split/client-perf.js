@@ -479,7 +479,7 @@ function renderClientPerformance(container) {
 /* ===== MATERIALS WORKED =====
  * Owner, 30 Sep 2026: "Performance under client should also show every material worked, how much and when. For eg, I
  * should be able to check how many clamps were sent by SSS Mehta in any given period, how many clamps were sent by
- * Dorabji. If two parties share the same material code, the distinction must be mentioned."
+ * [another client]. If two parties share the same material code, the distinction must be mentioned."
  *
  * Read off the challans (what was sent, the billing spine) and the invoices (what was billed), in a period, for this
  * client or every client. A part is its size or number and its gauge (cpPartIdentity), and always one client's: a code

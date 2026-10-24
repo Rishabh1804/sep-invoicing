@@ -10,10 +10,10 @@
 
    MATCHING (srchQuery): every part of the query must match. A number matches whole: 834 finds challan 834 and invoice
    00834, never 8341 (leading zeros ignored, as imChallanNoKey does). A challan or a P.O. is known by its first number
-   standing on its own, after a trailing financial year: 0901/26-27 is 901 (never 26 or 27), DA1/00877 is 877 (the 1 of
-   DA1 is part of a word). An amount matches to the paisa: 5902.12, 5,902.12, ₹5,902.12. A date matches its day:
+   standing on its own, after a trailing financial year: 0901/26-27 is 901 (never 26 or 27), QX1/00877 is 877 (the 1 of
+   QX1 is part of a word). An amount matches to the paisa: 5902.12, 5,902.12, ₹5,902.12. A date matches its day:
    21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and punctuation folded (rateKey); a number
-   written with its punctuation (SEP/2026-27/00834, DA1/00877) matches as one, whole when it ends in a digit (00083 never
+   written with its punctuation (SEP/2026-27/00834, QX1/00877) matches as one, whole when it ends in a digit (00083 never
    finds 00834), or by its tail (27/00834, 2026-27/00834). A series word that starts an identifier counts only beside
    something else that matches: SEP 834 and sep/834 find SEP/2026-27/00834, SEP alone finds nothing; SEP 21 is invoice
    00021 as well as 21 Sep. Results come grouped by kind, screens first, five a kind with Show all.
@@ -90,7 +90,7 @@ function srchDocList(s) {
 }
 /* The number a challan or a P.O. is known by, for each of a list: its first run of digits standing on its own, after a
    trailing financial year. poChallanDigits' rule (state.js), with the year and the word left out: "0901/26-27" is 901, never
-   26 or 27, and "DA1/00877" is 877, never 1 (QA3-4: every run counted, so challan 27 came seventh behind six /26-27 ones). */
+   26 or 27, and "QX1/00877" is 877, never 1 (QA3-4: every run counted, so challan 27 came seventh behind six /26-27 ones). */
 function srchDocNums(s) {
   return srchDocList(s).map(function(x) {
     var m = /(?<![A-Za-z0-9])\d+(?![A-Za-z0-9])/.exec(x.replace(/\s*\/\s*(\d{2}|\d{4})\s*-\s*\d{2}\s*$/, ''));
@@ -282,7 +282,7 @@ function srchData() {
           ', total ' + formatCurrency(inv.grandTotal) + (inv.challanNo ? '; challans ' + inv.challanNo : '') + (inv.poNumber ? '; P.O. ' + inv.poNumber : '') + '; ' + state + '.',
         go: { kind: 'invoice', id: String(inv.id) } },
         // Each challan it cites is an identifier of its own, and the number of each (and of the P.O.) is read as srchDocNums
-        // reads it: never the year of a challan or the 1 of DA1 (QA3-4).
+        // reads it: never the year of a challan or the 1 of QX1 (QA3-4).
         { title: num, words: [inv.clientName, inv.poNumber], ids: [num, inv.poNumber].concat(srchDocList(inv.challanNo)),
           nums: srchDocNums(inv.challanNo).concat(srchDocNums(inv.poNumber)),
           primary: [serial], amounts: [inv.taxableValue, inv.grandTotal], dates: [inv.date], rank: (inv.date || '') + srchPad(inv.createdAt) });
@@ -459,13 +459,13 @@ function srchDateTok(y, m, d) {
   return { t: 'date', y: y == null ? null : String(y).length === 2 ? '20' + y : String(y), m: pad(m), d: d == null ? null : pad(d) };
 }
 /* A text token. `whole`: an identifier typed ending in a digit matches only whole, never as the start of a longer one:
-   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and DA1/00087 of DA1/00877 (QA3-3; a number matches whole).
+   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and QX1/00087 of QX1/00877 (QA3-3; a number matches whole).
    One typed ending in a separator ("sep/2026-27/") asks for what follows, and matches as a start. */
 function srchTxt(sq, id, typed) { return { t: 'txt', sq: sq, id: id, whole: id && /\d$/.test(typed) }; }
 function srchTxtTok(p) {
   var sq = srchIdKey(p);
   if (!sq) return null;
-  // A word holding digits, or written with its punctuation (SEP/2026-27/00834, DA1/00877, 165X83(40X6), sep/test), is an
+  // A word holding digits, or written with its punctuation (SEP/2026-27/00834, QX1/00877, 165X83(40X6), sep/test), is an
   // identifier: matched whole against the record's numbers as well as its words, else part by part. A plain word is
   // matched against words alone, so SEP never finds every invoice by its series.
   var bits = String(p).split(/[^A-Za-z0-9]+/).filter(Boolean);

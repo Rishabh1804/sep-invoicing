@@ -195,7 +195,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
 
   test('QA5-2: a posted rate goes before the rows it is more specific than, and its confirm names what it reaches and what it does not', async ({ page }) => {
     await loadAppWithState(page, rateState({
-      incomingMaterial: [...noSeedIM(), challan('C1', 1, 'GAMMA PRESS', [['5206 P3303X', 'KG', 80], ['7701 P3304', 'KG', 40]])],
+      incomingMaterial: [...noSeedIM(), challan('C1', 1, 'GAMMA PRESS', [['7206 P3303X', 'KG', 80], ['7701 P3304', 'KG', 40]])],
       quotations: [
         issued('Q1', 1, { clientId: 2, to: { name: 'DELTA FORGE', address: '', gstin: '', state: '', attn: '' },
           lines: [{ item: 'MOUNT 20', partNumber: 'TM5181-20', desc: '', basis: 'piece', rate: 12.5, refWeightKg: null, note: '' }] }),
@@ -211,11 +211,11 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     const d = todayIso();
     expect(await g(page, `S.clients[1].itemRates.map(function(r){ return r.partPattern; })`)).toEqual(['TM5181-20', 'TM5181']);
     expect(await g(page, `[getLineItemRate(S.clients[1], '${d}', 'TM5181-20').rate, getLineItemRate(S.clients[1], '${d}', 'TM5181-10').rate]`)).toEqual([12.5, 3.83]);
-    // P3303 also prices 5206 P3303X, a part on the client's challans: said before it is written.
+    // P3303 also prices 7206 P3303X, a part on the client's challans: said before it is written.
     acc = g(page, `qtAccept('Q2')`);
     said = await answerAsk(page, 'ok');
     await acc;
-    expect(said).toContain('It also prices 5206 P3303X, which contains P3303');
+    expect(said).toContain('It also prices 7206 P3303X, which contains P3303');
     // P3304 cannot reach 7701 P3304: the family row 7701 comes first, and the confirm says so.
     acc = g(page, `qtAccept('Q3')`);
     said = await answerAsk(page, 'ok');
@@ -329,9 +329,13 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     // A task added before the keys were one (order:<id>, reprice:<client>:<month>) is the same decision: no second task.
     await g(page, `todoData().tasks.push({ id: 'T-OLD', text: 'Order Pickling acid', due: '', note: '', link: null, advKey: 'order:PA', createdAt: 1, doneAt: null },
       { id: 'T-OLD2', text: 'Ask for the full cost', due: '', note: '', link: null, advKey: 'reprice:1:${lastMonth}', createdAt: 1, doneAt: null }); renderHome()`);
-    await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
-    // Every move of a question is in the dialog its head opens. The card holds what fits, and on some days of the month a client's
-    // fall against the same days last month ranks above the reprice.
+    // Every move of a question is in the dialog its head opens. The card holds what fits: in the two days before a Saturday the
+    // payout's row joins the plant's question and its move cards no longer fit, and on some days of the month a client's fall
+    // against the same days last month ranks above the reprice.
+    await page.locator('#homeBoard [data-tdy-q="smooth"] [data-action="invWdgGo"]').click();
+    await expect(page.locator('[data-tdy-q-open="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-tdy-q-open="smooth"]')).toHaveCount(0);
     await page.locator('#homeBoard [data-tdy-q="clients"] [data-action="invWdgGo"]').click();
     await expect(page.locator('[data-tdy-q-open="clients"] [data-adv-move="reprice:1"] [data-adv-listed]')).toBeVisible();
   });

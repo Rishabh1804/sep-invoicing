@@ -4,8 +4,8 @@
 
    IM is the billing spine, and a correction made on the invoice used to stop
    there: an invoiced challan line cannot be edited, and the invoice line did
-   not even record which challan line it came from. So 00830 (33 pieces that
-   were 330) and 00086 (500 that were 50) were put right on the invoice and
+   not even record which challan line it came from. So 00830 and 00086 (each a
+   piece count ten times out) were put right on the invoice and
    stayed wrong on the challan (owner, 24 Sep 2026: "back corrections don't
    happen in the IM — it should").
 
@@ -127,7 +127,7 @@ function backCorrectChallans(inv, formItems) {
   return { lines: lines, challans: Object.keys(touched).map(function(k) { return touched[k]; }) };
 }
 
-/* A correction as a note: "from SEP/…/00830: pieces 33 → 330". One wording for the challan line and History. */
+/* A correction as a note: "from SEP/…/00830: pieces 40 → 400". One wording for the challan line and History. */
 var CHALLAN_FIELD_NAMES = { partNumber: 'part', desc: 'description', unit: 'unit', qty: 'quantity', nosQty: 'pieces', rate: 'rate', amount: 'amount' };
 function challanCorrectionText(it, cx) {
   var from = cx.from || {};

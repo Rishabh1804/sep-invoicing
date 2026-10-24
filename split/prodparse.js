@@ -151,7 +151,7 @@ function prodMatchClient(written, idx) {
 }
 
 /* ---------- One item line ---------- */
-/* "Dorabji 0140- 300 nos", "CLAMP133×83(35×6)-774 nos", "188 CD--995 NOS ,96.970Kg", "Higco Nat ....",
+/* "Delta 0420- 300 nos", "CLAMP133×83(35×6)-774 nos", "188 CD--995 NOS ,96.970Kg", "Higco Nat ....",
    "80×81=297nos", "BOLT--1800+450 Nos", "Eye bolt--20.640kg" → {client, part, gauge, qty, unit, qty2, unit2}. */
 function prodReadItem(line, idx) {
   var raw = String(line || '');
@@ -182,7 +182,7 @@ function prodReadItem(line, idx) {
     else if (/\.{3,}\s*$/.test(s)) { partText = s.replace(/\.{3,}\s*$/, ''); out.dots = true; }
   }
   partText = partText.replace(/\s*(?:-{1,3}|_{2}|=|,)\s*$/, '').replace(/\(\s*now\s*\)/i, '').trim();
-  // A client written at the front: the longest run of up to three words that names one ("Dorabji--4206" is two).
+  // A client written at the front: the longest run of up to three words that names one ("Delta--4242" is two).
   partText = partText.replace(/^([A-Za-z][A-Za-z.&]*)-{2,3}(?=[A-Za-z0-9])/, '$1 ');
   var words = partText.split(/\s+/).filter(Boolean), alpha = 0;
   while (alpha < words.length && alpha < 3 && /^[A-Za-z][A-Za-z.&]*$/.test(words[alpha])) alpha++;
@@ -244,7 +244,7 @@ function parsePickling(msg, ctx) {
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
     if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
     // A date written with dots or dashes ("22.09.26") is the date as well; one with no year ("16/9") names no day a load
-    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4206-1000", "0160--30"): those were
+    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4706-1000", "0760--30"): those were
     // dropped unseen with the dates (P127).
     var dd = line.match(/^(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?:\s*[.\-\/]\s*(\d{2,4}))?\s*[.\-\/]?$/);
     if (dd && isoFromDmy(dd[1], dd[2], dd[3] || 2000)) {
@@ -376,7 +376,7 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
      15/10/26/ BERRAL PRODUCTION
      KHURANA 150 KG 10:30 AM UNLOAD
      ----------------
-     DORABJI 1040-341 NOS +0108-600 NOS
+     DELTA 4242-340 NOS +0420-600 NOS
      1:00 PM UNLOAD
      ----------------
      LOADING TIME 4:00 PM 90 CD 70 KG
@@ -535,7 +535,7 @@ function parseProductionList(msg, ctx) {
     if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null; }
     else if (!cont && !group && /^[A-Za-z]/.test(line)) {
       // A first word that names nobody the book holds: the client or the part? Asked. It is taken for the client
-      // only with a part written after it ("KUMAR 0140--300 NOS"); alone before its figure it is the part ("LINER
+      // only with a part written after it ("KUMAR 0740--300 NOS"); alone before its figure it is the part ("LINER
       // 1000 NOS"), which read as a client with no part. Either way a name read by its place alone is never learnt
       // (how 'unknown', prodSaveReview): the owner's pick says whose the load is, not that the word is their name.
       var w0 = line.split(/\s+/)[0];
@@ -882,7 +882,7 @@ function prodRegisterDate(s) {
 /* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
    up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
    what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
-/* "MEHTA+GENERAL", "(0106+3313)+188CD", "39+50": split on a + outside brackets. */
+/* "MEHTA+GENERAL", "(0706+3713)+188CD", "39+50": split on a + outside brackets. */
 function prodSplitTop(s) {
   var out = [], d = 0, cur = '';
   String(s == null ? '' : s).split('').forEach(function(ch) {
@@ -1003,7 +1003,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // ditto): it was read as no customer written, and asked for one on every change of part.
     else if (!cust && lastCust) { cust = lastCust; carried = true; }
     // A round shared by two clients is written with + in each column ("MEHTA+GENERAL / LINER+188CD / 39+50"), and a ditto
-    // under one side of it carries that side ("〃 + DORABJI" under MEHTA+GENERAL is MEHTA and DORABJI).
+    // under one side of it carries that side ("〃 + DELTA" under MEHTA+GENERAL is MEHTA and DELTA).
     var tokenFill = function(now, last) {
       var t = prodSplitTop(now);
       if (t.length < 2) return t.length === 1 && prodIsDitto(t[0]) && now ? last : now;
@@ -1198,7 +1198,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     if (e.clientId == null) e.issues.push({ tone: 'red', code: 'client', text: first.cust ? '"' + first.cust + '" is not a client in the book. Pick the client, or keep it as written.' : 'No customer written. Pick the client.' });
     else if (it.clientHow === 'read-as') e.issues.push({ tone: 'amber', code: 'readas', text: '"' + first.cust + '" read as ' + it.clientName + '.' });
-    // A code two of the client's parts end in, or a group of codes in one figure ("(0106+3313)"): matched with the client's
+    // A code two of the client's parts end in, or a group of codes in one figure ("(0706+3713)"): matched with the client's
     // recent challans, then with the rounds each part has been plated at (owner, 30 Sep 2026).
     if (!e.partNumber && e.clientId != null && ctx.resolvePart) {
       var rack = Math.max.apply(null, [0].concat(run.rows.map(function(x) { return x.rackSize || (!x.batch && x.qty > 0 ? x.qty : 0); })));

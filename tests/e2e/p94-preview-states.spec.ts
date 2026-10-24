@@ -14,7 +14,7 @@ const inv = (id: string, o: any = {}) => ({ id, invoiceNumber: id.slice(4).padSt
   date: todayIso(), status: 'active', invoiceState: 'created', clientId: 1, clientName: 'TEST CLIENT KG', clientGSTIN: '20ABCDE1234F1Z5',
   clientAddress: { add1: 'A-4, Road No. 2', add2: 'ADITYAPUR, JAMSHEDPUR', add3: '', state: 'JHARKHAND', stateCode: '20' }, gstType: 'intra', items,
   taxableValue: 1000, cgstPer: 9, cgstAmt: 90, sgstPer: 9, sgstAmt: 90, igstPer: 0, igstAmt: 0, grandTotal: 1180, amountInWords: '',
-  challanNo: '834, 835, 838', challanDate: todayIso(), poNumber: 'DA1/00834', poDate: todayIso(), despatchDate: '', transport: 'JH05AB1234',
+  challanNo: '834, 835, 838', challanDate: todayIso(), poNumber: 'QX1/00834', poDate: todayIso(), despatchDate: '', transport: 'JH05AB1234',
   remarks: '', linkedIMIds: [], createdAt: recentTs(), ...o });
 function state(invoices: any[]): SepState {
   const s: any = emptyState();

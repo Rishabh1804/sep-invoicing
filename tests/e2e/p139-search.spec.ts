@@ -30,7 +30,7 @@ test.describe('P139: search on the phone', () => {
     // A number written with its punctuation: the invoice's own, a P.O.
     await search(page, 'SEP/TEST-00900');
     expect(await titles(page, 'invoice')).toEqual(['SEP/TEST-00900']);
-    await search(page, 'da1/00877');
+    await search(page, 'qx1/00877');
     expect(await titles(page, 'invoice')).toEqual(['SEP/TEST-00900']);
   });
 

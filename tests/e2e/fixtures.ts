@@ -56,14 +56,14 @@ export const emptyState = (): SepState => ({
  * makes a test pass only during the month it was written.
  */
 /**
- * A placeholder challan that keeps `seed.js` from filling the fixture.
+ * A placeholder challan, kept from when `seed.js` filled an empty book.
  *
- * `seed.js` seeds 50 demo challans whenever `S.incomingMaterial` is empty —
- * there is no one-time flag on it, only the emptiness test. So a state with
- * `incomingMaterial: []` does not stay empty, and any spec that asserts on
- * challan-derived data without setting its own gets 50 rows for client 1 that
- * it never asked for. Same shape of trap as a hardcoded date: the fixture is
- * not what it appears to be.
+ * `seed.js` seeded 50 real challans whenever `S.incomingMaterial` was empty,
+ * so a state with `incomingMaterial: []` did not stay empty and a spec that
+ * asserted on challan-derived data without setting its own measured the seed.
+ * The seed went on 22 Oct 2026 with the rest of the build's client data
+ * (CLAUDE.md, HR-10), and `[]` now stays empty. The placeholder is kept so the
+ * specs written against the old trap keep their shape.
  *
  * The entry belongs to a client id no spec uses, so views scoped to a client
  * never show it.

@@ -17,7 +17,7 @@ function book(): SepState {
   const line = (id: string, pn: string, desc: string, qty: number, unit = 'NOS') => ({ id, partNumber: pn, desc, hsn: '998873', unit, qty, rate: 1, amount: qty, nosQty: null });
   s.incomingMaterial = [
     { id: 'IM-1', challanNo: '11', challanDate: T, clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: T, createdAt: recentTs(),
-      items: [line('IM-1-0', '5164 5460 0160', 'BRACKET', 200, 'KG'), line('IM-1-1', '5206 4920 0106', 'BRACKET', 50, 'KG'), line('IM-1-2', '5567 5450 0106', 'BRACKET', 50, 'KG')] },
+      items: [line('IM-1-0', '9101 0000 0760', 'BRACKET', 200, 'KG'), line('IM-1-1', '9102 0000 0706', 'BRACKET', 50, 'KG'), line('IM-1-2', '9103 0000 0706', 'BRACKET', 50, 'KG')] },
     { id: 'IM-2', challanNo: '21', challanDate: T, clientId: 2, clientName: 'MEHTA TEST INDUSTRIES', vehicleNo: '', receivedDate: T, createdAt: recentTs(),
       items: [line('IM-2-0', 'CLAMP 149X83', 'CLAMP (30X6)', 3000), line('IM-2-1', 'CLAMP 165X83', 'CLAMP (40X6)', 3000)] },
   ];
@@ -51,24 +51,24 @@ test('a Mehta clamp takes its gauges from the round, a round no rule names stays
 
 test('a code in brackets is the client’s part ending in it, learnt for the name; two parts ending in it are asked', async ({ page }) => {
   await loadAppWithState(page, book());
-  const e1: any = { id: 'E1', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'TINA(0160)', qty: 25, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '10:00' };
-  const e2: any = { id: 'E2', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'KUDAL(0106)', qty: 30, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '11:00' };
+  const e1: any = { id: 'E1', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'TINA(0760)', qty: 25, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '10:00' };
+  const e2: any = { id: 'E2', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'KUDAL(0706)', qty: 30, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '11:00' };
   const e3: any = { id: 'E3', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'TINA', qty: 40, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '12:00' };
   const r = await g(page, `prodMergeImport({ format: 'sep-production', entries: ${JSON.stringify([e1, e2, e3])} }, 'x.json')`) as any;
   expect(r.ok !== false).toBe(true);
   await switchTab(page, 'pageProduction');
   await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
-  // TINA(0160) is the one part ending 0160, and TINA alone reads as it from then on (each entry's part, in its fold: TM4c).
-  await expect(page.locator('[data-prod-entry="E1"]')).toContainText('5164 5460 0160');
-  await expect(page.locator('[data-prod-entry="E3"]')).toContainText('Read as5164 5460 0160');
-  // KUDAL(0106) ends two parts: asked.
+  // TINA(0760) is the one part ending 0760, and TINA alone reads as it from then on (each entry's part, in its fold: TM4c).
+  await expect(page.locator('[data-prod-entry="E1"]')).toContainText('9101 0000 0760');
+  await expect(page.locator('[data-prod-entry="E3"]')).toContainText('Read as9101 0000 0760');
+  // KUDAL(0706) ends two parts: asked.
   await prodEntryAct(page, 'E2', 'invProdAlias');
-  await expect(page.locator('#prodAliasPick optgroup').first()).toHaveAttribute('label', 'Ending in 0106');
-  await page.locator('#prodAliasPick').selectOption('5206 4920 0106');
+  await expect(page.locator('#prodAliasPick optgroup').first()).toHaveAttribute('label', 'Ending in 0706');
+  await page.locator('#prodAliasPick').selectOption('9102 0000 0706');
   await page.locator('[data-action="invProdAliasSave"]').click();
-  await expect(page.locator('[data-prod-entry="E2"]')).toContainText('5206 4920 0106');
+  await expect(page.locator('[data-prod-entry="E2"]')).toContainText('9102 0000 0706');
   const learnt = (await readStoredState(page)).production.learn.parts;
-  expect(Object.values(learnt).map((x: any) => x.partNumber)).toEqual(expect.arrayContaining(['5164 5460 0160', '5206 4920 0106']));
+  expect(Object.values(learnt).map((x: any) => x.partNumber)).toEqual(expect.arrayContaining(['9101 0000 0760', '9102 0000 0706']));
 });
 
 test('every run names its crew from the day’s attendance, the OT block’s after 5, and the part’s trail shows who plated it', async ({ page }) => {
@@ -152,7 +152,7 @@ test('a round shared by two clients splits into each client’s run, and a ditto
   const shared = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
     { time: '9:00 AM', mark: 'START', customer: 'MEHTA+DELTA', part: 'LINER+188CD' },
     { time: '9:20 AM', customer: D, part: D + ' + ' + D, qtyText: '39+50', ditto: true },
-    { time: '9:40 AM', customer: D + ' + DELTA', part: D + ' +(0160)', qtyText: '39+15' },
+    { time: '9:40 AM', customer: D + ' + DELTA', part: D + ' +(0760)', qtyText: '39+15' },
     { time: '10:00 AM', customer: 'DELTA', part: '188 CD', qtyText: '150' },
     { time: '10:20 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '150' },
     { time: '10:40 AM', qtyText: '39+50' }] };
@@ -160,7 +160,7 @@ test('a round shared by two clients splits into each client’s run, and a ditto
   expect(runs.slice(0, 3)).toEqual([
     [2, 'LINER', 117, 3],      // START takes its own client's next figure (39), then 39 and 39
     [1, '188CD', 250, 3],      // 50 (START), 50, then 150 after the shared rounds, continuing Delta's run
-    [1, '(0160)', 15, 1]]);
+    [1, '(0760)', 15, 1]]);
   // After them, one client's rounds read as before: "39+50" with one client is a round of 89.
   expect(runs.slice(3).map((r: any) => [r[0], r[2]])).toEqual([[2, 150], [2, 89]]);
   // A figure that does not split into as many shares as there are clients is asked about.
@@ -175,20 +175,20 @@ test('a round no rule names is flagged until its gauge is picked, and a code two
   const day = (n: number) => { const d = new Date(T + 'T00:00:00'); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
   const line = (id: string, pn: string, nos: number) => ({ id, partNumber: pn, desc: 'BRACKET', hsn: '998873', unit: 'KG', qty: nos, nosQty: nos, rate: 1, amount: nos });
   s.incomingMaterial.push(
-    { id: 'IM-7', challanNo: '71', challanDate: day(12), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(12), createdAt: recentTs(), items: [line('IM-7-0', '5567 5450 0106', 20)] },
-    { id: 'IM-8', challanNo: '88', challanDate: day(1), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(1), createdAt: recentTs(), items: [line('IM-8-0', '5206 4920 0106', 20), line('IM-8-1', '5206 4920 3313', 30)] });
+    { id: 'IM-7', challanNo: '71', challanDate: day(12), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(12), createdAt: recentTs(), items: [line('IM-7-0', '9103 0000 0706', 20)] },
+    { id: 'IM-8', challanNo: '88', challanDate: day(1), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(1), createdAt: recentTs(), items: [line('IM-8-0', '9102 0000 0706', 20), line('IM-8-1', '9102 0000 3713', 30)] });
   await loadAppWithState(page, s);
-  // IM-1 holds both 0106 parts open; it is taken out so the match falls to the latest challan.
+  // IM-1 holds both 0706 parts open; it is taken out so the match falls to the latest challan.
   const pg = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
     { time: '9:00 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '94' },
-    { time: '9:40 AM', customer: 'DELTA', part: '(0106)', qtyText: '15' },
-    { time: '10:00 AM', customer: 'DELTA', part: '(0106+3313)', qtyText: '25' }] };
+    { time: '9:40 AM', customer: 'DELTA', part: '(0706)', qtyText: '15' },
+    { time: '10:00 AM', customer: 'DELTA', part: '(0706+3713)', qtyText: '25' }] };
   const runs = JSON.parse(await g(page, `(function(){ S.incomingMaterial = S.incomingMaterial.filter(function(m) { return m.id !== 'IM-1'; }); return JSON.stringify(prodFromRegisterRead(${JSON.stringify(pg)}, prodCtx(), null, {}).runs.map(e => [e.part, e.partNumber || null, e.qty, e.gaugeUnknown || null])); })()`) as string);
   expect(runs).toEqual([
     ['CLAMP', null, 94, 94],
-    ['(0106)', '5206 4920 0106', 15, null],             // on the latest challan (88), where the other 0106 was 12 days before
-    ['(0106+3313)', '5206 4920 0106', 10, null],        // 25 shared 20 : 30 by the latest challan's pieces
-    ['(0106+3313)', '5206 4920 3313', 15, null]]);
+    ['(0706)', '9102 0000 0706', 15, null],             // on the latest challan (88), where the other 0706 was 12 days before
+    ['(0706+3713)', '9102 0000 0706', 10, null],        // 25 shared 20 : 30 by the latest challan's pieces
+    ['(0706+3713)', '9102 0000 3713', 15, null]]);
   // The flagged run: in Entries under Gauge unknown, raised on the To-do, and cleared by picking its gauge.
   await g(page, `(function(){ var p = prodData(); p.entries.push(prodSparse({ id: 'GU1', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 2, client: 'MEHTA', part: 'CLAMP', qty: 94, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '09:00', gaugeUnknown: 94, rounds: [{ time: '9:00 AM', qty: 94 }] })); prodTouch(); saveState(); })()`);
   expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(1);

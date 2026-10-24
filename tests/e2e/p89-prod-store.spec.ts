@@ -80,7 +80,7 @@ test.describe('P89: the production record', () => {
   test('export is whole; import merges by id and never overwrites', async ({ page }, info) => {
     const d = todayIso();
     const entries = [
-      { id: 'E1', kind: 'plated', date: d, line: 'barrel', slot: 'day', clientId: 12, client: 'DURGA AUTO', part: '0101', qty: 995, unit: 'NOS', basis: 'relay', src: 'paste', at: 1 },
+      { id: 'E1', kind: 'plated', date: d, line: 'barrel', slot: 'day', clientId: 12, client: 'DURGA AUTO', part: '0701', qty: 995, unit: 'NOS', basis: 'relay', src: 'paste', at: 1 },
       { id: 'E2', kind: 'pickled', date: d, time: '08:40', clientId: 11, client: 'NOVA CLAMPS', part: 'CLAMP(40X6)', basis: 'pickling', src: 'paste', at: 1 },
     ];
     await loadAppWithState(page, state({ production: { entries, pastes: [{ id: 'PP1', hash: 'h1', text: 'x', at: 1 }], photos: [], imports: [], learn: { clients: { NOVAK: 11 }, parts: {} } } }));
@@ -96,7 +96,7 @@ test.describe('P89: the production record', () => {
     // The same file again adds nothing; a changed copy of a held entry does not overwrite it.
     json.entries[0].qty = 1;
     json.entries.push(
-      { id: 'E3', kind: 'plated', date: d, line: 'vat-a1', clientId: 99, client: 'DURGA AUTO', part: '0140', qty: 300, unit: 'NOS', basis: 'register', src: 'photo', at: 2 },
+      { id: 'E3', kind: 'plated', date: d, line: 'vat-a1', clientId: 99, client: 'DURGA AUTO', part: '0740', qty: 300, unit: 'NOS', basis: 'register', src: 'photo', at: 2 },
       { id: 'E4', kind: 'pickled', date: d, client: 'SIYA ENTERPRISES', part: 'Buckle hook', qty: 200, unit: 'NOS', at: 2 },
       { id: 'E5', kind: 'plated', date: 'yesterday', qty: 5, unit: 'NOS', at: 2 },
       { id: 'E6', kind: 'plated', date: d, line: 'vat-a9', qty: 5, unit: 'NOS', at: 2 });
@@ -121,7 +121,7 @@ test.describe('P89: the production record', () => {
 
   test('a GitHub pull or an import replacing the whole book does not leave the index stale', async ({ page }) => {
     const d = todayIso();
-    await loadAppWithState(page, state({ production: { entries: [{ id: 'E1', kind: 'plated', date: d, line: 'barrel', slot: 'day', clientId: 12, part: '0101', qty: 995, unit: 'NOS', basis: 'relay', at: 1 }], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } }));
+    await loadAppWithState(page, state({ production: { entries: [{ id: 'E1', kind: 'plated', date: d, line: 'barrel', slot: 'day', clientId: 12, part: '0701', qty: 995, unit: 'NOS', basis: 'relay', at: 1 }], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } }));
     const r = await page.evaluate(() => {
       const ev = (0, eval);
       const before = Object.keys(ev('prodIndex()').byId);

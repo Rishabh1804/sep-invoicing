@@ -12,7 +12,7 @@ function state(): SepState {
   s.incomingMaterial = noSeedIM();
   s.partWeights = { 'BRKT-W': 0.5 };
   s.clients = [
-    { id: 1, name: 'DORABJI AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true,
+    { id: 1, name: 'DELTA AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true,
       rates: [{ ratePerKg: 14.25, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [] },
     { id: 2, name: 'PIECE CLIENT', billingMode: 'piece', gstType: 'intra', gstin: '',
       rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [],
@@ -95,7 +95,7 @@ test.describe('P36: rate matcher — option E', () => {
     await switchTab(page, 'pageIM');
     // Filled by hand (the challan scan came out, owner, 13 Oct 2026): the rate on record fills the line, and matches.
     await page.locator('[data-action="invShowAddChallan"]').first().click();
-    await page.locator('#imChallanClientSearch').fill('DORABJI');
+    await page.locator('#imChallanClientSearch').fill('DELTA');
     await page.locator('[data-action="invSelectChallanClient"]').first().click();
     await page.locator('[data-action="invEditChallanPart"][data-idx="0"]').fill('P1');
     await g(page, 'dismissAllAutocomplete()');

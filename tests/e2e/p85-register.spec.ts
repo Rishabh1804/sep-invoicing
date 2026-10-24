@@ -53,12 +53,12 @@ test.describe('P85: the register page, read', () => {
       { time: '9:20 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'CLAMP' },
       { time: '3:00 PM', mark: 'END', ditto: true, qtyText: '98×8+1' },
       { time: '4:00 PM', mark: 'END', ditto: true, qtyText: '120x3' },
-      { time: '4:00 PM', mark: 'START', customer: 'DURGA AUTO', part: 'TINA(0760)' },
-      { time: '4:45 PM', mark: 'END', ditto: true, qtyText: '50+52+30' },
-      { time: '4:50 PM', mark: 'END', ditto: true, qtyText: '7 boxes' }] });
+      { time: '4:10 PM', mark: 'START', customer: 'DURGA AUTO', part: 'TINA(0760)' },
+      { time: '4:40 PM', mark: 'END', ditto: true, qtyText: '44+46+26' },
+      { time: '4:55 PM', mark: 'END', ditto: true, qtyText: '7 boxes' }] });
     expect(r.style).toBe('startend');
     // 98 × 8 + 1 = 785 and 120 × 3 = 360: not doubled by the START (the first build read 1,930 here).
-    expect(r.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 1145, '09:20', '16:00'], [12, 132, '16:00', '16:50']]);
+    expect(r.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 1145, '09:20', '16:00'], [12, 116, '16:10', '16:55']]);
     expect(r.rounds[0]).toEqual([{ time: '3:00 PM', qty: 785, batch: true, written: '98×8+1', rack: 98, n: 8 }, { time: '4:00 PM', qty: 360, batch: true, written: '120x3', rack: 120, n: 3 }]);
     expect(r.rowIssues[5]).toContain('figure');         // "7 boxes" is not a figure it can add up: said, never guessed
   });
@@ -102,14 +102,14 @@ test.describe('P85: the register page, read', () => {
         rounds: rows.filter(x => / · END$/.test(x)).map(x => ({ time: x.split(' · ')[0], qty, batch: true })), ...extra });
     const P1 = { src: 'photo', photoId: 'PF-1' }, P2 = { src: 'photo', photoId: 'PF-2' }, P3 = { src: 'photo', photoId: 'PF-3' }, P4 = { src: 'photo', photoId: 'PF-4' }, I1 = { src: 'import', importId: 'PI-1' };
     const entries = [
-      run('PE-a', P1, 11, 'CLAMP', 358, '09:15', '10:30', ['9:15 AM · NOVA CLAMPS · CLAMP · START', '10:30 AM · NOVA CLAMPS · CLAMP · 2×156+46 · END']),
+      run('PE-a', P1, 11, 'CLAMP', 352, '09:15', '10:30', ['9:15 AM · NOVA CLAMPS · CLAMP · START', '10:30 AM · NOVA CLAMPS · CLAMP · 2×156+40 · END']),
       run('PE-b', P1, 12, 'TINA(0760)', 250, '11:45', '11:45', ['11:45 AM · DURGA AUTO · TINA(0760) · 2×120+10 · END']),     // no START written
       run('PE-c', P1, 11, 'SLOT', 480, '11:45', '14:40', ['11:45 AM · NOVA CLAMPS · SLOT · START', '2:40 PM · NOVA CLAMPS · SLOT · 4×120 · END']),
       run('PE-e', { src: 'hand' }, 11, 'CLAMP', 40, '15:00', '15:00', ['3:00 PM · NOVA CLAMPS · CLAMP · 40 · END']),        // typed: the owner's time
       // A file built by the reader, the owner's 24 Sep shape: the 120s split from the 98s' run by their gauge. Written without AM or PM.
       run('PE-f', I1, 11, 'CLAMP', 785, '09:20', '15:00', ['9:20 · NOVA CLAMPS · CLAMP · START', '3:00 · NOVA CLAMPS · CLAMP · 98×8+1 · END']),
       run('PE-g', I1, 11, 'CLAMP', 360, '16:00', '16:00', ['4:00 · NOVA CLAMPS · CLAMP · 120×3 · END']),
-      run('PE-h', I1, 12, 'TINA', 115, '16:00', '16:45', ['4:00 · DURGA AUTO · TINA · START', '4:45 · DURGA AUTO · TINA · 2×56+3 · END']),
+      run('PE-h', I1, 12, 'TINA', 96, '16:10', '16:50', ['4:10 · DURGA AUTO · TINA · START', '4:50 · DURGA AUTO · TINA · 2×44+8 · END']),
       run('PE-d', P2, 12, 'TINA(0760)', 90, '12:00', '12:00', ['12:00 PM · DURGA AUTO · TINA(0760) · 90 · END']),           // nothing before it on its page
       run('PE-i', P3, 11, 'CLAMP', 100, '09:00', '10:00', ['9:00 AM · NOVA CLAMPS · CLAMP · START', '10:00 AM · NOVA CLAMPS · CLAMP · 100 · END']),
       run('PE-j', P3, 12, 'TINA', 50, '10:00', '10:30', ['10:30 AM · DURGA AUTO · TINA · 50 · END']),                        // read by the fixed reader
@@ -121,7 +121,7 @@ test.describe('P85: the register page, read', () => {
       production: { entries, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } } as SepState);
     const stored = async () => Object.fromEntries(((await readStoredState(page)).production.entries as any[]).map(e => [e.id, [e.time, e.to, e.startWas || '']]));
     const want = { 'PE-a': ['09:15', '10:30', ''], 'PE-b': ['10:30', '11:45', '11:45'], 'PE-c': ['11:45', '14:40', ''], 'PE-e': ['15:00', '15:00', ''],
-      'PE-f': ['09:20', '15:00', ''], 'PE-g': ['15:00', '16:00', '16:00'], 'PE-h': ['16:00', '16:45', ''], 'PE-d': ['12:00', '12:00', ''],
+      'PE-f': ['09:20', '15:00', ''], 'PE-g': ['15:00', '16:00', '16:00'], 'PE-h': ['16:10', '16:50', ''], 'PE-d': ['12:00', '12:00', ''],
       'PE-i': ['09:00', '10:00', ''], 'PE-j': ['10:00', '10:30', ''], 'PE-k': ['11:30', '12:45', ''], 'PE-l': ['12:45', '13:05', '13:05'] };
     await expect.poll(stored).toEqual(want);
     await page.reload();

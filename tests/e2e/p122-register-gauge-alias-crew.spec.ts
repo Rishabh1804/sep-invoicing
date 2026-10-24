@@ -152,7 +152,7 @@ test('a round shared by two clients splits into each client’s run, and a ditto
   const shared = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
     { time: '9:00 AM', mark: 'START', customer: 'MEHTA+DELTA', part: 'LINER+188CD' },
     { time: '9:20 AM', customer: D, part: D + ' + ' + D, qtyText: '39+50', ditto: true },
-    { time: '9:40 AM', customer: D + ' + DELTA', part: D + ' +(0760)', qtyText: '39+15' },
+    { time: '9:40 AM', customer: D + ' + DELTA', part: D + ' +(0760)', qtyText: '39+12' },
     { time: '10:00 AM', customer: 'DELTA', part: '188 CD', qtyText: '150' },
     { time: '10:20 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '150' },
     { time: '10:40 AM', qtyText: '39+50' }] };
@@ -160,7 +160,7 @@ test('a round shared by two clients splits into each client’s run, and a ditto
   expect(runs.slice(0, 3)).toEqual([
     [2, 'LINER', 117, 3],      // START takes its own client's next figure (39), then 39 and 39
     [1, '188CD', 250, 3],      // 50 (START), 50, then 150 after the shared rounds, continuing Delta's run
-    [1, '(0760)', 15, 1]]);
+    [1, '(0760)', 12, 1]]);
   // After them, one client's rounds read as before: "39+50" with one client is a round of 89.
   expect(runs.slice(3).map((r: any) => [r[0], r[2]])).toEqual([[2, 150], [2, 89]]);
   // A figure that does not split into as many shares as there are clients is asked about.

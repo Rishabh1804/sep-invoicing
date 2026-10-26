@@ -18,7 +18,8 @@
  *     estimate; this is measured, and like it, it is revenue at stake, not revenue certainly lost (a day can be
  *     recovered by staying late, as 11 Jun was);
  *   - wages paid idle: every hand marked present whose own day covers the cut, at their hour rate;
- *   - the restart: bath and line back to work, a flat figure per cut in a working window (the case's ₹600);
+ *   - the restart: bath and line back to work, a flat figure per cut in a working window, as set in the
+ *     options' figures (the book's own: the owner, 26 Oct 2026; blank, the case's ₹600);
  *   - the fixed charge carried by no output: the month's fixed/demand charge over its scheduled minutes, per dark minute.
  * A day with no record is a gap, never a day without cuts: rates are per RECORDED working day, and the gaps are listed. */
 
@@ -29,7 +30,7 @@ var POWER_TABS = [['cuts', 'Cuts'], ['causes', 'Causes'], ['load', 'Load & bills
 var _powerTab = (function() { try { var t = localStorage.getItem('sep_inv_power_tab'); return POWER_TABS.some(function(x) { return x[0] === t; }) ? t : 'cuts'; } catch (e) { return 'cuts'; } })();
 var _powerTabMoved = false;
 
-/* The options' figures, the case's own until a quote replaces them. Money in ₹, capture as a share. */
+/* The options' figures, the case's own until a quote replaces them (the restart: as the owner sets it, 26 Oct 2026). Money in ₹, capture as a share. */
 var POWER_CFG_DEFAULTS = {
   restart: 600, rateFallback: 2500, contribFallback: 0.2,
   genCapexLo: 350000, genCapexHi: 500000, genPerHour: 320, genYearly: 25000, genCapture: 0.95,
@@ -727,7 +728,7 @@ function powerCaseHtml(a) {
   h += _pcP(escHtml(todoPlural(t.cuts, 'cut') + ' on record since ' + formatDate(a.first) + ', ' + powerHours(t.min) + ' dark' + (t.open ? ' and ' + t.open + ' more with no time back recorded' : '') +
     (t.overnight ? ' (' + t.overnight + ' ran overnight)' : '') + ', ' + powerHours(t.inside) + ' of it in working hours. Together they cost ' + formatCurrency(t.cost) + ': overtime to catch up the backlog ' +
     formatCurrency(t.recOt) + ', output never made up (its contribution) ' + formatCurrency(t.leftC) + ', platers’ wages that bought nothing ' + formatCurrency(t.leftI) + ', restarts ' + formatCurrency(t.restart) +
-    ' (the 30 May case’s ₹' + formatNum(a.cfg.restart, 0) + ' a cut, an estimate, not measured: without it the record measures ' + formatCurrency(gstRound(t.cost - t.restart)) + '). Counting everyone present, not only the floor, it is ' + formatCurrency(t.upper) + '. At full revenue the output at stake was ' + formatCurrency(t.lost) + ': the most the cuts could have cost, not what they did.'));
+    ' (₹' + formatNum(a.cfg.restart, 0) + ' a cut, as set in the options’ figures, not measured: without it the record measures ' + formatCurrency(gstRound(t.cost - t.restart)) + '). Counting everyone present, not only the floor, it is ' + formatCurrency(t.upper) + '. At full revenue the output at stake was ' + formatCurrency(t.lost) + ': the most the cuts could have cost, not what they did.'));
   if (y) h += _pcP(escHtml('At the last 90 days’ rate (' + y.cuts + ' cuts on ' + y.recorded + ' recorded days' + (y.quiet ? ', leaving out ' + y.quiet + ' days whose power was likely not reported' : '') + ') a year costs ' + formatCurrency(y.base) +
     (y.upper > y.base ? ' (' + formatCurrency(y.upper) + ' with everyone’s wages)' : '') +
     (y.low != null ? '; the complete months ran from ' + formatCurrency(y.low) + ' a year (' + billsMonthLabel(y.lowMonth) + ') to ' + formatCurrency(y.high) + ' (' + billsMonthLabel(y.highMonth) + ')' : '') + ', for about ' + formatNum(y.workHours, 0) + ' dark working hours.'));
@@ -771,7 +772,7 @@ function powerCaseHtml(a) {
         formatCurrency(mg.varTyped) + '/kg at the typed full cost of ' + formatCurrency(mg.typed) + '/kg gives ' + Math.round(mg.model * 100) + '%. The lower is used, so a thin record never makes a lost hour dearer.'
         : 'The contribution is the fallback in the options’ figures: no weighed tonnage in the last 90 days.')), formatCurrency(t.leftC)],
     ['Wages that bought nothing', escHtml('platers present (VAT A1, VAT A2, barrel) whose own day or OT block covers the cut, at their hour rate, on the share not made up (a monthly plater’s wage is in the fixed cost the contribution leaves out, so this is that cost standing idle, not counted twice); ' + formatCurrency(t.leftIAll) + ' counting everyone present (pickling runs through a cut, so it is the upper end)'), formatCurrency(t.leftI)],
-    ['Restarts', escHtml(formatCurrency(a.cfg.restart) + ' a cut in a working window, the 30 May case’s estimate: bath and line back to work'), formatCurrency(t.restart)]
+    ['Restarts', escHtml(formatCurrency(a.cfg.restart) + ' a cut in a working window, as set in the options’ figures: bath and line back to work'), formatCurrency(t.restart)]
   ], ['Damage', '', formatCurrency(t.cost)]);
   h += _pcTable([['Shown, not added'], ['Why'], ['On record', 1]], [
     ['Output at stake, full revenue', escHtml('minutes in a working window × ' + formatCurrency(a.rate.perHour) + ' an hour ' + (a.rate.measured ? '(revenue net of credit notes over ' + a.rate.days + ' working days to ' + formatDate(a.rate.to) + ', per 8½-hour shift)' : '(the case’s estimate: no invoices in the last 90 days)') + ': the upper bound, if no hour were ever made up and nothing it used were saved'), formatCurrency(t.lost)],
@@ -919,7 +920,7 @@ function powerCfgEdit() {
   var c = powerCfg();
   dialogOpen('<div class="inv-dialog inv-dialog-wide">' + dialogHeadHtml('The options&rsquo; figures') + '<div class="inv-fields">' +
     POWER_CFG_FIELDS.map(function(f) { return _pwField('pwc_' + f[0], f[1] + (f[2] === 'share' ? ' (0 to 1)' : f[2] === 'h' ? ', hours' : ', ₹'), c[f[0]], 'number'); }).join('') + '</div>' +
-    '<div class="inv-note">The 30 May case&rsquo;s estimates until a quote replaces them. Blank goes back to the case&rsquo;s figure.</div>' +
+    '<div class="inv-note">The case is worked out from these figures as set here: the restart as you set it, the rest the 30 May case&rsquo;s estimates until a quote replaces them. Blank goes back to the case&rsquo;s figure.</div>' +
     '<div class="inv-field"><span class="inv-field-label">Open items</span>' + POWER_ITEMS.map(function(it) {
       var s = powerData().items[it[0]] || {};
       return '<div class="inv-fields"><label class="inv-field"><span class="inv-field-label">' + escHtml(it[1]) + '</span><select class="inv-select" id="pwi_' + it[0] + '">' +

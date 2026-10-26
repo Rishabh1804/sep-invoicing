@@ -6,7 +6,7 @@ import { imState } from './im-fixture';
 test('lines sit in one row under a column head', async ({ page }) => {
   await loadAppWithState(page, imState());
   await switchTab(page, 'pageCreate');
-  await page.locator('#invClientSearch').fill('dilip');
+  await page.locator('#invClientSearch').fill('orbit');
   await page.locator('[data-action="invSelectClient"]').first().click();
   await page.locator('[data-action="invCreatePickChallan"]').check();
   await expect(page.locator('.inv-lines-head')).toBeVisible();

@@ -134,21 +134,21 @@ test.describe('P110: Production', () => {
 
   test('P5: a barrel list with no slash after its date is read', async ({ page }) => {
     await load(page);
-    const m = await read(page, `${dmy(-1)} berral production\nDurga auto\n0701--995 NOS`);
+    const m = await read(page, `${dmy(-1)} berral production\nDurga auto\n0701--940 NOS`);
     expect(m[0].items).toHaveLength(1);
-    expect(m[0].items[0]).toMatchObject({ kind: 'plated', date: iso(-1), clientId: 12, part: '0701', qty: 995 });
+    expect(m[0].items[0]).toMatchObject({ kind: 'plated', date: iso(-1), clientId: 12, part: '0701', qty: 940 });
   });
 
   test('P6: a part word in the barrel list is the part, and a first word read by its place is never learnt as a client', async ({ page }) => {
     await load(page);
-    await paste(page, `${dmy(-1)}, 8:21 pm - Supervisor: ${dmy(-1)}/berral production\nLINER 1000 NOS\n${dmy(-1)}, 8:22 pm - Supervisor: ${dmy(-1)}/berral production\nKUMAR 0740--300 NOS`);
+    await paste(page, `${dmy(-1)}, 8:21 pm - Supervisor: ${dmy(-1)}/berral production\nLINER 920 NOS\n${dmy(-1)}, 8:22 pm - Supervisor: ${dmy(-1)}/berral production\nKUMAR 0740--280 NOS`);
     await expect(page.locator('[data-prod-row="0:0"] .inv-verdict-text')).toContainText('no client · LINER');
     await expect(page.locator('[data-prod-row="1:0"] .inv-verdict-text')).toContainText('KUMAR (as written) · 0740');
     await page.locator('[data-prod-client="0:0"]').selectOption('11');
     await page.locator('[data-prod-client="1:0"]').selectOption('12');
     await page.locator('[data-action="invProdSaveReview"]').click();
     const s = await readStoredState(page);
-    expect(s.production.entries.map((e: any) => [e.clientId, e.part, e.qty])).toEqual([[11, 'LINER', 1000], [12, '0740', 300]]);
+    expect(s.production.entries.map((e: any) => [e.clientId, e.part, e.qty])).toEqual([[11, 'LINER', 920], [12, '0740', 280]]);
     expect(s.production.learn.clients).toEqual({});
   });
 
@@ -159,7 +159,7 @@ test.describe('P110: Production', () => {
     expect(two[1].notes[0]).toContain('the end of the cut at 10:55 AM');
     const one = await read(page, `${dmy(-1)}, 11:50 am - Pickler: Power cut 10:55am\nPower cut 11:30am\nPower in 11:45am`);
     expect(one[0].items.map((x: any) => [x.time, x.to, x.open])).toEqual([['10:55', null, true], ['11:30', '11:45', false]]);
-    const list = await read(page, `${dmy(-1)}, 8:21 pm - Supervisor: ${dmy(-1)}/berral production\nPower cut 10:55 am\nPower cut 11:30 am\nPower in 11:45 am\nDurga auto\n0701--995 NOS`);
+    const list = await read(page, `${dmy(-1)}, 8:21 pm - Supervisor: ${dmy(-1)}/berral production\nPower cut 10:55 am\nPower cut 11:30 am\nPower in 11:45 am\nDurga auto\n0701--940 NOS`);
     expect(list[0].items.filter((x: any) => x.kind === 'downtime').map((x: any) => [x.time, x.to])).toEqual([['10:55', null], ['11:30', '11:45']]);
   });
 
@@ -175,7 +175,7 @@ test.describe('P110: Production', () => {
   test('P9, P19: an imported entry keeps a client id only under the name written, and a quantity written as text is refused', async ({ page }) => {
     await load(page);
     const res = await g(page, `(function(){ var r = prodMergeImport({ format: 'sep-production', entries: [
-      { id: 'X1', kind: 'plated', date: '${iso(0)}', line: 'vat-a1', clientId: 11, client: 'DURGA AUTO', part: '0740', qty: 300, unit: 'NOS', at: 2 },
+      { id: 'X1', kind: 'plated', date: '${iso(0)}', line: 'vat-a1', clientId: 11, client: 'DURGA AUTO', part: '0740', qty: 280, unit: 'NOS', at: 2 },
       { id: 'X2', kind: 'plated', date: '${iso(0)}', line: 'vat-a1', clientId: 11, client: 'Nova clamps', part: '0141', qty: 30, unit: 'NOS', at: 2 },
       { id: 'X3', kind: 'plated', date: '${iso(0)}', line: 'vat-a1', clientId: 12, part: '0142', qty: '300', unit: 'NOS', at: 2 }] });
       return { r: r, e: S.production.entries.map(function(e){ return [e.id, e.clientId]; }) }; })()`);
@@ -202,15 +202,15 @@ test.describe('P110: Production', () => {
 
   test('P15: work under a second day\'s heading in a roll is that day\'s', async ({ page }) => {
     await load(page);
-    const m = await read(page, `${dmy(-2)}, 8:40 pm - Supervisor: ${dmy(-2)}/ out time\n----8:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0701--400 nos\n${dmy(-1)}/ Sunday\n----6:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0102--300 nos`);
+    const m = await read(page, `${dmy(-2)}, 8:40 pm - Supervisor: ${dmy(-2)}/ out time\n----8:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0701--360 nos\n${dmy(-1)}/ Sunday\n----6:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0102--300 nos`);
     expect(m[0].items.map((x: any) => [x.part, x.date])).toEqual([['0701', iso(-2)], ['0102', iso(-1)]]);
   });
 
   test('P16: an incoming block keeps its time when another begins; loads with no time say so', async ({ page }) => {
     await load(page);
-    const m = await read(page, `${dmy(-1)}, 10:40 am - Pickler: Incoming material time 8:45 am\nDurga auto\n0740--500 nos\nIncoming material time 10:15 am\nKestrel engineers\nNut--200 nos`);
+    const m = await read(page, `${dmy(-1)}, 10:40 am - Pickler: Incoming material time 8:45 am\nDurga auto\n0740--460 nos\nIncoming material time 10:15 am\nKestrel engineers\nNut--200 nos`);
     expect(m[0].items.map((x: any) => [x.kind, x.part, x.time])).toEqual([['arrived', '0740', '08:45'], ['arrived', 'Nut', '10:15']]);
-    const p = await read(page, `${dmy(-1)}, 10:40 am - Pickler: Durga auto\n0740--500 nos\nIncoming material time 10:15 am\nKestrel engineers\nNut--200 nos`);
+    const p = await read(page, `${dmy(-1)}, 10:40 am - Pickler: Durga auto\n0740--460 nos\nIncoming material time 10:15 am\nKestrel engineers\nNut--200 nos`);
     expect(p[0].items[0]).toMatchObject({ kind: 'pickled', part: '0740', time: null });
     expect(p[0].items[0].codes).toContain('amber:notime');
   });
@@ -231,9 +231,9 @@ test.describe('P110: Production', () => {
   });
 
   test('P24: a batch of racks counts its rounds', async ({ page }) => {
-    await load(page, prod([E({ id: 'R1', date: iso(0), part: 'CLAMP 165X83', qty: 1145, rounds: [
-      { time: '3:00 PM', qty: 785, batch: true, written: '98×8+1', rack: 98, n: 8 }, { time: '4:00 PM', qty: 360, batch: true, written: '120x3', rack: 120, n: 3 }] })]));
-    expect(await g(page, `prodDayLine('${iso(0)}', 'vat-a1').rounds`)).toBe(11);
+    await load(page, prod([E({ id: 'R1', date: iso(0), part: 'CLAMP 165X83', qty: 1007, rounds: [
+      { time: '2:50 PM', qty: 677, batch: true, written: '96×7+5', rack: 96, n: 7 }, { time: '3:55 PM', qty: 330, batch: true, written: '110x3', rack: 110, n: 3 }] })]));
+    expect(await g(page, `prodDayLine('${iso(0)}', 'vat-a1').rounds`)).toBe(10);
   });
 
   test('P25: correcting an entry keeps its line unknown and the barrel list\'s whole day', async ({ page }) => {
@@ -275,7 +275,7 @@ test.describe('P110: Production', () => {
   test('PB3: a client read by name can be changed on the check; a changed exact name is not learnt, a changed lesson is', async ({ page }) => {
     await load(page);
     await page.evaluate(() => (0, eval)('prodData().learn.clients.KUMAR = 11'));
-    await paste(page, `${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n0740--300 nos\nPickling Time 9:00AM\n${dmy(-1)}, 9:50 am - Pickler: KUMAR\n0141--50 nos\nPickling Time 9:30AM`);
+    await paste(page, `${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n0740--280 nos\nPickling Time 9:00AM\n${dmy(-1)}, 9:50 am - Pickler: KUMAR\n0141--50 nos\nPickling Time 9:30AM`);
     await expect(page.locator('[data-prod-client="0:0"]')).toHaveCount(0);
     await page.locator('[data-prod-row="0:0"] [data-action="invProdRevClient"]').click();
     await page.locator('[data-prod-client="0:0"]').selectOption('13');

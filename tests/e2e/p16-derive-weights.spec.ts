@@ -137,8 +137,8 @@ test('derived weights make the client measurable in Stats without changing billi
 
 test('a piece-billed line with no catalogue row is still weighed', async ({ page }) => {
   const state = pieceState();
-  // The part is on the invoice but absent from Items Master — the shape of 127
-  // of SSSMehta's lines, 17% of that client's revenue. Routing weight through
+  // The part is on the invoice but absent from Items Master — the shape of many
+  // of the piece client's lines. Routing weight through
   // the registry left every one of them uncounted; the line's own amount
   // divided by the client's rate per kg is all that is needed.
   (state.invoices as Array<Record<string, unknown>>)[0] = {

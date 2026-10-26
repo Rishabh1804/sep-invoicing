@@ -2,7 +2,7 @@ import { type Page, expect } from '@playwright/test';
 import { emptyState, recentTs, todayIso } from './fixtures';
 
 // P139's made-up book: three clients, invoices 00834 / 08341 / 00900 / 00901, challans 834 / 8341 / 0877/26-27, a credit note and
-// an invoice of 5,902.12, a cheque deposit numbered 525428, a hand, a stock line. Every date is built from today.
+// an invoice of 4,827.42, a cheque deposit numbered 525428, a hand, a stock line. Every date is built from today.
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const dayOff = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
@@ -44,7 +44,7 @@ export function searchBook() {
   s.invoices = [
     inv('INV-834', 834, CLIENTS[0], dayOff(-2), 1000, { challanNo: '834' }),
     inv('INV-8341', 8341, CLIENTS[1], dayOff(-3), 2000),
-    inv('INV-900', 900, CLIENTS[0], dayOff(-1), 5001.80, { grandTotal: 5902.12, poNumber: 'QX1/00877' }),
+    inv('INV-900', 900, CLIENTS[0], dayOff(-1), 4091.03, { grandTotal: 4827.42, poNumber: 'QX1/00877' }),
     inv('INV-901', 901, CLIENTS[2], dayOff(-1), 3000),
   ];
   s.invNextNum = 8342;
@@ -54,8 +54,8 @@ export function searchBook() {
     challan('IM-877', '0877/26-27', CLIENTS[2], dayOff(-6)),
   ];
   s.creditNotes = [{ id: 'CN7', cnNumber: '007', displayNumber: 'CN/007/26-27', kind: 'rebate', date: dayOff(-3), clientId: 2, clientName: CLIENTS[1].name,
-    invoiceIds: ['INV-8341'], invoiceNumbers: ['SEP/TEST-08341'], invoiceDates: [dayOff(-3)], discountPct: 2, batchTaxable: 295106, taxableValue: 5902.12,
-    cgstAmt: 531.19, sgstAmt: 531.19, igstAmt: 0, grandTotal: 6964.50, qty: 1092.98, rate: 5.4, status: 'active', gstType: 'intra', createdAt: recentTs() }];
+    invoiceIds: ['INV-8341'], invoiceNumbers: ['SEP/TEST-08341'], invoiceDates: [dayOff(-3)], discountPct: 2, batchTaxable: 241371, taxableValue: 4827.42,
+    cgstAmt: 434.47, sgstAmt: 434.47, igstAmt: 0, grandTotal: 5696.36, qty: 791.38, rate: 6.1, status: 'active', gstType: 'intra', createdAt: recentTs() }];
   s.staff = [{ id: 1, name: 'Ramu Kumar', comp: 'monthly', dayRate: 500, hourRate: 0, area: 'vat-a1', onFloor: true, active: true, relayNames: ['RAMOO'] }];
   s.stock = { items: [{ id: 'N', name: 'Nitric acid', key: 'NITRIC', unit: 'L', active: true, aliases: ['NITRIK'] }], entries: [], pastes: [] };
   const rows = [

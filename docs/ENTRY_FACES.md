@@ -129,7 +129,7 @@ at a sitting).
   other (§4).
   *Built (F4):* the duty opens People → Attendance → Day as the sheet, as before; every mark typed on the day now carries who typed
   it (`by`), so the clerk's marks are known from anyone else's. The rulings are §4's.
-- **The VAT register**: a page per line and day, a row a round (time, client, part, the figure as written: `98×8+1` and
+- **The VAT register**: a page per line and day, a row a round (time, client, part, the figure as written: `96×7+5` and
   `3+4×156` are kept and added up in code, never by hand), START and END, a struck row marked, the power log (cut at, power in).
   Written as the photo read's rows are (`prodFromRegisterRead`), so the gauge and part rules, the series, the crews and the
   efficiency read it unchanged. The photo stays a door for a page written on paper.

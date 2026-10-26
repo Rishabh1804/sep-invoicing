@@ -1342,7 +1342,7 @@ function faceBarrelUsual(batch) {
 }
 
 /* ---------- F4: the register clerk's VAT register page (docs/ENTRY_FACES.md §2, F-clerk) ----------
-   A page per line and day as the register keeps it: a round a row (its time, START or END, the figure as written: "98×8+1" and
+   A page per line and day as the register keeps it: a round a row (its time, START or END, the figure as written: "96×7+5" and
    "3+4×156" are added up in code), the client and the part as the floor names them only where a run begins (the paper's ditto
    carries them down). The page is read by the photo's own reader (prodFromRegisterRead, prodRackCheck), so the START rule, the
    gauge, part and series rules, the shift's edges and the day's total read it unchanged, and its runs are the photo's: plated,
@@ -1634,7 +1634,7 @@ async function faceVatSave() {
   var rd = faceVatRead(f);
   // A figure the reader cannot add up is never saved as nothing: it is written again.
   var bad = rd.rows.find(function(x) { return x.issues.some(function(q) { return q.code === 'figure'; }); });
-  if (bad) return err((batches ? 'Batch ' : 'Round ') + (rd.map[bad.i] + 1) + ': "' + bad.written + '" could not be added up. Write it as the register does (120, 98×8+1, 3+4×156)', '[data-face-vat="' + rd.map[bad.i] + '"][data-k="fig"]');
+  if (bad) return err((batches ? 'Batch ' : 'Round ') + (rd.map[bad.i] + 1) + ': "' + bad.written + '" could not be added up. Write it as the register does (120, 96×7+5, 3+4×156)', '[data-face-vat="' + rd.map[bad.i] + '"][data-k="fig"]');
   var idx = prodIndex(), old = faceVatPage(f.date, f.line), at = Date.now(), by = faceUserName(), u = faceUser();
   var oldRuns = faceVatRuns(f.date, f.line);
   // A run of this page the owner corrected or voided in Production: the page is theirs now, and saving it again here would

@@ -11,7 +11,7 @@
    MATCHING (srchQuery): every part of the query must match. A number matches whole: 834 finds challan 834 and invoice
    00834, never 8341 (leading zeros ignored, as imChallanNoKey does). A challan or a P.O. is known by its first number
    standing on its own, after a trailing financial year: 0901/26-27 is 901 (never 26 or 27), QX1/00877 is 877 (the 1 of
-   QX1 is part of a word). An amount matches to the paisa: 5902.12, 5,902.12, ₹5,902.12. A date matches its day:
+   QX1 is part of a word). An amount matches to the paisa: 4827.42, 4,827.42, ₹4,827.42. A date matches its day:
    21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and punctuation folded (rateKey); a number
    written with its punctuation (SEP/2026-27/00834, QX1/00877) matches as one, whole when it ends in a digit (00083 never
    finds 00834), or by its tail (27/00834, 2026-27/00834). A series word that starts an identifier counts only beside
@@ -84,7 +84,7 @@ function srchWordsOf(s) {
 function srchNumsOf(s) {
   return (String(s == null ? '' : s).match(/\d+/g) || []).map(function(n) { return n.replace(/^0+(?=\d)/, ''); });
 }
-/* A list of challan numbers as an invoice cites them ("834, 835 & 838"): each one. */
+/* A list of challan numbers as an invoice cites them ("612, 613 & 617"): each one. */
 function srchDocList(s) {
   return String(s == null ? '' : s).split(/[,;&]+/).map(function(x) { return x.trim(); }).filter(Boolean);
 }
@@ -459,7 +459,7 @@ function srchDateTok(y, m, d) {
   return { t: 'date', y: y == null ? null : String(y).length === 2 ? '20' + y : String(y), m: pad(m), d: d == null ? null : pad(d) };
 }
 /* A text token. `whole`: an identifier typed ending in a digit matches only whole, never as the start of a longer one:
-   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and QX1/00087 of QX1/00877 (QA3-3; a number matches whole).
+   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and QX1/00069 of QX1/00694 (QA3-3; a number matches whole).
    One typed ending in a separator ("sep/2026-27/") asks for what follows, and matches as a start. */
 function srchTxt(sq, id, typed) { return { t: 'txt', sq: sq, id: id, whole: id && /\d$/.test(typed) }; }
 function srchTxtTok(p) {

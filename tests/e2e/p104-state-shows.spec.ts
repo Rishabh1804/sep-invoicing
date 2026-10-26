@@ -12,7 +12,7 @@ import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, type SepSt
 const items = [{ partNumber: 'CLAMP 100X83 (NT)', desc: 'CLAMP 100X83 (NT)', hsn: '998873', unit: 'KG', qty: 10, rate: 13, amount: 130, nosQty: null }];
 const inv = (id: string, o: any = {}) => ({ id, invoiceNumber: id.slice(4).padStart(5, '0'), displayNumber: 'SEP/TEST-' + id.slice(4).padStart(5, '0'),
   date: todayIso(), status: 'active', invoiceState: 'created', clientId: 1, clientName: 'TEST CLIENT KG', clientGSTIN: '20ABCDE1234F1Z5',
-  clientAddress: { add1: 'A-4, Road No. 2', add2: 'ADITYAPUR', add3: '', state: 'JHARKHAND', stateCode: '20' }, gstType: 'intra', items,
+  clientAddress: { add1: 'Plot 12, Lane 7', add2: 'INDUSTRIAL AREA', add3: '', state: 'JHARKHAND', stateCode: '20' }, gstType: 'intra', items,
   taxableValue: 130, cgstPer: 9, cgstAmt: 11.7, sgstPer: 9, sgstAmt: 11.7, igstPer: 0, igstAmt: 0, grandTotal: 153.4, amountInWords: '',
   challanNo: '834', challanDate: todayIso(), poNumber: '', poDate: '', despatchDate: '', transport: '', remarks: '', linkedIMIds: [],
   createdAt: recentTs(), ...o });

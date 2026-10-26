@@ -87,14 +87,14 @@ test.describe('P202: the register clerk’s face', () => {
     await page.locator('#faceVatPart2').fill('TINA(3303)');
     await page.locator('#faceVatPart2').blur();
     await typeIn(page, 2, 'time', '11:00');
-    await typeIn(page, 2, 'fig', '98x8+1');
+    await typeIn(page, 2, 'fig', '96x7+5');
     await expect(page.locator('[data-face-vat-run]')).toHaveCount(2);
-    await expect(page.locator('[data-face-vat-reads="2"]')).toContainText('Read as ORBIT ENGG · TINA(3303) · 785 NOS in 1 round');
-    await expect(page.locator('[data-face-vat-counted]')).toHaveText('1,745 NOS');
+    await expect(page.locator('[data-face-vat-reads="2"]')).toContainText('Read as ORBIT ENGG · TINA(3303) · 677 NOS in 1 round');
+    await expect(page.locator('[data-face-vat-counted]')).toHaveText('1,637 NOS');
     // The paper's day total against the rounds.
     await page.locator('#faceVatTotal').fill('1750');
     await page.locator('#faceVatTotal').blur();
-    await expect(page.locator('[data-face-vat-total-q]')).toHaveText('The page’s day total is 1750; the rows counted add to 1745. A row may be missed or misread.');
+    await expect(page.locator('[data-face-vat-total-q]')).toHaveText('The page’s day total is 1750; the rows counted add to 1637. A row may be missed or misread.');
 
     // Kept on this phone as it is typed: a reload brings the page back, and Mine says it is typed and not saved.
     await page.reload();
@@ -110,39 +110,39 @@ test.describe('P202: the register clerk’s face', () => {
     await typeIn(page, 2, 'fig', '98y8');
     await page.locator('[data-action="invFaceSave"]').click();
     await expect(page.locator('.inv-toast').last()).toContainText('Round 3: "98y8" could not be added up');
-    await typeIn(page, 2, 'fig', '98x8+1');
+    await typeIn(page, 2, 'fig', '96x7+5');
     await page.locator('[data-action="invFaceSave"]').click();
-    await expect(page.locator('.inv-toast').last()).toContainText('Page saved: 2 runs, 1,745 NOS');
+    await expect(page.locator('.inv-toast').last()).toContainText('Page saved: 2 runs, 1,637 NOS');
 
     // Saved as the photo's reader saves a page: plated runs on the line as written, the register's basis, the page they came from.
     expect(await runs(page)).toEqual([
       ['NOVA CLAMPS', 'CLAMP 165X83(40X6)', 960, '09:45-10:20', 2, 'face', 'register', 'written'],
-      ['ORBIT ENGG', 'TINA(3303)', 785, '11:00-11:00', 1, 'face', 'register', 'written']]);
+      ['ORBIT ENGG', 'TINA(3303)', 677, '11:00-11:00', 1, 'face', 'register', 'written']]);
     const pg = await ev(page, `S.production.pages[0]`);
-    expect(pg).toMatchObject({ date: today, line: 'vat-a1', style: 'rounds', total: 1750, counted: 1745, by: 'Gita Bose', uid: 'U-clk' });
+    expect(pg).toMatchObject({ date: today, line: 'vat-a1', style: 'rounds', total: 1750, counted: 1637, by: 'Gita Bose', uid: 'U-clk' });
     expect(pg.rows).toEqual([
       { time: '09:45', to: '', client: '11', part: 'CLAMP 165X83(40X6)', fig: '120' },
       { time: '10:20', to: '', client: '11', part: 'CLAMP 165X83(40X6)', fig: '3+4x120' },
-      { time: '11:00', to: '', client: '12', part: 'TINA(3303)', fig: '98x8+1' }]);
+      { time: '11:00', to: '', client: '12', part: 'TINA(3303)', fig: '96x7+5' }]);
     expect(await ev(page, `localStorage.getItem('sep_inv_face_page')`)).toBe('{}');
     await expect(page.locator('[data-face-vat-state]')).toHaveAttribute('data-face-vat-state', 'saved');
     // The page for the group, in the shop's shape, and the day total it does not meet asked of the owner.
     const href = await page.locator('[data-face-send="page"]').getAttribute('href');
     expect(decodeURIComponent(href!.split('text=')[1])).toBe(`${dmy()}\nVAT A1 REGISTER\n9:45 AM - NOVA CLAMPS - CLAMP 165X83(40X6) - 120\n` +
-      `10:20 AM - NOVA CLAMPS - CLAMP 165X83(40X6) - 3+4x120\n11:00 AM - ORBIT ENGG - TINA(3303) - 98x8+1\nTOTAL 1,745 NOS`);
+      `10:20 AM - NOVA CLAMPS - CLAMP 165X83(40X6) - 3+4x120\n11:00 AM - ORBIT ENGG - TINA(3303) - 96x7+5\nTOTAL 1,637 NOS`);
     expect(await ev(page, `TODO_RULE_FNS.faceCheck().map(function(t){ return t.key; })`)).toEqual([`faceCheck:total|${today}`]);
-    await expect(page.locator('[data-card="faceSaved"] [data-face-check]').first()).toContainText('the page’s day total is 1,750; its rounds add to 1,745');
+    await expect(page.locator('[data-card="faceSaved"] [data-face-check]').first()).toContainText('the page’s day total is 1,750; its rounds add to 1,637');
 
     // Saved again with one figure changed: the run whose rows are as they were stays (its id, whatever was set on it); the one that
     // changed is voided, saying why, and its new reading added; the page before is kept, marked replaced.
     const ids = await ev(page, `prodIndex().live.filter(function(e){ return e.pageId; }).map(function(e){ return e.id; })`);
-    await typeIn(page, 2, 'fig', '98x8+2');
+    await typeIn(page, 2, 'fig', '96x7+6');
     await page.locator('[data-action="invFaceSave"]').click();
     await expect(page.locator('.inv-toast').last()).toContainText('Page saved again: 1 run new, 1 run put right, 1 as it was');
     const after = await ev(page, `S.production.entries.filter(function(e){ return e.pageId; }).map(function(e){ return [e.id, e.qty, e.voidedAt ? e.voidReason : 'live']; })`);
-    expect(after.filter((x: any) => x[2] === 'live').map((x: any) => x[1]).sort()).toEqual([786, 960]);
+    expect(after.filter((x: any) => x[2] === 'live').map((x: any) => x[1]).sort()).toEqual([678, 960]);
     expect(after.find((x: any) => x[0] === ids[0])).toEqual([ids[0], 960, 'live']);
-    expect(after.find((x: any) => x[0] === ids[1])).toEqual([ids[1], 785, 'The page was entered again on Mine']);
+    expect(after.find((x: any) => x[0] === ids[1])).toEqual([ids[1], 677, 'The page was entered again on Mine']);
     expect(await ev(page, `S.production.pages.map(function(p){ return !!p.replacedBy; })`)).toEqual([true, false]);
     // Mine says the register is in.
     await page.locator('[data-card="faceSaved"] [data-action="invFaceFormDone"]').click();

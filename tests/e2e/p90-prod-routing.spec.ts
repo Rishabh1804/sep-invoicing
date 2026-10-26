@@ -25,7 +25,7 @@ const ROLL = (block: boolean) => `${dmy(-1)}/ out time
 1) ARUN
 EXTRA 6 HOURS` + (block ? `
 ----production----
-Durga auto 0701--400 nos` : '');
+Durga auto 0701--360 nos` : '');
 
 async function load(page: Page, staff = STAFF) {
   await loadAppWithState(page, { ...emptyState(), clients: CLIENTS, staff, attendance: {}, incomingMaterial: noSeedIM() } as SepState);
@@ -42,7 +42,7 @@ test.describe('P90: where a pasted message goes', () => {
     await load(page, []);
     await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
-    await page.locator('#relayPasteText').fill(`${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n0740--300 nos\nPickling Time 9:00AM`);
+    await page.locator('#relayPasteText').fill(`${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n0740--280 nos\nPickling Time 9:00AM`);
     await page.locator('[data-action="invRelayRead"]').click();
     await expect(page.locator('#pageProduction')).toHaveClass(/inv-page-active/);
     await expect(page.locator('[data-prod-row="0:0"] .inv-verdict-text')).toContainText('DURGA AUTO');
@@ -73,7 +73,7 @@ test.describe('P90: where a pasted message goes', () => {
     const day = Object.keys(plain.att)[0];
     expect(Object.keys(plain.att)).toHaveLength(1);
     expect(strip(withBlock.att)).toEqual(strip(plain.att));
-    expect(withBlock.att[day].note).toBe('Durga auto 0701--400 nos');
+    expect(withBlock.att[day].note).toBe('Durga auto 0701--360 nos');
 
     // Read in Production: the same text on Production's check, the block's line only suggested.
     await load(page);
@@ -81,7 +81,7 @@ test.describe('P90: where a pasted message goes', () => {
     await page.locator('[data-action="invRelayToProd"]').click();
     await expect(page.locator('#pageProduction')).toHaveClass(/inv-page-active/);
     const row = page.locator('[data-prod-row="0:0"]');
-    await expect(row.locator('.inv-quote')).toHaveText('Durga auto 0701--400 nos');
+    await expect(row.locator('.inv-quote')).toHaveText('Durga auto 0701--360 nos');
     await expect(row.locator('.inv-verdict-text')).toContainText('line unknown');
   });
 });

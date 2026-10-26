@@ -11,7 +11,7 @@ async function openWithClient(page) {
   st.invNextNum = 2;   // the fixture's billed challan holds 00001
   await loadAppWithState(page, st);
   await switchTab(page, 'pageCreate');
-  await page.locator('#invClientSearch').fill('dilip');
+  await page.locator('#invClientSearch').fill('orbit');
   await page.locator('[data-action="invSelectClient"]').first().click();
 }
 

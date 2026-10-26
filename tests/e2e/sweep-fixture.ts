@@ -427,7 +427,7 @@ export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
       var id = String(cl.id); _faceForm.rows = [{ time: '09:45', to: '', client: id, part: 'CLAMP', fig: '120' }, { time: '10:20', to: '', client: id, part: 'CLAMP', fig: '3+4x156' },
       { time: '', to: '', client: id, part: 'CLAMP', fig: '' }]; _faceForm.total = '1300'; })(); renderFace()`],
     ['vat-batches', `faceFormOpen('vat'); _faceForm = faceVatMake(faceDayIso(), 'vat-a2'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return;
-      var id = String(cl.id); _faceForm.rows = [{ time: '10:30', to: '11:45', client: id, part: 'TINA(3303)', fig: '3x156' }, { time: '', to: '13:05', client: id, part: 'TINA(3303)', fig: '98x8+1' }]; })(); renderFace()`],
+      var id = String(cl.id); _faceForm.rows = [{ time: '10:30', to: '11:45', client: id, part: 'TINA(3303)', fig: '3x156' }, { time: '', to: '13:05', client: id, part: 'TINA(3303)', fig: '96x7+5' }]; })(); renderFace()`],
   ];
   for (const [name, js] of views) {
     await page.evaluate(src => (0, eval)(src), js);

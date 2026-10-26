@@ -496,7 +496,7 @@ Row dividers are `1px solid var(--border)`. The last row in a panel has none. He
 
 ### 5.3 Text in rows
 Primary line `--t-body-strong`; meta line `--t-caption` in `--text-3`, mono when it is identifiers and
-quantities (`ch 834, 835 · 348.09 kg`). Truncate with an ellipsis on one line; a truncated cell carries a
+quantities (`ch 612, 613 · 291.40 kg`). Truncate with an ellipsis on one line; a truncated cell carries a
 `title` with the full text. **On the phone and tablet a meta line takes up to two lines before it is cut** (line-clamp 2; the
 title keeps one), and where a date or an amount follows a long name, the date leads (`25 Sep 2026 · GAMMA PRESS WORKS`). The
 titles are not written per template: `uiOverflowCues()` (`state.js`) runs after every render, reads from the stylesheet which

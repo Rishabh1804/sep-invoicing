@@ -39,13 +39,13 @@ function invoice(num: number, lines: Line[], over: Record<string, unknown> = {})
     clientId: 1,
     clientName: 'TEST CLIENT KG',
     clientGSTIN: '',
-    clientAddress: { add1: 'A-4, Road No. 2', add2: 'ADITYAPUR, JAMSHEDPUR', add3: '', state: 'JHARKHAND', stateCode: '20' },
+    clientAddress: { add1: 'Plot 12, Lane 7', add2: 'INDUSTRIAL AREA, ANYTOWN', add3: '', state: 'JHARKHAND', stateCode: '20' },
     gstType: 'intra',
     items,
     taxableValue: taxable,
     cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
     grandTotal: taxable, amountInWords: '',
-    challanNo: '94', challanDate: todayIso(), poNumber: '', poDate: '', despatchDate: '',
+    challanNo: '63', challanDate: todayIso(), poNumber: '', poDate: '', despatchDate: '',
     transport: '', remarks: '', linkedIMIds: [],
     createdAt: recentTs(),
     ...over,
@@ -60,8 +60,8 @@ function stateWith(invoices: unknown[]): SepState {
 }
 
 const TWO_LINES: Line[] = [
-  { partNumber: '2082 3240 4202', desc: 'CLAMP 165X83 (NT) (40X6)', qty: 40, rate: 13, amount: 520 },
-  { partNumber: '5069 3240 4202N', qty: 20.5, rate: 13, amount: 266.5 },
+  { partNumber: '9203 0000 4402', desc: 'CLAMP 165X83 (NT) (40X6)', qty: 36, rate: 13, amount: 468 },
+  { partNumber: '9204 0000 4405N', qty: 20.5, rate: 13, amount: 266.5 },
 ];
 
 /** Open the register, open one invoice's detail, and press Quality Cert. */
@@ -89,9 +89,9 @@ test('P17: one certificate per invoice line, not per invoice', async ({ page }) 
   const pages = page.locator('.inv-qc-page');
   await expect(pages).toHaveCount(2);
   // Each page names its own part; neither carries the other's.
-  await expect(pages.nth(0)).toContainText('2082 3240 4202');
-  await expect(pages.nth(1)).toContainText('5069 3240 4202N');
-  await expect(pages.nth(0)).not.toContainText('5069 3240 4202N');
+  await expect(pages.nth(0)).toContainText('9203 0000 4402');
+  await expect(pages.nth(1)).toContainText('9204 0000 4405N');
+  await expect(pages.nth(0)).not.toContainText('9204 0000 4405N');
 });
 
 test('P17: the certificate carries the dispatch it certifies', async ({ page }) => {
@@ -101,10 +101,10 @@ test('P17: the certificate carries the dispatch it certifies', async ({ page }) 
   const first = page.locator('.inv-qc-page').first();
   await expect(first).toContainText('SEP/TEST-00001');
   await expect(first).toContainText('TEST CLIENT KG');
-  await expect(first).toContainText('ADITYAPUR, JAMSHEDPUR');
+  await expect(first).toContainText('INDUSTRIAL AREA, ANYTOWN');
   await expect(first).toContainText('PO-778');
   // Challan number and date — the certificate is filed against the challan.
-  await expect(first).toContainText('94');
+  await expect(first).toContainText('63');
   // The gauge rides along in the description; two clamp rows differ only there.
   await expect(first).toContainText('CLAMP 165X83 (NT) (40X6)');
 });
@@ -123,15 +123,15 @@ test('P17: quantity states its unit — 40 KG and 40 NOS are different consignme
  * out of the rate card.
  */
 test('P17: a KG line states its net weight, because its quantity is kilograms', async ({ page }) => {
-  const kg: Line[] = [{ partNumber: '5069 3240 4202N', unit: 'KG', qty: 282.7, rate: 5.4, amount: 1526.58 }];
+  const kg: Line[] = [{ partNumber: '9204 0000 4405N', unit: 'KG', qty: 247.3, rate: 6.1, amount: 1508.53 }];
   await loadAppWithState(page, stateWith([invoice(1, kg)]));
   await certifyOne(page, 'INV-1');
 
   const cert = page.locator('.inv-qc-page').first();
-  await expect(cert).toContainText('282.700 KG');
+  await expect(cert).toContainText('247.300 KG');
   // Quantity and Net Wt. read alike on weight-billed work — that is what
   // being billed by the kilo means, not a duplicated cell.
-  await expect(cert.locator('.inv-qc-value').filter({ hasText: /^282\.700$/ })).toHaveCount(1);
+  await expect(cert.locator('.inv-qc-value').filter({ hasText: /^247\.300$/ })).toHaveCount(1);
 });
 
 test('P17: a nos_to_weight line states the kilograms it was priced on', async ({ page }) => {

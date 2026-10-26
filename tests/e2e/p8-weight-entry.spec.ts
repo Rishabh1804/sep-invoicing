@@ -138,7 +138,7 @@ test.describe('P8: bulk weight entry', () => {
     // Marking the bootstrap pass done models the case the button still exists
     // for: an item added to the catalogue after that pass has run.
     (state as unknown as Record<string, unknown>)._deriveWeights1 = true;
-    // Piece-billed client on a 5.40/kg ladder — the SSSMehta shape.
+    // Piece-billed client on a per-kg ladder — the piece client's shape.
     state.clients = [{
       id: 1, name: 'PIECE CLIENT', billingMode: 'piece', gstType: 'intra', gstin: '', address: '',
       rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [],

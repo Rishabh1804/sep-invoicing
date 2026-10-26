@@ -88,7 +88,7 @@ const BEFORE_FY = `${FY}-03-31`;   // the day before this series' year begins
 
 test('G1-1: the invoice line shows its part number, and a keystroke never turns the description into the part', async ({ page }) => {
   await loadAppWithState(page, book({ incomingMaterial: [challan('IM-71', 1, [
-    { id: 'IM-71-0', partNumber: '9106 0000 0740', desc: 'BRACKET', unit: 'KG', qty: 50, rate: 13, amount: 650 }])] }));
+    { id: 'IM-71-0', partNumber: '9106 0000 0740', desc: 'BRACKET', unit: 'KG', qty: 42, rate: 13, amount: 546 }])] }));
   await pickChallan(page, 'kestrel', 'IM-71');
   const part = page.locator('input[data-action="invEditLinePart"][data-idx="0"]');
   await expect(part).toHaveValue('9106 0000 0740');
@@ -322,7 +322,7 @@ test('G1-6: a credit note dated outside its series\' year is asked about, from t
   await page.locator('#cnfDate').fill(BEFORE_FY);
   await page.locator('#cnfClient').selectOption('1');
   await page.locator('#cnfInv').selectOption('__typed');
-  await page.locator('#cnfInvNo').fill('000443');
+  await page.locator('#cnfInvNo').fill('000517');
   await page.locator('#cnfReason').selectOption('rate');
   await page.locator('#cnfTaxable').fill('10');
   await page.locator('[data-action="invCnFormSave"]').click();

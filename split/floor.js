@@ -50,7 +50,7 @@ function flrLatest(list) {
   (list || []).forEach(function(e) { var k = flrTimeKey(e); if (k >= bk) { best = e; bk = k; } });
   return best;
 }
-/* The size of a run's last round counted: a rack (an END row's "98×8" is rounds of 98), else the round's own figure. */
+/* The size of a run's last round counted: a rack (an END row's "96×7" is rounds of 98), else the round's own figure. */
 function flrLastRound(e) {
   var rounds = (e.rounds || []).filter(function(x) { return !x.struck && !x.start; });
   var lr = rounds[rounds.length - 1];

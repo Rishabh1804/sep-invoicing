@@ -16,16 +16,16 @@ import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState }
 
 function stateWithInvoice(): SepState {
   const s = emptyState();
-  const items = [{ partNumber: '2082 3240 4200', desc: 'CLAMP 165X83 (NT)', hsn: '998873', unit: 'KG', qty: 10, rate: 5.4, amount: 54, nosQty: null }];
+  const items = [{ partNumber: '9205 0000 4600', desc: 'CLAMP 172X86 (NT)', hsn: '998873', unit: 'KG', qty: 10, rate: 6.1, amount: 61, nosQty: null }];
   s.invoices = [{
     id: 'INV-1', invoiceNumber: '00812', displayNumber: 'SEP/2026-27/00812',
     date: todayIso(), status: 'active', invoiceState: 'created',
     dispatchedAt: null, deliveredAt: null, filedAt: null,
     clientId: 1, clientName: 'TEST CLIENT KG', clientGSTIN: '',
-    clientAddress: { add1: 'A-4', add2: 'ADITYAPUR', add3: '', state: 'JHARKHAND', stateCode: '20' },
-    gstType: 'intra', items, taxableValue: 54,
+    clientAddress: { add1: 'Plot 12', add2: 'INDUSTRIAL AREA', add3: '', state: 'JHARKHAND', stateCode: '20' },
+    gstType: 'intra', items, taxableValue: 61,
     cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
-    grandTotal: 54, amountInWords: '', challanNo: '804', challanDate: todayIso(),
+    grandTotal: 61, amountInWords: '', challanNo: '712', challanDate: todayIso(),
     poNumber: '', poDate: '', despatchDate: '', transport: '', remarks: '',
     linkedIMIds: [], createdAt: recentTs(),
   }];

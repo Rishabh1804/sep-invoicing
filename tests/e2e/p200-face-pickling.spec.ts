@@ -26,7 +26,7 @@ function book() {
     { id: 'IM-301', challanNo: '301', challanDate: wd2, clientId: 11, clientName: 'NOVA CLAMPS', receivedDate: wd2, notes: '', createdAt: 1,
       items: [line('L1', 'CLAMP 165X83 (NT)', '40X6', 'NOS', 1000), line('L2', 'CLAMP 133X83 (NT)', '35X6', 'NOS', 400)] },
     { id: 'IM-77', challanNo: '77', challanDate: wd1, clientId: 12, clientName: 'ORBIT PRESS', receivedDate: wd1, notes: '', createdAt: 2,
-      items: [line('L3', '9102 0000 0706', 'Bracket', 'KG', 120, 500)] }];
+      items: [line('L3', '9102 0000 0706', 'Bracket', 'KG', 110, 460)] }];
   return s;
 }
 /* The owner and the pickling hand, whose face is the loads and what comes in. */
@@ -133,29 +133,29 @@ test.describe('P200: the pickling hand’s face', () => {
     await page.locator('#faceClient').selectOption('12');
     await page.locator('#faceChallan').selectOption('IM-77');
     const l3 = page.locator('[data-face-line="L3"]');
-    await expect(l3).toContainText('The challan says 500 NOS');
-    await l3.locator('input').fill('480');
+    await expect(l3).toContainText('The challan says 460 NOS');
+    await l3.locator('input').fill('445');
     await page.locator('[data-action="invFaceSave"]').click();
     const a = await ev(page, `S.production.entries.find(function(x){ return x.kind === 'arrived'; })`);
-    expect(a).toMatchObject({ date: today, time: '11:30', clientId: 12, part: '9102 0000 0706', qty: 480, unit: 'NOS', basis: 'floor-in', src: 'face', imId: 'IM-77',
+    expect(a).toMatchObject({ date: today, time: '11:30', clientId: 12, part: '9102 0000 0706', qty: 445, unit: 'NOS', basis: 'floor-in', src: 'face', imId: 'IM-77',
       imItemId: 'L3', challanNo: '77', by: 'Dina Roy' });
-    // Twenty short of the challan: the question is on the entry at once, red, since the challan bills what did not come.
+    // Fifteen short of the challan: the question is on the entry at once, red, since the challan bills what did not come.
     const row = page.locator('[data-card="faceSaved"] [data-face-entry]');
-    await expect(row.locator('[data-face-check]')).toContainText('To check: challan 77 says 500 NOS: 20 NOS short');
+    await expect(row.locator('[data-face-check]')).toContainText('To check: challan 77 says 460 NOS: 15 NOS short');
     await expect(row.locator('[data-face-check] .inv-dot')).toHaveClass(/inv-dot-danger/);
     const msg = decodeURIComponent((await row.locator('[data-face-send]').getAttribute('href'))!.split('text=')[1]);
-    expect(msg).toBe(`${dmy(today)}\nINCOMING MATERIAL TIME 11:30 AM\nORBIT PRESS\n9102 0000 0706 - 480 NOS`);
+    expect(msg).toBe(`${dmy(today)}\nINCOMING MATERIAL TIME 11:30 AM\nORBIT PRESS\n9102 0000 0706 - 445 NOS`);
 
     // Correct: the form on the entry as it stands; saved, it takes the entry's place and Mine lists both.
     await row.locator('[data-action="invFaceCorrect"]').click();
     await expect(page.locator('#faceContent .inv-pagehead-title')).toHaveText('Correct what came in');
-    await expect(page.locator('#faceQty')).toHaveValue('480');
-    await page.locator('#faceQty').fill('500');
+    await expect(page.locator('#faceQty')).toHaveValue('445');
+    await page.locator('#faceQty').fill('460');
     await page.locator('[data-action="invFaceSave"]').click();
     await expect(page.locator('#faceVerdict')).toBeVisible();
     const st = await ev(page, `S.production.entries.filter(function(x){ return x.kind === 'arrived'; })`);
     expect(st).toHaveLength(2);
-    expect(st[1]).toMatchObject({ replaces: st[0].id, qty: 500, imItemId: 'L3' });
+    expect(st[1]).toMatchObject({ replaces: st[0].id, qty: 460, imItemId: 'L3' });
     await expect(page.locator('#faceEntered [data-face-entry="' + st[0].id + '"]')).toContainText('Corrected');
     await expect(page.locator('#faceEntered [data-face-entry="' + st[1].id + '"] [data-face-check]')).toHaveCount(0);
 
@@ -191,8 +191,8 @@ test.describe('P200: the pickling hand’s face', () => {
       face('F3', wd1, '10:00', 11, 'CLAMP 133X83 (NT)', '35X6', 300),
       run('R1', wd1, '09:30', 'vat-a1', 11, 'CLAMP 133X83 (NT)', 600, { gauge: '35X6' }),
       run('R2', wd1, '14:00', 'vat-a1', 12, 'GUIDE 88', 40),
-      // wd1: counted twenty short of challan 77's 500.
-      { id: 'A2', kind: 'arrived', date: wd1, time: '09:05', clientId: 12, part: '9102 0000 0706', partNumber: '9102 0000 0706', qty: 480, unit: 'NOS', basis: 'floor-in', src: 'face',
+      // wd1: counted fifteen short of challan 77's 460.
+      { id: 'A2', kind: 'arrived', date: wd1, time: '09:05', clientId: 12, part: '9102 0000 0706', partNumber: '9102 0000 0706', qty: 445, unit: 'NOS', basis: 'floor-in', src: 'face',
         imId: 'IM-77', imItemId: 'L3', challanNo: '77', by: 'Dina Roy', at: 1 },
     ]);
     const c = await ev(page, `(function(){ var c = faceChecks(); var o = {}; Object.keys(c.byId).forEach(function(id){ o[id] = c.byId[id].map(function(x){ return x.code + ':' + x.tone; }); }); return o; })()`);
@@ -224,8 +224,8 @@ test.describe('P200: the pickling hand’s face', () => {
       run('R1', wd1, '10:00', 'vat-a1', 11, 'CLAMP', 360, { gaugeOptions: ['35X6', '35X8', '40X6'] }),
       run('R2', wd1, '10:30', 'vat-a2', 11, 'CLAMP 133X83', 240, { gauge: '40X6' }),
       run('R3', wd1, '11:00', 'vat-a2', 11, 'CLAMP', 150, { gaugeOptions: ['25X6', '30X6'] }),
-      face('F2', wd1, '09:30', 12, '9102 0000 0706', '', 50),
-      run('R4', wd1, '11:00', 'vat-a2', 12, 'KUDAL(0706)', 50),
+      face('F2', wd1, '09:30', 12, '9102 0000 0706', '', 44),
+      run('R4', wd1, '11:00', 'vat-a2', 12, 'KUDAL(0706)', 44),
       // A pasted load names a part no run is of: still unknown.
       { id: 'P1', kind: 'pickled', date: wd1, time: '09:40', clientId: 11, part: 'CLAMP 90X81', gauge: '40X6', qty: 100, unit: 'NOS', basis: 'pickling', src: 'paste', at: 1 },
     ]);

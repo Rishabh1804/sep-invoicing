@@ -85,20 +85,20 @@ test('a note already issued is recorded with its own number, and that number is 
   await page.locator('#cnfNum').fill('4');
   await page.locator('#cnfClient').selectOption('1');
   await page.locator('#cnfInv').selectOption('__typed');
-  await page.locator('#cnfInvNo').fill('000443');
+  await page.locator('#cnfInvNo').fill('000517');
   await page.locator('#cnfReason').selectOption('rebate');
-  await page.locator('#cnfTaxable').fill('3749.29');
-  // Recomputed, 3,749.29 at 9% + 9% rounds each half up to 337.44: ₹4,424.17 gross.
-  await expect(page.locator('[data-cn-figures]')).toContainText('₹4,424.17');
-  // CN/004 as the customer holds it reads ₹4,424.16: the tax is entered as printed.
-  await page.locator('#cnfCgst').fill('337.44');
-  await page.locator('#cnfSgst').fill('337.43');
-  await expect(page.locator('[data-cn-figures]')).toContainText('₹4,424.16');
+  await page.locator('#cnfTaxable').fill('2817.39');
+  // Recomputed, 2,817.39 at 9% + 9% rounds each half up to 253.57: ₹3,324.53 gross.
+  await expect(page.locator('[data-cn-figures]')).toContainText('₹3,324.53');
+  // The note as the customer holds it reads ₹3,324.52: the tax is entered as printed.
+  await page.locator('#cnfCgst').fill('253.57');
+  await page.locator('#cnfSgst').fill('253.56');
+  await expect(page.locator('[data-cn-figures]')).toContainText('₹3,324.52');
   await page.locator('[data-action="invCnFormSave"]').click();
 
   let s = await readStoredState(page);
   expect(s.creditNotes).toHaveLength(1);
-  expect(s.creditNotes[0]).toMatchObject({ cnNumber: '004', kind: 'rebate', recorded: true, againstInvoice: '000443', grandTotal: 4424.16 });
+  expect(s.creditNotes[0]).toMatchObject({ cnNumber: '004', kind: 'rebate', recorded: true, againstInvoice: '000517', grandTotal: 3324.52 });
   expect(s.cnNextNum).toBeGreaterThanOrEqual(5);
 
   // The form stays for the next note, on the same client (P117); the same number again is refused.

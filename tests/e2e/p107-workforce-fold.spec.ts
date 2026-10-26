@@ -251,14 +251,14 @@ test.describe('P107: the roster', () => {
   test('W3: an import takes only the fields the file carries; W11: a name is keyed as a roll reads it', async ({ page }) => {
     await load(page, { staff: [
       { id: 7, name: 'Sarat Mahato', comp: 'monthly', area: 'vat-a1', dayRate: 520, hourRate: 0, monthWage: 0, active: false, onFloor: true },
-      { id: 8, name: 'Uday', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, active: true, onFloor: false },
+      { id: 8, name: 'Kiran', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 8700, active: true, onFloor: false },
     ] });
-    const res = await g(page, `applyRosterImport({ staff: [{ name: 'SARAT  MAHATO.', area: 'vat-a2' }, { name: 'Uday', area: 'office' }] })`) as any;
+    const res = await g(page, `applyRosterImport({ staff: [{ name: 'SARAT  MAHATO.', area: 'vat-a2' }, { name: 'Kiran', area: 'office' }] })`) as any;
     expect(res).toMatchObject({ added: 0, updated: 2 });
     const st = await g(page, `S.staff.map(function(w){ return [w.name, w.area, w.dayRate, w.monthWage, w.comp, w.active, w.onFloor]; })`);
     expect(st).toEqual([
       ['Sarat Mahato', 'vat-a2', 520, 0, 'monthly', false, true],
-      ['Uday', 'office', 0, 9000, 'monthly', true, false],
+      ['Kiran', 'office', 0, 8700, 'monthly', true, false],
     ]);
   });
 
@@ -300,7 +300,7 @@ test.describe('P107: the roster', () => {
   });
 
   test('WB7: moving the Day view\'s date moves the week; WB9: the rate line shows what an OT hour pays', async ({ page }) => {
-    await load(page, { staff: [{ id: 1, name: 'Shyam', comp: 'monthly', dayRate: 576, area: 'vat-a1', active: true }] });
+    await load(page, { staff: [{ id: 1, name: 'Hari', comp: 'monthly', dayRate: 560, area: 'vat-a1', active: true }] });
     await switchTab(page, 'pageStaff');
     await openAttendance(page, 'day');
     for (let k = 0; k < 8; k++) await page.locator('[data-action="invAttStep"][data-step="-1"]').click();
@@ -314,15 +314,15 @@ test.describe('P107: the roster', () => {
 function augDay(d: number): string { return `2026-08-${String(d).padStart(2, '0')}`; }
 
 test.describe('P107: labour and Areas', () => {
-  test('W15: the labour card rounds fixed and the total once from the unrounded parts (₹8,129.03, not .04)', async ({ page }) => {
+  test('W15: the labour card rounds fixed and the total once from the unrounded parts (₹7,858.06, not .07)', async ({ page }) => {
     const att: Record<string, any> = {};
     const sundays = [2, 9, 16, 23, 30];
     const working = Array.from({ length: 31 }, (_, i) => i + 1).filter(d => !sundays.includes(d) && d !== 15);
     working.slice(0, 22).forEach(d => { att[augDay(d)] = { marks: { 2: { st: 'P', hours: 8, ot: 0, area: 'gate' } }, extra: [], note: '' }; });
     att[augDay(23)] = { marks: { 2: { st: 'P', hours: 8, ot: 0, area: 'gate' } }, extra: [], note: '' };
-    await load(page, { staff: [{ id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, active: true, onFloor: false }], attendance: att });
+    await load(page, { staff: [{ id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 8700, active: true, onFloor: false }], attendance: att });
     const l = await g(page, `(function(){ var l = labourForRange('2026-08-01', '2026-08-31'); return [l.byWorker[2].total, l.fixed, l.total]; })()`);
-    expect(l).toEqual([8129.03, 8129.03, 8129.03]);
+    expect(l).toEqual([7858.06, 7858.06, 7858.06]);
   });
 
   test('W16 and WB5: a day tier with no day rate, and the pool present with no hours, are named on the card', async ({ page }) => {
@@ -366,7 +366,7 @@ test.describe('P107: labour and Areas', () => {
   });
 
   test('W21: the Areas cost of a contracted wage\'s Sunday and its OT is nothing, as the labour card prices it', async ({ page }) => {
-    await load(page, { staff: [{ id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, active: true, onFloor: false }],
+    await load(page, { staff: [{ id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 8700, active: true, onFloor: false }],
       attendance: { [augDay(23)]: { marks: { 2: { st: 'P', hours: 12, ot: 4, area: 'gate' } }, extra: [], note: '' } } });
     const c = await g(page, `(function(){ var s = areaStats('${augDay(23)}', '${augDay(23)}'); return [s.rows.find(function(r){ return r.id === 'gate'; }).cost, labourForRange('${augDay(23)}', '${augDay(23)}').byWorker[2].total]; })()`);
     expect(c).toEqual([0, 0]);

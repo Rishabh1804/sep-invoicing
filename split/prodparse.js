@@ -151,8 +151,8 @@ function prodMatchClient(written, idx) {
 }
 
 /* ---------- One item line ---------- */
-/* "Delta 0420- 300 nos", "CLAMP133×83(35×6)-774 nos", "188 CD--995 NOS ,96.970Kg", "Higco Nat ....",
-   "80×81=297nos", "BOLT--1800+450 Nos", "Eye bolt--20.640kg" → {client, part, gauge, qty, unit, qty2, unit2}. */
+/* "Delta 0420- 280 nos", "CLAMP133×83(35×6)-774 nos", "210 CD--940 NOS ,91.180Kg", "Higco Nat ....",
+   "80×81=297nos", "BOLT--1800+450 Nos", "Eye bolt--18.320kg" → {client, part, gauge, qty, unit, qty2, unit2}. */
 function prodReadItem(line, idx) {
   var raw = String(line || '');
   var s = raw.replace(/[×✕]/g, 'X').replace(/(\d),(\d{3})\b/g, '$1$2').replace(/^[\s\-_=*•.]+/, '').trim();
@@ -244,7 +244,7 @@ function parsePickling(msg, ctx) {
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
     if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
     // A date written with dots or dashes ("22.09.26") is the date as well; one with no year ("16/9") names no day a load
-    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4706-1000", "0760--30"): those were
+    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4706-615", "0760--45"): those were
     // dropped unseen with the dates (P127).
     var dd = line.match(/^(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?:\s*[.\-\/]\s*(\d{2,4}))?\s*[.\-\/]?$/);
     if (dd && isoFromDmy(dd[1], dd[2], dd[3] || 2000)) {
@@ -373,18 +373,18 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
 /* The list as the supervisor writes it from October 2026 (owner, 15 Oct 2026: "our parser cannot read this message"):
    a batch a block between dashed lines, each with what came out of the barrel and when it was unloaded, and at the
    end what went in for the night, unloaded the next morning and listed again on the next day's list:
-     15/10/26/ BERRAL PRODUCTION
-     KESTREL 120 KG 10:15 AM UNLOAD
+     07/10/26/ BERRAL PRODUCTION
+     OMEGA 110 KG 10:40 AM UNLOAD
      ----------------
-     DELTA 7311-260 NOS +7313-450 NOS
-     1:10 PM UNLOAD
+     DELTA 7311-240 NOS +7313-410 NOS
+     1:25 PM UNLOAD
      ----------------
-     LOADING TIME 4:00 PM 90 CD 70 KG
-     40 CD 50 KG GENERAL
+     LOADING TIME 4:20 PM 210 CD 65 KG
+     60 CD 45 KG GAMMA
      ------and------                      ("and" is the end of the message)
    The unload time is the batch's end, written before or after its figures, on its line or the next; it closes every
-   batch above it in its block that has none. Two clients on one line ("DILIP PRESS 8257-60 KG PARAKH I BOLLT 50 KG") are
-   two batches. A barrel counted in barrels ("PAWAN AUTO 1 BERRAL") is the client's batch with no figure, asked. What is
+   batch above it in its block that has none. Two clients on one line ("BETA PRESS 9312-45 KG GAMMA I BOLLT 35 KG") are
+   two batches. A barrel counted in barrels ("OMEGA 1 BERRAL") is the client's batch with no figure, asked. What is
    loaded is not counted here: it is counted when it is unloaded. The older April log (loads under each time, counted
    "×4" in barrels) has no unload time beside a kilo or a count, and no dashed blocks, and is still listed, not read. */
 var PROD_UNLOAD_RE = /\bun\s*(?:lo?a?d|old)(?:ing)?\b(?:\s*(?:timing|time|tim)\b)?/i;
@@ -454,7 +454,7 @@ function parseBarrelBatches(msg, ctx, lines) {
     }
     var recs = [];
     if (text) {
-      // Barrels counted in barrels: each client's batch, no figure ("PAWAN AUTO 1 BERRAL+ PARAKH 1 BERRAL HIGCO 1 BERRAL").
+      // Barrels counted in barrels: each client's batch, no figure ("OMEGA 1 BERRAL+ GAMMA 1 BERRAL DELTA 1 BERRAL").
       var bre = /([A-Za-z][A-Za-z .&]*?)\s*(\d+)\s*b[ae]r+[ae]*l+s?\b\s*\+?/gi, bm, any = false;
       while ((bm = bre.exec(text))) {
         any = true;
@@ -464,7 +464,7 @@ function parseBarrelBatches(msg, ctx, lines) {
         recs.push(br);
       }
       if (!any) {
-        // Two batches on one line split after a figure followed by a name or a "+": "8257-60 KG PARAKH I BOLLT 50 KG".
+        // Two batches on one line split after a figure followed by a name or a "+": "9312-45 KG GAMMA I BOLLT 35 KG".
         var chunks = [], from = 0, m;
         PROD_QTY_TOKEN_RE.lastIndex = 0;
         var toks = [];
@@ -535,7 +535,7 @@ function parseProductionList(msg, ctx) {
     if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null; }
     else if (!cont && !group && /^[A-Za-z]/.test(line)) {
       // A first word that names nobody the book holds: the client or the part? Asked. It is taken for the client
-      // only with a part written after it ("KUMAR 0740--300 NOS"); alone before its figure it is the part ("LINER
+      // only with a part written after it ("KUMAR 0740--280 NOS"); alone before its figure it is the part ("LINER
       // 1000 NOS"), which read as a client with no part. Either way a name read by its place alone is never learnt
       // (how 'unknown', prodSaveReview): the owner's pick says whose the load is, not that the word is their name.
       var w0 = line.split(/\s+/)[0];
@@ -715,7 +715,7 @@ function prodFromRoll(msg, ctx) {
   var rollDate = rr.date || msg.sentOn || ctx.today, date = rollDate, items = [], notes = [], power = {};
   // One pass down the roll. The supervisor writes a slot's work under the slot, sometimes under a "----production----"
   // or "----work----" head and sometimes straight under the line it ran on ("---hold night-6:00am--- / crew /
-  // Dilip press material / VAT A 2 / 3301-600 nos"): a line with a quantity under a slot is that slot's production
+  // Beta press material / VAT A 2 / 9301-540 nos"): a line with a quantity under a slot is that slot's production
   // either way, and a client named on a line of its own is the client of the lines under it.
   var from = null, to = null, hint = null, inProd = false, group = null, pending = null;
   rr.lines.forEach(function(ln) {
@@ -756,12 +756,12 @@ function prodFromRoll(msg, ctx) {
     if (prodIsPowerLine(line)) { prodPowerStep(power, line, ln.raw, ln.n, date, null, items, notes); return; }
     if (/no\s*work/i.test(line)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
     var it = prodReadItem(line, ctx.clients);
-    // "Dilip press material", "Mehta ka maal": the client of the lines below.
+    // "Beta press material", "Nova ka maal": the client of the lines below.
     if (it.clientId != null && it.qty == null && (!it.part || /^(material|maal|mal|ka\s*maal|others?|work|ka)$/i.test(it.part.trim()))) {
       group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
       return;
     }
-    // "MEHTA CLAMP / 1360 NOS": the figure on the line below the part it counts.
+    // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
     if (it.qty != null && !it.part && it.clientId == null && pending) {
       var joined = prodReadItem(pending.raw.trim() + ' ' + line, ctx.clients);
       if (joined.qty != null) {
@@ -847,7 +847,7 @@ function prodPairPower(msgs) {
 
 /* ---------- The VAT register, as the clerk wrote it ---------- */
 /* A page is read from its rows as written (the clerk types them on Mine, faces.js): times as written, customers and parts
-   as spelt, every row, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
+   as spelt, every row, figures exactly as written ("72+10", "96×7+5"), struck rows and figures written over marked as such.
    Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are this app's, in
    code, where they can be tested. The rows came first from photos read by Gemini, which came out on 13 Oct 2026 (owner:
    *"it simply never works"*); the shape below is the one those reads took, kept so the runs saved from them still read.
@@ -858,7 +858,7 @@ function prodPairPower(msgs) {
    Two page shapes, both seen on the real register (pages of 24–26 Sep 2026, owner):
    - ROUNDS (VAT A1): one row per round, "9:45 AM - 72", a START row first. A START counts as a round of the next
      round's figure (the owner's rule, 26 Jun).
-   - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("98×8+1"); an
+   - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("96×7+5"); an
      END with no START of its own starts where the one before ended. A START here is only the run's start: counting it
      as a round, as the first build did, doubled every A2 run.
    The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. */
@@ -879,8 +879,8 @@ function prodRegisterDate(s) {
   var m = /(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/.exec(String(s || ''));
   return m ? isoFromDmy(m[1], m[2], m[3]) : null;
 }
-/* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
-   up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
+/* A figure as the clerk writes it: "72", "72+10", "96×7+5", "8x156+68", "46+48+34", "4×108−3". Sums of products, added
+   up here. The first product's larger factor is the rack and the smaller the rounds ("96×7": 7 rounds of 96), which is
    what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
 /* "MEHTA+GENERAL", "(0706+3713)+188CD", "39+50": split on a + outside brackets. */
 function prodSplitTop(s) {

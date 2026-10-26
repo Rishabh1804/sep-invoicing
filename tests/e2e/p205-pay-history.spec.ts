@@ -23,7 +23,7 @@ function leg(date: string, payee: string, dr: number) {
 const STAFF = [
   { id: 1, name: 'Asha Kumari', comp: 'monthly', dayRate: 500, area: 'vat-a1', onFloor: true, active: true },
   { id: 2, name: 'Bina Devi', comp: 'monthly', dayRate: 375, area: 'vat-a2', onFloor: true, active: true },
-  { id: 3, name: 'Chandu Oraon', comp: 'monthly', dayRate: 300, monthWage: 9000, area: 'gate', onFloor: false, active: true },
+  { id: 3, name: 'Chandu Oraon', comp: 'monthly', dayRate: 300, monthWage: 8600, area: 'gate', onFloor: false, active: true },
   { id: 4, name: 'Dinesh Munda', comp: 'monthly', dayRate: 380, area: 'barrel', onFloor: true, active: true },
   { id: 5, name: 'Eshan Soren', comp: 'hourly', hourRate: 50, area: 'barrel', onFloor: true, active: true }];
 /* The month two back on its slip (Chandu at the ruled figure), Dinesh not on it but worked; the salaries for it paid on the 14th
@@ -39,8 +39,8 @@ function book(extra: any = {}): SepState {
   s.payrollPaid = [{ id: 'PRL-1', month: M2, source: 'slip', status: 'paid', note: '', at: 1, rows: [
     { name: 'Asha Kumari', rate: 500, worked: 24, restDays: 0, dayPay: 12000, otHours: 0, ot: 0, paid: null, note: '' },
     { name: 'Bina Devi', rate: 375, worked: 24, restDays: 0, dayPay: 9000, otHours: 0, ot: 0, paid: null, note: '' },
-    { name: 'Chandu Oraon', rate: 290.3226, worked: 22, restDays: 6, dayPay: 8129.03, otHours: 0, ot: 0, paid: null, note: 'ruled' }] }];
-  const rows = [leg(M1 + '-14', 'ASHA KUMARI', 9000), leg(M1 + '-14', 'BINA DEVI', 12000), leg(M1 + '-14', 'CHANDU ORAON', 7650)];
+    { name: 'Chandu Oraon', rate: 277.4194, worked: 22, restDays: 6, dayPay: 7767.74, otHours: 0, ot: 0, paid: null, note: 'ruled' }] }];
+  const rows = [leg(M1 + '-14', 'ASHA KUMARI', 9000), leg(M1 + '-14', 'BINA DEVI', 12000), leg(M1 + '-14', 'CHANDU ORAON', 7250)];
   s.bank = { rows, imports: [{ id: 'BI-P', at: 1, file: 't.xls', account: '', from: rows[0].date, to: rows[2].date, rows: 3, added: 3, closing: 0 }],
     parties: {}, opening: {}, gstNotes: {}, bounces: {}, cheques: [] };
   return Object.assign(s, extra);
@@ -59,7 +59,7 @@ test.describe('P205: what each hand was paid', () => {
     const m2 = await due(page, M2);
     expect(byId(m2, 1)).toMatchObject({ paid: 9000, due: 3000, compared: true, crossed: 'Bina Devi' });
     expect(byId(m2, 2)).toMatchObject({ paid: 12000, due: -3000, compared: true, crossed: 'Asha Kumari' });
-    expect(byId(m2, 3)).toMatchObject({ paid: 7650, due: 479.03, compared: true, crossed: null });
+    expect(byId(m2, 3)).toMatchObject({ paid: 7250, due: 517.74, compared: true, crossed: null });
     // Not on the month's slip and nothing paid to them: paid off the slip, never left owed the month.
     expect(byId(m2, 4)).toMatchObject({ paid: 0, due: 0 });
     await openPay(page, M2);
@@ -92,11 +92,11 @@ test.describe('P205: what each hand was paid', () => {
     const m1 = await due(page, M1);
     expect(byId(m1, 1)).toMatchObject({ carried: 3000, due: 3000 });
     expect(byId(m1, 2)).toMatchObject({ carried: -3000, due: -3000 });
-    expect(byId(m1, 3)).toMatchObject({ carried: 479.03, due: 479.03 });
+    expect(byId(m1, 3)).toMatchObject({ carried: 517.74, due: 517.74 });
     expect(byId(m1, 4)).toMatchObject({ carried: 0 });
     // The brought-forward line names the month and what happened in it.
     await expect(page.locator('[data-carried-row="1"]')).toContainText('paid ₹9,000.00 against ₹12,000.00 on the slip, the bank legs crossed with Bina Devi’s');
-    await expect(page.locator('[data-carried-row="3"]')).toContainText('paid ₹7,650.00 against ₹8,129.03 on the slip');
+    await expect(page.locator('[data-carried-row="3"]')).toContainText('paid ₹7,250.00 against ₹7,767.74 on the slip');
     // Pay asks about it as a balance now; the month's own task goes, since Pay carries it.
     expect(await ev(page, 'TODO_RULE_FNS.wageVsSlip()')).toHaveLength(0);
     const tasks = await ev(page, 'TODO_RULE_FNS.payCarry()') as any[];
@@ -134,10 +134,10 @@ test.describe('P205: what each hand was paid', () => {
   });
 
   test('a payment typed on Pay that the statement holds is counted once', async ({ page }) => {
-    await loadAppWithState(page, book({ staffPayments: [{ id: 'PAY-1', staffId: 3, date: M1 + '-15', amount: 7650, kind: 'payment', note: 'by NEFT', at: 1 }] }));
-    expect(byId(await due(page, M2), 3)).toMatchObject({ paid: 7650, due: 479.03 });
+    await loadAppWithState(page, book({ staffPayments: [{ id: 'PAY-1', staffId: 3, date: M1 + '-15', amount: 7250, kind: 'payment', note: 'by NEFT', at: 1 }] }));
+    expect(byId(await due(page, M2), 3)).toMatchObject({ paid: 7250, due: 517.74 });
     const pays = await ev(page, `payPaymentsOf(3).map(function(p) { return [p.how, p.amount, p.typed || '']; })`);
-    expect(pays).toEqual([['bank', 7650, 'PAY-1']]);
+    expect(pays).toEqual([['bank', 7250, 'PAY-1']]);
   });
 
   test("last month's salary is not owed before the 21st, and is from it", async ({ page }) => {

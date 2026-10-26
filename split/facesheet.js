@@ -189,8 +189,8 @@ function fshVatHtml(iso, line, filled) {
     '<div class="inv-as-slot">Power log</div>' +
     '<table class="inv-as-table" data-as-entry data-fsh="cuts">' + fshCols(['num', 'time', 'time', 'reason', 'note']) +
     '<thead><tr><th class="inv-as-tick">#</th><th>Power cut at</th><th>Power in at</th><th>Why</th><th>Note</th></tr></thead><tbody>' + fshCutsRows(iso, filled) + '</tbody></table>' +
-    '<div class="inv-as-note">' + (batches ? 'A batch a row: when it began (START), when it ended (END), and the figure at the end as written (3×156, 98×8+1).' :
-      'A round a row: the time and the figure as written (120, 3+4×156, 98×8+1); the app adds it up.') + ' Write the client and the part where a run begins, and " under them while it runs on. Strike a round that did not happen.</div>' +
+    '<div class="inv-as-note">' + (batches ? 'A batch a row: when it began (START), when it ended (END), and the figure at the end as written (3×156, 96×7+5).' :
+      'A round a row: the time and the figure as written (120, 3+4×156, 96×7+5); the app adds it up.') + ' Write the client and the part where a run begins, and " under them while it runs on. Strike a round that did not happen.</div>' +
     (filled ? fshFiledFoot() : '<div class="inv-as-sign"><div>Written by</div><div>Checked by</div><div>Entered in the app by / on</div></div>') + '</div>';
 }
 

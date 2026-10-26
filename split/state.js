@@ -2770,7 +2770,7 @@ function lineFillFromCount(client, item) {
    usually the same as their challan number with [their prefix]." A client SETTING, never a
    hard-code: `defaultTransport` (the vehicle) and `poFromChallan`, a pattern where `{challan}` is the
    challan number and `{challan:5}` the same padded to five digits — QX1/{challan:5} makes challan
-   1244 read QX1/01244. The invoice form applies both (create.js, createApplyClientDefaults). */
+   1372 read QX1/01372. The invoice form applies both (create.js, createApplyClientDefaults). */
 var PO_TPL_RE = /\{challan(?::(\d{1,2}))?\}/g;
 function clientPoTemplateOk(tpl) { return !tpl || /\{challan(?::\d{1,2})?\}/.test(String(tpl)); }
 /* The challan number a PO is made from: the first challan an invoice cites, its first run of digits

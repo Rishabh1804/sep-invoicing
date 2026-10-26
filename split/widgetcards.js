@@ -2234,6 +2234,7 @@ function wcComingCut() {
 }
 /* Challans due back on one day are one row (the canvas's "Challans 843 and 852 due back"): their numbers, their clients, the worst
    tone; the row opens the challans awaiting invoice. One alone keeps its own row and opens itself. */
+var WC_COMING_WHY_MAX = 28;
 function wcComingGroup(list) {
   var by = {}, out = [];
   list.forEach(function(x) {
@@ -2247,11 +2248,13 @@ function wcComingGroup(list) {
     if (g.items.length === 1) return g.items[0];
     var nos = g.items.map(function(x) { return x.no; }), clients = [];
     g.items.forEach(function(x) { if (clients.indexOf(x.client) < 0) clients.push(x.client); });
-    // Two facts at most on the row's line (the benchmark's: never three chained); three clients or more name the first and how many
-    // more, every client in the row's title.
-    var why = clients.length > 2 ? clients[0] + ' and ' + (clients.length - 1) + ' more clients' : clients.join(' · ');
+    // Two facts at most on the row's line (the benchmark's: never three chained); three clients or more, or two whose names
+    // together outrun a phone card's line (two long names had been cut), name the first and how many more, every client in the
+    // row's title.
+    var named = clients.length > 2 || clients.join(' · ').length > WC_COMING_WHY_MAX;
+    var why = named ? clients[0] + ' and ' + (clients.length - 1) + ' more ' + (clients.length > 2 ? 'clients' : 'client') : clients.join(' · ');
     return { key: 'turns:' + g.items[0].date, date: g.items[0].date, tone: wcWorst(g.items.map(function(x) { return x.tone; })), n: g.items.length,
-      title: 'Challans ' + nos.slice(0, -1).join(', ') + ' and ' + nos[nos.length - 1] + ' due back', why: why, title2: clients.length > 2 ? clients.join(', ') : '', go: { kind: 'im' } };
+      title: 'Challans ' + nos.slice(0, -1).join(', ') + ' and ' + nos[nos.length - 1] + ' due back', why: why, title2: named ? clients.join(', ') : '', go: { kind: 'im' } };
   });
 }
 function wcComingItems() {

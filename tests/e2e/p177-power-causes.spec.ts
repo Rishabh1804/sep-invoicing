@@ -171,8 +171,10 @@ test('a reason from the grid is a task only at five in 30 days, and its move is 
   const grid = (id: string, n: number) => cut(id, wday(n), '13:00', '13:30', { reason: 'R2', where: 'all', setAt: 1 });
   await loadAppWithState(page, book([grid('C1', 1), grid('C2', 3), grid('C3', 5), grid('C4', 7)], [reason('R2', 'Feeder trip at the substation', 'grid')]));
   expect(await g(page, `TODO_RULE_FNS.powerCause()`)).toEqual([]);
-  await g(page, `(function () { var d = new Date(localDateStr() + 'T00:00:00'); d.setDate(d.getDate() - 9);
-    prodData().entries.push({ id: 'C5', kind: 'downtime', date: isoOf(d), time: '13:00', to: '13:30', downtime: { cause: 'power', reason: 'R2', where: 'all', setAt: 1 }, basis: 'relay', src: 'paste', at: 1 });
+  // The fifth on the ninth working day back: never the day of another (nine calendar days back was wday(7)'s on a Monday,
+  // and two cuts at one time on one day are one cut).
+  await g(page, `(function () {
+    prodData().entries.push({ id: 'C5', kind: 'downtime', date: ${JSON.stringify(wday(9))}, time: '13:00', to: '13:30', downtime: { cause: 'power', reason: 'R2', where: 'all', setAt: 1 }, basis: 'relay', src: 'paste', at: 1 });
     prodTouch(); })()`);
   const t: any[] = await g(page, `TODO_RULE_FNS.powerCause()`);
   expect(t).toHaveLength(1);

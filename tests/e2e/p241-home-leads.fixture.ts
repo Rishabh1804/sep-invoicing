@@ -279,7 +279,8 @@ export async function comingWords(page: Page) {
   s.clients = [client(31, 'OX SHEET WORKS'), client(32, 'TERRA AUTO P LTD')];
   const ch = (id: string, c: number, name: string, date: string) => ({ id, clientId: c, clientName: name, challanNo: id, challanDate: date,
     items: [{ id: id + 'a', partNumber: 'P1', desc: 'Part', unit: 'KG', qty: 10, invoiced: true }] });
-  for (let i = 0; i < 6; i++) s.incomingMaterial.push(ch('O' + i, 31, 'OX SHEET WORKS', addDays(W, -2 - 3 * i)));
+  // The latest three days back: two days back, a Saturday's challan on a Monday is due back today and leads the headline.
+  for (let i = 0; i < 6; i++) s.incomingMaterial.push(ch('O' + i, 31, 'OX SHEET WORKS', addDays(W, -3 - 3 * i)));
   for (let i = 0; i < 5; i++) s.incomingMaterial.push(ch('P' + i, 32, 'TERRA AUTO P LTD', addDays(W, -7 - 12 * i)));
   await page.clock.install({ time: new Date(W + 'T10:00:00') });
   await withWidgets(page, [['coming', 'm']]);

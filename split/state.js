@@ -1722,8 +1722,12 @@ function _uiAsk(kind, o) {
           '<div class="inv-field-error inv-hidden" data-ui-ask-err>' + escHtml(o.requiredText || 'This is needed to go on.') + '</div></div>'
         : '';
       var okCls = o.danger ? 'inv-btn inv-btn-danger inv-btn-solid' : 'inv-btn inv-btn-primary';
+      // A question with a second way on (`altLabel`: Send to office's "Send anyway" beside "Print here") draws it in Cancel's
+      // place and answers 'alt'; the head's ×, Escape and the scrim still answer cancel.
       var foot = '<div class="inv-dialog-foot">' +
-        (kind === 'alert' ? '' : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="cancel">' + escHtml(o.cancelLabel || 'Cancel') + '</button>') +
+        (kind === 'alert' ? '' : kind === 'confirm' && o.altLabel
+          ? '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="alt">' + escHtml(o.altLabel) + '</button>'
+          : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="cancel">' + escHtml(o.cancelLabel || 'Cancel') + '</button>') +
         '<button type="button" class="' + okCls + '" data-action="invUiAsk" data-ans="ok">' + escHtml(o.okLabel || 'OK') + '</button></div>';
       var html = '<div class="inv-dialog" role="' + (kind === 'alert' ? 'alertdialog' : 'dialog') + '" aria-modal="true" aria-labelledby="' + id + 'T"' +
         ' data-ui-ask="' + id + '" data-ui-kind="' + kind + '">' +
@@ -1732,6 +1736,8 @@ function _uiAsk(kind, o) {
         input + foot + '</div>';
       scrim = dialogOpen(html);
       if (!scrim || !scrim.isConnected) throw new Error('the dialog did not open');
+      // Asked from a print preview (Send to office): drawn over it, as a toast raised there is.
+      if (o.overPrint) scrim.dataset.overPrint = '1';
       _uiAskOpen[id] = { kind: kind, o: o, finish: finish, scrim: scrim };
       scrim.addEventListener('click', function(e) { if (e.target === scrim) finish(kind === 'prompt' ? null : kind === 'alert' ? undefined : false); });
       scrim.addEventListener('keydown', function(e) {
@@ -1768,7 +1774,7 @@ function uiAskAnswer(idOrBtn, ans) {
   var a = id && _uiAskOpen[id];
   if (!a) return;
   if (a.kind === 'alert') { a.finish(undefined); return; }
-  if (a.kind === 'confirm') { a.finish(ans === 'ok'); return; }
+  if (a.kind === 'confirm') { a.finish(ans === 'ok' ? true : ans === 'alt' && a.o.altLabel ? 'alt' : false); return; }
   if (ans !== 'ok') { a.finish(null); return; }
   var inp = a.scrim.querySelector('[data-ui-ask-input]');
   var v = inp ? inp.value.trim() : '';

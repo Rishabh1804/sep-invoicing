@@ -254,10 +254,15 @@ function onDocClick(e) {
     case 'invFlowPrio': flowPriorityOpen(btn.dataset.id); break;
     case 'invFlowPrioSave': flowPrioritySave(); break;
     case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
-    case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
+    case 'invPrint': printPreviewNow(); break;
     // The office printer (remoteprint.js): the preview sent as a job; a waiting job cancelled.
     case 'invPrintRemote': prtSend(); break;
     case 'invPrtCancel': prtCancel(btn.dataset.id).catch(function(e) { showToast(e.message || String(e), 'error'); }); break;
+    // The print station's light (prtlight.js): its dialog from the masthead, a waiting job cancelled there, the jobs printed here.
+    case 'invPrtLight': prtLightOpen(); break;
+    case 'invPrtLightCancel': prtLightCancel(btn.dataset.id); break;
+    case 'invPrtHere': prtHereStart(); break;
+    case 'invPrtGuide': closeOverlay(); kbOpenArticle('app-printer'); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;

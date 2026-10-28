@@ -299,5 +299,14 @@ function closePrintPreview() {
   document.body.style.overflow = '';
   // Restore page title
   if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
+  // A job taken off the office queue to print here asks whether it printed (prtlight.js): if not, it goes back on the queue.
+  if (typeof prtHereClosed === 'function') prtHereClosed();
+}
+/* The preview's own Print: a Created invoice is marked Printed, ID cards take their numbers, and the browser prints. Send to office
+   offers it too, when the print station is not on (remoteprint.js prtSend). */
+function printPreviewNow() {
+  printMarkPrinted();
+  if (typeof idcPrintCommit === 'function') idcPrintCommit();
+  window.print();
 }
 

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="939a0ea9">
+<meta name="app-build" content="b1c57297">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -96,6 +96,8 @@
   --scrim: rgb(0 0 0 / 0.45);
 
   --dur-1: 120ms; --dur-2: 200ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  /* A lamp's blink, once a second (under WCAG's three flashes a second): the print station's light, red, until it is opened. */
+  --dur-blink: 1s;
   --perspective: 75rem;
 
   --touch: 2.75rem;
@@ -456,6 +458,8 @@ body:not(.inv-booted) { pointer-events: none; }
 /* A toast raised from the preview (Send to office: sent, or why not) shows over it. Only a toast: a form dialog left open under a
    preview (a credit note's) stays under it. */
 .inv-print-view-active ~ .inv-toast { z-index: var(--z-over-print); }
+/* …and so does a question asked from it (Send to office while the print station is not on: remoteprint.js prtSend). */
+.inv-print-view-active ~ .inv-scrim-dialog[data-over-print] { z-index: var(--z-over-print); }
 .inv-print-toolbar {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
@@ -3492,6 +3496,16 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
 .inv-mast-facts { grid-area: facts; display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); min-width: 0; margin: 0; padding: 0; list-style: none; }
 .inv-mast-facts > li { min-width: 0; font-size: var(--fs-13); }
 .inv-mast-facts > li.inv-dot { white-space: normal; color: var(--text-1); }
+/* The print station's light (prtlight.js): a fact whose words open the station, read as the fact (as the lead is). */
+.inv-mast-fact { min-width: 0; margin: 0; padding: 0; border: none; background: none; box-shadow: none; color: inherit; font: inherit;
+  text-align: left; cursor: pointer; }
+.inv-mast-fact:hover { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: var(--sp-2); }
+.inv-mast-fact:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
+/* A lamp that blinks (red only, until it is opened): the dot's own mark, never its words; never for reduced motion. */
+@keyframes inv-blink { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: no-preference) {
+  .inv-blink::before { animation: inv-blink var(--dur-blink) steps(1, end) infinite; }
+}
 .inv-mast-act { grid-area: act; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-16); margin-top: var(--sp-2); }
 body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-mast-act > .inv-btn-link { font-size: var(--fs-13); }
@@ -5615,8 +5629,12 @@ function _uiAsk(kind, o) {
           '<div class="inv-field-error inv-hidden" data-ui-ask-err>' + escHtml(o.requiredText || 'This is needed to go on.') + '</div></div>'
         : '';
       var okCls = o.danger ? 'inv-btn inv-btn-danger inv-btn-solid' : 'inv-btn inv-btn-primary';
+      // A question with a second way on (`altLabel`: Send to office's "Send anyway" beside "Print here") draws it in Cancel's
+      // place and answers 'alt'; the head's ×, Escape and the scrim still answer cancel.
       var foot = '<div class="inv-dialog-foot">' +
-        (kind === 'alert' ? '' : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="cancel">' + escHtml(o.cancelLabel || 'Cancel') + '</button>') +
+        (kind === 'alert' ? '' : kind === 'confirm' && o.altLabel
+          ? '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="alt">' + escHtml(o.altLabel) + '</button>'
+          : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invUiAsk" data-ans="cancel">' + escHtml(o.cancelLabel || 'Cancel') + '</button>') +
         '<button type="button" class="' + okCls + '" data-action="invUiAsk" data-ans="ok">' + escHtml(o.okLabel || 'OK') + '</button></div>';
       var html = '<div class="inv-dialog" role="' + (kind === 'alert' ? 'alertdialog' : 'dialog') + '" aria-modal="true" aria-labelledby="' + id + 'T"' +
         ' data-ui-ask="' + id + '" data-ui-kind="' + kind + '">' +
@@ -5625,6 +5643,8 @@ function _uiAsk(kind, o) {
         input + foot + '</div>';
       scrim = dialogOpen(html);
       if (!scrim || !scrim.isConnected) throw new Error('the dialog did not open');
+      // Asked from a print preview (Send to office): drawn over it, as a toast raised there is.
+      if (o.overPrint) scrim.dataset.overPrint = '1';
       _uiAskOpen[id] = { kind: kind, o: o, finish: finish, scrim: scrim };
       scrim.addEventListener('click', function(e) { if (e.target === scrim) finish(kind === 'prompt' ? null : kind === 'alert' ? undefined : false); });
       scrim.addEventListener('keydown', function(e) {
@@ -5661,7 +5681,7 @@ function uiAskAnswer(idOrBtn, ans) {
   var a = id && _uiAskOpen[id];
   if (!a) return;
   if (a.kind === 'alert') { a.finish(undefined); return; }
-  if (a.kind === 'confirm') { a.finish(ans === 'ok'); return; }
+  if (a.kind === 'confirm') { a.finish(ans === 'ok' ? true : ans === 'alt' && a.o.altLabel ? 'alt' : false); return; }
   if (ans !== 'ok') { a.finish(null); return; }
   var inp = a.scrim.querySelector('[data-ui-ask-input]');
   var v = inp ? inp.value.trim() : '';
@@ -19230,6 +19250,15 @@ function closePrintPreview() {
   document.body.style.overflow = '';
   // Restore page title
   if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
+  // A job taken off the office queue to print here asks whether it printed (prtlight.js): if not, it goes back on the queue.
+  if (typeof prtHereClosed === 'function') prtHereClosed();
+}
+/* The preview's own Print: a Created invoice is marked Printed, ID cards take their numbers, and the browser prints. Send to office
+   offers it too, when the print station is not on (remoteprint.js prtSend). */
+function printPreviewNow() {
+  printMarkPrinted();
+  if (typeof idcPrintCommit === 'function') idcPrintCommit();
+  window.print();
 }
 
 /* ===== REMOTE PRINT: THE OFFICE PRINTER =====
@@ -19248,7 +19277,11 @@ function closePrintPreview() {
    The printer's own details (its name, its address on the Wi-Fi, the cartridge it takes) are the book's (`S.printer`), typed in
    Settings → Connections → Office printer: nothing about the shop is in this build. A job's HTML is the sender's own document and is
    cleaned before it is drawn (`prtClean`: no script, frame, form or handler survives). An invoice sent while Created is marked
-   Printed on the sending device once the station has taken it, as Print marks it (print.js printMarkPrinted). */
+   Printed on the sending device once the station has taken it, as Print marks it (print.js printMarkPrinted).
+   THE STATION CHECKS IN every 10 minutes (owner, 28 Oct 2026, for the light on Home: prtlight.js): `print-status.json` on a branch of
+   its own, `print-status`, made from the sync branch and moved back onto it at the first check-in of a month, so its commits never
+   pile up and never touch the sync branch. A website the sync repository deploys must leave that branch out (soma-internal's
+   web/vercel.json does). And it reloads itself to a new build only when nothing is typed, saving or printing (prtReloadMaybe). */
 
 var PRT_DIR = 'print-queue';
 var PRT_STATION_KEY = 'sep_inv_print_station';
@@ -19258,6 +19291,12 @@ var PRT_POLL_MS = 15000;          // the station's look at the queue while the a
 var PRT_SENT_POLL_MS = 20000;     // the sender's look while a job of its own waits
 var PRT_LATE_MS = 3 * 60000;      // a job waiting longer than this says the station may be off
 var PRT_MAX_HTML = 4 * 1024 * 1024;
+var PRT_STATUS_BRANCH = 'print-status';
+var PRT_STATUS_FILE = 'print-status.json';
+var PRT_BEAT_MS = 10 * 60000;     // the station checks in this often
+var PRT_RELOAD_IDLE_MS = 5 * 60000;   // left alone this long before it reloads itself to a new build
+// The light's states (prtlight.js) in which a job sent now would wait, so Send to office asks first.
+var PRT_ASK_STATES = { waiting: 1, stuck: 1, unseen: 1, down: 1, off: 1, never: 1 };
 
 function prtCfg() {
   var p = (S && S.printer) || {};
@@ -19304,6 +19343,118 @@ async function prtDelete(cfg, job, message) {
   await ghRequest(prtJobUrl(cfg, job.id), { method: 'DELETE', body: { message: message, sha: job.sha, branch: cfg.branch } });
 }
 
+/* ---- The station's check-in (the light on Home reads it: prtlight.js) ---- */
+function prtRepoUrl(cfg) { return 'https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo); }
+function prtRefPath(branch) { return String(branch).split('/').map(encodeURIComponent).join('/'); }
+/* The status file sits beside the sync file, on its own branch. */
+function prtStatusUrl(cfg) {
+  var dir = cfg.path.split('/').slice(0, -1).filter(Boolean).concat([PRT_STATUS_FILE]);
+  return prtRepoUrl(cfg) + '/contents/' + dir.map(encodeURIComponent).join('/');
+}
+var _prtBeatAt = 0, _prtBeatTry = 0, _prtBeatSha = null, _prtBeatMonth = '', _prtBeatBusy = false, _prtBeatErr = '';
+/* The sync branch's latest commit: the status branch is made from it, and moved back onto it each month. */
+async function prtBranchHead(cfg) {
+  var r = await ghRequest(prtRepoUrl(cfg) + '/git/ref/heads/' + prtRefPath(cfg.branch));
+  if (!r || !r.object || !r.object.sha) throw new Error('GitHub did not say where ' + cfg.branch + ' is');
+  return r.object.sha;
+}
+/* What the status file holds now: its sha and the month its branch was made in; null where the file, or its branch, is not there. */
+async function prtBeatRead(cfg) {
+  try {
+    var f = await ghRequest(prtStatusUrl(cfg) + '?ref=' + encodeURIComponent(PRT_STATUS_BRANCH));
+    var data = null;
+    try { data = JSON.parse(ghDecode(f.content || '')); } catch (e) { data = null; }
+    return { sha: f.sha, month: data && data.month || '' };
+  } catch (e) { if (e.status === 404) return null; throw e; }
+}
+/* One check-in: the time, the build, when it last printed. The branch is made where it is missing; at a new month it is moved back
+   onto the sync branch (forced), so it holds a month of check-ins at most. Called on every look at the queue; it writes only every
+   PRT_BEAT_MS, and after a failure tries again a minute later. */
+async function prtBeat(force) {
+  if (_prtBeatBusy || !prtIsStation() || !prtCfg().on || prtSendBlocked()) return false;
+  var now = Date.now();
+  if (!force && (now - _prtBeatAt < PRT_BEAT_MS || now - _prtBeatTry < 60000)) return false;
+  _prtBeatBusy = true;
+  _prtBeatTry = now;
+  try {
+    var cfg = getGhConfig(), month = localDateStr().slice(0, 7);
+    if (_prtBeatSha === null) {
+      var cur = await prtBeatRead(cfg);
+      if (cur) { _prtBeatSha = cur.sha; _prtBeatMonth = cur.month; }
+      else {
+        // No file: the branch may be there without it, or not there at all (the first check-in).
+        var ref = null;
+        try { ref = await ghRequest(prtRepoUrl(cfg) + '/git/ref/heads/' + prtRefPath(PRT_STATUS_BRANCH)); } catch (e) { if (e.status !== 404) throw e; }
+        if (!ref) await ghRequest(prtRepoUrl(cfg) + '/git/refs', { method: 'POST', body: { ref: 'refs/heads/' + PRT_STATUS_BRANCH, sha: await prtBranchHead(cfg) } });
+        _prtBeatMonth = month;
+      }
+    }
+    if (_prtBeatMonth && _prtBeatMonth !== month) {
+      // A month's check-ins are enough: the branch goes back onto the sync branch, where the file is not.
+      await ghRequest(prtRepoUrl(cfg) + '/git/refs/heads/' + prtRefPath(PRT_STATUS_BRANCH), { method: 'PATCH', body: { sha: await prtBranchHead(cfg), force: true } });
+      _prtBeatSha = null;
+      _prtBeatMonth = month;
+    }
+    var last = prtLog().filter(function(r) { return r.state === 'printed'; })[0];
+    var body = { kind: 'sep-print-status', v: 1, at: now, build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '', device: prtSenderName(),
+      lastPrinted: last ? last.at : null, month: _prtBeatMonth || month };
+    var put = function() {
+      return ghRequest(prtStatusUrl(cfg), { method: 'PUT', body: Object.assign({ message: 'Print station checked in', content: ghEncode(JSON.stringify(body)), branch: PRT_STATUS_BRANCH },
+        _prtBeatSha ? { sha: _prtBeatSha } : {}) });
+    };
+    var res;
+    try { res = await put(); }
+    catch (e) {
+      // Another hand moved the file (a second station, or the branch reset): read it again and write once more.
+      if (e.status !== 409 && e.status !== 422) throw e;
+      var again = await prtBeatRead(cfg);
+      _prtBeatSha = again ? again.sha : null;
+      res = await put();
+    }
+    _prtBeatSha = res && res.content && res.content.sha || null;
+    _prtBeatAt = now;
+    _prtBeatErr = '';
+    return true;
+  } catch (e) {
+    _prtBeatErr = e.message || String(e);
+    return false;
+  } finally { _prtBeatBusy = false; }
+}
+
+/* ---- A new build on the print station: reloaded only when nothing would be lost ----
+   Owner, 28 Oct 2026: yes to the station reloading itself, "needs a fail safe, just to be sure, if someone is updating on the kiosk
+   then auto-reload should not happen without the work being saved". The one exception to "an open app is never reloaded for a
+   build" (init.js), and only on the station: it waits while anything is open, typed, unsaved, saving, pushing or printing, and until
+   the station has been left alone for PRT_RELOAD_IDLE_MS. What holds it is said (prtReloadBlockers), for the station's own Settings. */
+var _prtLastInput = Date.now();
+['pointerdown', 'keydown', 'touchstart', 'wheel', 'input'].forEach(function(ev) {
+  document.addEventListener(ev, function() { _prtLastInput = Date.now(); }, { capture: true, passive: true });
+});
+function prtReloadBlockers() {
+  var out = [];
+  if (_prtBusy) out.push('printing');
+  if (document.querySelector('.inv-print-view-active')) out.push('a preview is open');
+  if (document.querySelector('.inv-scrim-dialog')) out.push('a dialog is open');
+  if (typeof _pageTyped !== 'undefined' && _pageTyped) out.push('a form has typed work');
+  if (typeof _challanForm !== 'undefined' && _challanForm) out.push('a challan is being entered');
+  if (typeof createFormHasWork === 'function' && createFormHasWork()) out.push('an invoice is started on Create');
+  if (typeof wdgArrangeOn === 'function' && wdgArrangeOn('home')) out.push('Home is being arranged');
+  if (typeof _persistQueued !== 'undefined' && _persistQueued) out.push('the book is saving');
+  if (typeof _storageHealth !== 'undefined' && _storageHealth && _storageHealth.lastSaveOk === false) out.push('the last save did not land');
+  if ((typeof _ghBusy !== 'undefined' && _ghBusy) || (typeof _ghPushTimer !== 'undefined' && _ghPushTimer)) out.push('a push to GitHub is waiting');
+  if (Date.now() - _prtLastInput < PRT_RELOAD_IDLE_MS) out.push('in use in the last 5 minutes');
+  return out;
+}
+function prtReloadDue() {
+  return prtIsStation() && typeof APP_BUILD !== 'undefined' && APP_BUILD !== 'dev' && typeof _liveBuild !== 'undefined' && !!_liveBuild && _liveBuild !== APP_BUILD;
+}
+function prtReloadMaybe() {
+  if (!prtReloadDue() || prtReloadBlockers().length) return false;
+  prtReloadNow();
+  return true;
+}
+function prtReloadNow() { location.reload(); }
+
 /* ---- Sending ---- */
 function prtSenderName() {
   var u = typeof grdUser === 'function' ? grdUser() : null;
@@ -19318,6 +19469,17 @@ async function prtSend() {
   var html = body ? body.innerHTML : '';
   if (!html.trim()) { showToast('Nothing in the preview to send', 'error'); return; }
   if (html.length > PRT_MAX_HTML) { showToast('This document is too large to send (over 4 MB): print it here', 'error'); return; }
+  // Where the print station is not on (not seen, off, or jobs stuck there) the job would wait: asked first, over the preview,
+  // with Print here beside Send anyway (owner, 28 Oct 2026; prtlight.js). On, or not known (offline, GitHub not answering), it is
+  // sent as before.
+  var st = typeof prtLightFresh === 'function' ? await prtLightFresh() : null;
+  if (st && PRT_ASK_STATES[st.state]) {
+    var ans = await uiConfirm({ title: st.text, overPrint: true, okLabel: 'Print here', altLabel: 'Send anyway',
+      body: (st.state === 'waiting' ? 'Jobs are waiting at the station, and this one would wait behind them.' : 'The job will wait until the station is back.') +
+        ' Print here prints it on this device now.' });
+    if (ans === true) { printPreviewNow(); return; }
+    if (ans !== 'alt') return;
+  }
   var title = String(document.title || 'Document').slice(0, 120);
   var id = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 7);
   var invId = typeof _printInvId !== 'undefined' ? _printInvId : null;
@@ -19336,6 +19498,8 @@ async function prtSend() {
   if (btn) btn.disabled = false;
   // ID cards take their numbers when their sheet goes to paper (idcard.js): a sheet sent is a sheet printed.
   if (typeof idcPrintCommit === 'function') idcPrintCommit();
+  // A job taken off the queue to print here and sent again is back on the queue: nothing to ask when its preview closes.
+  if (typeof _prtHere !== 'undefined' && _prtHere) _prtHere.job = null;
   var l = prtSent();
   l.unshift({ id: id, title: title, at: job.sentAt, invId: invId, state: 'waiting' });
   prtSentSave(l);
@@ -19409,6 +19573,11 @@ async function prtStationTick() {
 }
 async function prtStationTickLocked() {
   if (_prtBusy || !prtIsStation() || !prtCfg().on || prtSendBlocked()) return;
+  // The check-in first (it writes every 10 minutes), then whether a new build has shipped (version.json, read at most every 5
+  // minutes: init.js), and the reload to it where nothing would be lost.
+  await prtBeat();
+  if (typeof checkForUpdate === 'function') await checkForUpdate(false);
+  if (prtReloadMaybe()) return;
   var view = document.getElementById('invPrintView');
   if (view && view.classList.contains('inv-print-view-active')) return;
   _prtBusy = true;
@@ -19455,8 +19624,10 @@ function prtStatusHtml() {
   var h = '';
   if (prtIsStation()) {
     var last = _prtLast;
-    h += '<div class="inv-callout inv-callout-' + (last && last.error ? 'warning' : 'info') + ' inv-mb-8" data-prt-station>This device is the print station. ' +
-      (last ? (last.error ? 'The last look at the queue failed: ' + escHtml(last.error) : 'Last looked ' + escHtml(prtWhen(last.at)) + ': ' + todoPlural(last.waiting, 'job') + ' waiting.') : 'It looks at the queue every few seconds while the app is open.') + '</div>';
+    h += '<div class="inv-callout inv-callout-' + (last && last.error || _prtBeatErr ? 'warning' : 'info') + ' inv-mb-8" data-prt-station>This device is the print station. ' +
+      (last ? (last.error ? 'The last look at the queue failed: ' + escHtml(last.error) : 'Last looked ' + escHtml(prtWhen(last.at)) + ': ' + todoPlural(last.waiting, 'job') + ' waiting.') : 'It looks at the queue every few seconds while the app is open.') +
+      (_prtBeatErr ? ' The last check-in failed: ' + escHtml(_prtBeatErr) : _prtBeatAt ? ' Checked in ' + escHtml(prtWhen(_prtBeatAt)) + '.' : '') +
+      (prtReloadDue() ? ' A new build is ready: it reloads once nothing holds it' + (prtReloadBlockers().length ? ' (now: ' + escHtml(prtReloadBlockers().join(', ')) + ')' : '') + '.' : '') + '</div>';
     var log = prtLog().slice(0, 5);
     if (log.length) h += '<div class="inv-field-label">Printed here</div>' + log.map(function(r) {
       return '<div class="inv-row" data-prt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.title || r.id) + '</span>' +
@@ -37022,6 +37193,8 @@ function todoSees(t) {
   // The knowledge base's (knowledge.js): an approval or a review is the owner's; training is a floor entry made against the
   // roster, which People or Floor shows.
   if (need.indexOf('owner') >= 0 && !grdIsOwner()) return false;
+  // The print station's (prtlight.js): the owner's and the office's, who send to the office printer and see its light.
+  if (need.indexOf('office') >= 0 && !(grdIsOwner() || (grdUser() || {}).role === 'office')) return false;
   if (need.indexOf('floor') >= 0 && !grdCan('floor')) return false;
   if (need.indexOf('roster') >= 0 && !(grdSees('pageStaff') || grdSees('pageFloor'))) return false;
   return todoGoSees(t.go);
@@ -37520,6 +37693,8 @@ function todoGo(go) {
   closeOverlay();
   switch (go.kind) {
     case 'kb': if (go.id) kbOpenArticle(go.id); else kbGo({ tab: 'pageKnow', v: go.tab || 'start', id: '' }); break;
+    // The print station's light (prtlight.js): its dialog, over whatever is on screen.
+    case 'prtLight': prtLightOpen(); break;
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;
@@ -55128,6 +55303,9 @@ function homeDayFacts() {
       } catch (e) { /* the plant register says what went wrong */ }
     });
   }
+  // The print station's light (prtlight.js; owner, 28 Oct 2026): the owner's and the office's, while the office printer is on.
+  var prt = typeof prtLightFact === 'function' ? prtLightFact() : null;
+  if (prt) out.push(prt);
   return out;
 }
 /* The one thing the masthead leads with: money in danger first (it opens Money); else the red move worth most across every
@@ -55142,6 +55320,11 @@ function homeMastLead() {
     return { tone: 'danger', text: money.text, html: escHtml(money.text), facts: rest, red: red,
       act: '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageFinance" data-home-lead="money">' + escHtml(money.label) + '</button>' };
   }
+  // The print station red with a job waiting (prtlight.js; owner, 28 Oct 2026: after money in danger, before the red move): a
+  // dispatch can wait on that paper within minutes. Its words open the station's dialog, and so does its button; the count beside it
+  // leaves out its own task. It blinks until it is opened.
+  var prt = rest.filter(function(f) { return f.station && f.lead; })[0];
+  if (prt) return homeMastPrtLead(prt, rest.filter(function(f) { return f !== prt; }), red, 'danger');
   // The moves across the questions, worth most first (tdyFirstMoves); the masthead takes the first that asks for something today,
   // red before amber, whatever a "to know" move is worth: a backup reminder never leads over a stock line out.
   var moves = tdySeesMoney() ? tdyFirstMoves(tdyQuestions(), 99).map(function(x) { return x.mv; }) : [];
@@ -55157,16 +55340,31 @@ function homeMastLead() {
   if (red) return { tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now', html: escHtml(todoPlural(red, 'thing needs', 'things need') + ' you now'), facts: rest, red: 0, act: needs('Open Needs you') };
   var a = first('amber');
   if (a) return lead(a);
-  // Nothing to do: a fact of the day (a line half down) is the sentence, else the day is clear.
-  if (rest.length) return { tone: rest[0].tone, text: rest[0].text, html: escHtml(rest[0].text), facts: rest.slice(1), red: 0, act: '' };
-  return { tone: 'ok', text: 'Nothing needs you now', html: escHtml('Nothing needs you now'), facts: [], red: 0, act: '' };
+  // Nothing to do: a fact of the day (a line half down, the print station amber or red) is the sentence, else the day is clear. The
+  // station on or off never leads: it is a fact, not news.
+  var day = rest.filter(function(f) { return !f.station || f.tone === 'warning' || f.tone === 'danger'; })[0];
+  if (day && day.station) return homeMastPrtLead(day, rest.filter(function(f) { return f !== day; }), 0, day.tone);
+  if (day) return { tone: day.tone, text: day.text, html: escHtml(day.text), facts: rest.filter(function(f) { return f !== day; }), red: 0, act: '' };
+  // The print station on or off is still said among the facts (prtlight.js): nothing else is left here to say.
+  return { tone: 'ok', text: 'Nothing needs you now', html: escHtml('Nothing needs you now'), facts: rest, red: 0, act: '' };
+}
+/* The print station leading the masthead (prtlight.js): its words a button opening its dialog, its own button the jobs' (red, a job
+   waiting), the count beside it without its own task. */
+function homeMastPrtLead(f, facts, red, tone) {
+  var mine = tdyTasks().some(function(r) { return r.tone === 'red' && r.app && r.app.rule === 'prtStation'; });
+  return { tone: tone, text: f.text, facts: facts, red: Math.max(0, red - (mine ? 1 : 0)), blink: f.blink, station: true,
+    html: '<button type="button" class="inv-mast-lead" data-action="invPrtLight" data-home-lead="station" title="Open the print station">' + escHtml(f.text) + '</button>',
+    act: f.jobs ? '<button type="button" class="inv-btn inv-btn-tint" data-action="invPrtLight" data-home-lead="station">' + escHtml(f.jobs === 1 ? 'See the job' : 'See the ' + f.jobs + ' jobs') + '</button>' : '' };
 }
 var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
 function homeMastHtml() {
   var now = new Date(), lead = homeMastLead(), wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
-  // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span).
-  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '">' + (/^<button/.test(lead.html) ? lead.html : '<span>' + lead.html + '</span>') + '</p>';
-  var items = lead.facts.slice(0, 2).map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
+  // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span). The print station
+  // leading it red blinks its lamp until it is opened (prtlight.js).
+  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + (lead.blink ? ' inv-blink' : '') + '">' + (/^<button/.test(lead.html) ? lead.html : '<span>' + lead.html + '</span>') + '</p>';
+  // The plant's facts (two at most), then the print station's light, then the weather.
+  var items = lead.facts.filter(function(f) { return !f.station; }).slice(0, 2).map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
+  lead.facts.filter(function(f) { return f.station; }).forEach(function(f) { items.push(prtLightFactHtml(f)); });
   if (wx) items.push('<li data-home-wx>' + wx + '</li>');
   // How many things need you now (the red ones, the Needs you tab's badge), a link to them; said once, so never beside a lead that
   // is that count. On the phone the board's tools take its place at the act row's end (owner, 21 Oct 2026: "move the layout option
@@ -55220,11 +55418,14 @@ function homeClockStart() {
   if (!homeClockShown()) return;
   homeClockTick();
   homeFeedsAsk();
+  if (typeof prtLightAsk === 'function') prtLightAsk();
   var wait = 60000 - (Date.now() % 60000);
   _homeClockT = setTimeout(function next() {
     homeClockTick();
     if (_homeClockT === null) return;   // Home went out of view: the tick stopped the clock, and nothing is asked
     homeFeedsAsk();
+    // The print station's light reads again every 2 minutes while Home shows (prtlight.js).
+    if (typeof prtLightAsk === 'function') prtLightAsk();
     _homeClockT = setTimeout(next, 60000 - (Date.now() % 60000));
   }, wait);
 }
@@ -60748,6 +60949,339 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     } catch (e) { /* a redraw never takes a landing with it */ }
   });
 }
+/* ===== THE PRINT STATION'S LIGHT =====
+   Owner, 28 Oct 2026: "need a blinking light (notification) on the home screen hero card, to show if the kiosk printer machine is
+   connected and online. If it's not connected, it should show red light or amber, depends, and when it was last active." Drawn on a
+   canvas, passed through a design pass and ruled the same day ("1 and 2 - your recommendation"):
+   - one of Home's masthead facts on both layouts, a dot and its words (DR-8), its tap the station's dialog (prtLightOpen);
+   - red with a job waiting leads the masthead, after money in danger and before the red move (today.js homeMastLead), and is a red
+     task on Needs you (prtStation);
+   - only red moves: it blinks until it is opened, and again when it gets worse (a job more, or another hour unseen); never for
+     anyone set to reduce motion (styles.css inv-blink, --dur-blink);
+   - shown to the owner and the office, while the office printer is on and this device syncs (prtLightSees).
+   The station checks in every 10 minutes (remoteprint.js prtBeat). This device reads that and the queue every 2 minutes while Home
+   shows (prtLightRead), keeps the last read on the device (`sep_inv_prt_light`, never the book), and works the state out each time
+   it is drawn (prtLightState: pure, for the specs). Offline, it says it cannot check: never the last colour it saw. */
+
+var PRT_LIGHT_KEY = 'sep_inv_prt_light';
+var PRT_ACK_KEY = 'sep_inv_prt_ack';
+var PRT_READ_MS = 2 * 60000;      // the light reads the check-in and the queue this often while Home shows
+var PRT_SEEN_MIN = 15;            // checked in within this many minutes: on
+var PRT_DOWN_MIN = 60;            // in the shift and unseen past this: red
+var PRT_WAIT_MIN = 3;             // a job waiting past this: amber
+var PRT_STUCK_MIN = 10;           // a job waiting past this in the shift: red
+var PRT_STATE_WORD = { on: 'On', waiting: 'Jobs waiting', stuck: 'Jobs stuck', unseen: 'Not seen', down: 'Not seen', off: 'Off', old: 'On an old build',
+  never: 'Not seen yet', offline: 'Can’t check', error: 'Can’t check' };
+
+/* The device can read the light: the office printer on, and this device may sync (the job's road and the check-in's). */
+function prtLightOn() { return !!S && prtCfg().on && !prtSendBlocked(); }
+/* …and the one signed in is the owner or the office (with the guard off, everyone is the owner). */
+function prtLightSees() {
+  if (!prtLightOn()) return false;
+  if (typeof grdOn !== 'function' || !grdOn()) return true;
+  var u = grdUser();
+  return !!u && (u.role === 'owner' || u.role === 'office');
+}
+function prtLightLoad() { var r = loadJSON(PRT_LIGHT_KEY, null); return r && typeof r === 'object' ? r : null; }
+function prtLightKeep(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* the device's own, a read again restores it */ } }
+/* A job's own time is its id's first 14 digits (prtSend writes them in UTC). */
+function prtJobAt(id) {
+  var m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(id || ''));
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+}
+
+var _prtLightBusy = null;
+/* Reads the station's check-in and the jobs waiting, keeps them on the device and says so (`sep-prt-light`: the masthead and an open
+   dialog are drawn again). At most every PRT_READ_MS unless forced; never offline. Resolves to the read. */
+function prtLightRead(force) {
+  if (!prtLightOn()) return Promise.resolve(null);
+  var last = prtLightLoad();
+  if (!force && last && Date.now() - last.at < PRT_READ_MS) return Promise.resolve(last);
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve(last);
+  if (_prtLightBusy) return _prtLightBusy;
+  var cfg = getGhConfig();
+  _prtLightBusy = (async function() {
+    var rec;
+    if (typeof liveBuildRead === 'function') await liveBuildRead();
+    try {
+      var status = null, never = false;
+      try {
+        status = JSON.parse(await ghRequest(prtStatusUrl(cfg) + '?ref=' + encodeURIComponent(PRT_STATUS_BRANCH), { raw: true }));
+        if (!status || status.kind !== 'sep-print-status' || !(status.at > 0)) { status = null; never = true; }
+      } catch (e) { if (e.status === 404 || e instanceof SyntaxError) never = true; else throw e; }
+      var jobs = (await prtList(cfg)).map(function(j) { return { id: j.id, at: prtJobAt(j.id) }; });
+      rec = { at: Date.now(), ok: true, never: never, jobs: jobs,
+        status: status ? { at: status.at, build: status.build || '', lastPrinted: status.lastPrinted || null, device: String(status.device || '').slice(0, 80) } : null };
+    } catch (e) {
+      rec = { at: Date.now(), ok: false, err: e.message || String(e) };
+    }
+    prtLightKeep(PRT_LIGHT_KEY, rec);
+    document.dispatchEvent(new CustomEvent('sep-prt-light'));
+    return rec;
+  })();
+  _prtLightBusy.then(function() { _prtLightBusy = null; }, function() { _prtLightBusy = null; });
+  return _prtLightBusy;
+}
+/* Asked when Home is drawn and on its minute tick (today.js homeClockStart): read again once the last read is PRT_READ_MS old. */
+function prtLightAsk() { if (prtLightSees() && !document.hidden) prtLightRead(false).catch(function() {}); }
+
+/* When it was, said short: 4:22 PM today, yesterday 6:10 PM, Sat 6:10 PM within the week, else the day. */
+function prtWhenSaid(ts, now) {
+  var d = new Date(ts), n = now || new Date(), t = homeClockMin(d.getHours() * 60 + d.getMinutes());
+  var days = isoDaysBetween(isoOf(d), isoOf(n));
+  if (days <= 0) return t;
+  if (days === 1) return 'yesterday ' + t;
+  if (days < 7) return d.toLocaleDateString('en-IN', { weekday: 'short' }) + ' ' + t;
+  return stockShortDate(isoOf(d));
+}
+/* A count and its noun never part at a line's end (no-break spaces). */
+function prtJobsSaid(n) { return n + ' ' + (n === 1 ? 'job' : 'jobs') + ' waiting'; }
+function prtMinSaid(m) { return m < 60 ? Math.max(1, Math.round(m)) + ' min' : homeClockSpan(Math.round(m)); }
+
+/* The light, worked out: {state, tone, text, lead, jobs, oldest (minutes), seenAt, sig}, or null before anything was read.
+   `r` the last read; `ctx` {now (a Date), online, live (the build published), shift ({start, end} in minutes; null on a day the
+   plant does not work)}. Pure.
+   - on: checked in within PRT_SEEN_MIN, nothing waiting past PRT_WAIT_MIN (green);
+   - waiting: on, a job waiting past PRT_WAIT_MIN (amber); `stuck` past PRT_STUCK_MIN in the shift (red): seen, but not printing (the
+     station's print dialog waiting on a click, without kiosk printing, or the printer itself);
+   - old: on, its build behind the one published (amber; it reloads itself, remoteprint.js);
+   - unseen / down: in the shift and not seen, amber, red once unseen in the shift past PRT_DOWN_MIN or a job waits past
+     PRT_STUCK_MIN;
+   - off: outside the shift or on a day the plant is shut, grey, amber with a job waiting, never red;
+   - never: no station has checked in (grey, amber with a job waiting); offline and error: grey, it cannot check. */
+function prtLightState(r, ctx) {
+  var now = ctx.now, t = now.getTime();
+  if (ctx.online === false) return { state: 'offline', tone: 'neutral', text: 'Print station: can’t check offline', jobs: 0, lead: false, sig: '' };
+  if (!r) return null;
+  if (!r.ok) return { state: 'error', tone: 'neutral', text: 'Print station: can’t check', err: r.err || '', jobs: 0, lead: false, sig: '' };
+  var jobs = (r.jobs || []).filter(function(j) { return j && j.at > 0; });
+  var n = jobs.length, oldest = n ? (t - Math.min.apply(null, jobs.map(function(j) { return j.at; }))) / 60000 : 0;
+  var jobsSaid = n ? ' · ' + prtJobsSaid(n) : '';
+  var nowMin = now.getHours() * 60 + now.getMinutes();
+  var inShift = !!ctx.shift && nowMin >= ctx.shift.start && nowMin < ctx.shift.end;
+  var out = { jobs: n, oldest: oldest };
+  if (r.never || !r.status) {
+    out.state = 'never'; out.tone = n ? 'warning' : 'neutral'; out.text = 'Print station not seen yet' + jobsSaid;
+  } else {
+    var seen = r.status.at, since = (t - seen) / 60000;
+    out.seenAt = seen;
+    if (since <= PRT_SEEN_MIN) {
+      if (n && oldest > PRT_WAIT_MIN) {
+        var stuck = inShift && oldest > PRT_STUCK_MIN;
+        out.state = stuck ? 'stuck' : 'waiting'; out.tone = stuck ? 'danger' : 'warning';
+        out.text = 'Print station on · ' + prtJobsSaid(n) + (n === 1 ? ' ' : ', the oldest ') + prtMinSaid(oldest);
+      } else if (ctx.live && r.status.build && r.status.build !== ctx.live) {
+        out.state = 'old'; out.tone = 'warning'; out.text = 'Print station on an old build';
+      } else {
+        out.state = 'on'; out.tone = 'ok'; out.text = 'Print station on · seen ' + prtWhenSaid(seen, now);
+      }
+    } else if (inShift) {
+      var start = new Date(now); start.setHours(0, ctx.shift.start, 0, 0);
+      var unseen = (t - Math.max(seen, start.getTime())) / 60000, red = unseen > PRT_DOWN_MIN || (n > 0 && oldest > PRT_STUCK_MIN);
+      out.state = red ? 'down' : 'unseen'; out.tone = red ? 'danger' : 'warning';
+      out.text = 'Print station not seen since ' + prtWhenSaid(seen, now) + jobsSaid;
+    } else {
+      out.state = 'off'; out.tone = n ? 'warning' : 'neutral'; out.text = 'Print station off since ' + prtWhenSaid(seen, now) + jobsSaid;
+    }
+  }
+  out.lead = out.tone === 'danger' && n > 0;
+  // What a blink is acknowledged against: red, its jobs, its last check-in and the hours since it (another hour unseen is worse).
+  out.sig = out.tone === 'danger' ? ['red', n, out.seenAt || 0, out.seenAt ? Math.floor((t - out.seenAt) / 3600000) : 0].join('|') : '';
+  return out;
+}
+/* The light on this device now (the role aside: the To-do's rule reads it for the book's list, todo.js filters who sees it). */
+function prtLightStateNow(now) {
+  if (!prtLightOn()) return null;
+  var d = now || new Date(), off = typeof homeDayOff === 'function' && homeDayOff(d);
+  var shift = off ? null : { start: typeof RELAY_GENERAL !== 'undefined' ? RELAY_GENERAL : 510, end: typeof RELAY_GENERAL_OUT !== 'undefined' ? RELAY_GENERAL_OUT : 1020 };
+  var st = prtLightState(prtLightLoad(), { now: d, online: typeof navigator === 'undefined' || navigator.onLine !== false,
+    live: typeof _liveBuild !== 'undefined' ? _liveBuild : '', shift: shift });
+  if (st) st.blink = !!st.sig && st.sig !== loadJSON(PRT_ACK_KEY, '');
+  return st;
+}
+function prtLightNow(now) { return prtLightSees() ? prtLightStateNow(now) : null; }
+/* A reading fresh enough to ask on (Send to office): the last if under a minute old, else one more, waited for up to 6 seconds. */
+async function prtLightFresh() {
+  if (!prtLightSees()) return null;
+  var last = prtLightLoad();
+  if (!last || Date.now() - last.at > 60000) {
+    await Promise.race([prtLightRead(true).catch(function() {}), new Promise(function(res) { setTimeout(res, 6000); })]);
+  }
+  return prtLightNow();
+}
+
+/* ---- On the masthead (today.js) ---- */
+/* The light as one of the masthead's facts: {tone, text, station, lead, blink, jobs}; null where it is not drawn. */
+function prtLightFact() {
+  var st = prtLightNow();
+  return st ? { tone: st.tone, text: st.text, station: true, lead: st.lead, blink: st.blink, jobs: st.jobs } : null;
+}
+function prtLightFactHtml(f) {
+  return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + (f.blink ? ' inv-blink' : '') + '" data-prt-light="' + escHtml(uiTone(f.tone)) + '">' +
+    '<button type="button" class="inv-mast-fact" data-action="invPrtLight" title="Open the print station">' + escHtml(f.text) + '</button></li>';
+}
+/* The masthead and an open station dialog drawn again (a read landed, a blink acknowledged). With the dialog open, what it shows
+   is being looked at: that red is acknowledged too, so the lamp does not start again behind it. */
+function prtLightRedraw() {
+  var d = document.querySelector('[data-prt-dialog]');
+  if (d && d.isConnected) prtLightAck();
+  if (typeof homeDayRefresh === 'function') homeDayRefresh();
+  if (typeof wsUpdateCounts === 'function') wsUpdateCounts();
+  if (d && d.isConnected) d.outerHTML = prtLightDialogInner();
+}
+function prtLightAck() { var st = prtLightNow(); if (st && st.sig) prtLightKeep(PRT_ACK_KEY, st.sig); }
+document.addEventListener('sep-prt-light', prtLightRedraw);
+// Offline the light says it cannot check, and back online it reads again: each at once, not at the next minute's tick.
+window.addEventListener('offline', function() { if (S) prtLightRedraw(); });
+window.addEventListener('online', function() { if (S) { prtLightRedraw(); prtLightAsk(); } });
+
+/* ---- The station's dialog ---- */
+var _prtLightJobs = {};   // each waiting job's title and sender, read once for the dialog
+function prtLightOpen() {
+  // Opened: the blink holds steady until the light gets worse.
+  prtLightAck();
+  prtLightRedraw();
+  dialogOpen(prtLightDialogInner(), { dismiss: true });
+  prtLightRead(true).then(prtLightTitles).then(function() {
+    var d = document.querySelector('[data-prt-dialog]');
+    if (d && d.isConnected) d.outerHTML = prtLightDialogInner();
+  }).catch(function() {});
+}
+async function prtLightTitles(r) {
+  if (!r || !r.ok) return;
+  var cfg = getGhConfig();
+  for (var i = 0; i < (r.jobs || []).length && i < 8; i++) {
+    var j = r.jobs[i];
+    if (_prtLightJobs[j.id]) continue;
+    try {
+      var d = JSON.parse(await ghRequest(prtJobUrl(cfg, j.id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
+      _prtLightJobs[j.id] = { title: String(d.title || '').slice(0, 120), sentBy: String(d.sentBy || '').slice(0, 80) };
+    } catch (e) { _prtLightJobs[j.id] = { title: '', sentBy: '' }; }
+  }
+}
+function prtAgoSaid(ts) { var m = (Date.now() - ts) / 60000; return m < 1 ? 'just now' : prtMinSaid(m) + ' ago'; }
+function prtLightDialogInner() {
+  var st = prtLightNow(), r = prtLightLoad(), s = r && r.ok ? r.status : null, live = typeof _liveBuild !== 'undefined' ? _liveBuild : '';
+  var rows = [];
+  if (st) rows.push(uiFactRowHtml({ label: 'Now', value: PRT_STATE_WORD[st.state] || '', tone: st.tone === 'neutral' ? '' : st.tone,
+    sub: st.state === 'error' ? 'GitHub did not answer: ' + String(st.err || '').slice(0, 80) : st.state === 'offline' ? 'This device is offline' : '', attrs: ' data-prt-now="' + escHtml(st.state) + '"' }));
+  rows.push(uiFactRowHtml({ label: 'Last seen', value: s ? prtWhenSaid(s.at) : 'Never', sub: s ? prtAgoSaid(s.at) + (s.device ? ' · ' + s.device : '') : 'No station has checked in yet' }));
+  rows.push(uiFactRowHtml({ label: 'Last printed', value: s && s.lastPrinted ? prtWhenSaid(s.lastPrinted) : null }));
+  if (s) {
+    var old = !!(live && s.build && s.build !== live);
+    rows.push(uiFactRowHtml({ label: 'Build', value: !s.build || !live ? 'Not known' : old ? 'Old' : 'Current', tone: old ? 'warning' : s.build && live ? 'ok' : '',
+      sub: old ? 'It reloads itself once nothing is typed or printing' : '', attrs: s.build ? ' title="' + escHtml(s.build) + '"' : '' }));
+  }
+  var jobs = r && r.ok ? (r.jobs || []) : [];
+  var list = '';
+  if (jobs.length) {
+    list = '<div class="inv-field-label inv-mt-8">Waiting · ' + jobs.length + '</div>' + jobs.map(function(j) {
+      var info = _prtLightJobs[j.id] || {}, m = j.at ? (Date.now() - j.at) / 60000 : 0;
+      var tone = m > PRT_STUCK_MIN ? 'danger' : m > PRT_WAIT_MIN ? 'warning' : '';
+      return '<div class="inv-row inv-row-2" data-prt-job="' + escHtml(j.id) + '"><span class="inv-row-main"><span class="inv-row-title"' + (info.sentBy ? ' title="' + escHtml('Sent from ' + info.sentBy) + '"' : '') + '>' +
+        escHtml(info.title || 'A job') + '</span><span class="inv-row-meta">' + escHtml(j.at ? 'Sent ' + prtWhenSaid(j.at) : 'Sent') + ' · ' +
+        (tone ? '<span class="inv-fig-' + tone + '">' : '') + escHtml('waiting ' + prtMinSaid(m)) + (tone ? '</span>' : '') + '</span></span>' +
+        '<span class="inv-row-end"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPrtLightCancel" data-id="' + escHtml(j.id) + '">Cancel</button></span></div>';
+    }).join('');
+  }
+  return '<div class="inv-dialog" data-prt-dialog role="dialog" aria-modal="true" aria-labelledby="prtLightT">' +
+    dialogHeadHtml('<span id="prtLightT">Print station</span>') +
+    '<div class="inv-dialog-body">' + rows.join('') + list +
+      '<p class="inv-note inv-mt-8">The station checks in every 10 minutes. It cannot see the printer’s paper or toner.</p></div>' +
+    '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-link" data-action="invPrtGuide">Setting up the printer</button>' +
+      (jobs.length ? '<button type="button" class="inv-btn inv-btn-primary" data-action="invPrtHere">' + escHtml(jobs.length === 1 ? 'Print it here' : 'Print the ' + jobs.length + ' here') + '</button>' : '') +
+    '</div></div>';
+}
+/* A waiting job cancelled from the dialog: taken off the queue (remoteprint.js prtCancel), then the light read again. */
+function prtLightCancel(id) {
+  prtCancel(id).then(function() { return prtLightRead(true); }).catch(function(e) { showToast(e.message || String(e), 'error'); });
+}
+
+/* ---- The jobs printed here ----
+   Each is taken off the queue before it prints, so the station never prints it too (a delete that finds it gone: the station had
+   it first), and drawn in this device's preview, whose Print prints it. Closing that preview asks whether it printed: if not, it
+   goes back on the queue under its own name, so it keeps its place. Then the next, oldest first. */
+var _prtHere = null;   // {left: jobs still to take, job: {id, data} taken off the queue and not yet settled}
+function prtHereStart() {
+  var r = prtLightLoad(), n = r && r.ok && r.jobs ? r.jobs.length : 0;
+  if (!n) { showToast('Nothing is waiting at the office', 'info'); return; }
+  closeOverlay();
+  _prtHere = { left: n, job: null };
+  prtHereNext();
+}
+async function prtHereNext() {
+  if (!_prtHere || _prtHere.left <= 0) { _prtHere = null; prtLightRead(true).catch(function() {}); return; }
+  var cfg = getGhConfig(), job = null, data = null;
+  try {
+    job = (await prtList(cfg))[0];
+    if (!job) { _prtHere = null; showToast('Nothing is waiting now: the station took them', 'success'); prtLightRead(true).catch(function() {}); return; }
+    data = JSON.parse(await ghRequest(prtJobUrl(cfg, job.id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
+    if (!data || data.kind !== 'sep-print' || typeof data.html !== 'string') throw new Error('the job could not be read.');
+    await prtDelete(cfg, job, 'Taken to print on ' + prtSenderName() + ': ' + String(data.title || job.id).slice(0, 100));
+  } catch (e) {
+    _prtHere = null;
+    var gone = e.status === 404 || e.status === 409;
+    showToast(gone ? 'The station took it first: nothing to print here' : 'Couldn’t take the job off the queue: ' + (e.message || e), gone ? 'info' : 'error');
+    prtLightRead(true).catch(function() {});
+    return;
+  }
+  _prtHere.left--;
+  _prtHere.job = { id: job.id, data: data };
+  prtHereShow(_prtHere.job);
+  prtLightRead(true).catch(function() {});
+}
+function prtHereShow(held) {
+  var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
+  _printInvId = null;   // a job from the queue is no invoice of this preview's: its Print marks nothing Printed here
+  body.innerHTML = prtClean(held.data.html);
+  view.classList.add('inv-print-view-active');
+  document.body.style.overflow = 'hidden';
+  if (!document._savedTitle) document._savedTitle = document.title;
+  document.title = String(held.data.title || 'Document');
+  printFit();
+}
+/* The preview closed (print.js closePrintPreview): a job taken off the queue and not sent back asks whether it printed. */
+function prtHereClosed() {
+  if (!_prtHere) return;
+  var held = _prtHere.job;
+  _prtHere.job = null;
+  if (!held) { if (_prtHere.left > 0) prtHereNext(); else { _prtHere = null; prtLightRead(true).catch(function() {}); } return; }
+  uiConfirm({ title: 'Did it print?', okLabel: 'It printed', cancelLabel: 'Put it back',
+    body: String(held.data.title || 'The job') + ' came off the office queue to print here. If it did not print, put it back: the station prints it when it is on.' })
+    .then(function(ok) { return ok ? true : prtHereBack(held); })
+    .then(function(go) {
+      if (go === false) return;   // not put back: its preview is open again, held
+      if (_prtHere && _prtHere.left > 0) prtHereNext(); else { _prtHere = null; prtLightRead(true).catch(function() {}); }
+    });
+}
+/* Back on the queue under its own name; where that fails, its preview opens again, still held, to print or send. */
+async function prtHereBack(held) {
+  var cfg = getGhConfig();
+  try {
+    await ghRequest(prtJobUrl(cfg, held.id), { method: 'PUT', body: { message: 'Put back on the queue: ' + String(held.data.title || held.id).slice(0, 100),
+      content: ghEncode(JSON.stringify(held.data)), branch: cfg.branch } });
+    showToast('Put back on the queue: the station prints it when it is on', 'success');
+    return true;
+  } catch (e) {
+    showToast('Not put back: ' + (e.message || e) + ' Print it here, or send it to the office again.', 'error');
+    if (_prtHere) { _prtHere.job = held; prtHereShow(held); }
+    return false;
+  }
+}
+
+/* ---- Needs you: the station not on while jobs wait (red) ---- */
+TODO_RULES.push(['prtStation', 'The print station is not taking jobs while they wait']);
+TODO_CHECK_DEFAULTS.prtStation = true;
+TODO_RULE_NEED.prtStation = 'office';
+TODO_RULE_FNS.prtStation = function() {
+  var st = prtLightStateNow();
+  if (!st || !st.lead) return [];
+  return [{ key: 'prtStation', rule: 'prtStation', tone: 'red', title: 'Check the print station', sub: st.text,
+    why: 'Print station · it checks in every 10 minutes',
+    facts: [['Last seen', st.seenAt ? prtWhenSaid(st.seenAt) : 'never'], ['Waiting', prtJobsSaid(st.jobs)]],
+    clears: 'Clears itself when the station takes the jobs, or they are printed here or cancelled.',
+    go: { kind: 'prtLight' }, goLabel: 'See the jobs', sig: String(st.jobs) }];
+};
 /* ===== ENTRY FACES: EACH HAND ENTERS THEIR OWN (docs/ENTRY_FACES.md, step F1: the shell) =====
    Owner, 10 Oct 2026: "develop app faces for each employee to enter data … We have guard in place, they will all be using the
    phone app", and "Each their own phone, no one shares any screens. Attendance screen for [the clerk] and [the supervisor] will be
@@ -68194,13 +68728,29 @@ var KB_APP_GUIDES = [
     '4. Do not let the computer sleep while the office is open. In Settings → System → Power, set sleep to **Never**.\n\n' +
     '# In the app\n1. In Settings → Connections → **Office printer**, tick **Send prints to the office printer**. The name, the address and the cartridge of the printer are notes for the next person who sets it up.\n' +
     '2. On the station only, tick **This device is the print station**. Tap Save.\n' +
-    '3. Keep the app open on the station. The station looks for jobs every 15 seconds, and when the app comes into view.\n' +
+    '3. Keep the app open on the station. The station looks for jobs every 15 seconds, and when the app comes into view. It checks in every 10 minutes, for the light on Home.\n' +
     '4. On every other device, pull from GitHub once (or wait for the next sync). Then the device knows that the printer is on.\n\n' +
     '# Send a print\n- Open a print preview (an invoice, a credit note, a certificate, a statement, pay slips, a report). Tap **Send to office**.\n' +
     '- **Office printer** in Settings lists what you sent. A job shows **waiting** with **Cancel**, then **printed**. When the station prints a Created invoice, the app marks it **Printed**.\n' +
     '- If a job waits more than 3 minutes, the app asks if the station is on. Make sure that the computer is not asleep and the app is open on it.\n' +
-    '- On the office Wi-Fi, a phone can also use **Print** as before, through the print service of Android.',
-    { roles: ['office'], version: 1 }),
+    '- On the office Wi-Fi, a phone can also use **Print** as before, through the print service of Android.\n\n' +
+    '# The light on Home\n- The masthead on Home shows the print station as a fact, with a dot. Only the owner and the office see it.\n' +
+    '- Green, **Print station on · seen 4:22 PM**: the station checked in within 15 minutes.\n' +
+    '- Amber: a job waits more than 3 minutes, the station is not seen during the shift, or it has an old version.\n' +
+    '- Red: a job waits more than 10 minutes during the shift, or nobody saw the station for 1 hour.\n' +
+    '- Grey: outside the shift, never seen, or this device is offline. Grey never tells you that the station is on.\n' +
+    '- A red light with a job waiting is the first sentence of the masthead and a task on **Needs you**. Its dot blinks until you open it.\n' +
+    '- To open the station, tap its words. You see when it was last seen, when it last printed, and the jobs that wait.\n' +
+    '- NOTE: The station cannot see the paper or the toner. A green light does not tell you that the printer has paper.\n\n' +
+    '# When the station is not on\n1. Open the station from the light. Tap **Print it here**. Each job comes off the queue first, so the station does not print it too.\n' +
+    '2. Print it from the preview, then close the preview. If it did not print, tap **Put it back**. The job goes back in its place.\n' +
+    '- To stop a job, tap **Cancel** beside it.\n' +
+    '- If the station is not on when you tap **Send to office**, the app asks first. Tap **Print here** to print on this device, or **Send anyway**.\n\n' +
+    '# A new version on the station\n- The station loads a new version of the app by itself. It waits until nothing is typed, open, saving or printing.\n' +
+    '- It also waits until 5 minutes after the last touch. So it never reloads while somebody uses it.\n' +
+    '- Until it reloads, the light says **Print station on an old build**, in amber.',
+    // Version 2: the light on Home, the jobs printed here, and the station's own reload (owner, 28 Oct 2026).
+    { roles: ['office'], version: 2 }),
   _kbg('sync', 'Setting up: GitHub sync', 'One book on every device: the token, push, pull and what both changed', [],
     'Each device keeps the book. GitHub sync keeps a copy in a private GitHub repository. Then the phone and the desktop use the same book. The copy is also the backup.\n\n' +
     '# Set it up on a device\n1. In GitHub, make a **fine-grained token** for this repository only, with **Contents: Read and write**. Make 1 token for each device. Then, if you lose a phone, you revoke only the token of that phone.\n' +
@@ -73153,10 +73703,15 @@ function onDocClick(e) {
     case 'invFlowPrio': flowPriorityOpen(btn.dataset.id); break;
     case 'invFlowPrioSave': flowPrioritySave(); break;
     case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
-    case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
+    case 'invPrint': printPreviewNow(); break;
     // The office printer (remoteprint.js): the preview sent as a job; a waiting job cancelled.
     case 'invPrintRemote': prtSend(); break;
     case 'invPrtCancel': prtCancel(btn.dataset.id).catch(function(e) { showToast(e.message || String(e), 'error'); }); break;
+    // The print station's light (prtlight.js): its dialog from the masthead, a waiting job cancelled there, the jobs printed here.
+    case 'invPrtLight': prtLightOpen(); break;
+    case 'invPrtLightCancel': prtLightCancel(btn.dataset.id); break;
+    case 'invPrtHere': prtHereStart(); break;
+    case 'invPrtGuide': closeOverlay(); kbOpenArticle('app-printer'); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
@@ -74364,7 +74919,7 @@ var WS_GO_PAGE = {
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
   finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance', supplier: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
-  kb: 'pageKnow', todoLearn: 'pageHome'
+  kb: 'pageKnow', todoLearn: 'pageHome', prtLight: 'pageHome'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;
@@ -77007,6 +77562,9 @@ var APP_BUILD = (function() {
 var UPDATE_CHECK_GAP_MS = 5 * 60 * 1000;
 var _updateCheckedAt = 0;
 var _updateDismissed = null;
+// The build published, as version.json last said (the print station's light judges the station's build against it, and the station
+// reloads itself to it: remoteprint.js, prtlight.js). Empty until it has been read.
+var _liveBuild = '';
 
 // Resolves to 'newer' (banner shown), 'current', or 'unknown' (offline, or an
 // unbuilt copy that carries no stamp). The three are kept apart so a manual
@@ -77021,11 +77579,22 @@ function checkForUpdate(force) {
     .then(function(v) {
       var build = v && typeof v.build === 'string' ? v.build : '';
       if (!build) return 'unknown';
+      _liveBuild = build;
       if (build === APP_BUILD) return 'current';
       if (force || build !== _updateDismissed) showUpdateBanner(build);
       return 'newer';
     })
     .catch(function() { return 'unknown'; });
+}
+
+/* The build published, read again with no banner: the print station's light reads it with each look (prtlight.js), so a station that
+   has reloaded to a build this device has not yet heard of is never called old. */
+function liveBuildRead() {
+  if (APP_BUILD === 'dev') return Promise.resolve(_liveBuild);
+  return fetch('version.json', { cache: 'no-store' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(v) { if (v && typeof v.build === 'string' && v.build) _liveBuild = v.build; return _liveBuild; })
+    .catch(function() { return _liveBuild; });
 }
 
 function showUpdateBanner(build) {
@@ -77035,9 +77604,13 @@ function showUpdateBanner(build) {
   bar.className = 'inv-update-bar';
   bar.setAttribute('role', 'status');
   bar.dataset.build = build;
+  // The print station reloads itself once nothing is typed, saving or printing (owner, 28 Oct 2026: "if someone is updating on the
+  // kiosk then auto-reload should not happen without the work being saved"; remoteprint.js prtReloadMaybe): its banner says so.
+  var station = typeof prtIsStation === 'function' && prtIsStation();
   bar.innerHTML =
-    '<span class="inv-update-text">A newer version is available. Reload to update &mdash; ' +
-    'finish anything half-typed first.</span>' +
+    '<span class="inv-update-text">' + (station
+      ? 'A newer version is available. This print station reloads itself once nothing is typed, saving or printing and it has been left alone for 5 minutes.'
+      : 'A newer version is available. Reload to update &mdash; finish anything half-typed first.') + '</span>' +
     '<span class="inv-update-actions">' +
     '<button class="inv-btn inv-btn-ghost inv-update-btn" data-action="invDismissUpdate">Later</button>' +
     '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invReloadForUpdate">Reload</button>' +

@@ -385,8 +385,9 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
    The unload time is the batch's end, written before or after its figures, on its line or the next; it closes every
    batch above it in its block that has none. Two clients on one line ("BETA PRESS 9312-45 KG GAMMA I BOLLT 35 KG") are
    two batches. A barrel counted in barrels ("OMEGA 1 BERRAL") is the client's batch with no figure, asked; a part's
-   code alone before the count ("0777-2 BERRAL") is the group's client's, and what follows the count ("+ KESTREL 50 KG")
-   is another client's lot, the first's only as a bare figure. What is loaded is not counted here: it is counted when it is unloaded. The older April log (loads under each time, counted
+   code alone before the count ("0777-3 BERRAL") is the group's client's. After the count, a client's figure ("+ KESTREL
+   65 KG") is that client's lot, a name that is no client's with a figure is asked, a part word with no figure ("NATBOLLT")
+   is the counted barrels' part, and a bare figure their weight. What is loaded is not counted here: it is counted when it is unloaded. The older April log (loads under each time, counted
    "×4" in barrels) has no unload time beside a kilo or a count, and no dashed blocks, and is still listed, not read. */
 var PROD_UNLOAD_RE = /\bun\s*(?:lo?a?d|old)(?:ing)?\b(?:\s*(?:timing|time|tim)\b)?/i;
 var PROD_LOADING_RE = /(?:^|[^A-Za-z])(?:loading|lodinig|loding|load)\b(?:\s*(?:timing|time)\b)?/i;
@@ -413,8 +414,8 @@ function parseBarrelBatches(msg, ctx, lines) {
       if (un.issue) r.issues.push(un.issue);
     });
   };
-  var record = function(it, raw, n) {
-    var rec = prodItemRecord(it, it.clientId != null ? null : group, raw, n, date, false);
+  var record = function(it, raw, n, noGroup) {
+    var rec = prodItemRecord(it, it.clientId != null || noGroup ? null : group, raw, n, date, false);
     rec.kind = 'plated'; rec.line = 'barrel'; rec.lineSrc = 'written'; rec.slot = 'day'; rec.basis = 'relay';
     if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
     return rec;
@@ -457,10 +458,13 @@ function parseBarrelBatches(msg, ctx, lines) {
     if (text) {
       // Barrels counted in barrels: a count before the word is a batch with no figure, asked, for the client written
       // before it ("OMEGA 1 BERRAL+ GAMMA 1 BERRAL"), or for the group's client where a part's code alone leads it
-      // ("0777-2 BERRAL": two barrels of the group's 0777). What follows the last count is the line's other batches
-      // ("0777-2 BERRAL+ KESTREL 50 KG": the second client's weighed lot, never the first's), unless it is a bare figure,
-      // which is the last barrel batch's own. Read as one item, the whole line had been the group's at the figure, under
-      // a part that was no part, and the barrels counted for nothing (owner, 26 Oct 2026).
+      // ("0777-3 BERRAL": three barrels of the group's 0777). What follows the last count: a client's figure is that
+      // client's lot ("0777-3 BERRAL+ KESTREL 65 KG", never the first's); a name no client's with a figure is asked, not
+      // taken ("+ ZEPHYR 65 KG": a spelling the matcher cannot fold would otherwise land the lot on the first client under
+      // a part named after the other firm); a part word with no figure is the counted barrels' part ("2 BERRAL NATBOLLT",
+      // the shop's older habit), and a bare figure their weight. Read as one item, the whole line had been the group's at
+      // the figure, under a part that was no part, and the barrels counted for nothing (owner, 26 Oct 2026). `barrels`
+      // is the count; `barrel` on a face's batch (faces.js) is the unit it ran in.
       var bre = /(\d+)\s*b[ae]r+[ae]*l+s?\b/gi, bm, from = 0, lastBr = null;
       while ((bm = bre.exec(text))) {
         var head = text.slice(from, bm.index).replace(/^[\s+,&]+|[\s\-\u2013\u2014_,+&]+$/g, '');
@@ -486,15 +490,31 @@ function parseBarrelBatches(msg, ctx, lines) {
           if (/^\s*\+/.test(between) || /[A-Za-z]{3,}/.test(between)) { chunks.push(rest.slice(from, t.end)); from = t.end; }
         });
         chunks.push(rest.slice(from));
+        var setQty = function(r, it) {
+          r.qty = it.qty; r.unit = it.unit; r.qtySrc = it.qtySrc;
+          r.issues = r.issues.filter(function(x) { return x.code !== 'barrels'; });
+          if (!it.unit || it.unitGuess) r.issues.push({ tone: 'amber', code: 'unit', text: 'No unit written: ' + it.qty + ' read as ' + (it.unit === 'KG' ? 'kg' : 'pieces') + '.' });
+        };
         chunks.forEach(function(c) {
           c = c.replace(/^[\s+,&-]+|[\s+,&-]+$/g, '');
           if (!c) return;
           var it = prodReadItem(c, ctx.clients);
-          if (lastBr && !it.part && it.clientId == null && it.qty != null) {
-            // "DURGA 2 BERRAL 50 KG": the figure after the count, naming nobody and no part, is those barrels' weight.
-            lastBr.qty = it.qty; lastBr.unit = it.unit; lastBr.qtySrc = it.qtySrc;
-            lastBr.issues = lastBr.issues.filter(function(x) { return x.code !== 'barrels'; });
-            if (!it.unit || it.unitGuess) lastBr.issues.push({ tone: 'amber', code: 'unit', text: 'No unit written: ' + it.qty + ' read as ' + (it.unit === 'KG' ? 'kg' : 'pieces') + '.' });
+          if (lastBr && it.clientId == null) {
+            if (it.qty == null) {
+              // "NOVA 2 BERRAL NATBOLLT": the word after the count is the counted barrels' part.
+              if (it.part) { lastBr.part = [lastBr.part, it.part].filter(Boolean).join(' '); lastBr.gauge = lastBr.gauge || it.gauge; lastBr.issues = lastBr.issues.filter(function(x) { return x.code !== 'nopart'; }); }
+              return;
+            }
+            if (!it.part || /^\d/.test(it.part)) {
+              // "DURGA 2 BERRAL 48 KG", "2 BERRAL 4206 CLAMP 48 KG": the figure after the count is those barrels' weight.
+              if (it.part) { lastBr.part = [lastBr.part, it.part].filter(Boolean).join(' '); lastBr.issues = lastBr.issues.filter(function(x) { return x.code !== 'nopart'; }); }
+              setQty(lastBr, it);
+              return;
+            }
+            // "+ ZEPHYR 65 KG": a name the book does not hold, with its own figure, is somebody's lot: asked, never the group's.
+            var nm = /^([A-Za-z][A-Za-z.&]*(?:\s+[A-Za-z][A-Za-z.&]*){0,2})\s*(.*)$/.exec(it.part);
+            it.client = nm[1]; it.part = nm[2].replace(/^[\s\-_,]+/, '');
+            recs.push(record(it, raw, n, true));
             return;
           }
           if (!it.part && it.qty == null && it.clientId != null) {

@@ -1299,7 +1299,7 @@ async function prodSaveHand() {
     // names) goes with it while the part and the client are as they were; the entry corrected is then no longer flagged.
     if (src) {
       if (f.kind === 'plated' && src.to) e.to = src.to;
-      ['rounds', 'qty2', 'unit2', 'set'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+      ['rounds', 'qty2', 'unit2', 'set', 'barrels'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
       if (f.kind !== 'plated' && src.line) { e.line = src.line; e.lineSrc = src.lineSrc || null; if (src.setAt) { e.setAt = src.setAt; e.setBy = src.setBy; } }
       if (src.qtySrc && e.qty === src.qty) e.qtySrc = src.qtySrc;
       if (e.part === String(src.part || '').trim() && String(e.clientId) === String(src.clientId)) {

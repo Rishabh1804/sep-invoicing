@@ -82,7 +82,11 @@ and the day is the month divided by its working days.
    litre's price, carriage included) + the share × the spent acid sent away a month × what a KL costs to send, less its running
    cost; with no share set it adds nothing and says so (the old flat ₹6,000 had nothing behind it). The acid's price and the
    disposal's share less sent away are the owner's to set. **Fume extraction and scrubber** is its own option, a running cost a month (`runMo`, an estimate until
-   set), and ISO 9001 and CQI-11 need it. Pickling's options stand alone (`alone`): none needs the one listed before it.
+   set), and ISO 9001 and CQI-11 need it: the owner's condition for the audits, not a line of CQI-11's own checklist, so no
+   checklist row is added for it (owner, 28 Oct 2026: *"Only if that is an actual requirement"*). **The approved load on the
+   bill** saves the excess-load penalty the bills on Power → Load & bills state (`plnPenaltyMonth`: the median of the last six
+   since approval, *measured*; nothing once the approved load is billed; ₹5,000 an estimate only while no bill states one).
+   Pickling's options stand alone (`alone`): none needs the one listed before it.
    **The plant register's units** (owner: *"we already have the machines that are down or need repairing, but we do nothing with
    that information on planner"*): every line's figure is the line as it runs today, on its units working (`pltCapacity` says how
    many), so each unit down, under repair or in need of work is a move under **Repairs

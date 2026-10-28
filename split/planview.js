@@ -806,10 +806,27 @@ function plnFigFmt(inp, v) {
   if (inp.unit === '%') return formatNum(v, 0) + '%';
   return formatNum(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) + ' ' + inp.unit;
 }
+/* What an option needs, a row a part: a clause, else commas packed to a line, so no block runs past the benchmark's 120 characters
+   (P195). */
+function plnReqParts(req) {
+  var out = [];
+  String(req || '').split(/;\s+|\.\s+/).forEach(function(c) {
+    c = c.replace(/\.$/, '').trim(); if (!c) return;
+    if (c.length <= 110) { out.push(c); return; }
+    var cur = '';
+    c.split(/,\s+/).forEach(function(w) { if (cur && (cur + ', ' + w).length > 110) { out.push(cur); cur = w; } else cur = cur ? cur + ', ' + w : w; });
+    if (cur) out.push(cur);
+  });
+  return out.map(function(t) { return t.charAt(0).toUpperCase() + t.slice(1); });
+}
+function plnReqRows(req) {
+  return plnReqParts(req).map(function(t, i) { return { label: i ? '' : 'What it needs', sub: t, wrap: true }; });
+}
 function plnOptionDetailHtml(lv, P, needs) {
   var plan = (P.sc && P.sc.plan) || {}, rows = [];
   var have = function(n) { return n.split('|').some(function(x) { return x === 'specialist' ? plan.specialist != null || plan.promote != null : plan[x] != null; }); };
-  if (lv.req || needs.length) rows.push({ label: 'What it needs', sub: [lv.req || '', needs.length ? 'In the plan first: ' + needs.map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); }).join(', ') : ''].filter(Boolean).join(' '), wrap: true });
+  rows = rows.concat(plnReqRows(lv.req));
+  if (needs.length) rows.push({ label: 'In the plan first', sub: needs.map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); }).join(', '), wrap: true });
   if (lv.gate) rows.push({ label: 'What it opens', sub: lv.gate.map(plnNameOf).join(', ') + ' wait on it in the plan (owner, 28 Oct 2026)' + (P.sc && P.sc.hoodAdded && lv.id === 'pickHood' ? '. Added to this plan on its next open, when they came to need it.' : ''), wrap: true });
   var v = lv.inputs ? plnInputVals(lv.id) : null;
   (lv.inputs || []).forEach(function(inp) {
@@ -822,7 +839,7 @@ function plnOptionDetailHtml(lv, P, needs) {
   if (plan[lv.id] != null) rows.push({ label: 'What it adds to ' + plnMonthLabel(_plnMonth), value: at ? plnSigned(at.margin) + ' a month' : '—', sub: at && Math.abs(at.kg) >= 1 ? (at.kg > 0 ? '+' : '−') + plnKg(Math.abs(at.kg)) + ' plated' : at && at.ready != null && at.ready > _plnMonth ? 'not in effect until ' + plnMonthLabel(Math.min(PLN_N - 1, at.ready)) : '', tone: at && at.margin < -0.5 ? 'danger' : at && at.margin > 0.5 ? 'ok' : null });
   var btns = (lv.inputs && lv.inputs.length ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnFig" data-id="' + escHtml(lv.id) + '">Set figures</button>' : '') +
     (lv.cost !== undefined ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>' : '');
-  return '<div data-pl-detail="' + escHtml(lv.id) + '">' + rows.map(uiFactRowHtml).join('') + (btns ? '<div class="inv-row inv-row-flow"><span class="inv-row-end inv-row-actions">' + btns + '</span></div>' : '') + '</div>';
+  return '<div data-pl-detail="' + escHtml(lv.id) + '">' + rows.map(uiFactRowHtml).join('') + (btns ? '<div class="inv-row inv-row-flow"><span class="inv-row-actions">' + btns + '</span></div>' : '') + '</div>';
 }
 /* Repairs and sales: one move a unit down, under repair or in need of work, from the plant register. */
 function plnRepairsHtml(P) {
@@ -834,7 +851,7 @@ function plnRepairsHtml(P) {
       var price = +(((plnRead().cfg || {}).fx || {})[x.id] || {}).price || 0, cost = plnUpgradeCost({ id: x.id, cost: null });
       var gain = x.kind === 'sell' ? (price ? formatCurrency(price) + ' in' : 'price to set') : (cost ? formatCurrency(cost) : 'cost to set');
       var does = x.kind === 'sell' ? 'cash in; its capacity is gone for good' : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more on ' + plnLineName(x.line) + ' a round' + (x.line === 'pick' ? '' : '') + ', and its risk ends' : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
-      var rows = [{ label: 'What it needs', sub: x.req, wrap: true }];
+      var rows = plnReqRows(x.req);
       if (x.kind === 'sell') rows.push({ label: 'What it sells for', value: price ? formatCurrency(price) : '', src: price ? PLN_SRC.set : PLN_SRC.unset });
       else rows.push({ label: 'What it costs, once', value: cost ? formatCurrency(cost) : '', src: cost ? PLN_SRC.set : PLN_SRC.unset });
       if (x.down && x.line && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',

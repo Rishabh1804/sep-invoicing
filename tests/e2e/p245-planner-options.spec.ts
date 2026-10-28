@@ -111,6 +111,23 @@ test.describe('P245 the planner’s options and the units down', () => {
     expect(r.say1).toMatch(/500 L of acid a month recovered, 1\.0 KL less sent away/);
   });
 
+  test('the approved load’s saving is the penalty the bills carry, nothing once it is billed', async ({ page }) => {
+    const s: any = book(false);
+    const m = lastMonths().map(d => d.slice(0, 7)).reverse();
+    s.power = { load: { sanctioned: 25, approved: 50, approvedOn: m[0] + '-05' } };
+    s.costBills = m.map((month, i) => ({ id: 'PB' + i, kind: 'power', month, amount: 40000, kvaBilled: 25, penalty: [4000, 6000, 5000][i], at: Date.now() + i }));
+    await loadAppWithState(page, s);
+    const r: any = await g(page, `(function () {
+      var v = plnInputVals('load50'), a = { rs: v.powerSave, src: v._src.powerSave, say: plnSay('load50') };
+      S.power.load.approved = 25; var w = plnInputVals('load50');
+      return { a: a, billed: [w.powerSave, w._src.powerSave] };
+    })()`);
+    expect(r.a.rs).toBe(5000);
+    expect(r.a.src).toBe('measured');
+    expect(r.a.say).toContain('the median of 3 bills');
+    expect(r.billed).toEqual([0, 'measured']);
+  });
+
   test('the fume extraction is its own option, and ISO 9001 and CQI-11 need it', async ({ page }) => {
     await loadAppWithState(page, book(false));
     const r: any = await g(page, `(function () {

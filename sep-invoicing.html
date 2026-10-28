@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="3e35c09f">
+<meta name="app-build" content="decad08b">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -65990,7 +65990,7 @@ var PLN_STATIONS = [
   { id: 'oven', name: 'Bake oven', levels: [{ t: 'None' },
     { id: 'oven1', t: 'Oven with recorder', cost: 150000, fx: { powerKg: 0.05 }, req: 'An oven to 220 °C with a recorder, its own supply, and the floor space beside the line.', inputs: [{ key: 'powerKg', label: 'More power a kg plated', unit: '₹/kg', def: 0.05 }], say: 'hydrogen relief for hard bolts; ₹0.05/kg more power' }] },
   { id: 'power', name: 'Power', levels: [{ t: 'As it runs' },
-    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, req: 'The approved load entered on the bill by the supply company (Power → Load & bills).', inputs: [{ key: 'powerSave', label: 'The excess-load charge that stops, a month', unit: '₹', def: 5000 }], say: 'an excess-load charge on the bill stops (₹5,000 a month, an estimate to set)' },
+    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, req: 'The approved load entered on the bill by the supply company (Power → Load & bills).', inputs: [{ key: 'powerSave', label: 'The excess-load charge that stops, a month', unit: '₹', def: 'penalty' }], say: 'an excess-load charge on the bill stops' },
     { id: 'inverter', t: 'Inverter', cost: 300000, fx: { cutCover: 0.85 }, req: 'An inverter and batteries sized for the rectifiers and pumps, a room for the batteries, and the wiring to switch over.', inputs: [{ key: 'cutCover', label: 'Share of the cut minutes it carries', unit: 'share', def: 0.85 }], say: 'carries 85% of the cut minutes in working hours' },
     { id: 'genset', t: 'Generator', cost: 600000, fx: { cutCover: 1, gensetRun: 4000 }, req: 'A generator within the factory licence’s rating, a plinth, a fuel store and a change-over panel.', inputs: [{ key: 'gensetRun', label: 'Diesel a month', unit: '₹', def: 4000 }], say: 'every cut covered, nights too; ₹4,000 a month diesel' }] },
   { id: 'etp', name: 'Effluent', levels: [{ t: 'As it runs' },
@@ -66064,7 +66064,11 @@ var PLN_SAY = {
   a2Rect: function(v) { return 'a round ' + formatNum(Math.abs(v.every || 0), 0) + ' minutes ' + ((v.every || 0) <= 0 ? 'sooner' : 'later'); },
   barrel2: function(v) { return formatNum(v.kgRound || 0, 0) + ' kg more a load; needs the bigger load on the bill'; },
   oven1: function(v) { return 'hydrogen relief for hard bolts; ₹' + formatNum(v.powerKg || 0, 2) + '/kg more power'; },
-  load50: function(v) { return 'an excess-load charge on the bill stops (' + formatInrShort(v.powerSave || 0) + ' a month)'; },
+  load50: function(v) {
+    var p = v._src.powerSave === 'measured' ? plnPenaltyMonth() : null;
+    return 'an excess-load charge on the bill stops (' + formatInrShort(v.powerSave || 0) + ' a month' +
+      (p ? (p.billed ? ', the load is billed already' : ', the median of ' + p.n + ' bill' + (p.n === 1 ? '' : 's') + '’ penalty') : v._src.powerSave === 'set' ? '' : ', an estimate: no penalty on a bill yet') + ')';
+  },
   inverter: function(v) { return 'carries ' + Math.round((v.cutCover || 0) * 100) + '% of the cut minutes in working hours'; },
   genset: function(v) { return 'every cut covered, nights too; ' + formatInrShort(v.gensetRun || 0) + ' a month diesel'; }
 };
@@ -66092,6 +66096,16 @@ function plnHclMonth() {
   var days = Math.max(1, isoDaysBetween(first, today) + 1);
   return { l: Math.round((used > 0 ? used : came) * 30 / days), from: used > 0 ? 'its uses' : 'what came in', days: days, part: days < 28 };
 }
+/* The excess-load penalty the bills carry (Power → Load & bills): the median of the last six bills that state one, from the
+   month the load was approved where it is recorded; nothing once the approved load is on the bill (owner, 28 Oct 2026). */
+function plnPenaltyMonth() {
+  if (typeof powerLoad !== 'function') return null;
+  var L = powerLoad();
+  if (L.approved && L.sanctioned && L.sanctioned >= L.approved) return { rs: 0, n: 0, billed: true };
+  var pts = L.bills.filter(function(b) { return b.penalty != null && b.penalty !== '' && isFinite(+b.penalty) && (!L.since || b.month >= L.since); }).slice(-6);
+  if (!pts.length) return null;
+  return { rs: Math.round(numMedian(pts.map(function(b) { return +b.penalty; }))), n: pts.length, billed: false };
+}
 function plnInputVals(id) {
   var lv = plnOption(id), set = ((plnRead().cfg || {}).fx || {})[id] || {}, out = { _src: {} };
   ((lv && lv.inputs) || []).forEach(function(inp) {
@@ -66103,6 +66117,7 @@ function plnInputVals(id) {
       var per = B0 && B0.lines[ln] && cap0 && cap0.nAvail > 0 ? B0.lines[ln].kgRound / cap0.nAvail : null;
       out[inp.key] = per != null ? Math.round(per) : 60; out._src[inp.key] = per != null ? 'measured' : 'estimate'; return;
     }
+    if (inp.def === 'penalty') { var pm = plnPenaltyMonth(); out[inp.key] = pm ? pm.rs : 5000; out._src[inp.key] = pm ? 'measured' : 'estimate'; return; }
     if (inp.def === 'stock') { var h = plnHclMonth(); out[inp.key] = h ? h.l : null; out._src[inp.key] = !h ? 'unset' : h.part ? 'estimate' : 'measured'; return; }
     out[inp.key] = inp.def; out._src[inp.key] = inp.def == null ? 'unset' : 'estimate';
   });
@@ -67504,10 +67519,27 @@ function plnFigFmt(inp, v) {
   if (inp.unit === '%') return formatNum(v, 0) + '%';
   return formatNum(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) + ' ' + inp.unit;
 }
+/* What an option needs, a row a part: a clause, else commas packed to a line, so no block runs past the benchmark's 120 characters
+   (P195). */
+function plnReqParts(req) {
+  var out = [];
+  String(req || '').split(/;\s+|\.\s+/).forEach(function(c) {
+    c = c.replace(/\.$/, '').trim(); if (!c) return;
+    if (c.length <= 110) { out.push(c); return; }
+    var cur = '';
+    c.split(/,\s+/).forEach(function(w) { if (cur && (cur + ', ' + w).length > 110) { out.push(cur); cur = w; } else cur = cur ? cur + ', ' + w : w; });
+    if (cur) out.push(cur);
+  });
+  return out.map(function(t) { return t.charAt(0).toUpperCase() + t.slice(1); });
+}
+function plnReqRows(req) {
+  return plnReqParts(req).map(function(t, i) { return { label: i ? '' : 'What it needs', sub: t, wrap: true }; });
+}
 function plnOptionDetailHtml(lv, P, needs) {
   var plan = (P.sc && P.sc.plan) || {}, rows = [];
   var have = function(n) { return n.split('|').some(function(x) { return x === 'specialist' ? plan.specialist != null || plan.promote != null : plan[x] != null; }); };
-  if (lv.req || needs.length) rows.push({ label: 'What it needs', sub: [lv.req || '', needs.length ? 'In the plan first: ' + needs.map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); }).join(', ') : ''].filter(Boolean).join(' '), wrap: true });
+  rows = rows.concat(plnReqRows(lv.req));
+  if (needs.length) rows.push({ label: 'In the plan first', sub: needs.map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); }).join(', '), wrap: true });
   if (lv.gate) rows.push({ label: 'What it opens', sub: lv.gate.map(plnNameOf).join(', ') + ' wait on it in the plan (owner, 28 Oct 2026)' + (P.sc && P.sc.hoodAdded && lv.id === 'pickHood' ? '. Added to this plan on its next open, when they came to need it.' : ''), wrap: true });
   var v = lv.inputs ? plnInputVals(lv.id) : null;
   (lv.inputs || []).forEach(function(inp) {
@@ -67520,7 +67552,7 @@ function plnOptionDetailHtml(lv, P, needs) {
   if (plan[lv.id] != null) rows.push({ label: 'What it adds to ' + plnMonthLabel(_plnMonth), value: at ? plnSigned(at.margin) + ' a month' : '—', sub: at && Math.abs(at.kg) >= 1 ? (at.kg > 0 ? '+' : '−') + plnKg(Math.abs(at.kg)) + ' plated' : at && at.ready != null && at.ready > _plnMonth ? 'not in effect until ' + plnMonthLabel(Math.min(PLN_N - 1, at.ready)) : '', tone: at && at.margin < -0.5 ? 'danger' : at && at.margin > 0.5 ? 'ok' : null });
   var btns = (lv.inputs && lv.inputs.length ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnFig" data-id="' + escHtml(lv.id) + '">Set figures</button>' : '') +
     (lv.cost !== undefined ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>' : '');
-  return '<div data-pl-detail="' + escHtml(lv.id) + '">' + rows.map(uiFactRowHtml).join('') + (btns ? '<div class="inv-row inv-row-flow"><span class="inv-row-end inv-row-actions">' + btns + '</span></div>' : '') + '</div>';
+  return '<div data-pl-detail="' + escHtml(lv.id) + '">' + rows.map(uiFactRowHtml).join('') + (btns ? '<div class="inv-row inv-row-flow"><span class="inv-row-actions">' + btns + '</span></div>' : '') + '</div>';
 }
 /* Repairs and sales: one move a unit down, under repair or in need of work, from the plant register. */
 function plnRepairsHtml(P) {
@@ -67532,7 +67564,7 @@ function plnRepairsHtml(P) {
       var price = +(((plnRead().cfg || {}).fx || {})[x.id] || {}).price || 0, cost = plnUpgradeCost({ id: x.id, cost: null });
       var gain = x.kind === 'sell' ? (price ? formatCurrency(price) + ' in' : 'price to set') : (cost ? formatCurrency(cost) : 'cost to set');
       var does = x.kind === 'sell' ? 'cash in; its capacity is gone for good' : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more on ' + plnLineName(x.line) + ' a round' + (x.line === 'pick' ? '' : '') + ', and its risk ends' : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
-      var rows = [{ label: 'What it needs', sub: x.req, wrap: true }];
+      var rows = plnReqRows(x.req);
       if (x.kind === 'sell') rows.push({ label: 'What it sells for', value: price ? formatCurrency(price) : '', src: price ? PLN_SRC.set : PLN_SRC.unset });
       else rows.push({ label: 'What it costs, once', value: cost ? formatCurrency(cost) : '', src: cost ? PLN_SRC.set : PLN_SRC.unset });
       if (x.down && x.line && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',
@@ -68350,6 +68382,7 @@ var KB_APP_GUIDES = [
     '- Where the book measures nothing, use **Set the assumptions** (in Ledger or Moves → Plant). Set a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill and the cash.\n' +
     '- Upgrade costs are estimates until a quote replaces them. Tap a level to see what it needs, each figure it rests on (**set**, **measured**, **estimate** or **not set**) and what it adds to the month. Set the cost with **Cost** and the other figures with **Set figures**.\n' +
     '- **Acid recovery** adds nothing until you set the share it recovers. Its saving is the acid it saves and the spent acid not sent away. **Fume extraction and scrubber** has its own row: ISO 9001 and CQI-11 need it.\n' +
+    '- **The approved load on the bill** saves the excess-load penalty that the bills on Power → Load & bills state. The planner takes the middle of the last six. Enter the penalty on each bill to keep it right.\n' +
     '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead.\n' +
     '- **Make the report** prints the plan for a lender or a meeting.',
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict

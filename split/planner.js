@@ -72,7 +72,7 @@ var PLN_STATIONS = [
   { id: 'oven', name: 'Bake oven', levels: [{ t: 'None' },
     { id: 'oven1', t: 'Oven with recorder', cost: 150000, fx: { powerKg: 0.05 }, req: 'An oven to 220 °C with a recorder, its own supply, and the floor space beside the line.', inputs: [{ key: 'powerKg', label: 'More power a kg plated', unit: '₹/kg', def: 0.05 }], say: 'hydrogen relief for hard bolts; ₹0.05/kg more power' }] },
   { id: 'power', name: 'Power', levels: [{ t: 'As it runs' },
-    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, req: 'The approved load entered on the bill by the supply company (Power → Load & bills).', inputs: [{ key: 'powerSave', label: 'The excess-load charge that stops, a month', unit: '₹', def: 5000 }], say: 'an excess-load charge on the bill stops (₹5,000 a month, an estimate to set)' },
+    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, req: 'The approved load entered on the bill by the supply company (Power → Load & bills).', inputs: [{ key: 'powerSave', label: 'The excess-load charge that stops, a month', unit: '₹', def: 'penalty' }], say: 'an excess-load charge on the bill stops' },
     { id: 'inverter', t: 'Inverter', cost: 300000, fx: { cutCover: 0.85 }, req: 'An inverter and batteries sized for the rectifiers and pumps, a room for the batteries, and the wiring to switch over.', inputs: [{ key: 'cutCover', label: 'Share of the cut minutes it carries', unit: 'share', def: 0.85 }], say: 'carries 85% of the cut minutes in working hours' },
     { id: 'genset', t: 'Generator', cost: 600000, fx: { cutCover: 1, gensetRun: 4000 }, req: 'A generator within the factory licence’s rating, a plinth, a fuel store and a change-over panel.', inputs: [{ key: 'gensetRun', label: 'Diesel a month', unit: '₹', def: 4000 }], say: 'every cut covered, nights too; ₹4,000 a month diesel' }] },
   { id: 'etp', name: 'Effluent', levels: [{ t: 'As it runs' },
@@ -146,7 +146,11 @@ var PLN_SAY = {
   a2Rect: function(v) { return 'a round ' + formatNum(Math.abs(v.every || 0), 0) + ' minutes ' + ((v.every || 0) <= 0 ? 'sooner' : 'later'); },
   barrel2: function(v) { return formatNum(v.kgRound || 0, 0) + ' kg more a load; needs the bigger load on the bill'; },
   oven1: function(v) { return 'hydrogen relief for hard bolts; ₹' + formatNum(v.powerKg || 0, 2) + '/kg more power'; },
-  load50: function(v) { return 'an excess-load charge on the bill stops (' + formatInrShort(v.powerSave || 0) + ' a month)'; },
+  load50: function(v) {
+    var p = v._src.powerSave === 'measured' ? plnPenaltyMonth() : null;
+    return 'an excess-load charge on the bill stops (' + formatInrShort(v.powerSave || 0) + ' a month' +
+      (p ? (p.billed ? ', the load is billed already' : ', the median of ' + p.n + ' bill' + (p.n === 1 ? '' : 's') + '’ penalty') : v._src.powerSave === 'set' ? '' : ', an estimate: no penalty on a bill yet') + ')';
+  },
   inverter: function(v) { return 'carries ' + Math.round((v.cutCover || 0) * 100) + '% of the cut minutes in working hours'; },
   genset: function(v) { return 'every cut covered, nights too; ' + formatInrShort(v.gensetRun || 0) + ' a month diesel'; }
 };
@@ -174,6 +178,16 @@ function plnHclMonth() {
   var days = Math.max(1, isoDaysBetween(first, today) + 1);
   return { l: Math.round((used > 0 ? used : came) * 30 / days), from: used > 0 ? 'its uses' : 'what came in', days: days, part: days < 28 };
 }
+/* The excess-load penalty the bills carry (Power → Load & bills): the median of the last six bills that state one, from the
+   month the load was approved where it is recorded; nothing once the approved load is on the bill (owner, 28 Oct 2026). */
+function plnPenaltyMonth() {
+  if (typeof powerLoad !== 'function') return null;
+  var L = powerLoad();
+  if (L.approved && L.sanctioned && L.sanctioned >= L.approved) return { rs: 0, n: 0, billed: true };
+  var pts = L.bills.filter(function(b) { return b.penalty != null && b.penalty !== '' && isFinite(+b.penalty) && (!L.since || b.month >= L.since); }).slice(-6);
+  if (!pts.length) return null;
+  return { rs: Math.round(numMedian(pts.map(function(b) { return +b.penalty; }))), n: pts.length, billed: false };
+}
 function plnInputVals(id) {
   var lv = plnOption(id), set = ((plnRead().cfg || {}).fx || {})[id] || {}, out = { _src: {} };
   ((lv && lv.inputs) || []).forEach(function(inp) {
@@ -185,6 +199,7 @@ function plnInputVals(id) {
       var per = B0 && B0.lines[ln] && cap0 && cap0.nAvail > 0 ? B0.lines[ln].kgRound / cap0.nAvail : null;
       out[inp.key] = per != null ? Math.round(per) : 60; out._src[inp.key] = per != null ? 'measured' : 'estimate'; return;
     }
+    if (inp.def === 'penalty') { var pm = plnPenaltyMonth(); out[inp.key] = pm ? pm.rs : 5000; out._src[inp.key] = pm ? 'measured' : 'estimate'; return; }
     if (inp.def === 'stock') { var h = plnHclMonth(); out[inp.key] = h ? h.l : null; out._src[inp.key] = !h ? 'unset' : h.part ? 'estimate' : 'measured'; return; }
     out[inp.key] = inp.def; out._src[inp.key] = inp.def == null ? 'unset' : 'estimate';
   });

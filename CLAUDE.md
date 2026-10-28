@@ -2668,6 +2668,9 @@ prototypes). P162.
     is set (a second share for the spent acid no longer sent away); the flat ₹6,000 "less acid bought" had nothing behind it. **Fume extraction
     and scrubber** is its own option with a running cost (an estimate until set), and ISO 9001 and CQI-11 need it. Pickling's
     options stand alone (`alone`).
+  - **The approved load on the bill** (`load50`) saves the excess-load penalty the bills carry (`plnPenaltyMonth`: the median of
+    the last six bills since approval that state one, *measured*; nothing once the approved load is billed; an estimate of ₹5,000
+    only while no bill states a penalty; owner, 28 Oct 2026: *"Yes"*).
   - **Units**: every line's figure is the line as it runs today, on its units working (`pltCapacity` says how many); each unit down, under repair or in need of work is a move under **Repairs and sales** (`plnUnitMoves`): bring it back
     (its share of the round, its risk ended), overhaul it, or, marked *Not coming back* on the unit (`u.gone`), sell it (cash in
     at the price set). A running unit in need of work or ageing with no risk typed may fail at an estimated chance

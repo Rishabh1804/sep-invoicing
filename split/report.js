@@ -616,10 +616,11 @@ function rptPrint() {
   body.innerHTML = rptHtml(p.kind, p.from);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
-  // A report of the current period carries the sender's own open tasks (rptOpenHtml reads todoRanked as this ID sees it): another
-  // ID opens it from the office's queue only where it sees the same, the owner's tasks the owner's (Iuno M-2 on #162).
+  // A report of the current period lists the sender's own open tasks (rptOpenHtml reads todoRanked as this ID sees it, each task by
+  // its own need: money, wages, the floor, the roster, its page), which no flag on the job can carry whole: only the owner opens
+  // it from the office's queue (Iuno M-2, L-5; Castor M-1, L-3 on #162). A past period's lists none: its page's gate.
   var today = localDateStr(), current = p.from <= today && p.to >= today;
-  printNeed({ pages: ['pageReports'], owner: current && grdIsOwner(), wages: current && grdSeesWages() });
+  printNeed({ pages: ['pageReports'], owner: current });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

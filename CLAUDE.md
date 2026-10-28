@@ -1299,12 +1299,14 @@ safe, just to be sure, if someone is updating on the kiosk then auto-reload shou
   a job sent before jobs said so is the owner's. The station prints every job, as before: the paper comes out at the office either way.
   P247 holds it, and reads every function that opens the print view for its need. The Governors' reads of the same day added four rules:
   - **A need this build cannot read is refused** (a key it does not know, pages that are not a list), so a newer build's job never opens
-    on an older one. **A report of the period still running carries the sender's own tasks and wages** (`rptPrint`: the owner's needs the
-    owner, wages where the sender saw them); a past period's needs its page alone. **A pay slip needs money where it shows the bank's
+    on a device with this check; a build from before it opens every job, so the gate holds only on devices that have loaded it. **A report of the period still running lists the
+    sender's own tasks, so only the owner opens it from the queue** (`rptPrint`: each task follows its own need, which no flag on the
+    job carries whole); a past period's needs its page alone. **A pay slip needs money where it shows the bank's
     legs** (`paySeesBank`), and **the office QR's sheet is the owner's**: it carries the check-in key.
-  - **A run of *Print it here* is the ID's that started it** (`_prtHere.by`): another ID signing in mid-run, over the preview or over
-    *Did it print?*, is asked nothing and has nothing more taken for it, and the job on screen goes back on the queue unshown
-    (`prtHereReturn`: under its own name, tried again each minute for half an hour, then said).
+  - **A run of *Print it here* is the ID's that started it** (`_prtHere.by`): another ID signing in mid-run, over the preview, over
+    *Did it print?* or while the queue is read, is asked nothing and has nothing more read or taken for it, and the job on screen
+    goes back on the queue unshown (`prtHereReturn`: under its own name, tried again each minute for half an hour, then said). **A
+    job put back is not taken again in the same run** (`_prtHere.back`): the run moves on to the next.
   - **A closed preview leaves the page empty** (`closePrintPreview` clears `#invPrintBody`): hidden is not gone, and a preview closed when
     another ID signs in had stayed in the page, a pay slip's wages among it.
   - **A report, the power case or the planner's report redrawn on a save passes a job from the queue by** (`prtHereShowing`): it had

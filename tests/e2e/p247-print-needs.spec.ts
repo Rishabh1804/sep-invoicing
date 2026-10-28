@@ -36,7 +36,7 @@ const NEEDS: Record<string, string> = {
   idcPreview: 'printNeed({ owner: true })',
   ckPrint: 'printNeed({ owner: true })',
   stockSheetPreview: "printNeed({ pages: ['pageStock'] })",
-  rptPrint: "printNeed({ pages: ['pageReports'], owner: current && grdIsOwner(), wages: current && grdSeesWages() })",
+  rptPrint: "printNeed({ pages: ['pageReports'], owner: current })",
   powerPrint: "printNeed({ pages: ['pagePower'] })",
   plnReportOpen: "printNeed({ pages: ['pagePlanner'] })",
   fshShow: 'printNeed(need)',
@@ -197,19 +197,19 @@ test('a job sent keeps what its document needs', async ({ page }) => {
   expect(await page.evaluate(() => (0, eval)('_printNeed'))).toBeNull();
 });
 
-test('a report of the current period carries the sender’s own open tasks: the owner’s is the owner’s; a past one is the page’s', async ({ page }) => {
+test('a report of the current period lists the sender’s own open tasks, so it is the owner’s to open; a past one is the page’s', async ({ page }) => {
   await setUp(page, false);
   await signIn(page, 'U-own', PINS.owner);
   const need = (from: string) => page.evaluate(f => {
     (0, eval)('_rptState = { kind: "monthly", from: ' + JSON.stringify(f) + ' }; rptPrint()');
     return JSON.parse(JSON.stringify((0, eval)('_printNeed')));
   }, from);
-  // This month: its open items are the owner's To-do, so the owner's alone.
-  expect(await need(W.slice(0, 8) + '01')).toEqual({ pages: ['pageReports'], owner: true, wages: true });
+  // This month: its open items are the sender's To-do, each task by its own need, so the owner's alone.
+  expect(await need(W.slice(0, 8) + '01')).toEqual({ pages: ['pageReports'], owner: true });
   await page.locator('#invPrintView [data-action="invClosePrint"]').click();
   // A month gone lists no open items: the Reports page's own gate.
   const last = new Date(W + 'T00:00:00'); last.setDate(1); last.setMonth(last.getMonth() - 1);
-  expect(await need(isoOf(last))).toEqual({ pages: ['pageReports'], owner: false, wages: false });
+  expect(await need(isoOf(last))).toEqual({ pages: ['pageReports'], owner: false });
 });
 
 test('a run of Print it here is the ID’s that started it: another signing in is asked nothing, and the job goes back unshown', async ({ page }) => {
@@ -262,6 +262,49 @@ test('another ID signing in while Did it print? asks puts the job back, and take
   await page.waitForTimeout(500);
   expect(f.log.filter(l => l.method === 'DELETE').map(l => l.path)).toEqual([SLIPS]);
   await expect(page.locator('body')).not.toContainText('THE WAGES');
+  await expect(page.locator('body')).not.toContainText('THE INVOICE');
+});
+
+test('a job put back is not taken again in the same run: each of the three is shown once, and all wait for the station', async ({ page }) => {
+  const f = await setUp(page);
+  await signIn(page, 'U-own', PINS.owner);
+  await openStation(page);
+  await dialog(page).locator('[data-action="invPrtHere"]').click();
+  // Oldest first, each put back: the run moves on to the next, never the one put back.
+  for (const [shown, others] of [['THE WAGES', ['THE CARDS', 'THE INVOICE']], ['THE CARDS', ['THE WAGES', 'THE INVOICE']], ['THE INVOICE', ['THE WAGES', 'THE CARDS']]] as const) {
+    await expect(page.locator('#invPrintBody')).toContainText(shown);
+    for (const o of others) await expect(page.locator('#invPrintBody')).not.toContainText(o);
+    await page.locator('#invPrintView [data-action="invClosePrint"]').click();
+    expect(await answerAsk(page, 'cancel')).toContain('Did it print?');
+  }
+  await expect.poll(() => queued(f)).toEqual([SLIPS, OLD, INVOICE]);
+  await expect.poll(() => page.evaluate(() => (0, eval)('_prtHere'))).toBeNull();
+  await expect(page.locator('#invPrintView')).not.toHaveClass(/inv-print-view-active/);
+  expect(f.log.filter(l => l.method === 'DELETE').map(l => l.path)).toEqual([SLIPS, OLD, INVOICE]);
+});
+
+test('another ID signing in while the queue is being read has nothing taken for it', async ({ page }) => {
+  const f = await setUp(page);
+  await signIn(page, 'U-own', PINS.owner);
+  await openStation(page);
+  // The run's first read, the pay slips, is held while the office's ID signs in.
+  let release!: () => void, seen = false;
+  const held = new Promise<void>(r => { release = r; });
+  await page.route(url => url.pathname.endsWith(SLIPS), async r => {
+    if (r.request().method() === 'GET' && !seen) { seen = true; await held; }
+    await r.fallback();
+  });
+  await dialog(page).locator('[data-action="invPrtHere"]').click();
+  await expect.poll(() => seen).toBe(true);
+  await g(page, "grdLockAll('switch')");
+  await signIn(page, 'U-off', PINS.office);
+  release();
+  // The run stops at its next step: the invoice, the office's own to open, is not taken off the queue for it, and nothing is drawn.
+  await expect.poll(() => page.evaluate(() => (0, eval)('_prtHere'))).toBeNull();
+  await page.waitForTimeout(500);
+  expect(f.log.filter(l => l.method === 'DELETE')).toEqual([]);
+  expect(queued(f)).toEqual([SLIPS, OLD, INVOICE]);
+  await expect(page.locator('#invPrintView')).not.toHaveClass(/inv-print-view-active/);
   await expect(page.locator('body')).not.toContainText('THE INVOICE');
 });
 

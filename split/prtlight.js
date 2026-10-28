@@ -288,46 +288,56 @@ function prtHereStart() {
   var r = prtLightLoad(), all = r && r.ok && r.jobs ? r.jobs : [], n = all.filter(function(j) { return prtJobMine(j.id); }).length;
   if (!n) { showToast(all.length ? 'Your ID doesn’t open the jobs waiting' : 'Nothing is waiting at the office', 'info'); return; }
   closeOverlay();
-  _prtHere = { left: n, job: null, skip: {}, by: prtHereWho() };
+  _prtHere = { left: n, job: null, skip: {}, back: {}, by: prtHereWho() };
   prtHereNext();
 }
 async function prtHereNext() {
   if (!_prtHere || _prtHere.left <= 0) { _prtHere = null; prtLightRead(true).catch(function() {}); return; }
-  var cfg = getGhConfig(), job = null, data = null;
+  var run = _prtHere, cfg = getGhConfig(), job = null, data = null;
+  // The run is its starter's: once another ID signs in, nothing more is read or taken for it (Castor L-1 on #162's fold).
+  var ours = function() { return _prtHere === run && run.by === prtHereWho(); };
+  var stop = function() { if (_prtHere === run) _prtHere = null; };
   try {
-    var list = await prtList(cfg), left = 0;
+    var list = await prtList(cfg), notMine = 0, back = 0;
     for (var i = 0; i < list.length && !job; i++) {
-      if (_prtHere.skip[list[i].id]) { left++; continue; }
-      var d = JSON.parse(await ghRequest(prtJobUrl(cfg, list[i].id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
+      if (!ours()) { stop(); return; }
+      var id = list[i].id;
+      if (run.back[id]) { back++; continue; }   // put back in this run: the station prints it, and it is not taken again
+      if (run.skip[id]) { notMine++; continue; }
+      var d = JSON.parse(await ghRequest(prtJobUrl(cfg, id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
       if (!d || d.kind !== 'sep-print' || typeof d.html !== 'string') throw new Error('the job could not be read.');
       // A job whose document this ID does not open stays on the queue for the station: never drawn here (prtJobOpens).
-      if (!prtJobOpens(d.need)) { _prtHere.skip[list[i].id] = true; left++; continue; }
+      if (!prtJobOpens(d.need)) { run.skip[id] = true; notMine++; continue; }
       job = list[i]; data = d;
     }
+    if (!ours()) { stop(); return; }
     if (!job) {
-      _prtHere = null;
-      showToast(left ? 'The jobs left are not yours to open: they wait for the station' : 'Nothing is waiting now: the station took them', left ? 'info' : 'success');
+      stop();
+      showToast(notMine ? 'The jobs left are not yours to open: they wait for the station'
+        : back ? 'Nothing more to print here: what you put back waits for the station'
+        : 'Nothing is waiting now: the station took them', notMine || back ? 'info' : 'success');
       prtLightRead(true).catch(function() {});
       return;
     }
     await prtDelete(cfg, job, 'Taken to print on ' + prtSenderName() + ': ' + String(data.title || job.id).slice(0, 100));
   } catch (e) {
-    _prtHere = null;
+    stop();
     var gone = e.status === 404 || e.status === 409;
     showToast(gone ? 'The station took it first: nothing to print here' : 'Couldn’t take the job off the queue: ' + (e.message || e), gone ? 'info' : 'error');
     prtLightRead(true).catch(function() {});
     return;
   }
-  // Another ID signed in while the job was being taken: the run is not theirs, so the job goes back unshown.
-  if (!_prtHere || _prtHere.by !== prtHereWho()) { _prtHere = null; prtHereReturn({ id: job.id, data: data }); return; }
-  _prtHere.left--;
-  _prtHere.job = { id: job.id, data: data };
-  prtHereShow(_prtHere.job);
+  // Another ID signed in while the job was being taken off the queue: the run is not theirs, so the job goes back unshown.
+  if (!ours()) { stop(); prtHereReturn({ id: job.id, data: data }); return; }
+  run.left--;
+  run.job = { id: job.id, data: data };
+  prtHereShow(run.job);
   prtLightRead(true).catch(function() {});
 }
 function prtHereShow(held) {
   // The one place a queued job is drawn: never for an ID it does not open (prtJobOpens). It goes back on the queue instead.
-  if (!prtJobOpens(held.data.need)) { if (_prtHere) _prtHere.job = null; prtHereReturn(held); return; }
+  // Refused, the run ends too: the next preview this ID closes must not take a job unasked (Castor L-2 on #162's fold).
+  if (!prtJobOpens(held.data.need)) { _prtHere = null; prtHereReturn(held); return; }
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   _printInvId = null;   // a job from the queue is no invoice of this preview's: its Print marks nothing Printed here
   printNeed(held.data.need);   // sent to the office again, it keeps what it needs
@@ -378,6 +388,7 @@ async function prtHereBack(held) {
     await ghRequest(prtJobUrl(cfg, held.id), { method: 'PUT', body: { message: 'Put back on the queue: ' + String(held.data.title || held.id).slice(0, 100),
       content: ghEncode(JSON.stringify(held.data)), branch: cfg.branch } });
     showToast('Put back on the queue: the station prints it when it is on', 'success');
+    if (_prtHere) _prtHere.back[held.id] = true;   // not taken again in this run: the run moves on (Castor M-1 on #162's fold)
     return true;
   } catch (e) {
     // Another ID signed in while it was being put back: not shown to them; held, and tried again.

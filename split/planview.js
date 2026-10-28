@@ -110,12 +110,13 @@ function plnVerdictHtml() {
   var at = Math.min(PLN_N - 1, g.at), up = P.months[at].margin - P.base[at].margin, mo = P.months[_plnMonth], base = P.base[_plnMonth];
   var lowAt = 0; P.months.forEach(function(x, i) { if (x.cash < P.months[lowAt].cash) lowAt = i; });
   var low = P.months[lowAt].cash, cqi = P.ready.cqi, cqiOk = cqi != null && cqi <= g.cqi;
-  var stars = R ? (R.score >= 0.8 ? 3 : R.score >= 0.6 ? 2 : R.score >= 0.4 ? 1 : 0) : 0;
-  var tone = low < g.floor ? 'danger' : g.marginUp && up < g.marginUp / 2 ? 'danger' : g.marginUp && up < g.marginUp ? 'warning' : !cqiOk ? 'warning' : 'ok';
+  var stars = R ? (R.score >= 0.8 ? 3 : R.score >= 0.6 ? 2 : R.score >= 0.4 ? 1 : 0) : 0, unp = plnUnpriced(P);
+  var tone = low < g.floor ? 'danger' : g.marginUp && up < g.marginUp / 2 ? 'danger' : g.marginUp && up < g.marginUp ? 'warning' : !cqiOk || unp.length ? 'warning' : 'ok';
   var view = _plnView === 'moves' ? 'Moves · ' + _navFind(PLN_MOVES, _plnMovesKind) : _navFind(PLN_VIEWS, _plnView);
   return uiVerdictHtml({ screen: 'Planner · ' + view, tone: tone,
     verdict: 'The plan: ' + plnSigned(up) + ' a month' + (g.marginUp ? ' · goal +' + plnRs(g.marginUp) : ''),
-    facts: ['cash low ' + plnRs(low) + ' in ' + plnMonthLabel(lowAt), cqi != null ? 'CQI-11 ' + plnMonthLabel(Math.min(PLN_N - 1, cqi)) : 'CQI-11 not in the plan', 'a simulation: the book is untouched'],
+    facts: ['cash low ' + plnRs(low) + ' in ' + plnMonthLabel(lowAt), cqi != null ? 'CQI-11 ' + plnMonthLabel(Math.min(PLN_N - 1, cqi)) : 'CQI-11 not in the plan',
+      unp.length ? unp.length + ' move' + (unp.length === 1 ? '' : 's') + ' with no cost set: spend reads short' : 'a simulation: the book is untouched'],
     factors: [
       { label: 'Margin, ' + plnMonthLabel(_plnMonth), fig: escHtml(plnSigned(mo.margin)), tone: plnTone(mo.margin) || null, sub: 'as it runs ' + plnSigned(base.margin), attrs: ' data-pl-hud="margin"' },
       { label: 'Cash, ' + plnMonthLabel(_plnMonth), fig: figWrapHtml(escHtml(plnRs(mo.cash))), tone: mo.cash < 0 ? 'danger' : mo.cash < Math.abs(base.margin) * 2 ? 'warning' : 'ok',
@@ -140,7 +141,7 @@ function plnStarsSvg(n) {
 function plnRowHtml(o) {
   var facts = (o.facts || []).filter(Boolean), acts = (o.actions || []).filter(Boolean);
   // A plain row where it fits.
-  if (facts.length <= 2 && (_isDesktop || (!o.extra && (!acts.length || (acts.length === 1 && !o.end))))) {
+  if (!o.detail && facts.length <= 2 && (_isDesktop || (!o.extra && (!acts.length || (acts.length === 1 && !o.end))))) {
     return '<div class="inv-row inv-row-2"' + (o.attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
       (facts.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(facts.join(' · ')) + '</span>' : '') + (o.extra || '') + '</span>' +
       '<span class="inv-row-end">' + (o.end || '') + acts.join('') + '</span></div>';
@@ -154,7 +155,7 @@ function plnRowHtml(o) {
     // The desktop keeps its actions at the head's end, where it has the room (a button in a summary acts, it does not fold).
     (o.end || (_isDesktop && acts.length) ? '<span class="inv-row-end">' + (o.end || '') + (_isDesktop ? acts.join('') : '') + '</span>' : '') + '</summary><div class="inv-row-children">' +
     rest.map(function(f) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(f) + '</span></span></div>'; }).join('') +
-    (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') +
+    (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') + (o.detail || '') +
     uiRowMoreHtml(acts) + '</div></details>';
 }
 /* A move's place in the plan as a row's end on the phone: its month, or what stands in its way; the controls are in its fold. */
@@ -360,6 +361,7 @@ function plnNameOf(k) {
   PLN_STATIONS.forEach(function(s) { s.levels.forEach(function(lv) { if (lv.id === k) r = s.name + ': ' + lv.t; }); });
   if (r) return r;
   if (k === 'specialist') return 'a plating specialist, hired or promoted';
+  if (/^(fix|sell):/.test(k)) { var um = plnUnitMoveOf(k); return um ? um.t : k; }
   var x = PLN_ROLES.find(function(y) { return y.id === k; }) || PLN_TECH.find(function(y) { return y.id === k; });
   if (x) return x.t;
   return String(k).split('|').map(function(y) { return y === k ? y : plnNameOf(y); }).join(' or ');
@@ -403,6 +405,8 @@ function plannerAction(action, btn) {
     case 'invPlnCardRetire': plnCardRemove(d.id); return true;
     case 'invPlnCfg': plnCfgEdit(); return true;
     case 'invPlnCost': plnCostEdit(d.id); return true;
+    case 'invPlnFig': plnFigEdit(d.id); return true;
+    case 'invPlnFigSave': plnFigSave(d.id); return true;
     case 'invPlnCfgSave': plnCfgSave(); return true;
     case 'invPlnReport': plnReportOpen(); return true;
   }
@@ -452,7 +456,7 @@ function plnScenarioClear() {
 }
 /* The CQI-11 path at its earliest: the lab, the records, a lab hand, the supervisor trained, bath analysis, the tests. */
 function plnSuggestStart(sc) {
-  ['lab1', 'lab2', 'a1Log', 'docs', 'course', 'labHand', 'promote'].forEach(function(k) { if (sc.plan[k] == null) sc.plan[k] = 1; });
+  ['lab1', 'lab2', 'a1Log', 'docs', 'course', 'labHand', 'promote', 'pickHood'].forEach(function(k) { if (sc.plan[k] == null) sc.plan[k] = 1; });
   ['bath', 'test'].forEach(function(k) { if (sc.plan[k] == null) sc.plan[k] = 2; });
   if (sc.plan.cqi == null) sc.plan.cqi = 3;
 }
@@ -716,9 +720,16 @@ function plnDayHtml() {
 }
 
 /* ---------- Plant: what each line can do, the machines, an upgrade tree per station ---------- */
+/* Where pickling's figure comes from: set, or assumed from today's kilos on the tanks working today (pltCapacity), never scaled by
+   them, so a tank brought back adds its share of that assumed rate (Vulcanus L-4, 28 Oct 2026). */
+function plnPickSrc(B) {
+  if (B.pick.src === 'set') return 'set by you';
+  var u = B.pick.units;
+  return 'assumed: today’s kilos with a tenth to spare' + (u && u.n ? ', on the ' + u.nAvail + ' of ' + u.n + ' tanks working' : '');
+}
 function plnPlantHtml() {
   var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], B = P.B, sc = P.sc;
-  var srcOf = function(l) { var L = B.lines[l]; return L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : L.fitted ? 'assumed, its kilos a round raised to what the book plated: no register read for this line' : 'assumed: no register read for this line'; };
+  var srcOf = function(l) { var L = B.lines[l], u = L.units, w = u && u.nAvail < u.n ? u.nAvail + ' of ' + u.n + ' units working; ' : ''; return w + (L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : L.fitted ? 'assumed, its kilos a round raised to what the book plated: no register read for this line' : 'assumed: no register read for this line'); };
   var head = '<div class="inv-panel inv-panel-flush" id="plnLines"><div class="inv-panel-head"><span class="inv-panel-title">What each line can do in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCfg">Set the assumptions</button></div>';
   // On the phone a line is a row: what it plates and runs a day, its kg an hour at the end, how it is worked out folded (TM2d).
@@ -730,10 +741,10 @@ function plnPlantHtml() {
           formatNum(x.kgRound, 0) + ' kg a round every ' + formatNum(x.every, 0) + ' min', srcOf(l)],
         end: '<span class="inv-num">' + formatNum(x.kgH, 0) + ' kg/h</span>' });
     }).join('') +
-      plnRowHtml({ key: 'pl-line-pick', title: 'Pickling', facts: [plnKg(mo.pickCap) + ' it can feed', plnHm(mo.pickH) + ' h', B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare'],
+      plnRowHtml({ key: 'pl-line-pick', title: 'Pickling', facts: [plnKg(mo.pickCap) + ' it can feed', plnHm(mo.pickH) + ' h', plnPickSrc(B)],
         end: '<span class="inv-num">' + formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg/h</span>' }) +
       plnRowHtml({ key: 'pl-line-cuts', title: 'Power cuts', facts: [formatNum(B.cutMin, 0) + ' min a working day, the Power tab'], end: '<span class="inv-num">' + formatNum(mo.cutH * 60, 0) + ' min</span>' }) + '</div>';
-    return h0 + '<div class="inv-panels">' + plnMachinesHtml() + '</div><div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
+    return h0 + '<div class="inv-panels">' + plnMachinesHtml() + plnRepairsHtml(P) + '</div><div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
   }
   var h = head + '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kg a round</th><th class="inv-num">A round every</th><th class="inv-num">Kg an hour</th><th class="inv-num">Kilos a day</th><th class="inv-num">Hours a day</th></tr></thead><tbody>' +
     PLN_LINE_IDS.map(function(l) {
@@ -742,10 +753,10 @@ function plnPlantHtml() {
         '<td class="inv-num">' + formatNum(x.kgH, 0) + '</td><td class="inv-num">' + escHtml(plnKg(x.plated)) + (x.demand > x.plated + 1 ? '<div class="inv-row-meta inv-row-wrap inv-num-neg">' + escHtml('of ' + plnKg(x.demand)) + '</div>' : '') + '</td>' +
         '<td class="inv-num">' + plnHm(x.hours) + (x.need > x.hours + 0.01 ? '<div class="inv-row-meta inv-row-wrap inv-num-neg">' + plnHm(x.need - x.hours) + ' short</div>' : '') + '</td></tr>';
     }).join('') +
-    '<tr><td>Pickling<div class="inv-row-meta inv-row-wrap">' + escHtml(B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare') + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
+    '<tr><td>Pickling<div class="inv-row-meta inv-row-wrap">' + escHtml(plnPickSrc(B)) + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
       '<td class="inv-num">' + escHtml(plnKg(mo.pickCap)) + ' it can feed</td><td class="inv-num">' + plnHm(mo.pickH) + '</td></tr>' +
     '<tr><td>Power cuts<div class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(B.cutMin, 0) + ' min a working day in working hours, the Power tab') + '</div></td><td class="inv-num" colspan="5">' + escHtml(formatNum(mo.cutH * 60, 0) + ' min a day lost') + '</td></tr></tbody></table></div></div>';
-  h += '<div class="inv-panels">' + plnMachinesHtml() + '</div>';
+  h += '<div class="inv-panels">' + plnMachinesHtml() + plnRepairsHtml(P) + '</div>';
   h += '<div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
   return h;
 }
@@ -755,15 +766,16 @@ function plnTreeHtml(st, sc, P) {
   var rows = st.levels.slice().reverse().map(function(lv, ri) {
     var i = st.levels.length - 1 - ri;
     if (!i) return '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">Lv 0 · ' + escHtml(lv.t) + '</span><span class="inv-row-meta">today</span></span><span class="inv-row-end"><span class="inv-dot inv-dot-ok">Today</span></span></div>';
-    var inPlan = plan[lv.id] != null, below = i === 1 || plan[st.levels[i - 1].id] != null;
+    var inPlan = plan[lv.id] != null, below = i === 1 || lv.alone || plan[st.levels[i - 1].id] != null;
     var missing = (lv.needs || []).filter(function(n) { return plan[n] == null; });
     var end = inPlan ? plnMoveCtlHtml(lv.id, true) : !below ? '<span class="inv-dot inv-dot-neutral">Level ' + (i - 1) + ' first</span>' : missing.length ? '<span class="inv-dot inv-dot-neutral">' + escHtml('Needs ' + missing.map(plnNameOf).join(', ')) + '</span>' : plnMoveCtlHtml(lv.id, false, 1);
-    var cost = plnUpgradeCost(lv), costBtn = '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>';
+    var cost = plnUpgradeCost(lv);
     // On the phone the row ends in its month, Plan it, or what stands in its way; its other controls fold under it (§1a-11).
     return plnRowHtml({ key: 'pl-level-' + lv.id, attrs: ' data-pl-level="' + escHtml(lv.id) + '"', title: 'Lv ' + i + ' · ' + lv.t,
       // Two facts: what it costs and when it takes effect, then what it does.
-      facts: [(cost ? formatCurrency(cost) : 'no cost') + (P.ready[lv.id] != null ? ', in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''), lv.say || ''],
-      end: _isDesktop ? '' : inPlan ? plnMoveEnd(lv.id, true) : end, actions: [_isDesktop || inPlan ? end : '', costBtn] });
+      facts: [(plnCostToSet(lv) ? 'cost to set' : cost ? formatCurrency(cost) : 'no cost') + (P.ready[lv.id] != null ? ', in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''), plnSay(lv.id)],
+      detail: plnOptionDetailHtml(lv, P, (lv.needs || []).concat(i > 1 && !lv.alone ? [st.levels[i - 1].id] : [])),
+      end: _isDesktop ? '' : inPlan ? plnMoveEnd(lv.id, true) : end, actions: [_isDesktop || inPlan ? end : ''] });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-pl-tree="' + st.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(st.name) + ' <span class="inv-panel-count">Lv ' + lvNow + ' in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></span></div>' + rows + '</div>';
 }
@@ -772,14 +784,124 @@ function plnCostEdit(id) {
   if (!plnRegGate(function() { plnCostEdit(id); })) return;
   var lv = null; PLN_STATIONS.forEach(function(s) { s.levels.forEach(function(x) { if (x.id === id) lv = x; }); });
   lv = lv || PLN_TECH.find(function(t) { return t.id === id; }) || PLN_ROLES.find(function(r) { return r.id === id; });
+  if (!lv && /^fix:/.test(id)) { var um = plnUnitMoveOf(id); if (um) lv = { id: id, t: um.t, cost: null }; }
   if (!lv) return;
-  uiPrompt({ title: 'What it costs: ' + lv.t, label: 'Rupees, once (blank for the estimate, ' + formatCurrency(lv.cost || 0) + ')', value: String((plnCfg().costs || {})[id] != null ? plnCfg().costs[id] : '') }).then(function(v) {
+  uiPrompt({ title: 'What it costs: ' + lv.t, label: lv.cost == null ? 'Rupees, once (blank until you have a quote)' : 'Rupees, once (blank for the estimate, ' + formatCurrency(lv.cost || 0) + ')', value: String((plnCfg().costs || {})[id] != null ? plnCfg().costs[id] : '') }).then(function(v) {
     if (v == null) return;
     var p = plnData(); p.cfg.costs = Object.assign({}, p.cfg.costs || {});
     var n = String(v).replace(/[₹,\s]/g, '');
     if (n === '') delete p.cfg.costs[id]; else if (isFinite(+n) && +n >= 0) p.cfg.costs[id] = +n; else return uiAlert({ title: 'Not a figure', body: 'Type the cost in rupees, or leave it blank for the estimate.' });
     saveState(); renderPlanner();
   });
+}
+
+/* An option's details, folded under its row (owner, 28 Oct 2026: *"The details under most of the options are missing"*): what it
+   needs, each figure it rests on and where that figure comes from, what it adds to the month on show, and its own buttons. */
+var PLN_SRC = { set: ['ok', 'set'], measured: ['info', 'measured'], estimate: ['warning', 'estimate'], unset: ['neutral', 'not set'] };
+var _plnAttr = null;
+function plnAttrOf(key, P) {
+  var k = P.key + '|' + _plnMonth + '|' + _plnMode;
+  if (!_plnAttr || _plnAttr.k !== k) { try { _plnAttr = { k: k, a: plnAttribution(_plnMonth, _plnMode) }; } catch (e) { _plnAttr = { k: k, a: { rows: [], idle: [] } }; } }
+  var r = _plnAttr.a.rows.concat(_plnAttr.a.idle).find(function(x) { return x.mv.key === key; });
+  return r || null;
+}
+function plnFigFmt(inp, v) {
+  if (v == null) return '';
+  if (inp.unit === '₹') return formatCurrency(v);
+  if (inp.unit === '₹/kg') return '₹' + formatNum(v, 2) + '/kg';
+  if (inp.unit === 'share') return Math.round(v * 100) + '%';
+  if (inp.unit === '%') return formatNum(v, 0) + '%';
+  return formatNum(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) + ' ' + inp.unit;
+}
+/* What an option needs, a row a part: a clause, else commas packed to a line, so no block runs past the benchmark's 120 characters
+   (P195). */
+function plnReqParts(req) {
+  var out = [];
+  String(req || '').split(/;\s+|\.\s+/).forEach(function(c) {
+    c = c.replace(/\.$/, '').trim(); if (!c) return;
+    if (c.length <= 110) { out.push(c); return; }
+    var cur = '';
+    c.split(/,\s+/).forEach(function(w) { if (cur && (cur + ', ' + w).length > 110) { out.push(cur); cur = w; } else cur = cur ? cur + ', ' + w : w; });
+    if (cur) out.push(cur);
+  });
+  return out.map(function(t) { return t.charAt(0).toUpperCase() + t.slice(1); });
+}
+function plnReqRows(req) {
+  return plnReqParts(req).map(function(t, i) { return { label: i ? '' : 'What it needs', sub: t, wrap: true }; });
+}
+function plnOptionDetailHtml(lv, P, needs) {
+  var plan = (P.sc && P.sc.plan) || {}, rows = [];
+  var have = function(n) { return n.split('|').some(function(x) { return x === 'specialist' ? plan.specialist != null || plan.promote != null : plan[x] != null; }); };
+  rows = rows.concat(plnReqRows(lv.req));
+  if (needs.length) rows.push({ label: 'In the plan first', sub: needs.map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); }).join(', '), wrap: true });
+  if (lv.gate) rows.push({ label: 'What it opens', sub: lv.gate.map(plnNameOf).join(', ') + ' wait on it in the plan (owner, 28 Oct 2026)' + (P.sc && P.sc.hoodAdded && lv.id === 'pickHood' ? '. Added to this plan on its next open, when they came to need it.' : ''), wrap: true });
+  var v = lv.inputs ? plnInputVals(lv.id) : null;
+  (lv.inputs || []).forEach(function(inp) {
+    var src = v._src[inp.key], h = inp.def === 'stock' && src !== 'set' && src !== 'unset' ? plnHclMonth() : null;
+    rows.push({ label: inp.label, value: v[inp.key] == null ? '' : plnFigFmt(inp, v[inp.key]), src: PLN_SRC[src],
+      sub: !h ? '' : h.came ? 'what came in over ' + h.days + ' day' + (h.days === 1 ? '' : 's') + ': received, not used' : 'its use a day × 26, as Stock reads it' });
+  });
+  var cost = lv.tier != null ? plnTechCost(lv) : plnUpgradeCost(lv), costSet = ((plnRead().cfg || {}).costs || {})[lv.id] != null;
+  if (lv.cost !== undefined) rows.push({ label: 'What it costs, once', value: plnCostToSet(lv) ? '' : formatCurrency(cost), src: plnCostToSet(lv) ? PLN_SRC.unset : costSet ? PLN_SRC.set : cost ? PLN_SRC.estimate : null });
+  var at = plnAttrOf(lv.id, P);
+  if (plan[lv.id] != null) rows.push({ label: 'What it adds to ' + plnMonthLabel(_plnMonth), value: at ? plnSigned(at.margin) + ' a month' : '—', sub: at && Math.abs(at.kg) >= 1 ? (at.kg > 0 ? '+' : '−') + plnKg(Math.abs(at.kg)) + ' plated' : at && at.ready != null && at.ready > _plnMonth ? 'not in effect until ' + plnMonthLabel(Math.min(PLN_N - 1, at.ready)) : '', tone: at && at.margin < -0.5 ? 'danger' : at && at.margin > 0.5 ? 'ok' : null });
+  var btns = (lv.inputs && lv.inputs.length ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnFig" data-id="' + escHtml(lv.id) + '">Set figures</button>' : '') +
+    (lv.cost !== undefined ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>' : '');
+  return '<div data-pl-detail="' + escHtml(lv.id) + '">' + rows.map(uiFactRowHtml).join('') + (btns ? '<div class="inv-row inv-row-flow"><span class="inv-row-actions">' + btns + '</span></div>' : '') + '</div>';
+}
+/* Repairs and sales: one move a unit down, under repair or in need of work, from the plant register. */
+function plnRepairsHtml(P) {
+  var list = plnUnitMoves(), plan = (P.sc && P.sc.plan) || {}, B = P.B;
+  if (!list.length) return '';
+  return '<div class="inv-panel inv-panel-flush" id="plnRepairs"><div class="inv-panel-head"><span class="inv-panel-title">Repairs and sales <span class="inv-panel-count">' + list.length + '</span></span></div>' +
+    list.map(function(x) {
+      var inPlan = plan[x.id] != null, end = plnMoveCtlHtml(x.id, inPlan, 1), u = x.unit;
+      var price = +(((plnRead().cfg || {}).fx || {})[x.id] || {}).price || 0, cost = plnUpgradeCost({ id: x.id, cost: null });
+      var gain = x.kind === 'sell' ? (price ? formatCurrency(price) + ' in' : 'price to set') : (cost ? formatCurrency(cost) : 'cost to set');
+      var does = x.kind === 'sell' ? 'cash in; its capacity is gone for good' : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more on ' + plnLineName(x.line) + ' a round' + (x.line === 'pick' ? '' : '') + ', and its risk ends' : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
+      var rows = plnReqRows(x.req);
+      if (x.kind === 'sell') rows.push({ label: 'What it sells for', value: price ? formatCurrency(price) : '', src: price ? PLN_SRC.set : PLN_SRC.unset });
+      else rows.push({ label: 'What it costs, once', value: cost ? formatCurrency(cost) : '', src: cost ? PLN_SRC.set : PLN_SRC.unset });
+      if (x.down && x.line && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',
+        sub: (/^kg/.test(x.basis) ? formatNum(+u.kgRound, 0) + ' kg a round' : 'by count') + (/all$/.test(x.basis) ? ' of the whole line: no unit works' : ' against the units working') + (B && B.lines[x.line] && B.lines[x.line].src === 'set' ? '; your figure for the line is read as today’s, on the units working' : ''),
+        src: /^kg/.test(x.basis) ? PLN_SRC.measured : PLN_SRC.estimate });
+      if (x.same) rows.push({ label: 'The same work', sub: x.same + ' covers this station too: plan one, not both', wrap: true });
+      if (!x.down) { var d = PLN_RISK_DEFAULT[u.condition]; rows.push({ label: 'Its chance of failing a month', value: u.risk && +u.risk.p > 0 ? Math.round(u.risk.p * 100) + '%' : d ? Math.round(d.p * 100) + '%' : '', src: u.risk && +u.risk.p > 0 ? PLN_SRC.set : PLN_SRC.estimate, sub: u.risk && +u.risk.p > 0 ? '' : 'type the unit’s own risk on the register; its worth shows in the trials' }); }
+      var at = plnAttrOf(x.id, P);
+      if (inPlan) rows.push(x.kind === 'sell' ? { label: 'Cash in', value: price ? formatCurrency(price) : '', sub: plnMonthLabel(Math.max(0, plan[x.id])), tone: price ? 'ok' : null }
+        : { label: 'What it adds to ' + plnMonthLabel(_plnMonth), value: at ? plnSigned(at.margin) + ' a month' : '—', sub: x.down ? '' : 'an overhaul’s worth is in the trials', tone: at && at.margin > 0.5 ? 'ok' : null });
+      var btn = '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="' + (x.kind === 'sell' ? 'invPlnFig' : 'invPlnCost') + '" data-id="' + escHtml(x.id) + '">' + (x.kind === 'sell' ? 'Set the price' : 'Cost') + '</button>';
+      return plnRowHtml({ key: 'pl-unit-' + x.id, attrs: ' data-pl-unit="' + escHtml(x.id) + '"', title: x.t, facts: [gain, does],
+        detail: '<div data-pl-detail="' + escHtml(x.id) + '">' + rows.map(uiFactRowHtml).join('') + '<div class="inv-row inv-row-flow"><span class="inv-row-end inv-row-actions">' + btn + '</span></div></div>',
+        end: _isDesktop ? '' : inPlan ? plnMoveEnd(x.id, true) : end, actions: [_isDesktop || inPlan ? end : ''] });
+    }).join('') + '</div>';
+}
+/* An option's figures, set in one dialog (the owner's, as the costs are). Blank goes back to the default. */
+function plnFigEdit(id) {
+  if (!plnRegGate(function() { plnFigEdit(id); })) return;
+  var set = ((plnRead().cfg || {}).fx || {})[id] || {}, lv = plnOption(id), um = /^sell:/.test(id) ? plnUnitMoveOf(id) : null;
+  if (!lv && !um) return;
+  var inputs = um ? [{ key: 'price', label: 'What it sells for', unit: '₹', def: null }] : lv.inputs || [];
+  var v = um ? {} : plnInputVals(id);
+  var f = inputs.map(function(inp, i) {
+    var ph = inp.def === 'stock' ? (v[inp.key] != null ? formatNum(v[inp.key], 0) + ' (stock record)' : 'not recorded') : inp.def != null ? String(inp.def) + ' (estimate)' : '';
+    return _plnField('plnFig_' + i, escHtml(inp.label + (inp.unit && inp.unit !== 'share' ? ', ' + inp.unit : inp.unit === 'share' ? ', 0 to 1' : '')), set[inp.key], 'number', ph ? ' placeholder="' + escHtml(ph) + '"' : '');
+  }).join('');
+  dialogOpen('<div class="inv-dialog" data-pl-fig="' + escHtml(id) + '">' + dialogHeadHtml('Figures: ' + escHtml(um ? um.t : lv.t)) + '<div class="inv-fields">' + f + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPlnFigSave" data-id="' + escHtml(id) + '">Save</button></div></div>', { dismiss: true });
+}
+function plnFigSave(id) {
+  if (!plnRegGate(function() { plnFigSave(id); })) return;
+  var lv = plnOption(id), inputs = /^sell:/.test(id) ? [{ key: 'price' }] : (lv && lv.inputs) || [], o = {};
+  for (var i = 0; i < inputs.length; i++) {
+    var raw = _plnVal('plnFig_' + i).replace(/[₹,\s]/g, '');
+    if (raw === '') continue;
+    if (!isFinite(+raw)) return uiAlert({ title: 'Not a figure', body: inputs[i].label + ': type a figure, or leave it blank for the default.' });
+    o[inputs[i].key] = +raw;
+  }
+  var p = plnData(); p.cfg.fx = Object.assign({}, p.cfg.fx || {});
+  if (Object.keys(o).length) p.cfg.fx[id] = o; else delete p.cfg.fx[id];
+  closeOverlay(); saveState(); renderPlanner(); showToast('Figures saved');
 }
 
 /* ---------- Tech tree: tier by tier, each node with what it needs; the checklist under it ---------- */
@@ -794,11 +916,11 @@ function plnTechHtml() {
       var missing = (t.needs || []).filter(function(n) { return !have(n); });
       var end = plan[t.id] != null ? plnMoveCtlHtml(t.id, true) : missing.length ? '<span class="inv-dot inv-dot-neutral">Locked</span>' : plnMoveCtlHtml(t.id, false, 1);
       var cost = plnTechCost(t), r = P.ready[t.id], inPlan = plan[t.id] != null;
-      return plnRowHtml({ key: 'pl-node-' + t.id, attrs: ' data-pl-node="' + t.id + '"', title: t.t,
-        facts: [cost ? formatCurrency(cost) : '', t.months + ' month' + (t.months === 1 ? '' : 's'), t.say, r != null ? 'ready ' + plnMonthLabel(Math.min(PLN_N - 1, r)) + (t.id === 'cqi' ? ', if each step lands' : '') : inPlan ? 'never ready: something it needs is missing' : '',
+      return plnRowHtml({ key: 'pl-node-' + t.id, attrs: ' data-pl-node="' + t.id + '"', title: t.t, detail: plnOptionDetailHtml(t, P, t.needs || []),
+        facts: [cost ? formatCurrency(cost) : '', t.months + ' month' + (t.months === 1 ? '' : 's'), plnSay(t.id), r != null ? 'ready ' + plnMonthLabel(Math.min(PLN_N - 1, r)) + (t.id === 'cqi' ? ', if each step lands' : '') : inPlan ? 'never ready: something it needs is missing' : '',
           needs.length ? 'needs ' + needs.join(', ') : ''],
         end: _isDesktop ? '' : inPlan ? plnMoveEnd(t.id, true) : end,
-        actions: [_isDesktop || inPlan ? end : '', t.cost ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + t.id + '">Cost</button>' : ''] });
+        actions: [_isDesktop || inPlan ? end : ''] });
     }).join('') + '</div>';
   }).join('') + plnChecklistHtml() + '</div>';
   return h;

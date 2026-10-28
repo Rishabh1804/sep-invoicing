@@ -643,6 +643,24 @@ if (!S._cnSeriesStart1) {
   S._powerLoad1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
+/* ===== THE FUME EXTRACTION IN PLANS ALREADY SAVED, ONCE =====
+   Owner, 28 Oct 2026: the fume extraction is its own option, and ISO 9001 and CQI-11 need it. A plan saved before then holding
+   ISO 9001, CQI-11 or "Acid recovery and fume hood" gains it at the earliest month of those, so it does not lose them unseen;
+   the plan says so on the option (`hoodAdded`). The flag travels with the book. */
+(function() {
+  if (S._plnHood1) return;
+  var list = S.planner && Array.isArray(S.planner.scenarios) ? S.planner.scenarios : [];
+  if (!list.length) return;
+  list.forEach(function(sc) {
+    var plan = sc && sc.plan;
+    if (!plan || plan.pickHood != null) return;
+    var at = ['iso', 'cqi', 'pickAcid'].map(function(k) { return plan[k]; }).filter(function(v) { return v != null; });
+    if (!at.length) return;
+    plan.pickHood = Math.max(0, Math.min.apply(null, at)); sc.hoodAdded = true;
+  });
+  S._plnHood1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
 
 /* An attendance day saved under no date: the book held one keyed "null" (22 h of OT, 69 h of blocks), which no screen can
    open and so no one could delete. The owner (30 Sep 2026): "delete the attendance day saved under null, the day it was

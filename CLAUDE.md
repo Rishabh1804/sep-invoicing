@@ -2704,9 +2704,11 @@ prototypes). P162.
     (**set** in `cfg.fx[id]`, **measured**, **estimate**, **not set**; `plnInputVals`), its cost (blank where no estimate is honest:
     *cost to set*) and what it adds to the month on show; **Set figures** and **Cost**, behind Settings' permission. A move's effect
     is read from its figures (`plnFx`).
-  - **Acid recovery** (`acidSave`) is the share recovered × (HCl used a month, read from the stock record's HCl line, × a litre's
-    price with carriage) + the share × the spent acid sent away × what a KL costs, less its running cost; nothing until the share
-    is set (a second share for the spent acid no longer sent away); the flat ₹6,000 "less acid bought" had nothing behind it. **Fume extraction
+  - **Acid recovery** (`acidSave`) is the share recovered × (HCl used a month × a litre's price with carriage) + a second share
+    (the spent acid less sent away) × the spent acid sent away × what a KL costs, less its running cost; nothing until the share
+    recovered is set, the second leg included; the flat ₹6,000 "less acid bought" had nothing behind it. HCl used a month is read
+    as the stock line's page reads it (`plnHclMonth`: `stockRate` × 26), never from a window a bill opens; with no use recorded,
+    what came in, an estimate. **Fume extraction
     and scrubber** is its own option with a running cost (an estimate until set), and ISO 9001 and CQI-11 need it. Pickling's
     options stand alone (`alone`).
   - **The approved load on the bill** (`load50`) saves the excess-load penalty the bills carry (`plnPenaltyMonth`: the median of
@@ -2715,7 +2717,9 @@ prototypes). P162.
   - **Units**: every line's figure is the line as it runs today, on its units working (`pltCapacity` says how many); each unit down, under repair or in need of work is a move under **Repairs and sales** (`plnUnitMoves`): bring it back
     (its share of the round, its risk ended), overhaul it, or, marked *Not coming back* on the unit (`u.gone`), sell it (cash in
     at the price set). A running unit in need of work or ageing with no risk typed may fail at an estimated chance
-    (`PLN_RISK_DEFAULT`) until its repair lands, stopping its share of the line. A unit's share counts tanks and barrels only.
+    (`PLN_RISK_DEFAULT`) until its repair lands, stopping its share of the line; a unit on standby fails only at a risk typed on
+    it. A unit's share counts tanks and barrels only, each on its own station's line (`plnUnitLine`): the unit's *Line it stops
+    when it fails* is read only for a rectifier or another supporting unit.
     *Another barrel* adds one barrel's share. A move with no cost set is said on the verdict. Plans saved before gain the fume
     extraction once (`_plnHood1`).
   - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge).

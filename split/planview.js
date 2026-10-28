@@ -830,8 +830,9 @@ function plnOptionDetailHtml(lv, P, needs) {
   if (lv.gate) rows.push({ label: 'What it opens', sub: lv.gate.map(plnNameOf).join(', ') + ' wait on it in the plan (owner, 28 Oct 2026)' + (P.sc && P.sc.hoodAdded && lv.id === 'pickHood' ? '. Added to this plan on its next open, when they came to need it.' : ''), wrap: true });
   var v = lv.inputs ? plnInputVals(lv.id) : null;
   (lv.inputs || []).forEach(function(inp) {
-    var src = v._src[inp.key], h = inp.def === 'stock' && src === 'measured' ? plnHclMonth() : null;
-    rows.push({ label: inp.label, value: v[inp.key] == null ? '' : plnFigFmt(inp, v[inp.key]), src: PLN_SRC[src], sub: h ? 'the stock record’s ' + h.from + ', 90 days' : '' });
+    var src = v._src[inp.key], h = inp.def === 'stock' && src !== 'set' && src !== 'unset' ? plnHclMonth() : null;
+    rows.push({ label: inp.label, value: v[inp.key] == null ? '' : plnFigFmt(inp, v[inp.key]), src: PLN_SRC[src],
+      sub: !h ? '' : h.came ? 'what came in over ' + h.days + ' day' + (h.days === 1 ? '' : 's') + ': received, not used' : 'its use a day × 26, as Stock reads it' });
   });
   var cost = lv.tier != null ? plnTechCost(lv) : plnUpgradeCost(lv), costSet = ((plnRead().cfg || {}).costs || {})[lv.id] != null;
   if (lv.cost !== undefined) rows.push({ label: 'What it costs, once', value: plnCostToSet(lv) ? '' : formatCurrency(cost), src: plnCostToSet(lv) ? PLN_SRC.unset : costSet ? PLN_SRC.set : cost ? PLN_SRC.estimate : null });

@@ -78,10 +78,12 @@ and the day is the month divided by its working days.
    needs (`req`, and the moves it needs in the plan), each figure it rests on (`inputs`, read by `plnInputVals`: **set** by the
    owner in `cfg.fx[id]`, **measured**, an **estimate**, or **not set**), what it costs (blank until a quote where no estimate is
    honest) and what it adds to the month on show. A move's effect is read from its figures (`plnFx`), never a figure in the code
-   alone. **Acid recovery** (`acidSave`): the share recovered × (HCl used a month, read from the stock record's HCl line, × a
-   litre's price, carriage included) + the share × the spent acid sent away a month × what a KL costs to send, less its running
-   cost; with no share set it adds nothing and says so (the old flat ₹6,000 had nothing behind it). The acid's price and the
-   disposal's share less sent away are the owner's to set. **Fume extraction and scrubber** is its own option, a running cost a month (`runMo`, an estimate until
+   alone. **Acid recovery** (`acidSave`): the share recovered × (HCl used a month × a litre's price, carriage included) + its own
+   second share (the spent acid less sent away) × the spent acid sent away a month × what a KL costs to send, less its running
+   cost; with no share recovered set it adds nothing, the spent acid's leg included, and says so (the old flat ₹6,000 had
+   nothing behind it). HCl used a month is read as the stock line's own page reads it (`plnHclMonth`: its use a day, `stockRate`,
+   × 26), never from a window a bill or a count opens; with no use recorded, what came in over the 90 days, an estimate. The
+   acid's price, where the spent acid goes and what that costs, and both shares are the owner's to set. **Fume extraction and scrubber** is its own option, a running cost a month (`runMo`, an estimate until
    set), and ISO 9001 and CQI-11 need it: the owner's condition for the audits, not a line of CQI-11's own checklist, so no
    checklist row is added for it (owner, 28 Oct 2026: *"Only if that is an actual requirement"*). **The approved load on the
    bill** saves the excess-load penalty the bills on Power → Load & bills state (`plnPenaltyMonth`: the median of the last six
@@ -91,11 +93,14 @@ and the day is the month divided by its working days.
    that information on planner"*): every line's figure is the line as it runs today, on its units working (`pltCapacity` says how
    many), so each unit down, under repair or in need of work is a move under **Repairs
    and sales** (`plnUnitMoves`): **Bring back** adds its share of the line's round (its kg a round over the kg working, else one
-   over the units working, counting only tanks and barrels; with none working, its share of the whole line) and ends its risk;
+   over the units working, counting only tanks and barrels, each on its own station's line, `plnUnitLine`: a unit's *Line it
+   stops when it fails* is read only for a rectifier or another supporting unit; with none working, its share of the whole line)
+   and ends its risk;
    **Another barrel** adds one barrel's share on the same basis; **Overhaul** a running unit in need of work ends its risk, and a unit marked *Not
    coming back* on the register is a **Sale**, cash in at the price set. A running unit in need of work or ageing with no risk
    typed on it may fail in the trials at an estimated chance (`PLN_RISK_DEFAULT`: 5% and 2% a month, days down 3 and 2), and a
-   failing tank stops its share of the line, not the line; a unit not working never fails. A move with no cost set is said on
+   failing tank stops its share of the line, not the line; a unit on standby fails only at a risk typed on it, and a unit not
+   working never fails. A move with no cost set is said on
    the verdict (*N moves with no cost set: spend reads short*). Plans saved before hold the fume extraction from the earliest
    month of ISO 9001, CQI-11 or the old acid option (`_plnHood1`, once).
 6. **The ledger** lists every month (kilos, revenue, labour, hires, zinc and chemicals, power and other, interest, margin, spend,

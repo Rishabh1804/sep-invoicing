@@ -93,6 +93,80 @@ test.describe('P245 the planner’s options and the units down', () => {
     expect(r.after).toBe(0);
   });
 
+  test('a tank or barrel counts on its own station’s line, whatever its “line it stops” field names', async ({ page }) => {
+    const s: any = book();
+    // Barrel 3 (down) and Barrel 1 name VAT A1 as the line they stop; a rectifier on the power station names VAT A2.
+    s.plant.units.find((u: any) => u.id === 'PU-8').line = 'vat-a1';
+    s.plant.units.find((u: any) => u.id === 'PU-6').line = 'vat-a1';
+    s.plant.units.push({ id: 'PU-9', name: 'Rectifier 1', station: 'power', kind: 'rectifier', line: 'vat-a2', status: 'run', since: todayIso(), condition: 'fair', addedOn: todayIso(), at: Date.now() });
+    await loadAppWithState(page, s);
+    const r: any = await g(page, `(function () {
+      var B = plnBase(), fix = plnUnitMoveOf('fix:PU-8'), sc = plnScenarioEnsure();
+      sc.plan = { 'fix:PU-8': 0 }; _plnPlanned = null;
+      var P = plnPlanned();
+      return { line: fix.line, share: Math.round(fix.share * 100), barrel: P.months[0].lines.barrel.kgRound - B.lines.barrel.kgRound,
+        a1: P.months[0].lines['vat-a1'].kgRound - B.lines['vat-a1'].kgRound,
+        lines: ['PU-6', 'PU-9'].map(function (id) { return plnUnitLine(pltUnitById(id)); }),
+        shares: [plnUnitShareOf({ id: 'PU-6', line: 'barrel' }), plnUnitShareOf({ id: 'PU-9', line: 'vat-a2' })] };
+    })()`);
+    expect(r.line).toBe('barrel');
+    expect(r.share).toBe(50);
+    expect(r.barrel).toBeGreaterThan(0);
+    expect(r.a1).toBe(0);
+    // A barrel stops a share of the barrel line; a rectifier stops the whole line its field names.
+    expect(r.lines).toEqual(['barrel', 'vat-a2']);
+    expect(r.shares).toEqual([0.5, 1]);
+  });
+
+  test('HCl used a month is read as Stock reads the line, never from a window a bill opens', async ({ page }) => {
+    await loadAppWithState(page, book(false));
+    const r: any = await g(page, `(function () {
+      var t = localDateStr(), d = function (n) { return isoAddDays(t, -n); }, e = function (id, kind, qty, date) { return { id: id, itemId: 'ST-HCL', kind: kind, qty: qty, date: date, at: Date.now() }; };
+      S.stock = { items: [{ id: 'ST-HCL', name: 'HCL', unit: 'L', active: true }], pastes: [],
+        entries: [e('E1', 'bill', 2000, d(50)), e('E2', 'used', 100, d(4)), e('E3', 'used', 100, d(3)), e('E4', 'used', 100, d(2))] };
+      var h = plnHclMonth(), v = plnInputVals('pickAcid'), rate = stockRate(S.stock.items[0]);
+      // With no use recorded, what came in, an estimate.
+      S.stock.entries = [e('E5', 'bill', 2000, d(50)), e('E6', 'received', 600, d(20))];
+      var h2 = plnHclMonth(), v2 = plnInputVals('pickAcid');
+      return { l: h.l, fromRate: Math.round(rate.rate * 26), src: v._src.hclL, l2: h2.l, src2: v2._src.hclL, came: h2.came };
+    })()`);
+    expect(r.l).toBe(2600);
+    expect(r.l).toBe(r.fromRate);
+    expect(r.src).toBe('measured');
+    expect(r.l2).toBe(Math.round(600 * 30 / 21));
+    expect(r.src2).toBe('estimate');
+    expect(r.came).toBe(true);
+  });
+
+  test('the spent acid’s leg saves nothing until the share recovered is set', async ({ page }) => {
+    await loadAppWithState(page, book(false));
+    const r: any = await g(page, `(function () {
+      var p = plnData(); p.cfg.fx = { pickAcid: { hclL: 1000, acidRs: 2, dispKL: 4, dispRs: 500, dispShare: 25 } };
+      var sc = plnScenarioEnsure(); sc.plan = { pickAcid: 0 };
+      _plnBase = null; _plnPlanned = null;
+      var P = plnPlanned();
+      return { m: Math.round(P.months[0].margin - P.base[0].margin), save: plnFx('pickAcid').acidSave, say: plnSay('pickAcid') };
+    })()`);
+    expect(r.m).toBe(0);
+    expect(r.save).toBe(0);
+    expect(r.say).toMatch(/not worked out/);
+  });
+
+  test('a unit on standby fails only at a risk typed on it', async ({ page }) => {
+    const s: any = book();
+    const tank = s.plant.units.find((u: any) => u.id === 'PU-5');
+    tank.status = 'standby';
+    await loadAppWithState(page, s);
+    const r: any = await g(page, `(function () {
+      var ev = function (T) { return T.all.reduce(function (n, x) { return n + x.events.filter(function (e) { return /a heater|breaks down/.test(e[1]); }).length; }, 0); };
+      var none = ev(plnTrials());
+      pltUnitById('PU-5').risk = { p: 0.5, days: 1, cost: 0, say: 'a heater fails' }; _plnBase = null; _plnPlanned = null;
+      return { none: none, typed: ev(plnTrials()) };
+    })()`);
+    expect(r.none).toBe(0);
+    expect(r.typed).toBeGreaterThan(0);
+  });
+
   test('acid recovery adds nothing until its figures are set, then the acid and the spent acid it saves', async ({ page }) => {
     await loadAppWithState(page, book(false));
     const r: any = await g(page, `(function () {

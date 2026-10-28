@@ -33,18 +33,19 @@ var PLN_STATIONS = [
   // prerequisite of ISO 9001 and CQI-11.
   { id: 'pick', name: 'Pickling', levels: [{ t: 'As it runs' },
     { id: 'pickHood', t: 'Fume extraction and scrubber', cost: null, alone: true, gate: ['iso', 'cqi'],
-      req: 'A hood over the HCl tanks, a duct to a wet scrubber outside the room and a blower on its own supply; the scrubber’s water goes to the effluent plant. The pollution board’s consent to operate, not yet held, would name it.',
+      req: 'A hood over the HCl tanks, a duct to a wet scrubber outside the room and a blower on its own supply; the scrubber’s water goes to the effluent plant. The pollution board’s consent to operate would name it.',
       inputs: [{ key: 'runMo', label: 'Running cost a month (the blower’s power, the scrubber’s water)', unit: '₹', def: 4000 }],
       say: 'acid fumes taken out at the tank; the plan puts it before ISO 9001 and CQI-11 (owner, 28 Oct 2026)' },
     { id: 'pickAcid', t: 'Acid recovery', cost: null, alone: true,
-      req: 'A recovery unit beside the pickling tanks (membrane or retardation), a pump and a holding tank, power and water, and a hand to run it each shift; it treats the spent acid before what is left goes to the waste contractor.',
+      req: 'A recovery unit beside the pickling tanks (membrane or retardation), a pump and a holding tank, power and water, and a hand to run it each shift; it treats the spent acid before what is left goes where spent acid goes now.',
       inputs: [{ key: 'hclL', label: 'HCl used a month', unit: 'L', def: 'stock' }, { key: 'share', label: 'Share of it recovered', unit: '%', def: null },
         { key: 'acidRs', label: 'What a litre of HCl costs, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
         { key: 'dispRs', label: 'What sending a KL away costs', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
         { key: 'runMo', label: 'Running cost a month (its power, water, the hand’s time)', unit: '₹', def: null }],
-      // The acid recovered and the spent acid no longer sent away are two shares: what is left still goes to the contractor.
+      // The acid recovered and the spent acid no longer sent away are two shares, and what is left still goes where it goes now.
+      // Nothing is saved until the share recovered is set, the spent acid's leg included: the option says it is not worked out.
       fxOf: function(v) {
-        var sh = v.share > 0 ? Math.min(100, v.share) / 100 : 0, ds = v.dispShare > 0 ? Math.min(100, v.dispShare) / 100 : 0;
+        var sh = v.share > 0 ? Math.min(100, v.share) / 100 : 0, ds = sh && v.dispShare > 0 ? Math.min(100, v.dispShare) / 100 : 0;
         return { acidSave: sh * (v.hclL || 0) * (v.acidRs || 0) + ds * (v.dispKL || 0) * (v.dispRs || 0), runMo: v.runMo || 0, acidL: sh * (v.hclL || 0), acidKL: ds * (v.dispKL || 0) };
       },
       sayOf: function(v, fx) {
@@ -159,24 +160,31 @@ function plnOption(id) {
   PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.id === id) r = lv; }); });
   return r || PLN_TECH.find(function(t) { return t.id === id; }) || null;
 }
-/* HCl used a month over the 90 days to today, from the stock record: the uses and charges of a line named for it, else what
-   came in (the acid is drawn as it arrives). Null where no such line is recorded. */
+/* HCl used a month, read as the line's own page reads it (stockPattern): its use a day (stockRate: the uses and charges over
+   its last three weeks of record ÷ the working days they cover) × 26, summed over the lines named for it. A bill or a count
+   never starts the record (Vulcanus, 28 Oct 2026: a bill seven weeks before the first use had halved the month). With no use
+   recorded, what came in over the 90 days from its first delivery, an estimate: acid received is not acid used. Null where no
+   such line is recorded. */
 function plnHclMonth() {
   // A line kept in another unit than litres is not read (a kilo of acid is not a litre).
   var st = S && S.stock ? S.stock : {}, items = (st.items || []).filter(function(it) { return it && /\bHCL\b|HYDROCHLOR/i.test(String(it.name || '')) && /^(l|ltr|litre|liter|lit)s?$/i.test(String(it.unit || 'L').trim()); });
-  if (!items.length) return null;
-  var ids = {}; items.forEach(function(it) { ids[it.id] = 1; });
-  var today = localDateStr(), from = isoAddDays(today, -89), used = 0, came = 0, any = false, first = today;
-  (st.entries || []).forEach(function(e) {
-    if (!e || e.voided || !ids[e.itemId] || !e.date || e.date < from || e.date > today) return;
-    var q = Number(e.qty) || 0;
-    if (e.kind === 'used' || e.kind === 'charged') { used += q; any = true; } else if (e.kind === 'received') { came += q; any = true; }
-    if (e.date < first) first = e.date;
+  if (!items.length || !Array.isArray(st.entries) || !Array.isArray(st.pastes)) return null;
+  var perDay = 0, covered = 0, rated = false;
+  items.forEach(function(it) {
+    var r = typeof stockRate === 'function' ? stockRate(it) : null;
+    if (r && r.rate > 0) { perDay += r.rate; covered = Math.max(covered, r.days); rated = true; }
   });
-  if (!any) return null;
-  // A month is 30 days of what the record covers, never the window's 90 where the record began within it.
+  if (rated) return { l: Math.round(perDay * 26), from: 'its uses', days: covered, part: covered < 3, came: false };
+  var ids = {}; items.forEach(function(it) { ids[it.id] = 1; });
+  var today = localDateStr(), from = isoAddDays(today, -89), came = 0, first = null;
+  st.entries.forEach(function(e) {
+    if (!e || e.voided || !ids[e.itemId] || e.kind !== 'received' || !e.date || e.date < from || e.date > today) return;
+    came += Number(e.qty) || 0;
+    if (!first || e.date < first) first = e.date;
+  });
+  if (!first) return null;
   var days = Math.max(1, isoDaysBetween(first, today) + 1);
-  return { l: Math.round((used > 0 ? used : came) * 30 / days), from: used > 0 ? 'its uses' : 'what came in', days: days, part: days < 28 };
+  return { l: Math.round(came * 30 / days), from: 'deliveries', days: days, part: true, came: true };
 }
 /* The excess-load penalty the bills carry (Power → Load & bills): the median of the last six bills that state one, from the
    month the load was approved where it is recorded; nothing once the approved load is on the bill (owner, 28 Oct 2026). */
@@ -229,15 +237,20 @@ function plnCostToSet(lv) { var c = plnCfg().costs[lv.id]; return lv.cost == nul
    of work is a Repair move that brings its share of the line back and ends its risk; one marked not coming back is a Sale. A
    running unit in need of work or ageing, with no risk typed on it, may fail in the trials (PLN_RISK_DEFAULT, an estimate). */
 var PLN_RISK_DEFAULT = { needs: { p: 0.05, days: 3 }, ageing: { p: 0.02, days: 2 } };
+/* A tank or barrel at a line's station plates on that line, as the plant register groups a line's units (pltCapacity); the
+   unit's "Line it stops when it fails" (pltLineOf) is read only for a supporting unit, a rectifier or another kind (Vulcanus,
+   28 Oct 2026: two barrels whose field named VAT A1 had each brought back two thirds of VAT A1's round). */
+function plnUnitPlates(u) { return !!u && (!u.kind || u.kind === 'tank' || u.kind === 'barrel') && !!(PLT_LINE_STATIONS[u.station] || u.station === 'pick'); }
+function plnUnitLine(u) { return !u ? '' : plnUnitPlates(u) ? u.station : pltLineOf(u) || (u.station === 'pick' ? 'pick' : ''); }
 function plnUnitMoves() {
   if (typeof pltUnits !== 'function') return [];
   var out = [];
   // A line's units are the tanks and barrels that plate on it (a rectifier is not a share of the round).
-  var plating = function(u, line) { return (pltLineOf(u) || (u.station === 'pick' ? 'pick' : '')) === line && (!u.kind || u.kind === 'tank' || u.kind === 'barrel'); };
+  var plating = function(u, line) { return plnUnitPlates(u) && u.station === line; };
   pltUnits().forEach(function(u) {
     var down = !pltAvailable(u.status || 'run'), needs = u.condition === 'needs';
     if (!down && !needs) return;
-    var line = pltLineOf(u) || (u.station === 'pick' ? 'pick' : ''), share = 0, basis = '';
+    var line = plnUnitLine(u), share = 0, basis = '';
     if (down && line && !u.gone && plating(u, line)) {
       var all = pltUnits().filter(function(x) { return plating(x, line); }), work = all.filter(function(x) { return pltAvailable(x.status || 'run'); });
       var byKg = all.length && all.every(function(x) { return +x.kgRound > 0; }), kg = function(l) { return l.reduce(function(t, x) { return t + (+x.kgRound || 0); }, 0); };
@@ -257,8 +270,8 @@ function plnUnitMoves() {
    2026). A rectifier or a unit of another kind stops the whole line it feeds. */
 function plnUnitShareOf(x) {
   var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
-  if (!u || !x.line || (u.kind && u.kind !== 'tank' && u.kind !== 'barrel')) return 1;
-  var all = pltUnits().filter(function(y) { return pltLineOf(y) === x.line && (!y.kind || y.kind === 'tank' || y.kind === 'barrel') && pltAvailable(y.status || 'run'); });
+  if (!u || !x.line || !plnUnitPlates(u)) return 1;
+  var all = pltUnits().filter(function(y) { return plnUnitPlates(y) && y.station === x.line && pltAvailable(y.status || 'run'); });
   if (!all.length) return 1;
   var byKg = all.every(function(y) { return +y.kgRound > 0; }), tot = all.reduce(function(t, y) { return t + (+y.kgRound || 0); }, 0);
   return byKg && tot > 0 ? (+u.kgRound || 0) / tot : 1 / all.length;
@@ -282,7 +295,7 @@ function plnBaseKey() {
   var pr = S.production && Array.isArray(S.production.entries) ? S.production.entries.length : 0;
   return [plnPeriod().from, typeof _bookWrites !== 'undefined' ? _bookWrites : 0, (S.invoices || []).length, (S.creditNotes || []).length, pr, (S.costBills || []).length, ((S.bank || {}).rows || []).length,
     Object.keys(S.attendance || {}).length, ((S.stock || {}).entries || []).length, JSON.stringify(plnRead().cfg || {}),
-    typeof pltUnits === 'function' ? pltUnits().map(function(u) { return [u.id, u.station, u.status, u.kgRound, u.condition, u.gone ? 1 : 0].join(':'); }).join(',') : ''].join('|');
+    typeof pltUnits === 'function' ? pltUnits().map(function(u) { return [u.id, u.station, u.kind || '', u.status, u.kgRound, u.condition, u.gone ? 1 : 0].join(':'); }).join(',') : ''].join('|');
 }
 /* Rounds a day and minutes between them on a line, from the production register's rounds (days with 10+ rounds). */
 function plnClock(t) {
@@ -741,11 +754,14 @@ function plnAttribution(m, mode) {
 function plnRng(seed) { return function() { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }; }
 function plnTrials() {
   var sc = plnScenario(), B = plnBase(), L = plnMoves(sc), r = plnRng(20261006), all = [], g = plnGoal(sc);
-  // A running unit in need of work or ageing, with no risk typed on it, may fail at the catalogue's chance (an estimate).
-  // A unit not working cannot fail; a unit sold is gone.
+  // A running unit in need of work or ageing, with no risk typed on it, may fail at the catalogue's chance (an estimate); a
+  // unit on standby fails only at a risk the owner typed on it. A unit not working cannot fail; a unit sold is gone. A tank or
+  // barrel stops a share of its own station's line (plnUnitLine), never the line its "stops when it fails" field names.
   var machines = plnLive('machines').filter(function(x) { return (x.status || 'run') === 'run' || x.status === 'standby'; }).map(function(x) {
+    var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
+    if (u) x = Object.assign({}, x, { line: plnUnitLine(u) || null });
     if (x.risk && +x.risk.p > 0) return x;
-    var d = (x.status || 'run') === 'run' || x.status === 'standby' ? PLN_RISK_DEFAULT[x.state] : null;
+    var d = (x.status || 'run') === 'run' ? PLN_RISK_DEFAULT[x.state] : null;
     return d ? Object.assign({}, x, { risk: { p: d.p, cost: 0, days: d.days, say: x.needs || 'breaks down', assumed: true } }) : x;
   }).filter(function(x) { return x.risk && +x.risk.p > 0; });
   var fixAt = function(ready, station, id) {

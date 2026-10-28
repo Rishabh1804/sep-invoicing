@@ -466,7 +466,7 @@ var KB_APP_GUIDES = [
     '- Upgrade costs are estimates until a quote replaces them. Tap a level to see what it needs, each figure it rests on (**set**, **measured**, **estimate** or **not set**) and what it adds to the month. Set the cost with **Cost** and the other figures with **Set figures**.\n' +
     '- **Acid recovery** adds nothing until you set the share it recovers. Its saving is the acid it saves and the spent acid not sent away. **Fume extraction and scrubber** has its own row: ISO 9001 and CQI-11 need it.\n' +
     '- **The approved load on the bill** saves the excess-load penalty that the bills on Power → Load & bills state. The planner takes the middle of the last six. Enter the penalty on each bill to keep it right.\n' +
-    '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead.\n' +
+    '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead. A tank or barrel counts on the line of its own station. The field **Line it stops when it fails** is for a rectifier or another machine.\n' +
     '- **Make the report** prints the plan for a lender or a meeting.',
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
     // card and More (TM2d).

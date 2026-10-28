@@ -2425,7 +2425,14 @@ batches ("9312-45 KG GAMMA I BOLLT 35 KG", split after a figure followed by a na
 a batch with none (amber); "OMEGA 1 BERRAL+ GAMMA 1 BERRAL" a batch each, counted in barrels and asked; LOADING TIME and what follows
 it listed, never counted (it is counted when the next list unloads it); "----and----" the end; a power cut and its return. A list sent the
 next morning reads its times with no help from when it was sent. The April log, with no figure beside an unload and no dashed blocks, is
-still only listed. On the owner's lists of 12, 13 and 15 Oct: 20 batches and one cut.
+still only listed. On the owner's lists of 12, 13 and 15 Oct: 20 batches and one cut. **A count in barrels led by a part's code** (owner,
+28 Oct 2026, on an entry the reader had taken as one item: a line `0777-3 BERRAL+ KESTREL 65 KG` had read as the first client's 65 kg
+under the part "0777-3 BERRAL+ KESTREL", the three barrels counted for nothing): the count before BERRAL is a batch of the client
+written before it, or of the group's client where a part's code alone leads it, with no figure, asked (`barrels` on the entry, shown on
+its fold and kept by Correct). After the last count: a client's figure is that client's lot; a name the book does not hold, with a
+figure, is asked (red), never the first client's, since a spelling the matcher cannot fold would land the lot on them under a part named
+after the other firm; a part word with no figure ("NOVA 2 BERRAL NATBOLLT", the shop's older habit) is the counted barrels' part; a
+bare figure ("NOVA 2 BERRAL 48 KG") their weight. An entry saved that way before is the owner's to split. P220.
 
 ### The night block's production
 Owner, 16 Oct 2026: *"Parser is not reading night 8 pm to 6 am, the production below it is usually what was plated on the night shift"*

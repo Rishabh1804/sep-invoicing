@@ -125,6 +125,56 @@ Unlod time 10:00am
     expect(old[0].notes.length).toBeGreaterThan(0);
   });
 
+  test('a part code before the barrel count is the group client\'s; what follows the count is another client\'s lot', async ({ page }) => {
+    await load(page);
+    const d = when(-1);
+    const m = await read(page, `${d.dmy}, 9:40 pm - Supervisor: ${d.dmy}/ BERRAL PRODUCTION
+------------------------------------
+DURGA 7314-110 KG 10:20 AM UNLOAD
+------------------------------------
+0777-3 BERRAL+ KESTREL 65 KG
+UNLOAD TIMING 2:40 PM
+------------------------------------
+KESTREL 120 KG 4:10 PM UNLOAD
+------------------------------------
+NOVA 2 BERRAL 48 KG 5:30 PM UNLOAD
+------------------------------------
+NOVA 1 BERRAL NATBOLLT
+VEGA PRESS 2 BERRAL 4206 CLAMP 52 KG
+UNLOAD TIMING 6:15 PM
+------------------------------------
+0777-1 BERRAL+ ZEPHYR 40 KG 7:05 PM UNLOAD
+------------------------------------`);
+    const it = m[0].items;
+    // Read as one item, the second line had been DURGA's 65 kg under the part "0777-3 BERRAL+ KESTREL", its three barrels
+    // counted for nothing and KESTREL's lot taken from them. Now: three barrels of DURGA's 0777 with no figure, asked, and
+    // KESTREL's 65 kg, both out at 2:40. A bare figure after a count is those barrels' own weight; a part word with no
+    // figure is their part; a name the book does not hold, with a figure, is asked, never the group's.
+    expect(it.map((x: any) => [x.clientId, x.part, x.qty, x.unit, x.to])).toEqual([
+      [12, '7314', 110, 'KG', '10:20'],
+      [12, '0777', null, null, '14:40'], [13, '', 65, 'KG', '14:40'],
+      [13, '', 120, 'KG', '16:10'],
+      [11, '', 48, 'KG', '17:30'],
+      [11, 'NATBOLLT', null, null, '18:15'], [15, '4206 CLAMP', 52, 'KG', '18:15'],
+      [15, '0777', null, null, '19:05'], [null, '', 40, 'KG', '19:05']]);
+    expect(it[1].codes).toContain('amber:barrels');
+    expect(it[2].codes).not.toContain('amber:barrels');
+    expect(it[4].codes).not.toContain('amber:barrels');
+    expect(it[5].codes).toContain('amber:barrels');
+    expect(it[5].codes).not.toContain('info:nopart');
+    expect(it[6].codes).not.toContain('amber:barrels');
+    expect(it[8].codes).toContain('red:client');
+    const raw = await page.evaluate((t) => {
+      const ev = (0, eval);
+      return ev('parseProdPaste')(t, ev('prodCtx()'))[0].read.items.map((x: any) => [x.barrels || null, x.client]);
+    }, `${d.dmy}, 9:40 pm - Supervisor: ${d.dmy}/ BERRAL PRODUCTION
+------------------------------------
+0777-3 BERRAL+ ZEPHYR 65 KG
+UNLOAD TIMING 2:40 PM
+------------------------------------`);
+    expect(raw).toEqual([[3, ''], [null, 'ZEPHYR']]);
+  });
+
   test('stock lines: a use by bath with its total, by time of day, a minus typed for "=", a name before two figures', async ({ page }) => {
     await load(page);
     expect(await line(page, '106 70 KG USE V A 1 30 KG +V A 2 20 KG= 50 KG 70-50=20 KG AVAILABLE'))

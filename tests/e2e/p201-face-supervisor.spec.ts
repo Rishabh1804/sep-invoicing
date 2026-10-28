@@ -45,7 +45,8 @@ async function withSupervisor(page: Page) {
   await page.reload();
   await waitForBoot(page);
 }
-const mark = (page: Page, id: number) => ev(page, `(S.attendance['${today}'] || { marks: {} }).marks[${id}] || null`);
+// A mark as the roll wrote it: who entered it and who changed it (tagIn, tagCh: P244) are read apart, below.
+const mark = (page: Page, id: number) => ev(page, `(function (m) { if (!m) return null; var o = Object.assign({}, m); delete o.tagIn; delete o.tagCh; return o; })((S.attendance['${today}'] || { marks: {} }).marks[${id}])`);
 
 test.describe('P201: the supervisor’s face', () => {
   test.beforeEach(async ({ page }) => {
@@ -87,6 +88,8 @@ test.describe('P201: the supervisor’s face', () => {
     expect(await mark(page, 4)).toMatchObject({ st: 'A' });
     expect(await mark(page, 5)).toMatchObject({ st: 'P', area: 'pickling-vat' });
     expect(await mark(page, 6)).toEqual({ st: 'P', area: 'office', hours: 8, ot: 0, inMin: 510, outMin: 1020 });
+    // Saved on Mine by the supervisor signed in: the mark is entered by that ID.
+    expect(await ev(page, `S.attendance['${today}'].marks[6].tagIn && S.attendance['${today}'].marks[6].tagIn.by`)).toBeTruthy();
     expect(await mark(page, 7)).toMatchObject({ st: 'P', area: 'gate', hours: 12 });
     expect(await mark(page, 8)).toMatchObject({ st: 'P', area: 'vat-a2' });
     const extra = await ev(page, `S.attendance['${today}'].extra.map(function(x){ return [x.kind, (x.areas || [x.area]).join('+'), x.hours, x.from || '', x.to || '', (x.crew || []).join(',')]; })`);

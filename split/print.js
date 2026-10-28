@@ -304,6 +304,9 @@ function closePrintPreview() {
   _printNeed = null;
   if (typeof idcPrintDiscard === 'function') idcPrintDiscard();   // ID card numbers previewed and not printed are not given
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
+  // Closed, the document leaves the page: hidden is not gone, and a preview closed when another ID signs in (guard.js grdAfterUser)
+  // must not stay in the page for that ID, a pay slip's wages among it (Castor H-1 on #162). Every preview draws its own again.
+  document.getElementById('invPrintBody').innerHTML = '';
   document.body.style.overflow = '';
   // Restore page title
   if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }

@@ -558,7 +558,7 @@ function renderPower() {
   if (_powerTabMoved) { _powerTabMoved = false; viewTop(); }
   // A case open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-power-case]')) { body.innerHTML = powerCaseHtml(a); printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-case]')) { body.innerHTML = powerCaseHtml(a); printFit(); }
 }
 
 /* The month on record so far: its cuts, dark minutes, the ones with no time back, their cost and its recorded days. */

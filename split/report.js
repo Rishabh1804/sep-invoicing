@@ -604,7 +604,7 @@ function renderReports() {
   paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
 }
 
 window.addEventListener('resize', function() { var s = document.getElementById('rptSheet'); if (s && s.offsetParent) paperFit(s); });
@@ -616,7 +616,10 @@ function rptPrint() {
   body.innerHTML = rptHtml(p.kind, p.from);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
-  printNeed({ pages: ['pageReports'] });
+  // A report of the current period carries the sender's own open tasks (rptOpenHtml reads todoRanked as this ID sees it): another
+  // ID opens it from the office's queue only where it sees the same, the owner's tasks the owner's (Iuno M-2 on #162).
+  var today = localDateStr(), current = p.from <= today && p.to >= today;
+  printNeed({ pages: ['pageReports'], owner: current && grdIsOwner(), wages: current && grdSeesWages() });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

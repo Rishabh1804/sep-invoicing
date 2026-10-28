@@ -35,13 +35,17 @@ function prtLightSees() {
    it here: "That's definitely not acceptable"): its document is one their own screens open. The job says what that takes
    (print.js printNeed, kept by prtSend): the pages its screen is on, and wages, money, a permission or the owner. A job that does
    not say (sent by a build before jobs did) is the owner's. With the guard off everyone is the owner. */
+var PRT_NEED_KEYS = { pages: 1, wages: 1, money: 1, may: 1, owner: 1 };
 function prtJobOpens(need) {
   if (typeof grdOn !== 'function' || !grdOn()) return true;
   var u = grdUser();
   if (!u) return false;
   if (u.role === 'owner') return true;
   if (!need || typeof need !== 'object' || need.owner) return false;
-  if ((Array.isArray(need.pages) ? need.pages : []).some(function(p) { return !grdSees(p); })) return false;
+  // A need this build cannot read (a key a later build added, pages not a list) is refused: a device on an older build never
+  // opens what it cannot judge (Castor L-3 on #162).
+  if (Object.keys(need).some(function(k) { return !PRT_NEED_KEYS[k]; }) || (need.pages != null && !Array.isArray(need.pages))) return false;
+  if ((need.pages || []).some(function(p) { return !grdSees(p); })) return false;
   if (need.wages && !grdSeesWages()) return false;
   if (need.money && !grdSeesMoney()) return false;
   if (need.may && !grdCan(need.may)) return false;
@@ -267,6 +271,7 @@ function prtLightDialogInner() {
 }
 /* A waiting job cancelled from the dialog: taken off the queue (remoteprint.js prtCancel), then the light read again. */
 function prtLightCancel(id) {
+  if (!prtJobMine(id)) return;   // drawn only for the jobs this ID opens; a stale button does nothing
   prtCancel(id).then(function() { return prtLightRead(true); }).catch(function(e) { showToast(e.message || String(e), 'error'); });
 }
 
@@ -274,12 +279,16 @@ function prtLightCancel(id) {
    Each is taken off the queue before it prints, so the station never prints it too (a delete that finds it gone: the station had
    it first), and drawn in this device's preview, whose Print prints it. Closing that preview asks whether it printed: if not, it
    goes back on the queue under its own name, so it keeps its place. Then the next, oldest first. */
-var _prtHere = null;   // {left: jobs still to take, job: {id, data} taken off the queue and not yet settled}
+var _prtHere = null;   // {left: jobs still to take, job: {id, data} taken off the queue and not yet settled, skip, by: the ID that took them}
+function prtHereWho() { return typeof grdUserId === 'function' ? grdUserId() : null; }
+/* A job taken off the queue is in the preview: the redraws that keep a preview of this device's own document current pass it by
+   (report.js, power.js, planview.js). */
+function prtHereShowing() { return !!(_prtHere && _prtHere.job); }
 function prtHereStart() {
   var r = prtLightLoad(), all = r && r.ok && r.jobs ? r.jobs : [], n = all.filter(function(j) { return prtJobMine(j.id); }).length;
   if (!n) { showToast(all.length ? 'Your ID doesn’t open the jobs waiting' : 'Nothing is waiting at the office', 'info'); return; }
   closeOverlay();
-  _prtHere = { left: n, job: null, skip: {} };
+  _prtHere = { left: n, job: null, skip: {}, by: prtHereWho() };
   prtHereNext();
 }
 async function prtHereNext() {
@@ -309,12 +318,16 @@ async function prtHereNext() {
     prtLightRead(true).catch(function() {});
     return;
   }
+  // Another ID signed in while the job was being taken: the run is not theirs, so the job goes back unshown.
+  if (!_prtHere || _prtHere.by !== prtHereWho()) { _prtHere = null; prtHereReturn({ id: job.id, data: data }); return; }
   _prtHere.left--;
   _prtHere.job = { id: job.id, data: data };
   prtHereShow(_prtHere.job);
   prtLightRead(true).catch(function() {});
 }
 function prtHereShow(held) {
+  // The one place a queued job is drawn: never for an ID it does not open (prtJobOpens). It goes back on the queue instead.
+  if (!prtJobOpens(held.data.need)) { if (_prtHere) _prtHere.job = null; prtHereReturn(held); return; }
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   _printInvId = null;   // a job from the queue is no invoice of this preview's: its Print marks nothing Printed here
   printNeed(held.data.need);   // sent to the office again, it keeps what it needs
@@ -330,13 +343,32 @@ function prtHereClosed() {
   if (!_prtHere) return;
   var held = _prtHere.job;
   _prtHere.job = null;
+  // Another ID signed in over the run (guard.js grdAfterUser closes the preview): it is not asked about a job it may not open, and
+  // the run does not go on for it. The held job goes back on the queue, unasked, under its own name (Castor H-1 on #162).
+  if (_prtHere.by !== prtHereWho()) { _prtHere = null; if (held) prtHereReturn(held); return; }
   if (!held) { if (_prtHere.left > 0) prtHereNext(); else { _prtHere = null; prtLightRead(true).catch(function() {}); } return; }
   uiConfirm({ title: 'Did it print?', okLabel: 'It printed', cancelLabel: 'Put it back',
     body: String(held.data.title || 'The job') + ' came off the office queue to print here. If it did not print, put it back: the station prints it when it is on.' })
-    .then(function(ok) { return ok ? true : prtHereBack(held); })
+    .then(function(ok) {
+      // Another ID signed in while it asked (grdAfterUser shuts the question): the job goes back unasked, and the run ends.
+      if (_prtHere && _prtHere.by !== prtHereWho()) { _prtHere = null; prtHereReturn(held); return false; }
+      return ok ? true : prtHereBack(held);
+    })
     .then(function(go) {
-      if (go === false) return;   // not put back: its preview is open again, held
-      if (_prtHere && _prtHere.left > 0) prtHereNext(); else { _prtHere = null; prtLightRead(true).catch(function() {}); }
+      if (go === false) return;   // not put back: its preview is open again, held (or the run has ended)
+      if (_prtHere && _prtHere.by === prtHereWho() && _prtHere.left > 0) prtHereNext(); else { _prtHere = null; prtLightRead(true).catch(function() {}); }
+    });
+}
+/* A held job back on the queue with nothing asked or shown: where the write fails it waits a minute and tries again, held in memory
+   and never drawn, for half an hour; then it says, without the job's title, that a job could not go back. */
+function prtHereReturn(held, tries) {
+  var cfg = getGhConfig(), n = tries || 0;
+  ghRequest(prtJobUrl(cfg, held.id), { method: 'PUT', body: { message: 'Put back on the queue: ' + String(held.data.title || held.id).slice(0, 100),
+    content: ghEncode(JSON.stringify(held.data)), branch: cfg.branch } })
+    .then(function() { prtLightRead(true).catch(function() {}); })
+    .catch(function() {
+      if (n < 30) setTimeout(function() { prtHereReturn(held, n + 1); }, 60000);
+      else showToast('A print job taken off the office queue could not go back on it. Its sender can send it again.', 'warning');
     });
 }
 /* Back on the queue under its own name; where that fails, its preview opens again, still held, to print or send. */
@@ -348,8 +380,10 @@ async function prtHereBack(held) {
     showToast('Put back on the queue: the station prints it when it is on', 'success');
     return true;
   } catch (e) {
+    // Another ID signed in while it was being put back: not shown to them; held, and tried again.
+    if (!_prtHere || _prtHere.by !== prtHereWho()) { _prtHere = null; prtHereReturn(held); return false; }
     showToast('Not put back: ' + (e.message || e) + ' Print it here, or send it to the office again.', 'error');
-    if (_prtHere) { _prtHere.job = held; prtHereShow(held); }
+    _prtHere.job = held; prtHereShow(held);
     return false;
   }
 }

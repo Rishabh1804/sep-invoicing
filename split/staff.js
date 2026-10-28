@@ -764,15 +764,16 @@ function attWhoHtml(m, sid) {
   var owner = !(typeof grdOn === 'function' && grdOn()) || (typeof grdIsOwner === 'function' && grdIsOwner());
   // With a version held, the standing row says who made the mark: the note would say it twice.
   var h = who && !held.length ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';
-  // The two versions as an analysis (design §6.27): a caption, a fact a row (the mark its figure, who made it under the label),
-  // the owner's two moves a line under them. Never a sentence.
+  // The two versions as an analysis (design §6.27) on a coded card (§3.3 Fills; owner, 28 Oct 2026: "the new options don't carry
+  // the colour codes"): a hero in the warning tone (a question for the owner), a fact a row (the mark its figure in its state's
+  // tone, who made it under the label), the owner's two moves its foot. Never a sentence.
   held.forEach(function(x) {
-    h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-att-held="' + escHtml(x.id) + '">' +
-      '<div class="inv-row-group">' + uiDot('warning', 'Two versions') + (owner ? '' : ' <span class="inv-note">The owner picks</span>') + '</div>' +
-      uiFactRowHtml({ label: 'Standing', sub: lcLead(tagWho(x.kept.v)) || undefined, wrap: true, value: mrgMarkText(x.kept.v), attrs: ' data-att-held-kept' }) +
-      uiFactRowHtml({ label: 'Held from the other phone', sub: lcLead(tagWho(x.other.v)) || undefined, wrap: true, value: mrgMarkText(x.other.v), attrs: ' data-att-held-other' }) +
-      (owner ? '<div class="inv-row-actions inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use the held version</button>' +
-        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeepHere" data-id="' + escHtml(x.id) + '">Keep the standing one</button></div>' : '') + '</div>';
+    h += uiHeroHtml({ tone: 'warning', eyebrow: 'Two versions', title: 'Two phones marked this hand differently',
+      sub: owner ? 'One stands until you pick' : 'The owner picks', open: true,
+      body: '<div class="inv-hero-sheet">' + mrgMarkRowHtml('Standing', x.kept.v, ' data-att-held-kept') + mrgMarkRowHtml('Held from the other phone', x.other.v, ' data-att-held-other') + '</div>',
+      foot: owner ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use held</button>' +
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeepHere" data-id="' + escHtml(x.id) + '">Keep standing</button>' : '',
+      attrs: ' data-att-held="' + escHtml(x.id) + '"' });
   });
   return h;
 }

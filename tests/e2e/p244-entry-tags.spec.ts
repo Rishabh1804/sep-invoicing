@@ -93,8 +93,12 @@ test('a hand’s held version is shown on its day, and the owner uses it there',
   await openAttendance(page, 'day');
   await ev(page, `attEditOpen(21)`);
   const held = page.locator('[data-att-held="MH-1"]');
-  // Two versions as fact rows: the mark its figure, who made it under the label (design §6.27), never a sentence.
+  // Two versions as fact rows on a card in the warning tone (design §6.27, §3.3): the mark its figure in its state's tone, who
+  // made it under the label, never a sentence.
+  await expect(held).toHaveClass(/inv-hero-warning/);
   await expect(held.locator('[data-att-held-kept]')).toContainText('Standing');
+  await expect(held.locator('[data-att-held-kept] .inv-fig-ok')).toHaveText('Present, VAT A1, 8 h');
+  await expect(held.locator('[data-att-held-other] .inv-fig-danger')).toHaveText('Absent, VAT A1');
   await expect(held.locator('[data-att-held-kept] .inv-row-end')).toHaveText('Present, VAT A1, 8 h');
   await expect(held.locator('[data-att-held-kept] .inv-row-meta')).toHaveText('entered by Birsa Munda');
   await expect(held.locator('[data-att-held-other]')).toContainText('Held from the other phone');
@@ -107,5 +111,6 @@ test('a hand’s held version is shown on its day, and the owner uses it there',
   const row = await ev(page, `mrgHeldRowHtml(S.mergeHeld[0])`) as string;
   expect(row).toContain('ALFA KUMAR’s mark on today');
   expect(row).toContain('entered by Chitra Sen');
+  expect(row).toContain('inv-fig-danger">Absent');
   expect(row).not.toContain('tagIn');
 });

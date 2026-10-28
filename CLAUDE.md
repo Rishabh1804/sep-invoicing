@@ -3716,12 +3716,14 @@ build: the people are the book's.
 - **Two phones on one day keep both versions** (owner, 28 Oct 2026: *"Tagging - keep both versions"*). A day's marks merge hand by
   hand (`deep: ['marks']` on the attendance row of `CHG_TRACK`, `mrgDeep`): a hand marked on one phone is taken; a hand both marked
   alike (their stamps aside) is one; a hand both marked differently keeps the owner's, else the later, and **the other version is
-  held whole** (`marks.<id>`), each with its stamp. The hand's day says so as an analysis (design §6.27; the design pass of 28 Oct
-  2026, which found a sentence of 190 characters): a flush panel `data-att-held` captioned *Two versions* (a warning dot), a fact
-  row each (*Standing*, *Held from the other phone*: the mark its figure, `mrgMarkText`, who made it under the label), and the
-  owner's two moves a line under them (`invMrgUseHere`, `invMrgKeepHere`); anyone else reads *The owner picks*. *Held for you* draws
-  a hand's mark the same way: the row names the hand and the day with its moves, and *Stands* and *Held* are fact rows under it
-  (`mrgHeldRowHtml`; a fact row's `wrap` lets the stamp wrap whole). Only Shyam marks attendance for now (owner, 28 Oct 2026), so
+  held whole** (`marks.<id>`), each with its stamp. The hand's day says so as an analysis on a coded card (design §6.27, §3.3; the
+  design pass of 28 Oct 2026 found a sentence of 190 characters, and the owner then found the redraw carried no colour code: *"the
+  new options don't carry the colour codes and it escaped the design pass as well?"*): a hero in the warning tone, `data-att-held`
+  (eyebrow *Two versions*, the title, the sub *One stands until you pick* or *The owner picks*), a fact row each (*Standing*,
+  *Held from the other phone*: the mark its figure in its state's tone, present ok, half warning, absent danger, `mrgMarkRowHtml`;
+  who made it under the label), and the owner's two moves its foot (*Use held*, *Keep standing*: `invMrgUseHere`, `invMrgKeepHere`).
+  *Held for you* draws a hand's mark the same way: the row names the hand and the day with its moves, and *Stands* and *Held* are
+  the same fact rows under it (`mrgHeldRowHtml`; a fact row's `wrap` lets the stamp wrap whole). Only Shyam marks attendance for now (owner, 28 Oct 2026), so
   Deepak's duty is not set.
 - **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device

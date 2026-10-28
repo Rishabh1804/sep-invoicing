@@ -392,6 +392,13 @@ function mrgMarkText(v) {
   var st = { P: 'Present', H: 'Half day', A: 'Absent' }[v.st] || (v.st ? String(v.st) : 'Not marked');
   return [st, v.area && typeof areaLabel === 'function' ? areaLabel(v.area) : '', v.hours ? v.hours + ' h' : '', v.ot ? v.ot + ' h OT' : ''].filter(Boolean).join(', ');
 }
+/* A version of a hand's mark as a fact row: the mark its figure in its state's tone (present ok, half warning, absent danger: the
+   Day board's own coding), who entered and changed it under the label, wrapped whole. */
+function mrgMarkRowHtml(label, v, attrs) {
+  var tone = mrgIsObj(v) && typeof ATT_STATE_TONE !== 'undefined' ? ATT_STATE_TONE[v.st] : null;
+  var who = typeof tagWho === 'function' ? lcLead(tagWho(v)) || undefined : undefined;
+  return uiFactRowHtml({ label: label, sub: who, wrap: true, value: mrgMarkText(v), tone: tone, attrs: attrs });
+}
 function mrgHeldRowHtml(h) {
   var mk = h.coll === 'attendance' && h.field && /^marks\./.test(h.field) ? h.field.slice(6) : null;
   var who = mk != null ? (typeof chgStaffName === 'function' && chgStaffName(mk)) || 'A hand' : '';
@@ -405,11 +412,9 @@ function mrgHeldRowHtml(h) {
   // A hand's mark: the row names the hand and the day, and the two versions are a fact row each under it (the mark its figure, who
   // made it under the label), the moves a line of their own on the phone (design §6.27); a chain of nine lines in the meta before.
   if (mk != null) {
-    var sub = function(v) { return typeof tagWho === 'function' ? lcLead(tagWho(v)) || undefined : undefined; };
     return '<div data-held="' + escHtml(h.id) + '"><div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(why) + ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span><span class="inv-row-end inv-row-actions">' + acts + '</span></div>' +
-      '<div class="inv-row-children">' + uiFactRowHtml({ label: 'Stands', sub: sub(h.kept.v), wrap: true, value: mrgMarkText(h.kept.v) }) +
-      uiFactRowHtml({ label: 'Held', sub: sub(h.other.v), wrap: true, value: mrgMarkText(h.other.v) }) + '</div></div>';
+      '<div class="inv-row-children">' + mrgMarkRowHtml('Stands', h.kept.v) + mrgMarkRowHtml('Held', h.other.v) + '</div></div>';
   }
   return '<div class="inv-row inv-row-2 inv-row-flow" data-held="' + escHtml(h.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(mrgValText(h.kept.v)) + ' · held: ' + escHtml(mrgValText(h.other.v))) +

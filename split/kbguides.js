@@ -581,13 +581,29 @@ var KB_APP_GUIDES = [
     '4. Do not let the computer sleep while the office is open. In Settings → System → Power, set sleep to **Never**.\n\n' +
     '# In the app\n1. In Settings → Connections → **Office printer**, tick **Send prints to the office printer**. The name, the address and the cartridge of the printer are notes for the next person who sets it up.\n' +
     '2. On the station only, tick **This device is the print station**. Tap Save.\n' +
-    '3. Keep the app open on the station. The station looks for jobs every 15 seconds, and when the app comes into view.\n' +
+    '3. Keep the app open on the station. The station looks for jobs every 15 seconds, and when the app comes into view. It checks in every 10 minutes, for the light on Home.\n' +
     '4. On every other device, pull from GitHub once (or wait for the next sync). Then the device knows that the printer is on.\n\n' +
     '# Send a print\n- Open a print preview (an invoice, a credit note, a certificate, a statement, pay slips, a report). Tap **Send to office**.\n' +
     '- **Office printer** in Settings lists what you sent. A job shows **waiting** with **Cancel**, then **printed**. When the station prints a Created invoice, the app marks it **Printed**.\n' +
     '- If a job waits more than 3 minutes, the app asks if the station is on. Make sure that the computer is not asleep and the app is open on it.\n' +
-    '- On the office Wi-Fi, a phone can also use **Print** as before, through the print service of Android.',
-    { roles: ['office'], version: 1 }),
+    '- On the office Wi-Fi, a phone can also use **Print** as before, through the print service of Android.\n\n' +
+    '# The light on Home\n- The masthead on Home shows the print station as a fact, with a dot. Only the owner and the office see it.\n' +
+    '- Green, **Print station on · seen 4:22 PM**: the station checked in within 15 minutes.\n' +
+    '- Amber: a job waits more than 3 minutes, the station is not seen during the shift, or it has an old version.\n' +
+    '- Red: a job waits more than 10 minutes during the shift, or nobody saw the station for 1 hour.\n' +
+    '- Grey: outside the shift, never seen, or this device is offline. Grey never tells you that the station is on.\n' +
+    '- A red light with a job waiting is the first sentence of the masthead and a task on **Needs you**. Its dot blinks until you open it.\n' +
+    '- To open the station, tap its words. You see when it was last seen, when it last printed, and the jobs that wait.\n' +
+    '- NOTE: The station cannot see the paper or the toner. A green light does not tell you that the printer has paper.\n\n' +
+    '# When the station is not on\n1. Open the station from the light. Tap **Print it here**. Each job comes off the queue first, so the station does not print it too.\n' +
+    '2. Print it from the preview, then close the preview. If it did not print, tap **Put it back**. The job goes back in its place.\n' +
+    '- To stop a job, tap **Cancel** beside it.\n' +
+    '- If the station is not on when you tap **Send to office**, the app asks first. Tap **Print here** to print on this device, or **Send anyway**.\n\n' +
+    '# A new version on the station\n- The station loads a new version of the app by itself. It waits until nothing is typed, open, saving or printing.\n' +
+    '- It also waits until 5 minutes after the last touch. So it never reloads while somebody uses it.\n' +
+    '- Until it reloads, the light says **Print station on an old build**, in amber.',
+    // Version 2: the light on Home, the jobs printed here, and the station's own reload (owner, 28 Oct 2026).
+    { roles: ['office'], version: 2 }),
   _kbg('sync', 'Setting up: GitHub sync', 'One book on every device: the token, push, pull and what both changed', [],
     'Each device keeps the book. GitHub sync keeps a copy in a private GitHub repository. Then the phone and the desktop use the same book. The copy is also the backup.\n\n' +
     '# Set it up on a device\n1. In GitHub, make a **fine-grained token** for this repository only, with **Contents: Read and write**. Make 1 token for each device. Then, if you lose a phone, you revoke only the token of that phone.\n' +

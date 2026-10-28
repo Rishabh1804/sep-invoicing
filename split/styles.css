@@ -74,6 +74,8 @@
   --scrim: rgb(0 0 0 / 0.45);
 
   --dur-1: 120ms; --dur-2: 200ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  /* A lamp's blink, once a second (under WCAG's three flashes a second): the print station's light, red, until it is opened. */
+  --dur-blink: 1s;
   --perspective: 75rem;
 
   --touch: 2.75rem;
@@ -434,6 +436,8 @@ body:not(.inv-booted) { pointer-events: none; }
 /* A toast raised from the preview (Send to office: sent, or why not) shows over it. Only a toast: a form dialog left open under a
    preview (a credit note's) stays under it. */
 .inv-print-view-active ~ .inv-toast { z-index: var(--z-over-print); }
+/* …and so does a question asked from it (Send to office while the print station is not on: remoteprint.js prtSend). */
+.inv-print-view-active ~ .inv-scrim-dialog[data-over-print] { z-index: var(--z-over-print); }
 .inv-print-toolbar {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
@@ -3470,6 +3474,16 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
 .inv-mast-facts { grid-area: facts; display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); min-width: 0; margin: 0; padding: 0; list-style: none; }
 .inv-mast-facts > li { min-width: 0; font-size: var(--fs-13); }
 .inv-mast-facts > li.inv-dot { white-space: normal; color: var(--text-1); }
+/* The print station's light (prtlight.js): a fact whose words open the station, read as the fact (as the lead is). */
+.inv-mast-fact { min-width: 0; margin: 0; padding: 0; border: none; background: none; box-shadow: none; color: inherit; font: inherit;
+  text-align: left; cursor: pointer; }
+.inv-mast-fact:hover { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: var(--sp-2); }
+.inv-mast-fact:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-ctl); }
+/* A lamp that blinks (red only, until it is opened): the dot's own mark, never its words; never for reduced motion. */
+@keyframes inv-blink { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: no-preference) {
+  .inv-blink::before { animation: inv-blink var(--dur-blink) steps(1, end) infinite; }
+}
 .inv-mast-act { grid-area: act; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-16); margin-top: var(--sp-2); }
 body.inv-desktop .inv-mast-act > .inv-btn-tint { min-height: var(--sp-32); padding: 0 var(--sp-12); font-size: var(--fs-13); }
 .inv-mast-act > .inv-btn-link { font-size: var(--fs-13); }

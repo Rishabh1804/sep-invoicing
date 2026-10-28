@@ -1,57 +1,24 @@
-import { test, expect, Page, Route } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, todayIso } from './fixtures';
+import { fakeGitHubRepo, statusText } from './prt-github-fixture';
 
 /*
  * P217: the owner's answers of 14 Oct 2026, and remote print.
  * - Remote print (owner: "a remote print option for invoices and anything else that is printed"): a device sends the preview as a
  *   job to the sync repository; the print station prints it and takes it off the queue; the sender learns it printed. GitHub is
- *   a fake held in this file, at the route layer.
+ *   a fake at the route layer (prt-github-fixture.ts: the queue on the sync branch, the station's check-in on its own).
  * - Turnaround: the national and state holidays are not working days (owner: "Yes").
  * (The Office role sees no revenue on Performance: P215, updated.)
  */
 
 const SYNC_KEY = 'sep_inv_github_sync';
 const TOKEN_KEY = 'sep_inv_github_token';
-const CONTENTS = 'https://api.github.com/repos/testowner/testrepo/contents/**';
 
 type Store = Map<string, { sha: string; text: string }>;
-let shaN = 0;
 
-/** A fake of the Contents API over one folder: list, read raw, put, delete. */
-async function fakeGitHub(page: Page, store: Store, log: { method: string; path: string; message?: string }[]) {
-  await page.route(CONTENTS, async (route: Route) => {
-    const req = route.request(), url = new URL(req.url());
-    const path = decodeURIComponent(url.pathname.replace(/^\/repos\/testowner\/testrepo\/contents\//, ''));
-    const m = req.method();
-    if (m === 'GET') {
-      if (store.has(path)) {
-        const f = store.get(path)!;
-        if ((req.headers()['accept'] || '').includes('raw')) { await route.fulfill({ status: 200, contentType: 'text/plain', body: f.text }); return; }
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ type: 'file', name: path.split('/').pop(), sha: f.sha, content: Buffer.from(f.text).toString('base64') }) });
-        return;
-      }
-      const rows = [...store.keys()].filter(k => k.startsWith(path + '/')).map(k => ({ type: 'file', name: k.slice(path.length + 1), path: k, sha: store.get(k)!.sha }));
-      if (rows.length) { await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) }); return; }
-      await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'Not Found' }) });
-      return;
-    }
-    const body = JSON.parse(req.postData() || '{}');
-    log.push({ method: m, path, message: body.message });
-    if (m === 'PUT') {
-      const sha = 'sha' + (++shaN);
-      store.set(path, { sha, text: Buffer.from(body.content, 'base64').toString('utf8') });
-      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ content: { sha } }) });
-      return;
-    }
-    if (m === 'DELETE') {
-      const f = store.get(path);
-      if (!f || f.sha !== body.sha) { await route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ message: 'sha' }) }); return; }
-      store.delete(path);
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ commit: {} }) });
-      return;
-    }
-    await route.fulfill({ status: 405, body: '' });
-  });
+/** The Contents API over the sync branch's folder (the queue), with the station's check-in on its own branch (prt-github-fixture). */
+async function fakeGitHub(page: Page, store: Store, log: { method: string; path: string; message?: string }[], status: Store = new Map()) {
+  await fakeGitHubRepo(page, { main: store, log, status });
 }
 
 async function seedSync(page: Page, extra: Record<string, unknown> = {}) {
@@ -99,7 +66,8 @@ test.describe('P217: remote print and the turnaround’s holidays', () => {
   test('Send to office writes the preview as a job; once the station takes it the sender says printed and marks the invoice Printed', async ({ page }) => {
     const store: Store = new Map(), log: any[] = [];
     await seedSync(page);
-    await fakeGitHub(page, store, log);
+    // The station checked in a minute ago: Send to office sends without asking (P246 holds the question asked otherwise).
+    await fakeGitHub(page, store, log, new Map([['print-status.json', { sha: 'st0', text: statusText(Date.now() - 60000) }]]));
     await loadAppWithState(page, book());
     await page.evaluate(() => (window as any).showPrintPreview('INV-1'));
     await page.locator('#invPrintRemote').click();
@@ -126,7 +94,7 @@ test.describe('P217: remote print and the turnaround’s holidays', () => {
   test('A waiting job can be cancelled from Settings; it is taken off the queue and never prints', async ({ page }) => {
     const store: Store = new Map(), log: any[] = [];
     await seedSync(page);
-    await fakeGitHub(page, store, log);
+    await fakeGitHub(page, store, log, new Map([['print-status.json', { sha: 'st0', text: statusText(Date.now() - 60000) }]]));
     await loadAppWithState(page, book());
     await page.evaluate(() => (window as any).showPrintPreview('INV-1'));
     await page.locator('#invPrintRemote').click();

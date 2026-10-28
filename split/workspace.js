@@ -315,7 +315,7 @@ var WS_GO_PAGE = {
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
   finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance', supplier: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
-  kb: 'pageKnow', todoLearn: 'pageHome'
+  kb: 'pageKnow', todoLearn: 'pageHome', prtLight: 'pageHome'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;

@@ -357,6 +357,8 @@ function todoSees(t) {
   // The knowledge base's (knowledge.js): an approval or a review is the owner's; training is a floor entry made against the
   // roster, which People or Floor shows.
   if (need.indexOf('owner') >= 0 && !grdIsOwner()) return false;
+  // The print station's (prtlight.js): the owner's and the office's, who send to the office printer and see its light.
+  if (need.indexOf('office') >= 0 && !(grdIsOwner() || (grdUser() || {}).role === 'office')) return false;
   if (need.indexOf('floor') >= 0 && !grdCan('floor')) return false;
   if (need.indexOf('roster') >= 0 && !(grdSees('pageStaff') || grdSees('pageFloor'))) return false;
   return todoGoSees(t.go);
@@ -855,6 +857,8 @@ function todoGo(go) {
   closeOverlay();
   switch (go.kind) {
     case 'kb': if (go.id) kbOpenArticle(go.id); else kbGo({ tab: 'pageKnow', v: go.tab || 'start', id: '' }); break;
+    // The print station's light (prtlight.js): its dialog, over whatever is on screen.
+    case 'prtLight': prtLightOpen(); break;
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;

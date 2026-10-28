@@ -7,6 +7,24 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 28 Oct 2026, the second: the print station's light (read this first)
+
+- **A light on Home for the print station** (owner, 28 Oct 2026: *"a blinking light (notification) on the home screen hero card, to show if
+  the kiosk printer machine is connected and online"*; the design pass answered *"1 and 2 - your recommendation / 3 - needs a fail safe"*;
+  `prtlight.js`, P246): one of the masthead's facts, the owner's and the office's, while the office printer is on. Green when the station
+  checked in within 15 minutes; amber when a job waits over 3 minutes, when it has not been seen in the shift, or on an old build; red once a
+  job waits over 10 minutes in the shift or it is unseen for an hour; grey outside the shift, never seen, or offline. Red with a job waiting
+  leads the masthead after money in danger, is a red task on Needs you, and blinks until it is opened. Its dialog lists the jobs, cancels
+  one, and prints them on this device, each taken off the queue first.
+- **Send to office asks first** where the station is not on: *Print here* or *Send anyway*.
+- **The station reloads itself to a new build** only when nothing is typed, open, saving, pushing or printing and nobody has touched it for
+  5 minutes: the one exception to "an open app is never reloaded for a build".
+- **A data flow changed**: the station writes `print-status.json` beside the sync file **on a branch of its own, `print-status`**, every 10
+  minutes (its time, build, device and last print). The branch is made from the sync branch's head and moved back onto it at the first
+  check-in of a month, so it never touches the sync branch and holds a month of commits at most. The compile session should ignore it,
+  and a site the sync repository deploys must leave it out: soma-internal's `web/vercel.json` does (`git.deploymentEnabled`).
+- ⚠ **Not tried on the office computer**: the specs fake GitHub. The owner's first look at the light with the station on is the check.
+
 ## Built 28 Oct 2026: who entered it, both versions kept, Power's PIN (read this first)
 
 - **Who entered it and who changed it** (owner, 26 Oct 2026: *"tag their IDs and show who updated what"*; P244): every stock entry,

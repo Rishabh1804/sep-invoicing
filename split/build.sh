@@ -93,6 +93,7 @@ JS_SOURCES=(
     "$DIR/widgets.js" \
     "$DIR/widgetcards.js" \
     "$DIR/feeds.js" \
+    "$DIR/prtlight.js" \
     "$DIR/faces.js" \
     "$DIR/facesheet.js" \
     "$DIR/flow.js" \

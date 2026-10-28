@@ -14,7 +14,11 @@
    The printer's own details (its name, its address on the Wi-Fi, the cartridge it takes) are the book's (`S.printer`), typed in
    Settings → Connections → Office printer: nothing about the shop is in this build. A job's HTML is the sender's own document and is
    cleaned before it is drawn (`prtClean`: no script, frame, form or handler survives). An invoice sent while Created is marked
-   Printed on the sending device once the station has taken it, as Print marks it (print.js printMarkPrinted). */
+   Printed on the sending device once the station has taken it, as Print marks it (print.js printMarkPrinted).
+   THE STATION CHECKS IN every 10 minutes (owner, 28 Oct 2026, for the light on Home: prtlight.js): `print-status.json` on a branch of
+   its own, `print-status`, made from the sync branch and moved back onto it at the first check-in of a month, so its commits never
+   pile up and never touch the sync branch. A website the sync repository deploys must leave that branch out (soma-internal's
+   web/vercel.json does). And it reloads itself to a new build only when nothing is typed, saving or printing (prtReloadMaybe). */
 
 var PRT_DIR = 'print-queue';
 var PRT_STATION_KEY = 'sep_inv_print_station';
@@ -24,6 +28,12 @@ var PRT_POLL_MS = 15000;          // the station's look at the queue while the a
 var PRT_SENT_POLL_MS = 20000;     // the sender's look while a job of its own waits
 var PRT_LATE_MS = 3 * 60000;      // a job waiting longer than this says the station may be off
 var PRT_MAX_HTML = 4 * 1024 * 1024;
+var PRT_STATUS_BRANCH = 'print-status';
+var PRT_STATUS_FILE = 'print-status.json';
+var PRT_BEAT_MS = 10 * 60000;     // the station checks in this often
+var PRT_RELOAD_IDLE_MS = 5 * 60000;   // left alone this long before it reloads itself to a new build
+// The light's states (prtlight.js) in which a job sent now would wait, so Send to office asks first.
+var PRT_ASK_STATES = { waiting: 1, stuck: 1, unseen: 1, down: 1, off: 1, never: 1 };
 
 function prtCfg() {
   var p = (S && S.printer) || {};
@@ -70,6 +80,118 @@ async function prtDelete(cfg, job, message) {
   await ghRequest(prtJobUrl(cfg, job.id), { method: 'DELETE', body: { message: message, sha: job.sha, branch: cfg.branch } });
 }
 
+/* ---- The station's check-in (the light on Home reads it: prtlight.js) ---- */
+function prtRepoUrl(cfg) { return 'https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo); }
+function prtRefPath(branch) { return String(branch).split('/').map(encodeURIComponent).join('/'); }
+/* The status file sits beside the sync file, on its own branch. */
+function prtStatusUrl(cfg) {
+  var dir = cfg.path.split('/').slice(0, -1).filter(Boolean).concat([PRT_STATUS_FILE]);
+  return prtRepoUrl(cfg) + '/contents/' + dir.map(encodeURIComponent).join('/');
+}
+var _prtBeatAt = 0, _prtBeatTry = 0, _prtBeatSha = null, _prtBeatMonth = '', _prtBeatBusy = false, _prtBeatErr = '';
+/* The sync branch's latest commit: the status branch is made from it, and moved back onto it each month. */
+async function prtBranchHead(cfg) {
+  var r = await ghRequest(prtRepoUrl(cfg) + '/git/ref/heads/' + prtRefPath(cfg.branch));
+  if (!r || !r.object || !r.object.sha) throw new Error('GitHub did not say where ' + cfg.branch + ' is');
+  return r.object.sha;
+}
+/* What the status file holds now: its sha and the month its branch was made in; null where the file, or its branch, is not there. */
+async function prtBeatRead(cfg) {
+  try {
+    var f = await ghRequest(prtStatusUrl(cfg) + '?ref=' + encodeURIComponent(PRT_STATUS_BRANCH));
+    var data = null;
+    try { data = JSON.parse(ghDecode(f.content || '')); } catch (e) { data = null; }
+    return { sha: f.sha, month: data && data.month || '' };
+  } catch (e) { if (e.status === 404) return null; throw e; }
+}
+/* One check-in: the time, the build, when it last printed. The branch is made where it is missing; at a new month it is moved back
+   onto the sync branch (forced), so it holds a month of check-ins at most. Called on every look at the queue; it writes only every
+   PRT_BEAT_MS, and after a failure tries again a minute later. */
+async function prtBeat(force) {
+  if (_prtBeatBusy || !prtIsStation() || !prtCfg().on || prtSendBlocked()) return false;
+  var now = Date.now();
+  if (!force && (now - _prtBeatAt < PRT_BEAT_MS || now - _prtBeatTry < 60000)) return false;
+  _prtBeatBusy = true;
+  _prtBeatTry = now;
+  try {
+    var cfg = getGhConfig(), month = localDateStr().slice(0, 7);
+    if (_prtBeatSha === null) {
+      var cur = await prtBeatRead(cfg);
+      if (cur) { _prtBeatSha = cur.sha; _prtBeatMonth = cur.month; }
+      else {
+        // No file: the branch may be there without it, or not there at all (the first check-in).
+        var ref = null;
+        try { ref = await ghRequest(prtRepoUrl(cfg) + '/git/ref/heads/' + prtRefPath(PRT_STATUS_BRANCH)); } catch (e) { if (e.status !== 404) throw e; }
+        if (!ref) await ghRequest(prtRepoUrl(cfg) + '/git/refs', { method: 'POST', body: { ref: 'refs/heads/' + PRT_STATUS_BRANCH, sha: await prtBranchHead(cfg) } });
+        _prtBeatMonth = month;
+      }
+    }
+    if (_prtBeatMonth && _prtBeatMonth !== month) {
+      // A month's check-ins are enough: the branch goes back onto the sync branch, where the file is not.
+      await ghRequest(prtRepoUrl(cfg) + '/git/refs/heads/' + prtRefPath(PRT_STATUS_BRANCH), { method: 'PATCH', body: { sha: await prtBranchHead(cfg), force: true } });
+      _prtBeatSha = null;
+      _prtBeatMonth = month;
+    }
+    var last = prtLog().filter(function(r) { return r.state === 'printed'; })[0];
+    var body = { kind: 'sep-print-status', v: 1, at: now, build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '', device: prtSenderName(),
+      lastPrinted: last ? last.at : null, month: _prtBeatMonth || month };
+    var put = function() {
+      return ghRequest(prtStatusUrl(cfg), { method: 'PUT', body: Object.assign({ message: 'Print station checked in', content: ghEncode(JSON.stringify(body)), branch: PRT_STATUS_BRANCH },
+        _prtBeatSha ? { sha: _prtBeatSha } : {}) });
+    };
+    var res;
+    try { res = await put(); }
+    catch (e) {
+      // Another hand moved the file (a second station, or the branch reset): read it again and write once more.
+      if (e.status !== 409 && e.status !== 422) throw e;
+      var again = await prtBeatRead(cfg);
+      _prtBeatSha = again ? again.sha : null;
+      res = await put();
+    }
+    _prtBeatSha = res && res.content && res.content.sha || null;
+    _prtBeatAt = now;
+    _prtBeatErr = '';
+    return true;
+  } catch (e) {
+    _prtBeatErr = e.message || String(e);
+    return false;
+  } finally { _prtBeatBusy = false; }
+}
+
+/* ---- A new build on the print station: reloaded only when nothing would be lost ----
+   Owner, 28 Oct 2026: yes to the station reloading itself, "needs a fail safe, just to be sure, if someone is updating on the kiosk
+   then auto-reload should not happen without the work being saved". The one exception to "an open app is never reloaded for a
+   build" (init.js), and only on the station: it waits while anything is open, typed, unsaved, saving, pushing or printing, and until
+   the station has been left alone for PRT_RELOAD_IDLE_MS. What holds it is said (prtReloadBlockers), for the station's own Settings. */
+var _prtLastInput = Date.now();
+['pointerdown', 'keydown', 'touchstart', 'wheel', 'input'].forEach(function(ev) {
+  document.addEventListener(ev, function() { _prtLastInput = Date.now(); }, { capture: true, passive: true });
+});
+function prtReloadBlockers() {
+  var out = [];
+  if (_prtBusy) out.push('printing');
+  if (document.querySelector('.inv-print-view-active')) out.push('a preview is open');
+  if (document.querySelector('.inv-scrim-dialog')) out.push('a dialog is open');
+  if (typeof _pageTyped !== 'undefined' && _pageTyped) out.push('a form has typed work');
+  if (typeof _challanForm !== 'undefined' && _challanForm) out.push('a challan is being entered');
+  if (typeof createFormHasWork === 'function' && createFormHasWork()) out.push('an invoice is started on Create');
+  if (typeof wdgArrangeOn === 'function' && wdgArrangeOn('home')) out.push('Home is being arranged');
+  if (typeof _persistQueued !== 'undefined' && _persistQueued) out.push('the book is saving');
+  if (typeof _storageHealth !== 'undefined' && _storageHealth && _storageHealth.lastSaveOk === false) out.push('the last save did not land');
+  if ((typeof _ghBusy !== 'undefined' && _ghBusy) || (typeof _ghPushTimer !== 'undefined' && _ghPushTimer)) out.push('a push to GitHub is waiting');
+  if (Date.now() - _prtLastInput < PRT_RELOAD_IDLE_MS) out.push('in use in the last 5 minutes');
+  return out;
+}
+function prtReloadDue() {
+  return prtIsStation() && typeof APP_BUILD !== 'undefined' && APP_BUILD !== 'dev' && typeof _liveBuild !== 'undefined' && !!_liveBuild && _liveBuild !== APP_BUILD;
+}
+function prtReloadMaybe() {
+  if (!prtReloadDue() || prtReloadBlockers().length) return false;
+  prtReloadNow();
+  return true;
+}
+function prtReloadNow() { location.reload(); }
+
 /* ---- Sending ---- */
 function prtSenderName() {
   var u = typeof grdUser === 'function' ? grdUser() : null;
@@ -84,6 +206,17 @@ async function prtSend() {
   var html = body ? body.innerHTML : '';
   if (!html.trim()) { showToast('Nothing in the preview to send', 'error'); return; }
   if (html.length > PRT_MAX_HTML) { showToast('This document is too large to send (over 4 MB): print it here', 'error'); return; }
+  // Where the print station is not on (not seen, off, or jobs stuck there) the job would wait: asked first, over the preview,
+  // with Print here beside Send anyway (owner, 28 Oct 2026; prtlight.js). On, or not known (offline, GitHub not answering), it is
+  // sent as before.
+  var st = typeof prtLightFresh === 'function' ? await prtLightFresh() : null;
+  if (st && PRT_ASK_STATES[st.state]) {
+    var ans = await uiConfirm({ title: st.text, overPrint: true, okLabel: 'Print here', altLabel: 'Send anyway',
+      body: (st.state === 'waiting' ? 'Jobs are waiting at the station, and this one would wait behind them.' : 'The job will wait until the station is back.') +
+        ' Print here prints it on this device now.' });
+    if (ans === true) { printPreviewNow(); return; }
+    if (ans !== 'alt') return;
+  }
   var title = String(document.title || 'Document').slice(0, 120);
   var id = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 7);
   var invId = typeof _printInvId !== 'undefined' ? _printInvId : null;
@@ -102,6 +235,8 @@ async function prtSend() {
   if (btn) btn.disabled = false;
   // ID cards take their numbers when their sheet goes to paper (idcard.js): a sheet sent is a sheet printed.
   if (typeof idcPrintCommit === 'function') idcPrintCommit();
+  // A job taken off the queue to print here and sent again is back on the queue: nothing to ask when its preview closes.
+  if (typeof _prtHere !== 'undefined' && _prtHere) _prtHere.job = null;
   var l = prtSent();
   l.unshift({ id: id, title: title, at: job.sentAt, invId: invId, state: 'waiting' });
   prtSentSave(l);
@@ -175,6 +310,11 @@ async function prtStationTick() {
 }
 async function prtStationTickLocked() {
   if (_prtBusy || !prtIsStation() || !prtCfg().on || prtSendBlocked()) return;
+  // The check-in first (it writes every 10 minutes), then whether a new build has shipped (version.json, read at most every 5
+  // minutes: init.js), and the reload to it where nothing would be lost.
+  await prtBeat();
+  if (typeof checkForUpdate === 'function') await checkForUpdate(false);
+  if (prtReloadMaybe()) return;
   var view = document.getElementById('invPrintView');
   if (view && view.classList.contains('inv-print-view-active')) return;
   _prtBusy = true;
@@ -221,8 +361,10 @@ function prtStatusHtml() {
   var h = '';
   if (prtIsStation()) {
     var last = _prtLast;
-    h += '<div class="inv-callout inv-callout-' + (last && last.error ? 'warning' : 'info') + ' inv-mb-8" data-prt-station>This device is the print station. ' +
-      (last ? (last.error ? 'The last look at the queue failed: ' + escHtml(last.error) : 'Last looked ' + escHtml(prtWhen(last.at)) + ': ' + todoPlural(last.waiting, 'job') + ' waiting.') : 'It looks at the queue every few seconds while the app is open.') + '</div>';
+    h += '<div class="inv-callout inv-callout-' + (last && last.error || _prtBeatErr ? 'warning' : 'info') + ' inv-mb-8" data-prt-station>This device is the print station. ' +
+      (last ? (last.error ? 'The last look at the queue failed: ' + escHtml(last.error) : 'Last looked ' + escHtml(prtWhen(last.at)) + ': ' + todoPlural(last.waiting, 'job') + ' waiting.') : 'It looks at the queue every few seconds while the app is open.') +
+      (_prtBeatErr ? ' The last check-in failed: ' + escHtml(_prtBeatErr) : _prtBeatAt ? ' Checked in ' + escHtml(prtWhen(_prtBeatAt)) + '.' : '') +
+      (prtReloadDue() ? ' A new build is ready: it reloads once nothing holds it' + (prtReloadBlockers().length ? ' (now: ' + escHtml(prtReloadBlockers().join(', ')) + ')' : '') + '.' : '') + '</div>';
     var log = prtLog().slice(0, 5);
     if (log.length) h += '<div class="inv-field-label">Printed here</div>' + log.map(function(r) {
       return '<div class="inv-row" data-prt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.title || r.id) + '</span>' +

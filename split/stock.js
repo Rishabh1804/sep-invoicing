@@ -1378,7 +1378,10 @@ function stockItemBodyHtml(item) {
 function stockEntryRowHtml(e, r, unit, checks) {
   var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
   var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
-  if (e.by) src += ' · entered by ' + e.by;
+  // Who entered it and who changed it, by ID (changelog.js tagWho); an entry from before the stamps keeps the name typed.
+  var who = typeof tagWho === 'function' ? tagWho(e) : '';
+  if (who) src += ' · ' + lcLead(who);
+  else if (e.by) src += ' · entered by ' + e.by;
   var extra = [];
   if (e.kind === 'received' || e.kind === 'bill') {
     if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));

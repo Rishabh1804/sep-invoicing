@@ -783,7 +783,9 @@ function prodEntryKv(e) {
   }
   kv.push(['Source', prodSrcWord(e) + (e.basis && e.basis !== e.src ? ' · ' + e.basis : '')]);
   if (e.sentBy) kv.push(['Sent by', e.sentBy]);
-  if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
+  // Who entered it and who changed it, by ID (changelog.js tagWho): the entry's ID, else the name it was saved with.
+  if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.tagIn ? ' · ' + tagName(e.tagIn.by) : e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
+  if (e.tagCh) kv.push(['Changed', tagName(e.tagCh.by) + ', ' + formatTimestamp(e.tagCh.at)]);
   if (e.voidedAt) kv.push(['Void', e.voidReason || 'no reason given']);
   return kv;
 }

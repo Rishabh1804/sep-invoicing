@@ -148,7 +148,7 @@ split/
 ├── data.js            ← ITEMS_MASTER and SEED_CLIENTS, both empty: the build holds no client's data (HR-10) (8 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More), the blank state (`uiBlankHtml`); money on a board (`inrCard`, `inrFigHtml`: ₹66,476 · ₹3.50 L · ₹1.24 Cr, the exact amount its title); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~2,840 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
-├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters (~750 lines)
+├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters; who entered and who changed each stock entry, production entry, mark and EXTRA row (`tagIn`, `tagCh`, `tagWho`) (~860 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── guard.js           ← The gate: IDs and PINs, roles, the lock, the re-ask before a P1 change, what each role opens (~1,030 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
@@ -186,7 +186,7 @@ split/
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from People → Pay's own rows, any month's: two to an A4 page (~210 lines)
 ├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
-├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
+├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner; a day's marks hand by hand (`mrgDeep`) (~490 lines)
 ├── prospects.js       ← Office → Sales → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
 ├── add.js             ← Add: one door for everything that comes in (paste, clipboard, file, by hand) (~400 lines)
@@ -268,7 +268,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,091 tests, both layouts
+pnpm exec playwright test          # 2,096 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2835,6 +2835,9 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   (`POWER_BILL_FIELDS`: billed at, peak, kWh, kVAh, fixed, energy, excess-CD penalty, fuel adjustment, duty, net), and a
   bill's "billed at" wins over the typed load. To-do rule **`powerLoad`** asks while the approved load is not on the bill,
   with the penalty on the bills since approval.
+- **Power's figures are the owner's settings** (owner, 28 Oct 2026: *"Power - yes, ask for PIN"*; P243): the options' figures, the
+  load and a bill's details save behind `grdGate('settings')`, the PIN asked over the dialog once the re-ask window has passed; a
+  role without Settings is told so and nothing is saved.
 - **The case is a document drawn from the data every time it is shown or printed** (owner: *"The case report should
   always be printable, and it should be dynamic - updates data as soon as the data feeding it is updated"*;
   `powerCaseHtml`). Case shows it on the page; Print the case sends the same document to the print view, and a save in
@@ -3700,6 +3703,22 @@ build: the people are the book's.
 - **The change log** (`changelog.js`, P141): every save compared with the book before it, record by record, each changed
   field from → to, tagged with who was signed in and the device; kept in the book (`S.changeLog`), shown in History →
   Changes. The merge (below) reads it to say whose change stands.
+- **Who entered it and who changed it** (`changelog.js`, P244; owner, 26 Oct 2026: *"For areas that have multiple people that
+  can enter it before my approval, lets simply tag their IDs and show who updated what"*). A stock entry, a production entry, an
+  attendance mark and an EXTRA row carry the ID that entered them (`tagIn: {by, at}`) and the ID that last changed them (`tagCh`),
+  stamped at each save against the copy the save before left (`tagOnSave`), whatever made the change: a form, a paste, a roll saved
+  on Mine, a void. A book that arrives whole (the boot, a pull, an import, another window's save, a merge) is the starting point and
+  stamps nothing, so nothing from before is put on whoever saves next; nothing is stamped while nobody is signed in. Said where the
+  entry is (`tagWho`: *Entered by Shyam · changed by Rishabh, 28 Oct, 10:42*): a stock entry's row, a production entry's fold and
+  pane, the hand's day dialog (`data-att-who`), an EXTRA row's fold. The change log never compares the stamps (`CHG_OMIT`), and the
+  merge never holds on them (`MRG_QUIET`). A mark's own `by` (the ID that typed it, `_attHandEdit`) is kept: Mine's sheet check reads it.
+- **Two phones on one day keep both versions** (owner, 28 Oct 2026: *"Tagging - keep both versions"*). A day's marks merge hand by
+  hand (`deep: ['marks']` on the attendance row of `CHG_TRACK`, `mrgDeep`): a hand marked on one phone is taken; a hand both marked
+  alike (their stamps aside) is one; a hand both marked differently keeps the owner's, else the later, and **the other version is
+  held whole** (`marks.<id>`), each with its stamp. The hand's day says so (*Two versions. Standing: Present, entered by Shyam. Held
+  from the other phone: Absent, entered by …*, `data-att-held`), and the owner uses the held one or keeps the standing one there
+  (`invMrgUseHere`, `invMrgKeepHere`) or in *Held for you*, which says a held mark as a hand's mark (`mrgMarkText`). Only Shyam marks
+  attendance for now (owner, 28 Oct 2026), so Deepak's duty is not set.
 - **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
   can only import. The token is kept encrypted under a key that cannot leave the device. **A device whose guard was turned on apart from the one that pushed** (its own owner ID, not on GitHub's copy; owner, 14 Oct

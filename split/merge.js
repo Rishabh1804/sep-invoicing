@@ -30,7 +30,7 @@ STATE_CONTAINERS.push('mergeHeld');
 var MRG_BASE_KEY = 'synced';
 var MRG_MAX = { invNextNum: 1, cnNextNum: 1, cardSeq: 1 };
 var MRG_QUIET = { lastPushAt: 1, updatedAt: 1, lmeHistory: 1, recentVehicles: 1, billedQty: 1, billedNos: 1, invoiceIds: 1, invoiceId: 1,
-  invoiced: 1, lastPos: 1, versions: 1 };
+  invoiced: 1, lastPos: 1, versions: 1, tagIn: 1, tagCh: 1 };
 var MRG_HELD_MAX = 500;
 
 /* ---------- The base: what this device last exchanged with GitHub ---------- */
@@ -204,6 +204,7 @@ function mrgRecord(ctx, sp, key, b, m, t) {
       else if (jt === jb) v = fm;
       else if (MRG_MAX[f] && typeof fm === 'number' && typeof ft === 'number') v = Math.max(fm, ft);
       else if (MRG_QUIET[f] || (sp.mrgQuiet && sp.mrgQuiet.indexOf(f) >= 0)) v = mrgIsObj(fm) && mrgIsObj(ft) ? Object.assign({}, ft, fm) : fm === undefined ? ft : fm;
+      else if (sp.deep && sp.deep.indexOf(f) >= 0 && mrgIsObj(fm) && mrgIsObj(ft) && (fb === undefined || mrgIsObj(fb))) v = mrgDeep(ctx, sp, key, f, fb, fm, ft, m);
       else {
         if (!w) w = mrgWinner(ctx, sp.path === '#top' ? 'settings' : sp.path, key === '' ? null : key);
         v = w === 'm' ? fm : ft;
@@ -218,6 +219,33 @@ function mrgRecord(ctx, sp, key, b, m, t) {
   mrgHold(ctx, sp, key, null, w2 === 'm' ? m : t, w2, w2 === 'm' ? t : m, w2 === 'm' ? 't' : 'm', m);
   if (w2 === 't') ctx.taken++;
   return w2 === 'm' ? m : t;
+}
+/* A field kept record by record inside a record (CHG_TRACK `deep`: a day's marks, one a hand). Each sub-record three ways: one
+   side's change taken; both changed alike (their stamps aside) one; both changed differently, the owner's (else the later)
+   stands and the other is held whole as `field.sub` (marks.12), each version with its stamp (tagIn, tagCh: who entered and
+   who changed it), for the owner to pick. */
+function mrgSans(v) {
+  if (!mrgIsObj(v)) return mrgJ(v);
+  var o = {};
+  Object.keys(v).forEach(function(k) { if (k !== 'tagIn' && k !== 'tagCh') o[k] = v[k]; });
+  return JSON.stringify(o);
+}
+function mrgDeep(ctx, sp, key, f, fb, fm, ft, rec) {
+  var out = {}, b = fb || {}, w = null;
+  Object.keys(fm).concat(Object.keys(ft).filter(function(k) { return !(k in fm); })).concat(Object.keys(b).filter(function(k) { return !(k in fm) && !(k in ft); })).forEach(function(k) {
+    var xb = b[k], xm = fm[k], xt = ft[k], jb = mrgJ(xb), jm = mrgJ(xm), jt = mrgJ(xt), v;
+    if (jm === jt || mrgSans(xm) === mrgSans(xt)) v = xm;
+    else if (jm === jb) { v = xt; ctx.taken++; }
+    else if (jt === jb) v = xm;
+    else {
+      if (!w) w = mrgWinner(ctx, sp.path, key === '' ? null : key);
+      v = w === 'm' ? xm : xt;
+      if (w === 't') ctx.taken++;
+      mrgHold(ctx, sp, key, f + '.' + k, v, w, w === 'm' ? xt : xm, w === 'm' ? 't' : 'm', rec, xm === undefined || xt === undefined ? 'removed' : 'both');
+    }
+    if (v !== undefined) out[k] = v;
+  });
+  return out;
 }
 /* A store a fetch wrote (CHG_TRACK `quiet`: the weather days, feeds.js): this device's records, the other's filling what this one
    lacks, never held. A forecast is not a change anybody made, so there is nothing to settle. */
@@ -356,14 +384,25 @@ function mrgValText(v) {
   if (typeof v === 'object') { var s = JSON.stringify(v); return s.length > 140 ? s.slice(0, 139) + '…' : s; }
   return String(v);
 }
+/* A held mark said as one: its state and place, its hours, and who made it (the stamps), never its JSON. */
+function mrgMarkText(v) {
+  if (v === undefined) return 'removed';
+  if (!mrgIsObj(v)) return mrgValText(v);
+  var st = { P: 'Present', H: 'Half day', A: 'Absent' }[v.st] || (v.st ? String(v.st) : 'Not marked');
+  var who = typeof tagWho === 'function' ? tagWho(v) : '';
+  return [st, v.area && typeof areaLabel === 'function' ? areaLabel(v.area) : '', v.hours ? v.hours + ' h' : '', v.ot ? v.ot + ' h OT' : '', who].filter(Boolean).join(', ');
+}
 function mrgHeldRowHtml(h) {
-  var where = (h.field ? h.field + ' on ' : '') + h.label;
+  var mk = h.coll === 'attendance' && h.field && /^marks\./.test(h.field) ? h.field.slice(6) : null;
+  var who = mk != null ? (typeof chgStaffName === 'function' && chgStaffName(mk)) || 'A hand' : '';
+  var where = mk != null ? who + '’s mark on ' + h.label : (h.field ? h.field + ' on ' : '') + h.label;
+  var txt = mk != null ? mrgMarkText : mrgValText;
   var why = h.why === 'removed' ? (h.other.v === undefined ? 'Removed on ' + mrgSideName(h.other.side, h.from) + ', changed on ' + mrgSideName(h.kept.side, h.from) + ': kept'
     : 'Removed on ' + mrgSideName(h.kept.side, h.from) + ', changed on ' + mrgSideName(h.other.side, h.from))
     : h.why === 'number' ? 'Two records carry this number: reissue or delete one'
     : 'Both changed it: ' + mrgSideName(h.kept.side, h.from) + '\'s stands';
   return '<div class="inv-row inv-row-2 inv-row-flow" data-held="' + escHtml(h.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(mrgValText(h.kept.v)) + ' · held: ' + escHtml(mrgValText(h.other.v))) +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(txt(h.kept.v)) + ' · held: ' + escHtml(txt(h.other.v))) +
     ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span>' +
     '<span class="inv-row-end">' + (h.why === 'number' ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUse" data-id="' + escHtml(h.id) + '">Use held</button>') +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeep" data-id="' + escHtml(h.id) + '">' + (h.why === 'number' ? 'Noted' : 'Keep') + '</button></span></div>';
@@ -376,7 +415,7 @@ function mrgHeldOpenDialog() {
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true, replace: !!document.querySelector('[data-mrg-held]') });
 }
 /* Use the one held: written where it was, the value that stood held in its place, so the choice can be made again. */
-function mrgUse(id) {
+function mrgUse(id, here) {
   var h = mrgArr(S.mergeHeld).find(function(x) { return x.id === id && x.status === 'open'; });
   if (!h) return;
   var path = h.coll === 'settings' ? '' : h.coll, val = h.other.v;
@@ -389,7 +428,7 @@ function mrgUse(id) {
     if (sp.kind === 'cfg' || (h.rid == null && mrgIsObj(cont))) {
       if (h.field) { if (val === undefined) delete cont[h.field]; else cont[h.field] = val; } else mrgSet(S, path, val);
     } else if (sp.kind === 'map' && mrgIsObj(cont)) {
-      if (h.field && mrgIsObj(cont[h.rid])) { if (val === undefined) delete cont[h.rid][h.field]; else cont[h.rid][h.field] = val; }
+      if (h.field && mrgIsObj(cont[h.rid])) mrgSet(cont[h.rid], h.field, val);   // a dotted field is a sub-record (marks.12)
       else if (val === undefined) delete cont[h.rid]; else cont[h.rid] = val;
     } else if (Array.isArray(cont)) {
       var i = cont.findIndex(function(r, j) { return (sp.key ? sp.key(r, j) : r && r.id != null ? String(r.id) : null) === String(h.rid); });
@@ -401,17 +440,22 @@ function mrgUse(id) {
   h.status = 'used'; h.settledAt = Date.now(); h.settledBy = typeof chgBy === 'function' ? chgBy() : null;
   saveState();
   if (typeof tabRedrawActive === 'function') tabRedrawActive();
-  mrgHeldOpenDialog();
+  if (here) { if (typeof attEditRefresh === 'function') attEditRefresh(); } else mrgHeldOpenDialog();
   if (typeof ghHeldSync === 'function') ghHeldSync();
   showToast('Used the change held');
 }
-function mrgKeep(id) {
+function mrgKeep(id, here) {
   var h = mrgArr(S.mergeHeld).find(function(x) { return x.id === id && x.status === 'open'; });
   if (!h) return;
   h.status = 'kept'; h.settledAt = Date.now(); h.settledBy = typeof chgBy === 'function' ? chgBy() : null;
   saveState();
-  mrgHeldOpenDialog();
+  if (here) { if (typeof attEditRefresh === 'function') attEditRefresh(); if (typeof tabRedrawActive === 'function') tabRedrawActive(); } else mrgHeldOpenDialog();
   if (typeof ghHeldSync === 'function') ghHeldSync();
+}
+/* What a merge holds of one record's field, open: a hand's other version of a day (coll attendance, rid the day,
+   field marks.<id>). */
+function mrgHeldFor(coll, rid, field) {
+  return mrgHeldOpen().filter(function(h) { return h.coll === coll && String(h.rid) === String(rid) && h.field === field; });
 }
 /* Settling what was held is the owner's (a P1 change: it writes a record). */
 function mrgGate(fn) {
@@ -438,6 +482,9 @@ function mrgAction(action, btn) {
     case 'invMrgOpen': mrgHeldOpenDialog(); return true;
     case 'invMrgUse': { var id = btn.dataset.id; if (mrgGate(function() { mrgUse(id); })) mrgUse(id); return true; }
     case 'invMrgKeep': { var id2 = btn.dataset.id; if (mrgGate(function() { mrgKeep(id2); })) mrgKeep(id2); return true; }
+    // Settled where the record is shown (a hand's day): the same choice, the record's own dialog drawn again.
+    case 'invMrgUseHere': { var id3 = btn.dataset.id; if (mrgGate(function() { mrgUse(id3, true); })) mrgUse(id3, true); return true; }
+    case 'invMrgKeepHere': { var id4 = btn.dataset.id; if (mrgGate(function() { mrgKeep(id4, true); })) mrgKeep(id4, true); return true; }
   }
   return false;
 }

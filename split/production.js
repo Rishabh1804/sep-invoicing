@@ -743,7 +743,7 @@ function prodRackSizes(idx) {
     if (!e.line) return;
     var k = e.line + '|' + (prodEntryKey(e) || '');
     var o = out[k] || (out[k] = {});
-    // A round's own figure is a rack; a batch's (an END row's "98×8+1") is a total, whose rack is its written factor.
+    // A round's own figure is a rack; a batch's (an END row's "96×7+5") is a total, whose rack is its written factor.
     (e.rounds || []).forEach(function(r) {
       if (r.struck || r.start) return;
       if (r.rack) o[r.rack] = (o[r.rack] || 0) + (r.n || 1);
@@ -990,7 +990,7 @@ function prodDayLine(date, line) {
       r.low += w.low != null ? w.low : w.kg; r.high += w.high != null ? w.high : w.kg;
       if (prodWeighEst(w)) r.est += w.kg;
     }
-    // A batch written as racks × rounds ("98×8+1", an END row) is its rounds, not one; a round shared by k runs is 1/k in each.
+    // A batch written as racks × rounds ("96×7+5", an END row) is its rounds, not one; a round shared by k runs is 1/k in each.
     var n = 0;
     (e.rounds || []).forEach(function(x) { if (!x.struck) n += x.n > 0 ? x.n : at[x.time] > 1 ? 1 / at[x.time] : 1; });
     if (!e.rounds && e.racks) n += e.racks;

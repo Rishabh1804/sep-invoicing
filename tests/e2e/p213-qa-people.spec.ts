@@ -40,7 +40,7 @@ const WS = (() => { const t = new Date(todayIso() + 'T00:00:00'); t.setDate(t.ge
 const STAFF = [
   { id: 1, name: 'Ravi Test', comp: 'monthly', dayRate: 500, area: 'vat-a1', onFloor: true, active: true },
   { id: 2, name: 'Sita Test', comp: 'monthly', dayRate: 375, area: 'vat-a2', onFloor: true, active: true },
-  { id: 3, name: 'Mohan Test', comp: 'monthly', dayRate: 300, monthWage: 9000, area: 'gate', onFloor: false, active: true },
+  { id: 3, name: 'Mohan Test', comp: 'monthly', dayRate: 300, monthWage: 8600, area: 'gate', onFloor: false, active: true },
   { id: 4, name: 'Gopal Test', comp: 'monthly', dayRate: 380, area: 'barrel', onFloor: true, active: true },
   { id: 5, name: 'Hari Test', comp: 'hourly', hourRate: 50, area: 'barrel', onFloor: true, active: true }];
 let seq = 0;
@@ -135,17 +135,17 @@ test.describe('P213: Pay and the slip foot', () => {
   });
 
   test('A4-6: a salary paid to the rupee says the paise dropped, on Pay and on the slip, so the slip foots', async ({ page }) => {
-    await loadAppWithState(page, book({ payrollPaid: [paidMonth(M2, [{ ...slipRow('Mohan Test', 8129.03), rate: 290.3226, worked: 22, restDays: 6 }])],
-      bank: bankOf([leg(M1 + '-14', 'MOHAN TEST', 8129)]) }));
-    expect(await dueOf(page, M2, 3)).toMatchObject({ earned: 8129.03, paid: 8129, due: 0, rounded: 0.03 });
+    await loadAppWithState(page, book({ payrollPaid: [paidMonth(M2, [{ ...slipRow('Mohan Test', 7767.74), rate: 277.4194, worked: 22, restDays: 6 }])],
+      bank: bankOf([leg(M1 + '-14', 'MOHAN TEST', 7767)]) }));
+    expect(await dueOf(page, M2, 3)).toMatchObject({ earned: 7767.74, paid: 7767, due: 0, rounded: 0.74 });
     await openPay(page, M2);
     const row = page.locator('[data-pay-row="3"]');
     await row.locator('summary').click();
     await expect(row).toContainText('Rounded to the rupee');
     await printSlips(page);
-    await expect(page.locator('#invPrintBody [data-ps-slip="3"] [data-ps-settle="rounded"]')).toContainText('−₹0.03');
+    await expect(page.locator('#invPrintBody [data-ps-slip="3"] [data-ps-settle="rounded"]')).toContainText('−₹0.74');
     const sums = await slipSums(page, 3);
-    expect(sums.gross).toBe(8129.03);
+    expect(sums.gross).toBe(7767.74);
     expect(sums.sum).toBe(sums.due);
   });
 });
@@ -160,8 +160,8 @@ test.describe('P213: what was paid, counted and listed once', () => {
   });
 
   test('A4-7: a payment typed on Pay that the statement holds is listed once, on the leg’s row', async ({ page }) => {
-    await loadAppWithState(page, book({ bank: bankOf([leg(M1 + '-14', 'MOHAN TEST', 7650)]),
-      staffPayments: [{ id: 'PAY-1', staffId: 3, date: M1 + '-15', amount: 7650, kind: 'payment', note: 'by NEFT', at: 1 }] }));
+    await loadAppWithState(page, book({ bank: bankOf([leg(M1 + '-14', 'MOHAN TEST', 7250)]),
+      staffPayments: [{ id: 'PAY-1', staffId: 3, date: M1 + '-15', amount: 7250, kind: 'payment', note: 'by NEFT', at: 1 }] }));
     await openPay(page, M2);
     await expect(page.locator('[data-payment="PAY-1"]')).toHaveCount(0);
     await expect(page.locator('[data-payment^="bank:"]')).toHaveCount(1);

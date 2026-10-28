@@ -37,13 +37,13 @@ test.describe('P139: search on the phone', () => {
   test('an amount matches to the paisa, written either way, and a cheque number finds its deposit', async ({ page }) => {
     await loadAppWithState(page, searchBook());
     await openSearch(page);
-    for (const q of ['5902.12', '5,902.12', '₹5,902.12']) {
+    for (const q of ['4827.42', '4,827.42', '₹4,827.42']) {
       await search(page, q);
       expect(await titles(page, 'invoice')).toEqual(['SEP/TEST-00900']);
       expect(await titles(page, 'cn')).toEqual(['CN/007/26-27']);
     }
     // Not to the paisa is not the amount.
-    await search(page, '5902.1');
+    await search(page, '4827.4');
     await expect(page.locator('#srchList .inv-empty')).toContainText('Nothing matches');
     await search(page, '525428');
     const bank = page.locator('#srchList [aria-labelledby="srchG-bank"] [role="option"]');
@@ -232,7 +232,7 @@ test.describe('P139: search on the phone', () => {
       for (let i = 0; i < 5; i++) {
         w._srchCache = null;
         const t0 = performance.now(); w.srchIndex(); const t1 = performance.now();
-        w.srchQuery('alpha forg'); w.srchQuery('5902.12'); w.srchQuery('801');
+        w.srchQuery('alpha forg'); w.srchQuery('4827.42'); w.srchQuery('801');
         const t2 = performance.now();
         runs.push({ build: t1 - t0, query: (t2 - t1) / 3 });
       }
@@ -268,7 +268,7 @@ test.describe('P139: search on the phone', () => {
       for (let i = 0; i < 5; i++) {
         w._srchCache = null;
         const t0 = performance.now(); n = w.srchIndex().length; const t1 = performance.now();
-        w.srchQuery('alpha'); w.srchQuery('2834'); w.srchQuery('5,902.12');
+        w.srchQuery('alpha'); w.srchQuery('2834'); w.srchQuery('4,827.42');
         builds.push(t1 - t0); queries.push((performance.now() - t1) / 3);
       }
       return { n, builds, queries };

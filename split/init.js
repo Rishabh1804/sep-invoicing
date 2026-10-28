@@ -577,7 +577,7 @@ if (!S._cnSeriesStart1) {
 })();
 
 /* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
-   A load written with its code alone ("DELTA AUTO / 4242-1000") read as no part, and sat on the floor with no challan open
+   A load written with its code alone ("DELTA AUTO / 4242-615") read as no part, and sat on the floor with no challan open
    (P127: 8 of 8 real loads of one client, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already
    held are matched once, as a register's or an import's are. The flag travels with the state. */
 (function() {

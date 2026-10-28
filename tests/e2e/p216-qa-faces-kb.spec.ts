@@ -243,19 +243,19 @@ test.describe('P216: the entry faces on Mine', () => {
   // A7 #7: Print the day as entered printed a VAT page as typed after the owner voided one of its runs in Production.
   test('the day as entered: a VAT page whose run the owner voided prints from the runs the book holds', async ({ page }) => {
     await withUsers(page, [OWNER, CLERK]);
-    await ev(page, `prodData().pages.push({ id: 'PG1', date: '${today}', line: 'vat-a1', style: 'rounds', by: 'Gita Bose', uid: 'U-clk', at: 1, counted: 1745, total: 1745,
+    await ev(page, `prodData().pages.push({ id: 'PG1', date: '${today}', line: 'vat-a1', style: 'rounds', by: 'Gita Bose', uid: 'U-clk', at: 1, counted: 1637, total: 1637,
         rows: [{ time: '09:45', to: '', client: '11', part: 'CLAMP 165X83(40X6)', fig: '120' }, { time: '10:20', to: '', client: '11', part: 'CLAMP 165X83(40X6)', fig: '3+4x120' },
-          { time: '11:00', to: '', client: '12', part: 'TINA(3303)', fig: '98x8+1' }] });
+          { time: '11:00', to: '', client: '12', part: 'TINA(3303)', fig: '96x7+5' }] });
       prodData().entries.push({ id: 'V1', kind: 'plated', date: '${today}', time: '09:45', to: '10:20', line: 'vat-a1', lineSrc: 'written', slot: 'general', clientId: 11, client: 'NOVA CLAMPS',
         part: 'CLAMP 165X83(40X6)', qty: 960, unit: 'NOS', basis: 'register', src: 'face', pageId: 'PG1', by: 'Gita Bose', rounds: [{ time: '9:45 AM', qty: 120, written: '120' }, { time: '10:20 AM', qty: 840, written: '3+4x120' }], at: 2 },
         { id: 'V2', kind: 'plated', date: '${today}', time: '11:00', to: '11:00', line: 'vat-a1', lineSrc: 'written', slot: 'general', clientId: 12, client: 'ORBIT ENGG',
-        part: 'TINA(3303)', qty: 785, unit: 'NOS', basis: 'register', src: 'face', pageId: 'PG1', by: 'Gita Bose', rounds: [{ time: '11:00 AM', qty: 785, written: '98x8+1' }], at: 2,
+        part: 'TINA(3303)', qty: 677, unit: 'NOS', basis: 'register', src: 'face', pageId: 'PG1', by: 'Gita Bose', rounds: [{ time: '11:00 AM', qty: 677, written: '96x7+5' }], at: 2,
         voidedAt: 3, voidReason: 'Not plated on this line', voidBy: 'Asha Rao' }); prodTouch(); saveState()`);
     await signIn(page, CLERK);
     await page.locator('[data-action="invFacePrint"][data-kind="filled"]').click();
     const vat = page.locator('.inv-print-view-active [data-sheet="vat-filled"][data-line="vat-a1"]');
     await expect(vat).toContainText('3+4x120');
-    await expect(vat).not.toContainText('98x8+1');
+    await expect(vat).not.toContainText('96x7+5');
     await expect(vat).not.toContainText('ORBIT ENGG');
   });
 

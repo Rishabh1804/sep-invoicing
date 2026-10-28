@@ -6,19 +6,19 @@ import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso }
 // replaced left the table in 40% of the screen, Total cut off and each client name wrapped
 // over three lines — and nothing in the suite measured it.
 
-const NAME = 'DILIP PRESS METAL & AGROTECH PRIVATE LIMITED';
+const NAME = 'ORBIT PRESSINGS & AGROTOOLS PRIVATE LIMITED';
 
 function state() {
   const s = emptyState();
   s.incomingMaterial = noSeedIM() as any;
-  s.clients = [{ id: 1, name: NAME, gstin: '20AACCD1457H1Z6', billingMode: 'weight', ratePerKg: 13.5, isActive: true } as any];
+  s.clients = [{ id: 1, name: NAME, gstin: '20AAZCO9182K1Z3', billingMode: 'weight', ratePerKg: 12.75, isActive: true } as any];
   s.invoices = Array.from({ length: 6 }, (_, i) => ({
     id: 'INV-' + i, invoiceNumber: String(900 + i).padStart(5, '0'), displayNumber: 'SEP/2026-27/' + String(900 + i).padStart(5, '0'),
-    date: todayIso(), status: 'active', invoiceState: 'created', clientId: 1, clientName: NAME, clientGSTIN: '20AACCD1457H1Z6',
+    date: todayIso(), status: 'active', invoiceState: 'created', clientId: 1, clientName: NAME, clientGSTIN: '20AAZCO9182K1Z3',
     clientAddress: { add1: '', add2: '', add3: '', state: '', stateCode: '' }, gstType: 'intra',
-    items: [{ partNumber: 'P' + i, desc: 'P' + i, hsn: '998873', unit: 'KG', qty: 100, rate: 13.5, amount: 1350, nosQty: null }],
-    taxableValue: 1350, cgstPer: 9, cgstAmt: 121.5, sgstPer: 9, sgstAmt: 121.5, igstPer: 0, igstAmt: 0, grandTotal: 1593,
-    amountInWords: '', challanNo: '834, 835, 838, 836', challanDate: '', poNumber: '', poDate: '', despatchDate: '',
+    items: [{ partNumber: 'P' + i, desc: 'P' + i, hsn: '998873', unit: 'KG', qty: 100, rate: 12.75, amount: 1275, nosQty: null }],
+    taxableValue: 1275, cgstPer: 9, cgstAmt: 114.75, sgstPer: 9, sgstAmt: 114.75, igstPer: 0, igstAmt: 0, grandTotal: 1504.5,
+    amountInWords: '', challanNo: '612, 613, 617, 614', challanDate: '', poNumber: '', poDate: '', despatchDate: '',
     transport: '', remarks: '', createdAt: recentTs(i),
   })) as any;
   return s;

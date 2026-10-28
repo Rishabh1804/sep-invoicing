@@ -417,7 +417,7 @@ function regClearRange() {
   captureRegFilters();
 }
 
-/* A challan field is a list ("834, 835, 838"). A number in the search matches
+/* A challan field is a list ("612, 613, 617"). A number in the search matches
    a whole challan number, never a fragment of one — "83" must not find 834. */
 function regChallanMatch(challanNo, q) {
   q = String(q || '').trim();

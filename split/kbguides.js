@@ -519,7 +519,7 @@ var KB_APP_GUIDES = [
     'The screen of the register clerk has the **VAT register** page and the **attendance sheet**.\n\n' +
     '# The VAT register page\n1. Select the line: **VAT A1** or **VAT A2**. VAT A1 has 1 round in each row. VAT A2 has 1 batch in each row: the start, the end, and the figure at the end. For a page kept the other way, use **Rounds · Batches**.\n' +
     '2. Where a run starts, select the **Client** and type the **Part, as written** on the page. The rows under it use the same client and part, as the ditto on paper does. **Another client or part** starts the next run.\n' +
-    '3. For each round, type its **Time** and its **Figure** exactly as written (120, 3+4×156, 98×8+1). The app adds it up. Under the row, the app shows what it read.\n' +
+    '3. For each round, type its **Time** and its **Figure** exactly as written (120, 3+4×156, 96×7+5). The app adds it up. Under the row, the app shows what it read.\n' +
     '4. If 2 clients are in 1 round, enter 1 row for each client, at the same time. If a round is struck out on paper, remove its row.\n5. If the paper page has a day total, type it in **Day total on the paper page**. The app shows a total that the rounds do not meet.\n' +
     '6. Tap **Save the page**. Then tap **Send to the group**.\n' +
     '- The phone keeps the page as you type it, until you save it. If you close the app, you lose nothing. If you save the page again, the app corrects only what changed.\n' +

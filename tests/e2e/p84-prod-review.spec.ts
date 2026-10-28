@@ -17,10 +17,10 @@ const PASTE = () => `${dmy(-1)}, 9:40 am - Pickler: NOVA CLAMPS
 CLAMP133×83(35×6)-774 nos
 Pickling Time 9:00AM
 ${dmy(-1)}, 11:05 am - Pickler: KUMAR
-0740- 300 nos
+0740- 280 nos
 Pickling time 10:30am
 ${dmy(-1)}, 2:05 pm - Pickler: KUMAR
-0701--200 nos
+0701--170 nos
 Pickling time 1:50pm
 ${dmy(-1)}, 3:00 pm - Owner: ok`;
 
@@ -55,13 +55,13 @@ test.describe('P84: the paste check', () => {
     let s = await readStoredState(page);
     const e = s.production.entries;
     expect(e).toHaveLength(3);
-    expect(e.map((x: any) => [x.kind, x.clientId, x.qty, x.time])).toEqual([['pickled', 11, 774, '09:00'], ['pickled', 12, 300, '10:30'], ['pickled', 12, 200, '13:50']]);
-    expect(e[1]).toMatchObject({ basis: 'pickling', src: 'paste', raw: '0740- 300 nos', sentBy: 'Pickler' });
+    expect(e.map((x: any) => [x.kind, x.clientId, x.qty, x.time])).toEqual([['pickled', 11, 774, '09:00'], ['pickled', 12, 280, '10:30'], ['pickled', 12, 170, '13:50']]);
+    expect(e[1]).toMatchObject({ basis: 'pickling', src: 'paste', raw: '0740- 280 nos', sentBy: 'Pickler' });
     expect(s.production.pastes).toHaveLength(3);
     expect(s.production.learn.clients).toEqual({ KUMAR: 12 });
 
     // Next time the spelling is known; the messages saved are refused, so nothing counts twice.
-    await paste(page, PASTE() + `\n${dmy(0)}, 9:10 am - Pickler: KUMAR\n0740--50 nos\nPickling time 9:00am`);
+    await paste(page, PASTE() + `\n${dmy(0)}, 9:10 am - Pickler: KUMAR\n0740--65 nos\nPickling time 9:00am`);
     await expect(page.locator('#prodDupNote')).toContainText('3 messages');
     await expect(page.locator('[data-prod-row][data-tone="red"]')).toHaveCount(0);
     await expect(page.locator('[data-prod-row="4:0"] .inv-verdict-text')).toContainText('DURGA AUTO');
@@ -95,23 +95,23 @@ test.describe('P84: the paste check', () => {
 
   test('a roll\'s production block: the line from the header above is only a suggestion', async ({ page }) => {
     await load(page, { staff: [{ id: 1, name: 'Arun', comp: 'hourly', area: 'barrel', hourRate: 50, active: true, onFloor: true }] });
-    await paste(page, `${dmy(-1)}, 8:40 pm - Supervisor: ${dmy(-1)}/ out time\n----8:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0701--400 nos`);
+    await paste(page, `${dmy(-1)}, 8:40 pm - Supervisor: ${dmy(-1)}/ out time\n----8:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0701--360 nos`);
     const row = page.locator('[data-prod-row="0:0"]');
     await expect(row).toHaveAttribute('data-tone', 'amber');
     await expect(row.locator('[data-action="invProdRevLine"][data-line="barrel"]')).toContainText('(header above)');
     // Saved without an answer, the line stays unknown; never the guess.
     await page.locator('[data-action="invProdSaveReview"]').click();
     let s = await readStoredState(page);
-    expect(s.production.entries[0]).toMatchObject({ kind: 'plated', slot: 'ot', to: '20:00', clientId: 12, qty: 400 });
+    expect(s.production.entries[0]).toMatchObject({ kind: 'plated', slot: 'ot', to: '20:00', clientId: 12, qty: 360 });
     expect(s.production.entries[0].line).toBeUndefined();
     // Confirmed, it is the owner's: set.
     await page.evaluate(() => { const ev = (0, eval); ev('S.production.entries = []; S.production.pastes = []; prodTouch()'); });
-    await paste(page, `${dmy(-2)}, 8:40 pm - Supervisor: ${dmy(-2)}/ out time\n----8:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0701--300 nos`);
+    await paste(page, `${dmy(-2)}, 8:40 pm - Supervisor: ${dmy(-2)}/ out time\n----8:00 PM---\n---berral---\n1) ARUN\n----production----\nDurga auto 0701--320 nos`);
     await page.locator('[data-prod-row="0:0"] [data-action="invProdRevLine"][data-line="barrel"]').click();
     await expect(page.locator('[data-prod-row="0:0"]')).toHaveAttribute('data-tone', 'clear');
     await page.locator('[data-action="invProdSaveReview"]').click();
     s = await readStoredState(page);
-    expect(s.production.entries[0]).toMatchObject({ line: 'barrel', lineSrc: 'set', qty: 300 });
+    expect(s.production.entries[0]).toMatchObject({ line: 'barrel', lineSrc: 'set', qty: 320 });
   });
 
   test('a message posted twice in one paste (the supervisor reposts a roll) is read once', async ({ page }) => {

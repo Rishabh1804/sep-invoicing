@@ -1230,8 +1230,8 @@ function _attWorkerPaneHtml(w, wages) {
    rate card's own OT column fall out of the day rate rather than being a second
    number to keep in step with it. An explicit `hourRate` still overrides, for a
    worker whose overtime was negotiated apart from their day. */
-/* A monthly hand on a contracted MONTHLY wage (BM, 14 Sep 2026: "Uday is
-   9000/month. per day is calculated as per days in that month") has no fixed
+/* A monthly hand on a contracted MONTHLY wage (BM, 14 Sep 2026, of one such hand:
+   "<a wage>/month. per day is calculated as per days in that month") has no fixed
    day rate: it is the wage over the days in the month the day falls in. */
 function workerDayRate(w, iso) {
   if (!w) return 0;
@@ -1246,8 +1246,8 @@ function workerOtRate(w, iso) {
 }
 /* What one overtime hour pays: the OT rate × the multiplier, and for the
    monthly tier CAPPED (owner, 25 Sep 2026: "monthly hands get OT at day rate ÷
-   8 × 1.1. Capped at 68.2"). The cap binds a day rate above ₹496 — Shyam's
-   ₹576 would pay ₹79.20 an hour, and pays ₹68.20 — and only on OT dated on or
+   8 × 1.1. Capped at 68.2"). The cap binds a day rate above ₹496 — a
+   ₹560 day would pay ₹77.00 an hour, and pays ₹68.20 — and only on OT dated on or
    after `otCapFrom`: the cap applies from September, and July and August were
    paid uncapped. With no date the cap applies, which is the rate going forward. */
 function workerOtHourPay(w, cfg, iso) {
@@ -1259,7 +1259,7 @@ function workerOtHourPay(w, cfg, iso) {
 }
 
 /* The OT figure is what one overtime hour pays going forward (workerOtHourPay): the rate × the multiplier, the monthly
-   tier capped. It showed the rate before either, so Shyam's ₹576 a day read ₹72.00/h where an hour pays ₹68.20. */
+   tier capped. It showed the rate before either, so a ₹560 day read ₹70.00/h where an hour pays ₹68.20. */
 function workerRateLabel(w) {
   var cls = compClass(w.comp), cfg = labourCfg();
   if (cls.id === 'hourly') return formatCurrency(w.hourRate || 0) + '/h, every hour';

@@ -9,15 +9,15 @@ const PREFIX = `SEP/${FY0}-${String(FY0 + 1).slice(2)}/`;
 /*
  * Credit notes.
  *
- * SSS Mehta hold a standing 2% discount on any payment batch spanning seven
- * days or more, bought to smooth cash flow. Each such batch ships as two
- * documents: the sales register for the range, and a credit note for 2% of it.
+ * A piece client can hold a standing discount on any payment batch spanning
+ * seven days or more, bought to smooth cash flow. Each such batch ships as two
+ * documents: the sales register for the range, and a credit note for its share.
  * The batch is the unit, not the invoice.
  *
- * The reference (CN/005/26-27, 04/08/26) credits Rs 5,902.12 against roughly
- * Rs 2.95L of taxable, and its quantity of 1092.98 KG times Rs 5.40 comes to
- * 5902.09 — three paise short of the amount printed. That gap is the evidence
- * that the rupees are computed first and the kilograms derived from them.
+ * A made-up batch: 2% of Rs 2,41,370 of taxable is Rs 4,827.40, and its
+ * quantity of 791.38 KG times Rs 6.10 comes to 4,827.42 — two paise off the
+ * amount credited. That gap is the evidence that the rupees are computed first
+ * and the kilograms derived from them.
  */
 
 function invoice(num: number, over: Record<string, unknown> = {}) {
@@ -30,11 +30,11 @@ function invoice(num: number, over: Record<string, unknown> = {}) {
     status: 'active',
     invoiceState: 'created',
     clientId: 1,
-    clientName: 'SSSMEHTA INDUSTRIES LTD.',
-    clientGSTIN: '20ABHCS4033N1ZD',
-    clientAddress: { add1: 'A-4, Road No. 2', add2: 'ADITYAPUR', add3: '', state: 'JHARKHAND', stateCode: '20' },
+    clientName: 'VEGA AUTO INDUSTRIES LTD.',
+    clientGSTIN: '20AADCD7215Q1Z4',
+    clientAddress: { add1: 'Plot 12, Lane 7', add2: 'INDUSTRIAL AREA', add3: '', state: 'JHARKHAND', stateCode: '20' },
     gstType: 'intra',
-    items: [{ partNumber: 'P1', desc: 'Sample', hsn: '998873', unit: 'KG', qty: 10, rate: 5.4, amount: taxable, nosQty: null }],
+    items: [{ partNumber: 'P1', desc: 'Sample', hsn: '998873', unit: 'KG', qty: 10, rate: 6.1, amount: taxable, nosQty: null }],
     taxableValue: taxable,
     cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
     grandTotal: taxable, amountInWords: '',
@@ -52,13 +52,13 @@ function daysAgoIso(n: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function mehtaState(invoices: unknown[]): SepState {
+function pieceState(invoices: unknown[]): SepState {
   const s = emptyState();
   s.clients = [{
-    id: 1, name: 'SSSMEHTA INDUSTRIES LTD.', billingMode: 'piece', gstType: 'intra',
-    gstin: '20ABHCS4033N1ZD', address: '',
+    id: 1, name: 'VEGA AUTO INDUSTRIES LTD.', billingMode: 'piece', gstType: 'intra',
+    gstin: '20AADCD7215Q1Z4', address: '',
     // The ladder the derived quantity is priced off.
-    rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2020-04-01' }],
+    rates: [{ ratePerKg: 6.1, ratePerPiece: null, effectiveFrom: '2020-04-01' }],
     itemRates: [],
   } as never];
   s.invoices = invoices;
@@ -97,10 +97,10 @@ async function stored(page: Page) {
 }
 
 test('P19: reproduces the reference document arithmetic', async ({ page }) => {
-  // A batch totalling the reference's base, spread over a fortnight.
-  await loadForBatch(page, mehtaState([
-    invoice(1, { taxableValue: 150000, date: daysAgoIso(20) }),
-    invoice(2, { taxableValue: 145106, date: daysAgoIso(6) }),
+  // A made-up batch, spread over a fortnight.
+  await loadForBatch(page, pieceState([
+    invoice(1, { taxableValue: 130000, date: daysAgoIso(20) }),
+    invoice(2, { taxableValue: 111370, date: daysAgoIso(6) }),
   ]));
   await openCnForm(page);
   await page.locator('[data-action="invCnSave"]').click();
@@ -108,20 +108,20 @@ test('P19: reproduces the reference document arithmetic', async ({ page }) => {
 
   const s = await stored(page);
   const cn = s.creditNotes[0];
-  expect(cn.batchTaxable).toBe(295106);
-  // 2% of the batch — the figure on the reference.
-  expect(cn.taxableValue).toBe(5902.12);
-  expect(cn.cgstAmt).toBe(531.19);
-  expect(cn.sgstAmt).toBe(531.19);
-  expect(cn.grandTotal).toBe(6964.5);
-  // Quantity derived from value, so it lands on the reference's 1092.98 even
-  // though 1092.98 x 5.40 does not come back to 5902.12.
-  expect(cn.qty).toBe(1092.99);
-  expect(cn.rate).toBe(5.4);
+  expect(cn.batchTaxable).toBe(241370);
+  // 2% of the batch.
+  expect(cn.taxableValue).toBe(4827.4);
+  expect(cn.cgstAmt).toBe(434.47);
+  expect(cn.sgstAmt).toBe(434.47);
+  expect(cn.grandTotal).toBe(5696.34);
+  // Quantity derived from value: 791.38, though 791.38 x 6.10 does not come
+  // back to 4827.40.
+  expect(cn.qty).toBe(791.38);
+  expect(cn.rate).toBe(6.1);
 });
 
 test('P19: the series is its own, formatted off the invoice prefix', async ({ page }) => {
-  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
+  await loadForBatch(page, pieceState([invoice(1, { date: daysAgoIso(10) })]));
   await openCnForm(page);
   // Named on the button before it is raised, so the number is never a surprise.
   // 006, not 001: CN/001–005 of this year were issued by hand before the app.
@@ -135,7 +135,7 @@ test('P19: the series is its own, formatted off the invoice prefix', async ({ pa
 });
 
 test('P19: the series does not restart at 001 over numbers issued by hand', async ({ page }) => {
-  const st = mehtaState([invoice(1, { date: daysAgoIso(10) })]);
+  const st = pieceState([invoice(1, { date: daysAgoIso(10) })]);
   // A device that has never raised one in the app still must not hand out a
   // number the customer already holds on paper.
   await loadForBatch(page, st);
@@ -146,11 +146,11 @@ test('P19: the series does not restart at 001 over numbers issued by hand', asyn
 });
 
 test('P19: the series start never walks over a note the app already issued', async ({ page }) => {
-  const st = mehtaState([invoice(1, { date: daysAgoIso(10) })]);
+  const st = pieceState([invoice(1, { date: daysAgoIso(10) })]);
   // Already at 009 with one raised — the migration must not drag it back to 6.
   (st as unknown as { creditNotes: unknown[]; cnNextNum: number }).creditNotes = [{
     id: 'CN-x', cnNumber: '008', displayNumber: `CN/008/${FYS}`, date: todayIso(),
-    clientId: 1, clientName: 'SSSMEHTA INDUSTRIES LTD.', invoiceIds: [], invoiceNumbers: [],
+    clientId: 1, clientName: 'VEGA AUTO INDUSTRIES LTD.', invoiceIds: [], invoiceNumbers: [],
     discountPct: 2, batchTaxable: 0, taxableValue: 0, grandTotal: 0, status: 'active',
     gstType: 'intra', cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
     createdAt: recentTs(),
@@ -167,7 +167,7 @@ test('P19: the series start never walks over a note the app already issued', asy
    how it is computed — the discount is still 2% of the whole batch, and the
    batch is still on the annex as the working. */
 test('P19: the note names ONE invoice, and states the batch it was computed on', async ({ page }) => {
-  await loadForBatch(page, mehtaState([
+  await loadForBatch(page, pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),   // largest → the pick
     invoice(3, { date: daysAgoIso(8), taxableValue: 1000 }),
@@ -213,7 +213,7 @@ test('P19: the note names ONE invoice, and states the batch it was computed on',
 test('P19: the named invoice must be able to absorb the credit, net of notes already on it', async ({ page }) => {
   // The test is on what REMAINS of an invoice, not on its full value: two notes
   // of 4,000 both fit inside 9,000 separately and not together.
-  const st = mehtaState([
+  const st = pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),
   ]);
@@ -254,13 +254,13 @@ test('P19: a note raised before the rule names one invoice when reprinted', asyn
   // The retroactive half: CN/007 and its siblings carry no stamp, so the pick is
   // recomputed from the batch by the same function — a reprint names what a note
   // raised today would name.
-  const st = mehtaState([
+  const st = pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),
   ]);
   (st as SepState & { creditNotes: unknown[] }).creditNotes = [{
     id: 'CN-old', cnNumber: '007', displayNumber: `CN/007/${FYS}`, date: todayIso(),
-    status: 'active', clientId: 1, clientName: 'SSSMEHTA INDUSTRIES LTD.',
+    status: 'active', clientId: 1, clientName: 'VEGA AUTO INDUSTRIES LTD.',
     invoiceIds: ['INV-1', 'INV-2'],
     invoiceNumbers: ['SEP/TEST-00001', 'SEP/TEST-00002'],
     taxableValue: 200, grandTotal: 236, batchTaxable: 10000, discountPct: 2,
@@ -276,7 +276,7 @@ test('P19: a note raised before the rule names one invoice when reprinted', asyn
 });
 
 test('P19: a batch under a week warns but is not blocked', async ({ page }) => {
-  await loadForBatch(page, mehtaState([
+  await loadForBatch(page, pieceState([
     invoice(1, { date: daysAgoIso(2) }),
     invoice(2, { date: daysAgoIso(1) }),
   ]));
@@ -289,7 +289,7 @@ test('P19: a batch under a week warns but is not blocked', async ({ page }) => {
 });
 
 test('P19: a selection spanning two customers is refused, with the reason', async ({ page }) => {
-  const s = mehtaState([invoice(1, { date: daysAgoIso(10) }), invoice(2, { clientId: 2, clientName: 'DELTA AUTO' })]);
+  const s = pieceState([invoice(1, { date: daysAgoIso(10) }), invoice(2, { clientId: 2, clientName: 'DELTA AUTO' })]);
   (s.clients as unknown[]).push({
     id: 2, name: 'DELTA AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', address: '',
     rates: [{ ratePerKg: 13, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [],
@@ -306,7 +306,7 @@ test('P19: a selection spanning two customers is refused, with the reason', asyn
 });
 
 test('P19: cancelled invoices are left out of the base and the omission is stated', async ({ page }) => {
-  await loadForBatch(page, mehtaState([
+  await loadForBatch(page, pieceState([
     invoice(1, { taxableValue: 10000, date: daysAgoIso(10) }),
     invoice(2, { taxableValue: 99999, status: 'cancelled', cancelledAt: recentTs() }),
   ]));
@@ -324,7 +324,7 @@ test('P19: cancelled invoices are left out of the base and the omission is state
 });
 
 test('P19: the discount rate is editable and restates the totals live', async ({ page }) => {
-  await loadForBatch(page, mehtaState([invoice(1, { taxableValue: 100000, date: daysAgoIso(10) })]));
+  await loadForBatch(page, pieceState([invoice(1, { taxableValue: 100000, date: daysAgoIso(10) })]));
   await openCnForm(page);
 
   await expect(page.locator('[data-cn-total]')).toContainText('2,360.00');
@@ -338,7 +338,7 @@ test('P19: the discount rate is editable and restates the totals live', async ({
 });
 
 test('P19: a credit note is cancelled, never deleted — the number stays spent', async ({ page }) => {
-  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
+  await loadForBatch(page, pieceState([invoice(1, { date: daysAgoIso(10) })]));
   await openCnForm(page);
   await page.locator('[data-action="invCnSave"]').click();
   await page.locator('[data-action="invClosePrint"]').click();
@@ -357,7 +357,7 @@ test('P19: a credit note is cancelled, never deleted — the number stays spent'
 });
 
 test('P19: the document reads company identity from state, not a frozen copy', async ({ page }) => {
-  const s = mehtaState([invoice(1, { date: daysAgoIso(10) })]);
+  const s = pieceState([invoice(1, { date: daysAgoIso(10) })]);
   s.company = {
     name: 'SOMA ELECTRO PRODUCTS', add1: '8-B, 1st Phase, Industrial Area, Adityapur',
     add2: 'Jamshedpur - 832 109', add3: '', phone: '', mobile: '', email: '',
@@ -377,20 +377,20 @@ test('P19: the document reads company identity from state, not a frozen copy', a
 });
 
 test('P19: words state the total, and the tax words state all of the tax', async ({ page }) => {
-  await loadForBatch(page, mehtaState([invoice(1, { taxableValue: 295106, date: daysAgoIso(10) })]));
+  await loadForBatch(page, pieceState([invoice(1, { taxableValue: 241370, date: daysAgoIso(10) })]));
   await openCnForm(page);
   await page.locator('[data-action="invCnSave"]').click();
 
   const doc = page.locator('.inv-cn-doc');
   // The reference printed the sub-total here while the figure beside it was
-  // the total: 6964.50, not 5902.12.
-  await expect(doc.locator('.inv-cn-words-box')).toContainText('Six Thousand Nine Hundred Sixty Four');
-  // And all the tax, not one of its two halves: 1062.38, not 531.19.
-  await expect(doc.locator('.inv-cn-taxwords')).toContainText('One Thousand Sixty Two');
+  // the total: 5696.34, not 4827.40.
+  await expect(doc.locator('.inv-cn-words-box')).toContainText('Five Thousand Six Hundred Ninety Six');
+  // And all the tax, not one of its two halves: 868.94, not 434.47.
+  await expect(doc.locator('.inv-cn-taxwords')).toContainText('Eight Hundred Sixty Eight');
 });
 
 test('P19: typing in the form does not tear out the control being used', async ({ page }) => {
-  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
+  await loadForBatch(page, pieceState([invoice(1, { date: daysAgoIso(10) })]));
   await openCnForm(page);
 
   // Only the discount moves the totals. Re-rendering for the others replaced
@@ -415,7 +415,7 @@ test('P19: typing in the form does not tear out the control being used', async (
 });
 
 test('P19: the export is named for the notes it holds, not the register filter', async ({ page }) => {
-  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(10) })]));
+  await loadForBatch(page, pieceState([invoice(1, { date: daysAgoIso(10) })]));
   await openCnForm(page);
   await page.locator('[data-action="invCnSave"]').click();
   await page.locator('[data-action="invClosePrint"]').click();
@@ -443,7 +443,7 @@ test('P19: a cancelled invoice is never named — it credits nothing', async ({ 
   // the largest qualifying candidate. Naming it would attribute a credit to a
   // supply that was never billed and appears in GSTR-1 at zero — the same rule
   // the quality certificate already enforces (Iuno I-3).
-  const st = mehtaState([
+  const st = pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000, status: 'cancelled' }),
   ]);
@@ -473,7 +473,7 @@ test('P19: a batch that is present but too small says so, not that it vanished',
   // raise against a later invoice), while a batch that is GONE is not. Telling
   // them the invoices vanished when the invoices are on screen hides the one
   // fix available (Iuno I-5).
-  const st = mehtaState([
+  const st = pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 1000 }),
     invoice(2, { date: daysAgoIso(14), taxableValue: 1000 }),
   ]);
@@ -508,13 +508,13 @@ test('P19: a batch that is present but too small says so, not that it vanished',
 test('P19: the reference can be set by hand, and the headroom rule still binds', async ({ page }) => {
   // The rule picks the LARGEST qualifying invoice. BM's stated convention is
   // looser — "any invoice that has at least that much amount billed" — and the
-  // notes already issued on paper did not all use largest: measured on the live
-  // 7 Sep backup, CN/005's recorded reference IS the largest and the rule
-  // reproduces it, while CN/004's 000443 qualifies but is not the largest. If
+  // notes already issued on paper did not all use largest: on the owner's book
+  // one note's recorded reference IS the largest and the rule reproduces it,
+  // while another's qualifies but is not the largest. If
   // those notes are ever back-entered, the app has to be able to carry the
   // number on the customer's copy. A document in somebody's hands is the fact;
   // a rule is not (Iuno, Q6).
-  const st = mehtaState([
+  const st = pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 5000 }),
     invoice(2, { date: daysAgoIso(14), taxableValue: 9000 }),   // largest → the rule's pick
     invoice(3, { date: daysAgoIso(2), taxableValue: 100 }),     // too small to carry it
@@ -564,7 +564,7 @@ test('P19: a cancelled note is neither stamped nor editable', async ({ page }) =
   // attribute. The migration must skip it and the setter must refuse it — if the
   // two disagree, the machine writes a reference the operator cannot correct
   // (Cipher C-5). Measured on BM's own state: CN/006 is cancelled.
-  const st = mehtaState([
+  const st = pieceState([
     invoice(1, { date: daysAgoIso(20), taxableValue: 9000 }),
     invoice(2, { date: daysAgoIso(2), taxableValue: 9000 }),
   ]);
@@ -592,7 +592,7 @@ test('P19: the reference is on the same tax head as the note', async ({ page }) 
   // produce an IGST note naming a CGST/SGST invoice — two documents disagreeing
   // about which head the tax sits under (Iuno, Q1). Live data is clean today;
   // this is the guard, not a reproduction.
-  await loadForBatch(page, mehtaState([invoice(1, { date: daysAgoIso(20), taxableValue: 1000 })]));
+  await loadForBatch(page, pieceState([invoice(1, { date: daysAgoIso(20), taxableValue: 1000 })]));
 
   const r = await page.evaluate(async () => {
     const w = window as unknown as {
@@ -633,7 +633,7 @@ test('P19: the annex fits the sheet however many invoices a batch names', async 
      cannot silently run off the paper. */
   const many = Array.from({ length: 30 }, (_, i) =>
     invoice(i + 1, { date: daysAgoIso(30 - i), taxableValue: 9000 }));
-  await loadForBatch(page, mehtaState(many));
+  await loadForBatch(page, pieceState(many));
   await openCnForm(page);
   await page.locator('[data-action="invCnSave"]').click();
 

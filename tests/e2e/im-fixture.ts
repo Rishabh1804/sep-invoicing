@@ -2,7 +2,7 @@ import { emptyState, todayIso, recentTs, type SepState } from './fixtures';
 
 // Challans for the IM specs (P55), phone and desktop alike.
 
-const LONG = 'DILIP PRESS METAL & AGROTECH PRIVATE LIMITED';
+const LONG = 'ORBIT PRESSINGS & AGROTOOLS PRIVATE LIMITED';
 
 function challan(id: string, clientId: number, clientName: string, invoiced: boolean, date = todayIso()) {
   return {

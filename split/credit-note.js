@@ -1,18 +1,18 @@
 /* ===== CREDIT NOTES ===== */
 /*
- * SSS Mehta hold a standing 2% discount on any payment batch spanning seven
- * days or more — a price paid for smoother cash flow, temporary but in force.
- * Each such batch ships as two documents: the sales register for the range, and
- * a credit note for 2% of it. So the **batch is the unit, not the invoice**,
- * which is why the 04/08/26 reference credits ₹5,902.12 against roughly ₹2.95L
- * of taxable — about a month of invoices, not the single one it names.
+ * A piece client holds a standing 2% discount on any payment batch spanning
+ * seven days or more — a price paid for smoother cash flow, temporary but in
+ * force. Each such batch ships as two documents: the sales register for the
+ * range, and a credit note for 2% of it. So the **batch is the unit, not the
+ * invoice**: a note credits 2% of about a month of invoices, not of the single
+ * one it names.
  *
  * That makes the register selection the natural input: tick the batch, export
  * its register, raise the credit note off the same set.
  *
  * The discount is computed on **value**, and the quantity is derived from it.
- * The reference proves the direction: 1092.98 × 5.40 = 5902.09, but it shows
- * 5902.12. Three paise of disagreement only happen if the rupees came first.
+ * On a made-up note: 2% of ₹2,41,370 is ₹4,827.40, and 791.38 kg × ₹6.10 =
+ * 4,827.42. Paise of disagreement only happen if the rupees came first (P19).
  *
  * Deviations from the reference, all deliberate — unlike the quality
  * certificate, no external approval binds this format:
@@ -637,12 +637,11 @@ function cnAgainstInvoiceLabel(cn) {
    The rule picks the LARGEST qualifying invoice. BM's stated convention is looser
    — "use any invoice that has at least that much amount billed" — so largest is a
    conforming subset, not the only right answer, and the notes already issued on
-   paper did not all use it. Measured against the 7 Sep backup: CN/005's recorded
-   reference `000716` IS the largest qualifying invoice and the rule reproduces it
-   exactly; CN/004's `000443` qualifies (₹11,087.61 against a ₹3,749.29 credit) but
-   is NOT the largest — the rule would print `000571`.
+   paper did not all use it. Measured against the owner's book: one note's recorded
+   reference IS the largest qualifying invoice and the rule reproduces it exactly;
+   another's qualifies but is NOT the largest, and the rule would print another.
 
-   CN/004 and CN/005 are the ₹10,821.75 of issued notes still outside this app. If
+   Notes issued on paper may still be outside this app. If
    they are ever back-entered, the app must be able to carry the number on the
    customer's copy rather than the one the rule prefers: a document already in
    somebody's hands is the fact, and a rule is not. So the field is settable, and

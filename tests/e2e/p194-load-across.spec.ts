@@ -191,6 +191,10 @@ test.describe('P194: TM6b, the period to date', () => {
     await marked('Performance');
     await switchTab(page, 'pagePower');
     await marked('Power’s cuts by month');
+    // The long book's marks end yesterday, so on a Sunday or a Monday the pay week still running holds no day and draws no
+    // bar to mark: today is marked as the last day was.
+    await ev(page, `(function () { var last = Object.keys(S.attendance).sort().pop();
+      S.attendance[localDateStr()] = JSON.parse(JSON.stringify(S.attendance[last])); })()`);
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
     await marked('Pay’s weekly payout');

@@ -141,15 +141,15 @@ PICKLING TIME 10:20`);
     const item = (id: string, pn: string, qty: number) => ({ id, partNumber: pn, desc: 'BRACKET', hsn: '998873', unit: 'NOS', qty, rate: 1, amount: qty, nosQty: qty });
     await load(page, {
       incomingMaterial: [{ id: 'IM-1', challanNo: '41', challanDate: iso(-3), clientId: 12, clientName: 'DURGA AUTO', vehicleNo: '', receivedDate: iso(-3), createdAt: recentTs(),
-        items: [item('IM-1-0', '9101 0000 4706', 1000), item('IM-1-1', '9102 0000 0760', 500)] }],
+        items: [item('IM-1-0', '9101 0000 4706', 615), item('IM-1-1', '9102 0000 0760', 450)] }],
       // A load pasted before this build: its part is the code alone, with no part number.
-      ...prod([{ id: 'OLD1', kind: 'pickled', date: iso(-2), time: '09:00', clientId: 12, client: 'DURGA AUTO', part: '0760', qty: 30, unit: 'NOS', basis: 'pickling', src: 'paste', pasteId: 'PP0', at: 1 }]),
+      ...prod([{ id: 'OLD1', kind: 'pickled', date: iso(-2), time: '09:00', clientId: 12, client: 'DURGA AUTO', part: '0760', qty: 45, unit: 'NOS', basis: 'pickling', src: 'paste', pasteId: 'PP0', at: 1 }]),
     });
     expect(await g(page, `[prodAliasCode('4706'), prodAliasCode('0760'), prodAliasCode(' 0706 '), prodAliasCode('TINA(0760)'), prodAliasCode('CLAMP 165X83')]`))
       .toEqual(['4706', '0760', '0706', '0760', null]);
     // The load already held is matched once, at the start.
     expect(await g(page, `S.production.entries[0].partNumber`)).toBe('9102 0000 0760');
-    await paste(page, `${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n4706-500 nos\nPickling time 9:00am`);
+    await paste(page, `${dmy(-1)}, 9:40 am - Pickler: DURGA AUTO\n4706-420 nos\nPickling time 9:00am`);
     await page.locator('[data-action="invProdSaveReview"]').click();
     const e = (await readStoredState(page)).production.entries.find((x: any) => x.part === '4706');
     expect(e.partNumber).toBe('9101 0000 4706');
@@ -164,13 +164,13 @@ PICKLING TIME 10:20`);
 8201/8202
 Pickling time 11:30 am
 ${d}, 12:40 pm - Pickler: DURGA AUTO
-4706-1000
-0760--30
+4706-615
+0760--45
 8201/8202-600
 Pickling time 12:30 pm
 ${d}, 1:40 pm - Pickler: NOVA CLAMPS
 LINER
-1000 NOS
+920 NOS
 BRACKET
 3302--420 NOS
 Pickling time 1:30 pm
@@ -181,8 +181,8 @@ Liner--50 nos
 Pickling time 2:30 pm`);
     expect(msgs.map(m => m.items.map((x: any) => [x.clientId, x.part, x.qty]))).toEqual([
       [[15, '8201/8202', null]],
-      [[12, '4706', 1000], [12, '0760', 30], [12, '8201/8202', 600]],
-      [[11, 'LINER', 1000], [11, 'BRACKET 3302', 420]],
+      [[12, '4706', 615], [12, '0760', 45], [12, '8201/8202', 600]],
+      [[11, 'LINER', 920], [11, 'BRACKET 3302', 420]],
       [[11, 'Liner', 50]]]);
     // The dotted date is the loads' day; a date with no year is listed, not taken for a load.
     expect(msgs[3].items[0].date).toBe(dd);

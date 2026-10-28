@@ -24,6 +24,9 @@ const PROPS = ['color', 'background-color', 'background-image', 'border-top-widt
   'white-space', 'display', 'opacity', 'fill', 'stroke'];
 
 /* Each document, put into the print view the way its own Print does. */
+// The last working day before today: yesterday, or Saturday when yesterday was a Sunday. On a Monday yesterday held no marks
+// and today's pay week no day, so the sheets and slips drew emptier than the record.
+const LASTWD = `(function () { var d = isoAddDays(localDateStr(), -1); return new Date(d + 'T00:00:00').getDay() === 0 ? isoAddDays(d, -1) : d; })()`;
 const DOCS: [string, string][] = [
   ['invoice', `showPrintPreview('INV-17')`],
   ['certificate', `showQualityCertificates(['INV-17'])`],
@@ -31,8 +34,8 @@ const DOCS: [string, string][] = [
   ['sales-register', `paperShow(buildSalesRegisterHtml({ invoices: S.invoices.filter(function(i) { return i.clientId === 1; }), fromSelection: true }))`],
   ['quotation', `qtPrint('Q2')`],
   ['statement', `paperShow(soaDocHtml(soaCompute((bankReceivables()[0] || { client: { id: 1 } }).client.id)))`],
-  ['pay-slips', `_attWeekStart = attWeekStartOf(localDateStr()); paperShow(psSheetsHtml(psRows()))`],
-  ['attendance-sheets', `paperShow(attSheetShyamHtml(isoAddDays(localDateStr(), -1), attSheetFillFor(isoAddDays(localDateStr(), -1)), '') + attSheetDeepakHtml(isoAddDays(localDateStr(), -1), true))`],
+  ['pay-slips', `_attWeekStart = attWeekStartOf(${LASTWD}); paperShow(psSheetsHtml(psRows()))`],
+  ['attendance-sheets', `paperShow(attSheetShyamHtml(${LASTWD}, attSheetFillFor(${LASTWD}), '') + attSheetDeepakHtml(${LASTWD}, true))`],
   ['stock-sheets', `paperShow(stockSheetSupHtml(localDateStr(), false, '') + stockSheetDeepakHtml(localDateStr(), false))`],
   ['id-cards', `paperShow(idcSheetsHtml(S.staff.slice(0, 3).map(function(w, i) { return { w: w, card: 'SEP-000' + (i + 1) }; }), true))`],
 ];

@@ -70,7 +70,7 @@ reopened the tab last used); measure it at step 6.
 4. **Search.**
    - One index: invoices, challans, clients, parts, workers, stock lines, bank rows.
    - `Ctrl+K` or `/` on the desktop, an icon in the top bar on the phone.
-   - Numbers match whole (`834` finds challan 834 and invoice 00834, not 8341); amounts match exactly (`5902.12`); a
+   - Numbers match whole (`834` finds challan 834 and invoice 00834, not 8341); amounts match exactly (`4827.42`); a
      cheque number finds its deposit.
    - Results grouped by kind, arrow keys and Enter, recent items before anything is typed.
 5. **Keyboard.** `N` new invoice, `C` new challan, `G` then a letter to jump (`G R` Register), `J`/`K` through a list,

@@ -73,14 +73,14 @@ test.describe('P95: an invoice shows its credit notes', () => {
       s.invoices[2].status = 'cancelled';                          // CN/008's invoice cancelled
       s.creditNotes.push(note('CN-009', { kind: 'adjustment', reason: 'Goods returned', invoiceIds: ['INV-2'], againstInvoice: 'SEP/TEST-00002',
         againstInvoiceId: 'INV-2', taxableValue: 5900, grandTotal: 6962 }));   // 200 + 5,900 against 6,000 billed
-      s.creditNotes.push(note('CN-010', { kind: 'adjustment', recorded: true, reason: 'Rate correction', againstInvoice: '000443', taxableValue: 50, grandTotal: 59 }));
+      s.creditNotes.push(note('CN-010', { kind: 'adjustment', recorded: true, reason: 'Rate correction', againstInvoice: '000517', taxableValue: 50, grandTotal: 59 }));
     }));
     const tasks = await g(page, 'TODO_RULE_FNS.cnMatch().map(function(t){ return [t.key, t.tone, t.title]; })');
     expect(tasks).toEqual([
       ['cnMatch:CN-008', 'red', 'CN/008/26-27 is against a cancelled invoice'],
       ['cnOver:INV-2', 'amber', 'Credit notes exceed invoice TEST-00002'],
     ]);
-    // A note recorded against a number from outside the book (000443) names no invoice here and is not judged.
+    // A note recorded against a number from outside the book (000517) names no invoice here and is not judged.
     // Deleted outright, the invoice's note still asks.
     const gone = await g(page, 'S.invoices = S.invoices.filter(function(i){ return i.id !== "INV-3"; }); TODO_RULE_FNS.cnMatch()[0].title');
     expect(gone).toBe('CN/008/26-27 is against an invoice no longer in the register');

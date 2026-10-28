@@ -14,8 +14,8 @@ import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, ans
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 
 const HAND = { id: 1, name: 'Arun Das', comp: 'monthly', area: 'vat-a1', dayRate: 500, hourRate: 0, active: true, onFloor: true };
-const GATE = { id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 9000, hourRate: 0, active: true, onFloor: false };
-const SENIOR = { id: 3, name: 'Kiran', comp: 'monthly', area: 'vat-a2', dayRate: 576, hourRate: 0, active: true, onFloor: true };
+const GATE = { id: 2, name: 'Gopal', comp: 'monthly', area: 'gate', dayRate: 0, monthWage: 8600, hourRate: 0, active: true, onFloor: false };
+const SENIOR = { id: 3, name: 'Kiran', comp: 'monthly', area: 'vat-a2', dayRate: 560, hourRate: 0, active: true, onFloor: true };
 
 /** Every day of August 2026, weekday or Sunday, by day of month. */
 function aug(day: number): string { return `2026-08-${String(day).padStart(2, '0')}`; }
@@ -69,8 +69,8 @@ test.describe('P49: monthly pay', () => {
   test('a contracted monthly wage: wage ÷ days in the month, Sundays ungated, a Sunday worked adds nothing', async ({ page }) => {
     await load(page);
     const gp = await worker(page, '2026-08-01', '2026-08-31', 2);
-    // 22 + 1 holiday + 5 Sundays = 28 × 9000 / 31.
-    expect(gp.total).toBeCloseTo(8129.03, 2);
+    // 22 + 1 holiday + 5 Sundays = 28 × 8600 / 31.
+    expect(gp.total).toBeCloseTo(7767.74, 2);
     expect(gp.restDays).toBe(6);
   });
 
@@ -81,7 +81,7 @@ test.describe('P49: monthly pay', () => {
         '2026-09-01': { marks: { 3: { st: 'P', hours: 18, ot: 10, area: 'vat-a2' } }, extra: [], note: '' },
       },
     });
-    expect((await worker(page, '2026-08-31', '2026-08-31', 3)).ot).toBe(792);   // 576 ÷ 8 × 1.1 × 10
+    expect((await worker(page, '2026-08-31', '2026-08-31', 3)).ot).toBe(770);   // 560 ÷ 8 × 1.1 × 10
     expect((await worker(page, '2026-09-01', '2026-09-01', 3)).ot).toBe(682);   // capped at 68.20
     // Moved in Settings, the cap follows.
     await g(page, `S.labour.otCapFrom = '2026-08-01'`);
@@ -101,11 +101,11 @@ test.describe('P49: monthly pay', () => {
     expect(a.base).toBe(12750);
     expect(a.ot).toBe(7012.5);
     expect(a.rest).toBe(0);
-    expect((await worker(page, '2026-08-01', '2026-08-31', 2)).total).toBeCloseTo(8129.03, 2);
+    expect((await worker(page, '2026-08-01', '2026-08-31', 2)).total).toBeCloseTo(7767.74, 2);
     // A hand the roster does not hold still costs what they were paid.
     const lab = await g(page, `(function(){ var l = labourForRange('2026-08-01', '2026-08-31'); return { fixed: l.fixed, paid: l.paidMonths.length }; })()`) as any;
     expect(lab.paid).toBe(1);
-    expect(lab.fixed).toBeCloseTo(12750 + 4000 + 8129.03, 1);   // the aggregate rounds day pay and rest apart
+    expect(lab.fixed).toBeCloseTo(12750 + 4000 + 7767.74, 1);   // the aggregate rounds day pay and rest apart
     // Half the month in range carries half the record.
     expect((await worker(page, '2026-08-01', '2026-08-16', 1)).base).toBeCloseTo(12750 * 16 / 31, 2);
 

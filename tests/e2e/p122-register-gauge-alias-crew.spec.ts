@@ -11,13 +11,13 @@ const T = todayIso();
 function book(): SepState {
   const s: any = emptyState();
   s.clients = [
-    { id: 2, name: 'MEHTA TEST INDUSTRIES', billingMode: 'piece', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 5.4, effectiveFrom: '2020-04-01' }], itemRates: [] },
+    { id: 2, name: 'MEHTA TEST INDUSTRIES', billingMode: 'piece', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 6.1, effectiveFrom: '2020-04-01' }], itemRates: [] },
     { id: 1, name: 'DELTA AUTO', billingMode: 'weight', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 13, effectiveFrom: '2020-04-01' }], itemRates: [] },
   ];
   const line = (id: string, pn: string, desc: string, qty: number, unit = 'NOS') => ({ id, partNumber: pn, desc, hsn: '998873', unit, qty, rate: 1, amount: qty, nosQty: null });
   s.incomingMaterial = [
     { id: 'IM-1', challanNo: '11', challanDate: T, clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: T, createdAt: recentTs(),
-      items: [line('IM-1-0', '9101 0000 0760', 'BRACKET', 200, 'KG'), line('IM-1-1', '9102 0000 0706', 'BRACKET', 50, 'KG'), line('IM-1-2', '9103 0000 0706', 'BRACKET', 50, 'KG')] },
+      items: [line('IM-1-0', '9101 0000 0760', 'BRACKET', 180, 'KG'), line('IM-1-1', '9102 0000 0706', 'BRACKET', 45, 'KG'), line('IM-1-2', '9103 0000 0706', 'BRACKET', 45, 'KG')] },
     { id: 'IM-2', challanNo: '21', challanDate: T, clientId: 2, clientName: 'MEHTA TEST INDUSTRIES', vehicleNo: '', receivedDate: T, createdAt: recentTs(),
       items: [line('IM-2-0', 'CLAMP 149X83', 'CLAMP (30X6)', 3000), line('IM-2-1', 'CLAMP 165X83', 'CLAMP (40X6)', 3000)] },
   ];
@@ -32,7 +32,7 @@ const dmy = T.slice(8, 10) + '/' + T.slice(5, 7) + '/' + T.slice(2, 4);
 const A1 = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
   { time: '10:00 AM', mark: 'START', customer: 'MEHTA', part: 'CLAMP' },
   { time: '10:15 AM', qtyText: '100', ditto: true }, { time: '10:30 AM', qtyText: '100', ditto: true },
-  { time: '10:45 AM', qtyText: '94', ditto: true }, { time: '11:00 AM', qtyText: '94', ditto: true },
+  { time: '10:45 AM', qtyText: '92', ditto: true }, { time: '11:00 AM', qtyText: '92', ditto: true },
   { time: '11:40 AM', customer: null, part: 'LINER', qtyText: '90' },
   { time: '1:05 PM', customer: null, part: 'CLAMP', qtyText: '72' }, { time: '1:20 PM', qtyText: '72', ditto: true },
   { time: '5:30 PM', qtyText: '72', ditto: true }] };
@@ -43,7 +43,7 @@ test('a Mehta clamp takes its gauges from the round, a round no rule names stays
   const runs = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(A1)}, prodCtx(), null, {}).runs.map(e => [e.client, e.part, (e.gaugeOptions || []).join('/'), e.qty]))`) as string);
   expect(runs).toEqual([
     ['MEHTA', 'CLAMP', '25X6/30X6', 300],   // START counts as a round of the next figure (the owner's rule of 26 Jun)
-    ['MEHTA', 'CLAMP', '', 188],   // a round of 94 is in no rule (108 is, since the owner's 9 Oct answer: P191)
+    ['MEHTA', 'CLAMP', '', 184],   // a round of 92 is in no rule (108 is, since the owner's 9 Oct answer: P191)
     ['MEHTA', 'LINER', '', 90],
     ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 144],
     ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 72]]);   // the 5:30 PM round is overtime, a run of its own (P127)
@@ -51,8 +51,8 @@ test('a Mehta clamp takes its gauges from the round, a round no rule names stays
 
 test('a code in brackets is the client’s part ending in it, learnt for the name; two parts ending in it are asked', async ({ page }) => {
   await loadAppWithState(page, book());
-  const e1: any = { id: 'E1', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'TINA(0760)', qty: 25, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '10:00' };
-  const e2: any = { id: 'E2', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'KUDAL(0706)', qty: 30, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '11:00' };
+  const e1: any = { id: 'E1', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'TINA(0760)', qty: 22, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '10:10' };
+  const e2: any = { id: 'E2', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'KUDAL(0706)', qty: 34, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '11:10' };
   const e3: any = { id: 'E3', kind: 'plated', date: T, line: 'vat-a2', clientId: 1, client: 'DELTA', part: 'TINA', qty: 40, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '12:00' };
   const r = await g(page, `prodMergeImport({ format: 'sep-production', entries: ${JSON.stringify([e1, e2, e3])} }, 'x.json')`) as any;
   expect(r.ok !== false).toBe(true);
@@ -114,9 +114,9 @@ test('a Samarth round names its part by its size and line, a code the rule disag
   await loadAppWithState(page, samarthBook());
   const A2 = { page: 'production', date: dmy, line: 'VAT-A2', rows: [
     { time: '10:20 AM', mark: 'START', customer: 'SAMARTH', part: 'TINA(3303)' }, { time: '11:30 AM', mark: 'END', qtyText: '3×56' },
-    { time: '3:30 PM', mark: 'START', customer: 'SAMARTH', part: 'TINA' }, { time: '4:45 PM', mark: 'END', qtyText: '3×156' }] };
+    { time: '2:50 PM', mark: 'START', customer: 'SAMARTH', part: 'TINA' }, { time: '4:05 PM', mark: 'END', qtyText: '2×156' }] };
   const read = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(A2)}, prodCtx(), null, {}).runs.map(e => [e.part, e.partNumber, e.qty, e.issues.filter(i => i.code === 'part').map(i => i.tone).join()]))`) as string);
-  expect(read).toEqual([['TINA(3303)', '5174 5460 3302', 168, 'amber'], ['TINA', '5166 5460 3303', 468, 'info']]);
+  expect(read).toEqual([['TINA(3303)', '5174 5460 3302', 168, 'amber'], ['TINA', '5166 5460 3303', 312, 'info']]);
   const A1s = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
     { time: '9:10 AM', mark: 'START', customer: 'SAMARTH', part: 'TINA' }, { time: '9:40 AM', qtyText: '50', ditto: true }, { time: '10:10 AM', qtyText: '50', ditto: true }] };
   const a1 = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(A1s)}, prodCtx(), null, {}).runs.map(e => [e.partNumber, e.qty]))`) as string);
@@ -144,27 +144,27 @@ test('a Samarth round names its part by its size and line, a code the rule disag
   expect(await g(page, `!!prodData().learn.parts[prodKey(3, 'TINA', '')].ambiguous`)).toBe(true);
 });
 
-// Owner, 30 Sep 2026: "sometimes two clients are done simultaneously". A round written MEHTA+GENERAL / LINER+188CD / 39+50 is
+// Owner, 30 Sep 2026: "sometimes two clients are done simultaneously". A round written MEHTA+GENERAL / LINER+210CD / 37+48 is
 // a round of each, at the same time, in each client's own run; a ditto under one side carries that side.
 test('a round shared by two clients splits into each client’s run, and a ditto under one side carries that side', async ({ page }) => {
   await loadAppWithState(page, book());
   const D = '〃';
   const shared = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
-    { time: '9:00 AM', mark: 'START', customer: 'MEHTA+DELTA', part: 'LINER+188CD' },
-    { time: '9:20 AM', customer: D, part: D + ' + ' + D, qtyText: '39+50', ditto: true },
-    { time: '9:40 AM', customer: D + ' + DELTA', part: D + ' +(0760)', qtyText: '39+12' },
-    { time: '10:00 AM', customer: 'DELTA', part: '188 CD', qtyText: '150' },
+    { time: '9:00 AM', mark: 'START', customer: 'MEHTA+DELTA', part: 'LINER+210CD' },
+    { time: '9:20 AM', customer: D, part: D + ' + ' + D, qtyText: '37+48', ditto: true },
+    { time: '9:40 AM', customer: D + ' + DELTA', part: D + ' +(0760)', qtyText: '37+14' },
+    { time: '10:00 AM', customer: 'DELTA', part: '210 CD', qtyText: '150' },
     { time: '10:20 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '150' },
-    { time: '10:40 AM', qtyText: '39+50' }] };
+    { time: '10:40 AM', qtyText: '37+48' }] };
   const runs = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(shared)}, prodCtx(), null, {}).runs.map(e => [e.clientId, e.part, e.qty, e.rounds.length]))`) as string);
   expect(runs.slice(0, 3)).toEqual([
-    [2, 'LINER', 117, 3],      // START takes its own client's next figure (39), then 39 and 39
-    [1, '188CD', 250, 3],      // 50 (START), 50, then 150 after the shared rounds, continuing Delta's run
-    [1, '(0760)', 12, 1]]);
-  // After them, one client's rounds read as before: "39+50" with one client is a round of 89.
-  expect(runs.slice(3).map((r: any) => [r[0], r[2]])).toEqual([[2, 150], [2, 89]]);
+    [2, 'LINER', 111, 3],      // START takes its own client's next figure (37), then 37 and 37
+    [1, '210CD', 246, 3],      // 48 (START), 48, then 150 after the shared rounds, continuing Delta's run
+    [1, '(0760)', 14, 1]]);
+  // After them, one client's rounds read as before: "37+48" with one client is a round of 85.
+  expect(runs.slice(3).map((r: any) => [r[0], r[2]])).toEqual([[2, 150], [2, 85]]);
   // A figure that does not split into as many shares as there are clients is asked about.
-  const bad = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify({ ...shared, rows: [shared.rows[0], { time: '9:20 AM', customer: 'MEHTA+DELTA', part: 'LINER+188CD', qtyText: '89' }] })}, prodCtx(), null, {}).rows.map(r => r.issues.map(i => i.code)))`) as string);
+  const bad = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify({ ...shared, rows: [shared.rows[0], { time: '9:20 AM', customer: 'MEHTA+DELTA', part: 'LINER+210CD', qtyText: '85' }] })}, prodCtx(), null, {}).rows.map(r => r.issues.map(i => i.code)))`) as string);
   expect(bad.flat()).toContain('shared');
 });
 
@@ -175,34 +175,34 @@ test('a round no rule names is flagged until its gauge is picked, and a code two
   const day = (n: number) => { const d = new Date(T + 'T00:00:00'); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
   const line = (id: string, pn: string, nos: number) => ({ id, partNumber: pn, desc: 'BRACKET', hsn: '998873', unit: 'KG', qty: nos, nosQty: nos, rate: 1, amount: nos });
   s.incomingMaterial.push(
-    { id: 'IM-7', challanNo: '71', challanDate: day(12), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(12), createdAt: recentTs(), items: [line('IM-7-0', '9103 0000 0706', 20)] },
-    { id: 'IM-8', challanNo: '88', challanDate: day(1), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(1), createdAt: recentTs(), items: [line('IM-8-0', '9102 0000 0706', 20), line('IM-8-1', '9102 0000 3713', 30)] });
+    { id: 'IM-7', challanNo: '64', challanDate: day(12), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(12), createdAt: recentTs(), items: [line('IM-7-0', '9103 0000 0706', 16)] },
+    { id: 'IM-8', challanNo: '83', challanDate: day(1), clientId: 1, clientName: 'DELTA AUTO', vehicleNo: '', receivedDate: day(1), createdAt: recentTs(), items: [line('IM-8-0', '9102 0000 0706', 16), line('IM-8-1', '9102 0000 3713', 22)] });
   await loadAppWithState(page, s);
   // IM-1 holds both 0706 parts open; it is taken out so the match falls to the latest challan.
   const pg = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
-    { time: '9:00 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '94' },
-    { time: '9:40 AM', customer: 'DELTA', part: '(0706)', qtyText: '15' },
-    { time: '10:00 AM', customer: 'DELTA', part: '(0706+3713)', qtyText: '25' }] };
+    { time: '9:00 AM', customer: 'MEHTA', part: 'CLAMP', qtyText: '92' },
+    { time: '9:50 AM', customer: 'DELTA', part: '(0706)', qtyText: '11' },
+    { time: '10:15 AM', customer: 'DELTA', part: '(0706+3713)', qtyText: '19' }] };
   const runs = JSON.parse(await g(page, `(function(){ S.incomingMaterial = S.incomingMaterial.filter(function(m) { return m.id !== 'IM-1'; }); return JSON.stringify(prodFromRegisterRead(${JSON.stringify(pg)}, prodCtx(), null, {}).runs.map(e => [e.part, e.partNumber || null, e.qty, e.gaugeUnknown || null])); })()`) as string);
   expect(runs).toEqual([
-    ['CLAMP', null, 94, 94],
-    ['(0706)', '9102 0000 0706', 15, null],             // on the latest challan (88), where the other 0706 was 12 days before
-    ['(0706+3713)', '9102 0000 0706', 10, null],        // 25 shared 20 : 30 by the latest challan's pieces
-    ['(0706+3713)', '9102 0000 3713', 15, null]]);
+    ['CLAMP', null, 92, 92],
+    ['(0706)', '9102 0000 0706', 11, null],             // on the latest challan (83), where the other 0706 was 12 days before
+    ['(0706+3713)', '9102 0000 0706', 8, null],         // 19 shared 16 : 22 by the latest challan's pieces
+    ['(0706+3713)', '9102 0000 3713', 11, null]]);
   // The flagged run: in Entries under Gauge unknown, raised on the To-do, and cleared by picking its gauge.
-  await g(page, `(function(){ var p = prodData(); p.entries.push(prodSparse({ id: 'GU1', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 2, client: 'MEHTA', part: 'CLAMP', qty: 94, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '09:00', gaugeUnknown: 94, rounds: [{ time: '9:00 AM', qty: 94 }] })); prodTouch(); saveState(); })()`);
+  await g(page, `(function(){ var p = prodData(); p.entries.push(prodSparse({ id: 'GU1', kind: 'plated', date: '${T}', line: 'vat-a1', clientId: 2, client: 'MEHTA', part: 'CLAMP', qty: 92, unit: 'NOS', slot: 'general', basis: 'register', src: 'import', time: '09:00', gaugeUnknown: 92, rounds: [{ time: '9:00 AM', qty: 92 }] })); prodTouch(); saveState(); })()`);
   expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(1);
   await switchTab(page, 'pageProduction');
   await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
   await prodFlag(page, 'gauge');
   // A badge on its line, and why in its fold's Gauge row (TM4c).
   await expect(page.locator('[data-prod-entry="GU1"] [data-prod-badges]')).toContainText('gauge unknown');
-  await expect(page.locator('[data-prod-entry="GU1"]')).toContainText('Unknown: a round of 94');
+  await expect(page.locator('[data-prod-entry="GU1"]')).toContainText('Unknown: a round of 92');
   await prodEntryAct(page, 'GU1', 'invProdGauge');
   await page.locator('#prodGaugePick').selectOption('35X6');
   await page.locator('[data-action="invProdGaugeSave"]').click();
   await expect(page.locator('[data-prod-entry="GU1"]')).toHaveCount(0);
   const st = await readStoredState(page);
-  expect(st.production.entries.find((e: any) => e.id === 'GU1')).toMatchObject({ gauge: '35X6', gaugeSrc: 'set', gaugeUnknown: 94 });
+  expect(st.production.entries.find((e: any) => e.id === 'GU1')).toMatchObject({ gauge: '35X6', gaugeSrc: 'set', gaugeUnknown: 92 });
   expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(0);
 });

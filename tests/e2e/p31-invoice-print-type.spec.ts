@@ -22,19 +22,19 @@ import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState }
 
 const PT = 4 / 3; // 1pt = 4/3 CSS px at a 96dpi reference
 
-function invoice(lines: number, challanNo = '804') {
+function invoice(lines: number, challanNo = '712') {
   const items = Array.from({ length: lines }, (_, i) => ({
-    partNumber: `2082 3240 ${4200 + i}`,
-    desc: 'CLAMP 165X83 (NT) (40X6)',
-    hsn: '998873', unit: 'KG', qty: 10.5 + i, rate: 5.4,
-    amount: Number(((10.5 + i) * 5.4).toFixed(2)), nosQty: null,
+    partNumber: `9205 0000 ${4600 + i}`,
+    desc: 'CLAMP 172X86 (NT) (40X6)',
+    hsn: '998873', unit: 'KG', qty: 10.5 + i, rate: 6.1,
+    amount: Number(((10.5 + i) * 6.1).toFixed(2)), nosQty: null,
   }));
   const taxable = items.reduce((s, i) => s + i.amount, 0);
   return {
     id: 'INV-1', invoiceNumber: '00812', displayNumber: 'SEP/2026-27/00812',
     date: todayIso(), status: 'active', invoiceState: 'created',
     dispatchedAt: null, deliveredAt: null, filedAt: null,
-    clientId: 1, clientName: 'SSS MEHTA ENGINEERING WORKS', clientGSTIN: '20AABCS1429B1ZQ',
+    clientId: 1, clientName: 'VEGA AUTO ENGINEERING WORKS', clientGSTIN: '20AABCS1429B1ZQ',
     clientAddress: { add1: 'Plot 22, Road No. 4', add2: 'ADITYAPUR', add3: '', state: 'JHARKHAND', stateCode: '20' },
     gstType: 'intra', items, taxableValue: taxable,
     cgstPer: 9, cgstAmt: 0, sgstPer: 9, sgstAmt: 0, igstPer: 0, igstAmt: 0,
@@ -46,7 +46,7 @@ function invoice(lines: number, challanNo = '804') {
 
 function stateWith(lines: number, challanNo?: string): SepState {
   const s = emptyState();
-  s.clients = [{ id: 1, name: 'SSS MEHTA ENGINEERING WORKS', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' }];
+  s.clients = [{ id: 1, name: 'VEGA AUTO ENGINEERING WORKS', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' }];
   s.invoices = [invoice(lines, challanNo)];
   s.invNextNum = 2;
   return s;
@@ -147,7 +147,7 @@ test('P31: the meta grid fits the sheet however many challans an invoice cites',
      than the page, and a table that cannot shrink does not wrap — it
      overflows. Invoice 00866 carried four challan numbers and the grid ran to
      the paper edge with a right margin of -0.2mm. Eight is twice that load. */
-  await loadAppWithState(page, stateWith(6, '834, 835, 838, 836, 841, 842, 851, 853'));
+  await loadAppWithState(page, stateWith(6, '612, 613, 617, 614, 619, 620, 627, 631'));
   // A4 at 96dpi. The project's phone viewport is far narrower than a sheet, so
   // an overflow that only happens at print width would go unseen.
   await page.setViewportSize({ width: 794, height: 1123 });

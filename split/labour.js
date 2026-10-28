@@ -228,7 +228,7 @@ function labourForRange(fromIso, toIso) {
       // worked is one further day on top of its credit, and its hours are that
       // day — never OT as well, which would pay them twice. On a contracted
       // monthly wage the Sundays are inside the wage (BM, 14 Sep: "Sunday is
-      // inside the 9000"), so a Sunday worked adds nothing.
+      // inside the wage"), so a Sunday worked adds nothing.
       var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var fixedWage = w.comp === 'monthly' && w.monthWage > 0;
       var wage = offDay && fixedWage ? 0 : dayVal * workerDayRate(w, iso);
@@ -343,8 +343,8 @@ function labourForRange(fromIso, toIso) {
   }
 
   // Fixed, variable and the total are each rounded ONCE from the unrounded parts, the rule the worker's total follows
-  // below: a contracted wage's 22 days and 6 credited read ₹6,387.10 + ₹1,741.94 = ₹8,129.04 when the parts were
-  // rounded first, where the slip's 28 × 9000 / 31 is ₹8,129.03.
+  // below: a contracted wage's 22 days and 6 credited read ₹6,103.23 + ₹1,664.52 = ₹7,767.75 when the parts were
+  // rounded first, where the slip's 28 × 8600 / 31 is ₹7,767.74 (figures made up).
   var fixedRaw = out.monthlyDays + out.rest, variableRaw = out.pool + out.daily + out.dailyRest + out.ot + out.extra;
   ['monthlyDays', 'rest', 'pool', 'daily', 'dailyRest', 'ot', 'extra', 'floorCost'].forEach(function(k) {
     out[k] = gstRound(out[k]);
@@ -353,8 +353,8 @@ function labourForRange(fromIso, toIso) {
   Object.keys(out.byWorker).forEach(function(k) {
     var b = out.byWorker[k];
     // The total is rounded ONCE, from the unrounded parts: a contracted wage's
-    // 28 days × ₹290.3226 is ₹8,129.03 on the slip, and rounding day pay and
-    // rest credit separately first would make it ₹8,129.04.
+    // 28 days × ₹277.4194 is ₹7,767.74 on the slip, and rounding day pay and
+    // rest credit separately first would make it ₹7,767.75.
     b.total = gstRound(b.base + b.ot + b.rest);
     ['base', 'ot', 'rest'].forEach(function(f) { b[f] = gstRound(b[f]); });
   });

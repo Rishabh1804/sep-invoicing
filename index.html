@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="91312ebb">
+<meta name="app-build" content="12c2f509">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -6663,7 +6663,7 @@ function lineFillFromCount(client, item) {
    usually the same as their challan number with [their prefix]." A client SETTING, never a
    hard-code: `defaultTransport` (the vehicle) and `poFromChallan`, a pattern where `{challan}` is the
    challan number and `{challan:5}` the same padded to five digits — QX1/{challan:5} makes challan
-   1244 read QX1/01244. The invoice form applies both (create.js, createApplyClientDefaults). */
+   1372 read QX1/01372. The invoice form applies both (create.js, createApplyClientDefaults). */
 var PO_TPL_RE = /\{challan(?::(\d{1,2}))?\}/g;
 function clientPoTemplateOk(tpl) { return !tpl || /\{challan(?::\d{1,2})?\}/.test(String(tpl)); }
 /* The challan number a PO is made from: the first challan an invoice cites, its first run of digits
@@ -15883,7 +15883,7 @@ function regClearRange() {
   captureRegFilters();
 }
 
-/* A challan field is a list ("834, 835, 838"). A number in the search matches
+/* A challan field is a list ("612, 613, 617"). A number in the search matches
    a whole challan number, never a fragment of one — "83" must not find 834. */
 function regChallanMatch(challanNo, q) {
   q = String(q || '').trim();
@@ -19869,19 +19869,19 @@ function qcEligibleCount(invIds) {
 }
 /* ===== CREDIT NOTES ===== */
 /*
- * SSS Mehta hold a standing 2% discount on any payment batch spanning seven
- * days or more — a price paid for smoother cash flow, temporary but in force.
- * Each such batch ships as two documents: the sales register for the range, and
- * a credit note for 2% of it. So the **batch is the unit, not the invoice**,
- * which is why the 04/08/26 reference credits ₹5,902.12 against roughly ₹2.95L
- * of taxable — about a month of invoices, not the single one it names.
+ * A piece client holds a standing 2% discount on any payment batch spanning
+ * seven days or more — a price paid for smoother cash flow, temporary but in
+ * force. Each such batch ships as two documents: the sales register for the
+ * range, and a credit note for 2% of it. So the **batch is the unit, not the
+ * invoice**: a note credits 2% of about a month of invoices, not of the single
+ * one it names.
  *
  * That makes the register selection the natural input: tick the batch, export
  * its register, raise the credit note off the same set.
  *
  * The discount is computed on **value**, and the quantity is derived from it.
- * The reference proves the direction: 1092.98 × 5.40 = 5902.09, but it shows
- * 5902.12. Three paise of disagreement only happen if the rupees came first.
+ * On a made-up note: 2% of ₹2,41,370 is ₹4,827.40, and 791.38 kg × ₹6.10 =
+ * 4,827.42. Paise of disagreement only happen if the rupees came first (P19).
  *
  * Deviations from the reference, all deliberate — unlike the quality
  * certificate, no external approval binds this format:
@@ -20506,12 +20506,11 @@ function cnAgainstInvoiceLabel(cn) {
    The rule picks the LARGEST qualifying invoice. BM's stated convention is looser
    — "use any invoice that has at least that much amount billed" — so largest is a
    conforming subset, not the only right answer, and the notes already issued on
-   paper did not all use it. Measured against the 7 Sep backup: CN/005's recorded
-   reference `000716` IS the largest qualifying invoice and the rule reproduces it
-   exactly; CN/004's `000443` qualifies (₹11,087.61 against a ₹3,749.29 credit) but
-   is NOT the largest — the rule would print `000571`.
+   paper did not all use it. Measured against the owner's book: one note's recorded
+   reference IS the largest qualifying invoice and the rule reproduces it exactly;
+   another's qualifies but is NOT the largest, and the rule would print another.
 
-   CN/004 and CN/005 are the ₹10,821.75 of issued notes still outside this app. If
+   Notes issued on paper may still be outside this app. If
    they are ever back-entered, the app must be able to carry the number on the
    customer's copy rather than the one the rule prefers: a document already in
    somebody's hands is the fact, and a rule is not. So the field is settable, and
@@ -24487,8 +24486,8 @@ function _attWorkerPaneHtml(w, wages) {
    rate card's own OT column fall out of the day rate rather than being a second
    number to keep in step with it. An explicit `hourRate` still overrides, for a
    worker whose overtime was negotiated apart from their day. */
-/* A monthly hand on a contracted MONTHLY wage (BM, 14 Sep 2026: "Uday is
-   9000/month. per day is calculated as per days in that month") has no fixed
+/* A monthly hand on a contracted MONTHLY wage (BM, 14 Sep 2026, of one such hand:
+   "<a wage>/month. per day is calculated as per days in that month") has no fixed
    day rate: it is the wage over the days in the month the day falls in. */
 function workerDayRate(w, iso) {
   if (!w) return 0;
@@ -24503,8 +24502,8 @@ function workerOtRate(w, iso) {
 }
 /* What one overtime hour pays: the OT rate × the multiplier, and for the
    monthly tier CAPPED (owner, 25 Sep 2026: "monthly hands get OT at day rate ÷
-   8 × 1.1. Capped at 68.2"). The cap binds a day rate above ₹496 — Shyam's
-   ₹576 would pay ₹79.20 an hour, and pays ₹68.20 — and only on OT dated on or
+   8 × 1.1. Capped at 68.2"). The cap binds a day rate above ₹496 — a
+   ₹560 day would pay ₹77.00 an hour, and pays ₹68.20 — and only on OT dated on or
    after `otCapFrom`: the cap applies from September, and July and August were
    paid uncapped. With no date the cap applies, which is the rate going forward. */
 function workerOtHourPay(w, cfg, iso) {
@@ -24516,7 +24515,7 @@ function workerOtHourPay(w, cfg, iso) {
 }
 
 /* The OT figure is what one overtime hour pays going forward (workerOtHourPay): the rate × the multiplier, the monthly
-   tier capped. It showed the rate before either, so Shyam's ₹576 a day read ₹72.00/h where an hour pays ₹68.20. */
+   tier capped. It showed the rate before either, so a ₹560 day read ₹70.00/h where an hour pays ₹68.20. */
 function workerRateLabel(w) {
   var cls = compClass(w.comp), cfg = labourCfg();
   if (cls.id === 'hourly') return formatCurrency(w.hourRate || 0) + '/h, every hour';
@@ -26106,7 +26105,7 @@ function labourForRange(fromIso, toIso) {
       // worked is one further day on top of its credit, and its hours are that
       // day — never OT as well, which would pay them twice. On a contracted
       // monthly wage the Sundays are inside the wage (BM, 14 Sep: "Sunday is
-      // inside the 9000"), so a Sunday worked adds nothing.
+      // inside the wage"), so a Sunday worked adds nothing.
       var offDay = w.comp === 'monthly' && (dow === 0 || holiday);
       var fixedWage = w.comp === 'monthly' && w.monthWage > 0;
       var wage = offDay && fixedWage ? 0 : dayVal * workerDayRate(w, iso);
@@ -26221,8 +26220,8 @@ function labourForRange(fromIso, toIso) {
   }
 
   // Fixed, variable and the total are each rounded ONCE from the unrounded parts, the rule the worker's total follows
-  // below: a contracted wage's 22 days and 6 credited read ₹6,387.10 + ₹1,741.94 = ₹8,129.04 when the parts were
-  // rounded first, where the slip's 28 × 9000 / 31 is ₹8,129.03.
+  // below: a contracted wage's 22 days and 6 credited read ₹6,103.23 + ₹1,664.52 = ₹7,767.75 when the parts were
+  // rounded first, where the slip's 28 × 8600 / 31 is ₹7,767.74 (figures made up).
   var fixedRaw = out.monthlyDays + out.rest, variableRaw = out.pool + out.daily + out.dailyRest + out.ot + out.extra;
   ['monthlyDays', 'rest', 'pool', 'daily', 'dailyRest', 'ot', 'extra', 'floorCost'].forEach(function(k) {
     out[k] = gstRound(out[k]);
@@ -26231,8 +26230,8 @@ function labourForRange(fromIso, toIso) {
   Object.keys(out.byWorker).forEach(function(k) {
     var b = out.byWorker[k];
     // The total is rounded ONCE, from the unrounded parts: a contracted wage's
-    // 28 days × ₹290.3226 is ₹8,129.03 on the slip, and rounding day pay and
-    // rest credit separately first would make it ₹8,129.04.
+    // 28 days × ₹277.4194 is ₹7,767.74 on the slip, and rounding day pay and
+    // rest credit separately first would make it ₹7,767.75.
     b.total = gstRound(b.base + b.ot + b.rest);
     ['base', 'ot', 'rest'].forEach(function(f) { b[f] = gstRound(b[f]); });
   });
@@ -41613,8 +41612,8 @@ function prodMatchClient(written, idx) {
 }
 
 /* ---------- One item line ---------- */
-/* "Delta 0420- 300 nos", "CLAMP133×83(35×6)-774 nos", "188 CD--995 NOS ,96.970Kg", "Higco Nat ....",
-   "80×81=297nos", "BOLT--1800+450 Nos", "Eye bolt--20.640kg" → {client, part, gauge, qty, unit, qty2, unit2}. */
+/* "Delta 0420- 280 nos", "CLAMP133×83(35×6)-774 nos", "210 CD--940 NOS ,91.180Kg", "Higco Nat ....",
+   "80×81=297nos", "BOLT--1800+450 Nos", "Eye bolt--18.320kg" → {client, part, gauge, qty, unit, qty2, unit2}. */
 function prodReadItem(line, idx) {
   var raw = String(line || '');
   var s = raw.replace(/[×✕]/g, 'X').replace(/(\d),(\d{3})\b/g, '$1$2').replace(/^[\s\-_=*•.]+/, '').trim();
@@ -41706,7 +41705,7 @@ function parsePickling(msg, ctx) {
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
     if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
     // A date written with dots or dashes ("22.09.26") is the date as well; one with no year ("16/9") names no day a load
-    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4706-1000", "0760--30"): those were
+    // can take, and is listed. Any other line of figures is a load ("8201/8202", "4706-615", "0760--45"): those were
     // dropped unseen with the dates (P127).
     var dd = line.match(/^(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?:\s*[.\-\/]\s*(\d{2,4}))?\s*[.\-\/]?$/);
     if (dd && isoFromDmy(dd[1], dd[2], dd[3] || 2000)) {
@@ -41835,18 +41834,18 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
 /* The list as the supervisor writes it from October 2026 (owner, 15 Oct 2026: "our parser cannot read this message"):
    a batch a block between dashed lines, each with what came out of the barrel and when it was unloaded, and at the
    end what went in for the night, unloaded the next morning and listed again on the next day's list:
-     15/10/26/ BERRAL PRODUCTION
-     KESTREL 120 KG 10:15 AM UNLOAD
+     07/10/26/ BERRAL PRODUCTION
+     OMEGA 110 KG 10:40 AM UNLOAD
      ----------------
-     DELTA 7311-260 NOS +7313-450 NOS
-     1:10 PM UNLOAD
+     DELTA 7311-240 NOS +7313-410 NOS
+     1:25 PM UNLOAD
      ----------------
-     LOADING TIME 4:00 PM 90 CD 70 KG
-     40 CD 50 KG GENERAL
+     LOADING TIME 4:20 PM 210 CD 65 KG
+     60 CD 45 KG GAMMA
      ------and------                      ("and" is the end of the message)
    The unload time is the batch's end, written before or after its figures, on its line or the next; it closes every
-   batch above it in its block that has none. Two clients on one line ("DILIP PRESS 8257-60 KG PARAKH I BOLLT 50 KG") are
-   two batches. A barrel counted in barrels ("PAWAN AUTO 1 BERRAL") is the client's batch with no figure, asked. What is
+   batch above it in its block that has none. Two clients on one line ("BETA PRESS 9312-45 KG GAMMA I BOLLT 35 KG") are
+   two batches. A barrel counted in barrels ("OMEGA 1 BERRAL") is the client's batch with no figure, asked. What is
    loaded is not counted here: it is counted when it is unloaded. The older April log (loads under each time, counted
    "×4" in barrels) has no unload time beside a kilo or a count, and no dashed blocks, and is still listed, not read. */
 var PROD_UNLOAD_RE = /\bun\s*(?:lo?a?d|old)(?:ing)?\b(?:\s*(?:timing|time|tim)\b)?/i;
@@ -41916,7 +41915,7 @@ function parseBarrelBatches(msg, ctx, lines) {
     }
     var recs = [];
     if (text) {
-      // Barrels counted in barrels: each client's batch, no figure ("PAWAN AUTO 1 BERRAL+ PARAKH 1 BERRAL HIGCO 1 BERRAL").
+      // Barrels counted in barrels: each client's batch, no figure ("OMEGA 1 BERRAL+ GAMMA 1 BERRAL DELTA 1 BERRAL").
       var bre = /([A-Za-z][A-Za-z .&]*?)\s*(\d+)\s*b[ae]r+[ae]*l+s?\b\s*\+?/gi, bm, any = false;
       while ((bm = bre.exec(text))) {
         any = true;
@@ -41926,7 +41925,7 @@ function parseBarrelBatches(msg, ctx, lines) {
         recs.push(br);
       }
       if (!any) {
-        // Two batches on one line split after a figure followed by a name or a "+": "8257-60 KG PARAKH I BOLLT 50 KG".
+        // Two batches on one line split after a figure followed by a name or a "+": "9312-45 KG GAMMA I BOLLT 35 KG".
         var chunks = [], from = 0, m;
         PROD_QTY_TOKEN_RE.lastIndex = 0;
         var toks = [];
@@ -41997,7 +41996,7 @@ function parseProductionList(msg, ctx) {
     if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null; }
     else if (!cont && !group && /^[A-Za-z]/.test(line)) {
       // A first word that names nobody the book holds: the client or the part? Asked. It is taken for the client
-      // only with a part written after it ("KUMAR 0740--300 NOS"); alone before its figure it is the part ("LINER
+      // only with a part written after it ("KUMAR 0740--280 NOS"); alone before its figure it is the part ("LINER
       // 1000 NOS"), which read as a client with no part. Either way a name read by its place alone is never learnt
       // (how 'unknown', prodSaveReview): the owner's pick says whose the load is, not that the word is their name.
       var w0 = line.split(/\s+/)[0];
@@ -42177,7 +42176,7 @@ function prodFromRoll(msg, ctx) {
   var rollDate = rr.date || msg.sentOn || ctx.today, date = rollDate, items = [], notes = [], power = {};
   // One pass down the roll. The supervisor writes a slot's work under the slot, sometimes under a "----production----"
   // or "----work----" head and sometimes straight under the line it ran on ("---hold night-6:00am--- / crew /
-  // Dilip press material / VAT A 2 / 3301-600 nos"): a line with a quantity under a slot is that slot's production
+  // Beta press material / VAT A 2 / 9301-540 nos"): a line with a quantity under a slot is that slot's production
   // either way, and a client named on a line of its own is the client of the lines under it.
   var from = null, to = null, hint = null, inProd = false, group = null, pending = null;
   rr.lines.forEach(function(ln) {
@@ -42218,12 +42217,12 @@ function prodFromRoll(msg, ctx) {
     if (prodIsPowerLine(line)) { prodPowerStep(power, line, ln.raw, ln.n, date, null, items, notes); return; }
     if (/no\s*work/i.test(line)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
     var it = prodReadItem(line, ctx.clients);
-    // "Dilip press material", "Mehta ka maal": the client of the lines below.
+    // "Beta press material", "Nova ka maal": the client of the lines below.
     if (it.clientId != null && it.qty == null && (!it.part || /^(material|maal|mal|ka\s*maal|others?|work|ka)$/i.test(it.part.trim()))) {
       group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
       return;
     }
-    // "MEHTA CLAMP / 1360 NOS": the figure on the line below the part it counts.
+    // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
     if (it.qty != null && !it.part && it.clientId == null && pending) {
       var joined = prodReadItem(pending.raw.trim() + ' ' + line, ctx.clients);
       if (joined.qty != null) {
@@ -42309,7 +42308,7 @@ function prodPairPower(msgs) {
 
 /* ---------- The VAT register, as the clerk wrote it ---------- */
 /* A page is read from its rows as written (the clerk types them on Mine, faces.js): times as written, customers and parts
-   as spelt, every row, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
+   as spelt, every row, figures exactly as written ("72+10", "96×7+5"), struck rows and figures written over marked as such.
    Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are this app's, in
    code, where they can be tested. The rows came first from photos read by Gemini, which came out on 13 Oct 2026 (owner:
    *"it simply never works"*); the shape below is the one those reads took, kept so the runs saved from them still read.
@@ -42320,7 +42319,7 @@ function prodPairPower(msgs) {
    Two page shapes, both seen on the real register (pages of 24–26 Sep 2026, owner):
    - ROUNDS (VAT A1): one row per round, "9:45 AM - 72", a START row first. A START counts as a round of the next
      round's figure (the owner's rule, 26 Jun).
-   - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("98×8+1"); an
+   - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("96×7+5"); an
      END with no START of its own starts where the one before ended. A START here is only the run's start: counting it
      as a round, as the first build did, doubled every A2 run.
    The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. */
@@ -42341,8 +42340,8 @@ function prodRegisterDate(s) {
   var m = /(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/.exec(String(s || ''));
   return m ? isoFromDmy(m[1], m[2], m[3]) : null;
 }
-/* A figure as the clerk writes it: "72", "72+10", "98×8+1", "8x156+68", "50+52+30", "4×108−3". Sums of products, added
-   up here. The first product's larger factor is the rack and the smaller the rounds ("98×8": 8 rounds of 98), which is
+/* A figure as the clerk writes it: "72", "72+10", "96×7+5", "8x156+68", "46+48+34", "4×108−3". Sums of products, added
+   up here. The first product's larger factor is the rack and the smaller the rounds ("96×7": 7 rounds of 96), which is
    what rack sizes are learnt from; a plain sum carries no rack. Anything else is null: unread, never guessed. */
 /* "MEHTA+GENERAL", "(0706+3713)+188CD", "39+50": split on a + outside brackets. */
 function prodSplitTop(s) {
@@ -49257,7 +49256,7 @@ function prodRackSizes(idx) {
     if (!e.line) return;
     var k = e.line + '|' + (prodEntryKey(e) || '');
     var o = out[k] || (out[k] = {});
-    // A round's own figure is a rack; a batch's (an END row's "98×8+1") is a total, whose rack is its written factor.
+    // A round's own figure is a rack; a batch's (an END row's "96×7+5") is a total, whose rack is its written factor.
     (e.rounds || []).forEach(function(r) {
       if (r.struck || r.start) return;
       if (r.rack) o[r.rack] = (o[r.rack] || 0) + (r.n || 1);
@@ -49504,7 +49503,7 @@ function prodDayLine(date, line) {
       r.low += w.low != null ? w.low : w.kg; r.high += w.high != null ? w.high : w.kg;
       if (prodWeighEst(w)) r.est += w.kg;
     }
-    // A batch written as racks × rounds ("98×8+1", an END row) is its rounds, not one; a round shared by k runs is 1/k in each.
+    // A batch written as racks × rounds ("96×7+5", an END row) is its rounds, not one; a round shared by k runs is 1/k in each.
     var n = 0;
     (e.rounds || []).forEach(function(x) { if (!x.struck) n += x.n > 0 ? x.n : at[x.time] > 1 ? 1 / at[x.time] : 1; });
     if (!e.rounds && e.racks) n += e.racks;
@@ -53824,7 +53823,7 @@ function flrLatest(list) {
   (list || []).forEach(function(e) { var k = flrTimeKey(e); if (k >= bk) { best = e; bk = k; } });
   return best;
 }
-/* The size of a run's last round counted: a rack (an END row's "98×8" is rounds of 98), else the round's own figure. */
+/* The size of a run's last round counted: a rack (an END row's "96×7" is rounds of 98), else the round's own figure. */
 function flrLastRound(e) {
   var rounds = (e.rounds || []).filter(function(x) { return !x.struck && !x.start; });
   var lr = rounds[rounds.length - 1];
@@ -58896,6 +58895,7 @@ function wcComingCut() {
 }
 /* Challans due back on one day are one row (the canvas's "Challans 843 and 852 due back"): their numbers, their clients, the worst
    tone; the row opens the challans awaiting invoice. One alone keeps its own row and opens itself. */
+var WC_COMING_WHY_MAX = 28;
 function wcComingGroup(list) {
   var by = {}, out = [];
   list.forEach(function(x) {
@@ -58909,11 +58909,13 @@ function wcComingGroup(list) {
     if (g.items.length === 1) return g.items[0];
     var nos = g.items.map(function(x) { return x.no; }), clients = [];
     g.items.forEach(function(x) { if (clients.indexOf(x.client) < 0) clients.push(x.client); });
-    // Two facts at most on the row's line (the benchmark's: never three chained); three clients or more name the first and how many
-    // more, every client in the row's title.
-    var why = clients.length > 2 ? clients[0] + ' and ' + (clients.length - 1) + ' more clients' : clients.join(' · ');
+    // Two facts at most on the row's line (the benchmark's: never three chained); three clients or more, or two whose names
+    // together outrun a phone card's line (two long names had been cut), name the first and how many more, every client in the
+    // row's title.
+    var named = clients.length > 2 || clients.join(' · ').length > WC_COMING_WHY_MAX;
+    var why = named ? clients[0] + ' and ' + (clients.length - 1) + ' more ' + (clients.length > 2 ? 'clients' : 'client') : clients.join(' · ');
     return { key: 'turns:' + g.items[0].date, date: g.items[0].date, tone: wcWorst(g.items.map(function(x) { return x.tone; })), n: g.items.length,
-      title: 'Challans ' + nos.slice(0, -1).join(', ') + ' and ' + nos[nos.length - 1] + ' due back', why: why, title2: clients.length > 2 ? clients.join(', ') : '', go: { kind: 'im' } };
+      title: 'Challans ' + nos.slice(0, -1).join(', ') + ' and ' + nos[nos.length - 1] + ' due back', why: why, title2: named ? clients.join(', ') : '', go: { kind: 'im' } };
   });
 }
 function wcComingItems() {
@@ -61862,7 +61864,7 @@ function faceBarrelUsual(batch) {
 }
 
 /* ---------- F4: the register clerk's VAT register page (docs/ENTRY_FACES.md §2, F-clerk) ----------
-   A page per line and day as the register keeps it: a round a row (its time, START or END, the figure as written: "98×8+1" and
+   A page per line and day as the register keeps it: a round a row (its time, START or END, the figure as written: "96×7+5" and
    "3+4×156" are added up in code), the client and the part as the floor names them only where a run begins (the paper's ditto
    carries them down). The page is read by the photo's own reader (prodFromRegisterRead, prodRackCheck), so the START rule, the
    gauge, part and series rules, the shift's edges and the day's total read it unchanged, and its runs are the photo's: plated,
@@ -62154,7 +62156,7 @@ async function faceVatSave() {
   var rd = faceVatRead(f);
   // A figure the reader cannot add up is never saved as nothing: it is written again.
   var bad = rd.rows.find(function(x) { return x.issues.some(function(q) { return q.code === 'figure'; }); });
-  if (bad) return err((batches ? 'Batch ' : 'Round ') + (rd.map[bad.i] + 1) + ': "' + bad.written + '" could not be added up. Write it as the register does (120, 98×8+1, 3+4×156)', '[data-face-vat="' + rd.map[bad.i] + '"][data-k="fig"]');
+  if (bad) return err((batches ? 'Batch ' : 'Round ') + (rd.map[bad.i] + 1) + ': "' + bad.written + '" could not be added up. Write it as the register does (120, 96×7+5, 3+4×156)', '[data-face-vat="' + rd.map[bad.i] + '"][data-k="fig"]');
   var idx = prodIndex(), old = faceVatPage(f.date, f.line), at = Date.now(), by = faceUserName(), u = faceUser();
   var oldRuns = faceVatRuns(f.date, f.line);
   // A run of this page the owner corrected or voided in Production: the page is theirs now, and saving it again here would
@@ -62620,8 +62622,8 @@ function fshVatHtml(iso, line, filled) {
     '<div class="inv-as-slot">Power log</div>' +
     '<table class="inv-as-table" data-as-entry data-fsh="cuts">' + fshCols(['num', 'time', 'time', 'reason', 'note']) +
     '<thead><tr><th class="inv-as-tick">#</th><th>Power cut at</th><th>Power in at</th><th>Why</th><th>Note</th></tr></thead><tbody>' + fshCutsRows(iso, filled) + '</tbody></table>' +
-    '<div class="inv-as-note">' + (batches ? 'A batch a row: when it began (START), when it ended (END), and the figure at the end as written (3×156, 98×8+1).' :
-      'A round a row: the time and the figure as written (120, 3+4×156, 98×8+1); the app adds it up.') + ' Write the client and the part where a run begins, and " under them while it runs on. Strike a round that did not happen.</div>' +
+    '<div class="inv-as-note">' + (batches ? 'A batch a row: when it began (START), when it ended (END), and the figure at the end as written (3×156, 96×7+5).' :
+      'A round a row: the time and the figure as written (120, 3+4×156, 96×7+5); the app adds it up.') + ' Write the client and the part where a run begins, and " under them while it runs on. Strike a round that did not happen.</div>' +
     (filled ? fshFiledFoot() : '<div class="inv-as-sign"><div>Written by</div><div>Checked by</div><div>Entered in the app by / on</div></div>') + '</div>';
 }
 
@@ -63152,7 +63154,8 @@ function flowHeroHtml() {
  *     estimate; this is measured, and like it, it is revenue at stake, not revenue certainly lost (a day can be
  *     recovered by staying late, as 11 Jun was);
  *   - wages paid idle: every hand marked present whose own day covers the cut, at their hour rate;
- *   - the restart: bath and line back to work, a flat figure per cut in a working window (the case's ₹600);
+ *   - the restart: bath and line back to work, a flat figure per cut in a working window, as set in the
+ *     options' figures (the book's own: the owner, 26 Oct 2026; blank, the case's ₹600);
  *   - the fixed charge carried by no output: the month's fixed/demand charge over its scheduled minutes, per dark minute.
  * A day with no record is a gap, never a day without cuts: rates are per RECORDED working day, and the gaps are listed. */
 
@@ -63163,7 +63166,7 @@ var POWER_TABS = [['cuts', 'Cuts'], ['causes', 'Causes'], ['load', 'Load & bills
 var _powerTab = (function() { try { var t = localStorage.getItem('sep_inv_power_tab'); return POWER_TABS.some(function(x) { return x[0] === t; }) ? t : 'cuts'; } catch (e) { return 'cuts'; } })();
 var _powerTabMoved = false;
 
-/* The options' figures, the case's own until a quote replaces them. Money in ₹, capture as a share. */
+/* The options' figures, the case's own until a quote replaces them (the restart: as the owner sets it, 26 Oct 2026). Money in ₹, capture as a share. */
 var POWER_CFG_DEFAULTS = {
   restart: 600, rateFallback: 2500, contribFallback: 0.2,
   genCapexLo: 350000, genCapexHi: 500000, genPerHour: 320, genYearly: 25000, genCapture: 0.95,
@@ -63861,7 +63864,7 @@ function powerCaseHtml(a) {
   h += _pcP(escHtml(todoPlural(t.cuts, 'cut') + ' on record since ' + formatDate(a.first) + ', ' + powerHours(t.min) + ' dark' + (t.open ? ' and ' + t.open + ' more with no time back recorded' : '') +
     (t.overnight ? ' (' + t.overnight + ' ran overnight)' : '') + ', ' + powerHours(t.inside) + ' of it in working hours. Together they cost ' + formatCurrency(t.cost) + ': overtime to catch up the backlog ' +
     formatCurrency(t.recOt) + ', output never made up (its contribution) ' + formatCurrency(t.leftC) + ', platers’ wages that bought nothing ' + formatCurrency(t.leftI) + ', restarts ' + formatCurrency(t.restart) +
-    ' (the 30 May case’s ₹' + formatNum(a.cfg.restart, 0) + ' a cut, an estimate, not measured: without it the record measures ' + formatCurrency(gstRound(t.cost - t.restart)) + '). Counting everyone present, not only the floor, it is ' + formatCurrency(t.upper) + '. At full revenue the output at stake was ' + formatCurrency(t.lost) + ': the most the cuts could have cost, not what they did.'));
+    ' (₹' + formatNum(a.cfg.restart, 0) + ' a cut, as set in the options’ figures, not measured: without it the record measures ' + formatCurrency(gstRound(t.cost - t.restart)) + '). Counting everyone present, not only the floor, it is ' + formatCurrency(t.upper) + '. At full revenue the output at stake was ' + formatCurrency(t.lost) + ': the most the cuts could have cost, not what they did.'));
   if (y) h += _pcP(escHtml('At the last 90 days’ rate (' + y.cuts + ' cuts on ' + y.recorded + ' recorded days' + (y.quiet ? ', leaving out ' + y.quiet + ' days whose power was likely not reported' : '') + ') a year costs ' + formatCurrency(y.base) +
     (y.upper > y.base ? ' (' + formatCurrency(y.upper) + ' with everyone’s wages)' : '') +
     (y.low != null ? '; the complete months ran from ' + formatCurrency(y.low) + ' a year (' + billsMonthLabel(y.lowMonth) + ') to ' + formatCurrency(y.high) + ' (' + billsMonthLabel(y.highMonth) + ')' : '') + ', for about ' + formatNum(y.workHours, 0) + ' dark working hours.'));
@@ -63905,7 +63908,7 @@ function powerCaseHtml(a) {
         formatCurrency(mg.varTyped) + '/kg at the typed full cost of ' + formatCurrency(mg.typed) + '/kg gives ' + Math.round(mg.model * 100) + '%. The lower is used, so a thin record never makes a lost hour dearer.'
         : 'The contribution is the fallback in the options’ figures: no weighed tonnage in the last 90 days.')), formatCurrency(t.leftC)],
     ['Wages that bought nothing', escHtml('platers present (VAT A1, VAT A2, barrel) whose own day or OT block covers the cut, at their hour rate, on the share not made up (a monthly plater’s wage is in the fixed cost the contribution leaves out, so this is that cost standing idle, not counted twice); ' + formatCurrency(t.leftIAll) + ' counting everyone present (pickling runs through a cut, so it is the upper end)'), formatCurrency(t.leftI)],
-    ['Restarts', escHtml(formatCurrency(a.cfg.restart) + ' a cut in a working window, the 30 May case’s estimate: bath and line back to work'), formatCurrency(t.restart)]
+    ['Restarts', escHtml(formatCurrency(a.cfg.restart) + ' a cut in a working window, as set in the options’ figures: bath and line back to work'), formatCurrency(t.restart)]
   ], ['Damage', '', formatCurrency(t.cost)]);
   h += _pcTable([['Shown, not added'], ['Why'], ['On record', 1]], [
     ['Output at stake, full revenue', escHtml('minutes in a working window × ' + formatCurrency(a.rate.perHour) + ' an hour ' + (a.rate.measured ? '(revenue net of credit notes over ' + a.rate.days + ' working days to ' + formatDate(a.rate.to) + ', per 8½-hour shift)' : '(the case’s estimate: no invoices in the last 90 days)') + ': the upper bound, if no hour were ever made up and nothing it used were saved'), formatCurrency(t.lost)],
@@ -64053,7 +64056,7 @@ function powerCfgEdit() {
   var c = powerCfg();
   dialogOpen('<div class="inv-dialog inv-dialog-wide">' + dialogHeadHtml('The options&rsquo; figures') + '<div class="inv-fields">' +
     POWER_CFG_FIELDS.map(function(f) { return _pwField('pwc_' + f[0], f[1] + (f[2] === 'share' ? ' (0 to 1)' : f[2] === 'h' ? ', hours' : ', ₹'), c[f[0]], 'number'); }).join('') + '</div>' +
-    '<div class="inv-note">The 30 May case&rsquo;s estimates until a quote replaces them. Blank goes back to the case&rsquo;s figure.</div>' +
+    '<div class="inv-note">The case is worked out from these figures as set here: the restart as you set it, the rest the 30 May case&rsquo;s estimates until a quote replaces them. Blank goes back to the case&rsquo;s figure.</div>' +
     '<div class="inv-field"><span class="inv-field-label">Open items</span>' + POWER_ITEMS.map(function(it) {
       var s = powerData().items[it[0]] || {};
       return '<div class="inv-fields"><label class="inv-field"><span class="inv-field-label">' + escHtml(it[1]) + '</span><select class="inv-select" id="pwi_' + it[0] + '">' +
@@ -67899,7 +67902,7 @@ var KB_APP_GUIDES = [
     'The screen of the register clerk has the **VAT register** page and the **attendance sheet**.\n\n' +
     '# The VAT register page\n1. Select the line: **VAT A1** or **VAT A2**. VAT A1 has 1 round in each row. VAT A2 has 1 batch in each row: the start, the end, and the figure at the end. For a page kept the other way, use **Rounds · Batches**.\n' +
     '2. Where a run starts, select the **Client** and type the **Part, as written** on the page. The rows under it use the same client and part, as the ditto on paper does. **Another client or part** starts the next run.\n' +
-    '3. For each round, type its **Time** and its **Figure** exactly as written (120, 3+4×156, 98×8+1). The app adds it up. Under the row, the app shows what it read.\n' +
+    '3. For each round, type its **Time** and its **Figure** exactly as written (120, 3+4×156, 96×7+5). The app adds it up. Under the row, the app shows what it read.\n' +
     '4. If 2 clients are in 1 round, enter 1 row for each client, at the same time. If a round is struck out on paper, remove its row.\n5. If the paper page has a day total, type it in **Day total on the paper page**. The app shows a total that the rounds do not meet.\n' +
     '6. Tap **Save the page**. Then tap **Send to the group**.\n' +
     '- The phone keeps the page as you type it, until you save it. If you close the app, you lose nothing. If you save the page again, the app corrects only what changed.\n' +
@@ -74773,7 +74776,7 @@ function navBoot(launch) {
    MATCHING (srchQuery): every part of the query must match. A number matches whole: 834 finds challan 834 and invoice
    00834, never 8341 (leading zeros ignored, as imChallanNoKey does). A challan or a P.O. is known by its first number
    standing on its own, after a trailing financial year: 0901/26-27 is 901 (never 26 or 27), QX1/00877 is 877 (the 1 of
-   QX1 is part of a word). An amount matches to the paisa: 5902.12, 5,902.12, ₹5,902.12. A date matches its day:
+   QX1 is part of a word). An amount matches to the paisa: 4827.42, 4,827.42, ₹4,827.42. A date matches its day:
    21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and punctuation folded (rateKey); a number
    written with its punctuation (SEP/2026-27/00834, QX1/00877) matches as one, whole when it ends in a digit (00083 never
    finds 00834), or by its tail (27/00834, 2026-27/00834). A series word that starts an identifier counts only beside
@@ -74846,7 +74849,7 @@ function srchWordsOf(s) {
 function srchNumsOf(s) {
   return (String(s == null ? '' : s).match(/\d+/g) || []).map(function(n) { return n.replace(/^0+(?=\d)/, ''); });
 }
-/* A list of challan numbers as an invoice cites them ("834, 835 & 838"): each one. */
+/* A list of challan numbers as an invoice cites them ("612, 613 & 617"): each one. */
 function srchDocList(s) {
   return String(s == null ? '' : s).split(/[,;&]+/).map(function(x) { return x.trim(); }).filter(Boolean);
 }
@@ -75221,7 +75224,7 @@ function srchDateTok(y, m, d) {
   return { t: 'date', y: y == null ? null : String(y).length === 2 ? '20' + y : String(y), m: pad(m), d: d == null ? null : pad(d) };
 }
 /* A text token. `whole`: an identifier typed ending in a digit matches only whole, never as the start of a longer one:
-   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and QX1/00087 of QX1/00877 (QA3-3; a number matches whole).
+   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and QX1/00069 of QX1/00694 (QA3-3; a number matches whole).
    One typed ending in a separator ("sep/2026-27/") asks for what follows, and matches as a start. */
 function srchTxt(sq, id, typed) { return { t: 'txt', sq: sq, id: id, whole: id && /\d$/.test(typed) }; }
 function srchTxtTok(p) {
@@ -76434,7 +76437,7 @@ if (!S._cnSeriesStart1) {
 })();
 
 /* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
-   A load written with its code alone ("DELTA AUTO / 4242-1000") read as no part, and sat on the floor with no challan open
+   A load written with its code alone ("DELTA AUTO / 4242-615") read as no part, and sat on the floor with no challan open
    (P127: 8 of 8 real loads of one client, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already
    held are matched once, as a register's or an import's are. The flag travels with the state. */
 (function() {

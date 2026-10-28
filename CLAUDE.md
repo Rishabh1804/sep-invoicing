@@ -577,7 +577,9 @@ where available / 10. We shall discuss this."* P210.
    invoice it names (picked, or typed as printed), the GST as printed and, for a rebate, its discount and period (P56); a rebate
    owed for a period not yet noted is raised from a Register selection. The guide (*Using the app: credit notes* v3) says where.
 8. **A paid holiday worked is paid as a worked Sunday**: the holiday's credit and one day on top, as built.
-9. **The power cut's restart stays the ₹600 estimate until a quote**, and the ~₹5,000 a month since the load went to 50 kVA was
+9. **The power cut's restart is the figure set in the app** (Power → Case → the options' figures; the owner, 26 Oct 2026:
+   *"the restart cost is set in the app … and remains so till I edit it in the app. The power case should be calculated using
+   the figures from the app and not the repo"*; it had read *stays the ₹600 estimate until a quote*), and the ~₹5,000 a month since the load went to 50 kVA was
    read off a bill; the owner will enter the figures where available (Power → Load & bills, a bill's penalty and details).
 10. **The next build's order is to be discussed** with the owner.
 
@@ -1054,7 +1056,7 @@ Seven duplicate IM events went into FY27 unchallenged — 973.75 kg + 826 NOS of
 receipts, four of which reached customer invoices (₹8,040.02 taxable, ₹1,170.18 output tax).
 The guard in `im-dupe.js` fingerprints on **`(client, challanDate, line-quantity multiset)`** —
 content, not identifiers, because the two hardest cases defeat an identifier key: one copy of
-a client's challan carried a blank `challanNo`, and Dilip ch 47 carried the same 282.70 kg under an
+a client's challan carried a blank `challanNo`, and another carried the same kilograms under an
 aliased part number. A blank `challanNo` warns in its own right.
 
 **Warn, never block.** Split challans against one consignment (702/703) are legitimate. The
@@ -1088,7 +1090,7 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
 | **Full cost** | **8.55** | |
 
 - **Blended realisation:** ₹8.45/kg → roughly −₹0.09/kg, about break-even.
-- **SSS Mehta:** 39% of revenue but **61% of tonnage** at ₹5.40/kg. −₹1.53L/month at full cost.
+- **The piece client:** 41% of revenue but **58% of tonnage** at ₹6.10/kg (made-up figures), well below full cost.
   Whether to exit or reprice turned on contract labour: fixed → it still contributes
   ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. **Ruled 13 Oct 2026: fixed** (owner). Stats settles it that way.
 - **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
@@ -1096,13 +1098,13 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
 
 **The app now corroborates this model from the invoice data, independently.** Once weights are
 derived (below), Stats measures blended realisation at **₹8.42/kg against the modelled ₹8.45**,
-contribution at **−₹0.13/kg against a modelled −₹0.09**, and SSS Mehta at **62% of tonnage
-against the modelled 61%**, on 39% of revenue. Nothing in
+contribution at **−₹0.13/kg against a modelled −₹0.09**, and the piece client at **59% of tonnage
+against the modelled 58%**, on 41% of revenue (its shares made up here). Nothing in
 that calculation knew the cost model; it is arithmetic over 769 invoices. Two routes to the
 same shape is the strongest evidence the model is right that this repo has.
 
-SSS Mehta's own ₹5.39/kg is the one figure that is not independent confirmation — its weights
-invert its contract rate, so that number is ₹5.40 restated. Its **tonnage** is real, and that
+The piece client's own ₹/kg is the one figure that is not independent confirmation — its weights
+invert its contract rate, so that number is its rate restated. Its **tonnage** is real, and that
 is what the corroboration above rests on.
 
 ### Zinc pricing
@@ -1195,7 +1197,8 @@ second copy into a document template** — the prototype in `docs/test-certifica
 already drifted: it carried GSTIN `20AAFFS4718J2ZD` where the invoice files under
 `20AAPFS4718J2Z0`. The owner confirmed (14 Aug 2026) that `20AAPFS4718J2Z0` is correct and the
 certificate copy was a transcription typo. The JSON is corrected; the four certificates rendered
-from it on 15 Apr 2026 still carry the wrong number, and any copy that reached SSS Mehta bears it.
+from it on 15 Apr 2026 carried the wrong number (they left the repository with its client data on
+26 Oct 2026, and its samples are made up now), and any copy that reached the customer bears it.
 That error is distinct from the preserved original-document typos — those are approved format text,
 a GSTIN is a fact about the taxpayer.
 
@@ -1355,8 +1358,8 @@ values were raised, not their labels" — the labels did move, by 0.75pt.)*
 🔴 **`nowrap` on EVERY value then overflowed the sheet, and the mechanism is worth keeping.** A
 table's minimum width is the sum of its cells' minimum widths, and `nowrap` makes a cell's minimum
 its whole content. At 9pt the eight-cell row's minimum exceeded the page — and **a table that cannot
-shrink does not wrap, it overflows**. Invoice **00866** cited four challan numbers (`834, 835, 838,
-836`) and the grid ran clean off the paper: measured **752px of content into 703px of page**, a right
+shrink does not wrap, it overflows**. Invoice **00866** cited four challan numbers (`612, 613, 617,
+614`) and the grid ran clean off the paper: measured **752px of content into 703px of page**, a right
 margin of **−0.2mm**, every cell simultaneously at its 4.5pt padding minimum. Eight challans is 805px.
 
 **The split is by what the text IS, not by how long it happens to be.** The challan number and the
@@ -1467,8 +1470,8 @@ because a selection cannot tick a number that is gone. One
 customer only. A batch under 7 days **warns and does not block** — split batches are the
 operator's call.
 
-**The discount is computed on value; the quantity is derived from it.** 1092.98 × 5.40 = 5902.09
-against the 5902.12 printed — three paise of disagreement only happen if the rupees came first.
+**The discount is computed on value; the quantity is derived from it.** On a made-up note, 791.38 kg × ₹6.10 = 4,827.42
+against the 4,827.40 credited — paise of disagreement only happen if the rupees came first (P19).
 
 Own series, `CN/<3-digit>/<FY short>`, formatted off `S.invPrefix`. A credit note number is
 **issued**, so it may never be reused — but it needs no void ledger, because a credit note is
@@ -1480,8 +1483,8 @@ The reference had four defects the app does not reproduce — see `docs/credit-n
 The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
 against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
 
-**This changes the SSS Mehta numbers — and ₹5.29 is RIGHT.** At a standing 2%, their realisation
-is **~₹5.29/kg, not ₹5.40** — Stats reads invoices only, so every SSS Mehta figure above is
+**This changes the piece client's numbers.** At a standing 2%, its realisation
+is **2% under its rate** — Stats reads invoices only, so every figure of that client above is
 overstated by 2% on the periods the discount covers, until credit notes are netted off.
 
 🔧 **NETTED 29 Aug 2026, and the original figure survives the test.** Measured against
@@ -1497,10 +1500,10 @@ for SSS Mehta, not till today."*
 | | **₹6,72,949.78** | **₹13,459.00** | | ✅ **2.0000%** |
 
 **The scheme is applied in full on every period it covers. Realisation on the scheme period is
-₹5.292/kg.** The nine invoices after 00804 are the **next note, pending ≈₹2,182.99** — not a
+2% under the client's rate.** The nine invoices after 00804 are the **next note, pending ≈₹2,182.99** — not a
 shortfall. ⚠ **April–May carry NO REBATE NOTE ON THE REGISTER — a null, not a ruling** *(Cipher H-3)*: ~~April–May predate the scheme (CN/004 is its first note)~~. **CN/004 established the SERIAL FORMAT** (`CN/NNN/26-27`), not the scheme's start; BM ruled **CN/002 and CN/003** out as *"credit notes, not rebates"*; **CN/001 has never been ruled on.** **₹9,841.57 (2% of ₹4,92,078.45) turns on this premise** — a BM question, not a derivation.
 
-⚠ **An intermediate pass on 29 Aug published *"₹5.29 is wrong … effective 1.0563% … ₹5.3430/kg"*
+⚠ **An intermediate pass on 29 Aug published that the 2% reading was wrong, at an *"effective 1.0563%"*
 — WITHDRAWN. It divided credits from a scheme beginning in June by a book including pre-scheme
 April and May: numerator and denominator, different populations.** The rule this repo already
 lives by, broken while applying it elsewhere.
@@ -1537,7 +1540,7 @@ against a number typed from outside the book names no invoice here and is not ju
 1787222938914 against `createdAt` 1787222964835), both naming the same 14 invoices. Cancelled
 rather than deleted, exporting at zero — the treatment this app implements, working as designed.
 
-⚠ **The contribution arithmetic in Key Business Data is still not restated** at ₹5.292/kg.
+⚠ **The contribution arithmetic in Key Business Data is still not restated** net of the 2%.
 ⚠ **And the ₹/kg is arithmetic, not evidence**: Mehta is piece-billed, its derived weights invert
 its own contract rate, so realisation equals that rate by construction. **The tonnage is real; the
 ₹/kg is not independent.**
@@ -1866,7 +1869,7 @@ are not the parts paying for it. The weight rankings admit only parts whose weig
 better than the truth.
 
 On the ₹/kg view the bar is measured against full cost with a mark at the cost line, because from a
-zero baseline a 5.40–14.50 range is a row of near-identical bars. Green clears cost, red does not:
+zero baseline a ₹6–₹15 range is a row of near-identical bars. Green clears cost, red does not:
 the app's accent is itself a terracotta, so accent-against-danger was a distinction nobody could see.
 
 ### What Stats measures
@@ -1900,8 +1903,8 @@ same trap: an account with no weights barely enters the measured denominator and
 *small* user of the plant when it is plausibly the largest. "Unknown, not small."
 
 **Realisation by client is ranked worst-priced first.** That ordering is the point: the
-largest account and the worst-priced one can be the same row, which is exactly the SSS Mehta
-shape (39% of revenue, 61% of tonnage, ₹5.40/kg against ₹8.55 cost). Periods are measured on
+largest account and the worst-priced one can be the same row, which is exactly the piece client's
+shape (most of the tonnage on well under half the revenue, at a rate well below the ₹8.55 cost). Periods are measured on
 the **invoice date**, not on when the record was typed — that is the date on the document and
 the date GSTR-1 reports it under.
 
@@ -2006,9 +2009,9 @@ was wrong far more often than the billing: **zero** decimal errors in the whole 
 of what a matcher would have flagged was reference data.
 
 - **The Items Master is not a rate card.** One `rate` per part, no client, no date. It disagreed
-  with 185 of SSS Mehta's lines, mostly because the customer's rate moved and the master did not
-  (`150X88X3`: 1.67 on every line since April, master 1.64), and in three rows because ₹5.40 — the
-  ₹/kg figure — had been typed into the per-piece field.
+  with many of the piece client's lines, mostly because the customer's rate moved and the master did not
+  (a part billed at one rate on every line since April, the master a few paise under it), and in three rows because
+  the client's ₹/kg figure had been typed into the per-piece field.
 - **So a piece rate is the CLIENT's: `client.pieceRates`, dated, keyed on part AND gauge.**
   `getPieceRate()` in `state.js`. Part keys ignore case and punctuation (`rateKey`); the gauge is
   read from the line's description by `lineGauge()` — two digits × one digit, standing alone, so
@@ -2036,8 +2039,8 @@ of what a matcher would have flagged was reference data.
   owner confirmed, 24 Sep 2026), and a rate that **returns** after changing, which is two products
   under one name (gauge-less `CLAMP 165X83 (NT)` lines swing 4.27 / 4.89 / 4.27). On the real
   backup, after filling both cards, **2,729 lines match exactly and 18 priced lines differ**.
-- **Prefill uses it too** (`defaultLineRate`). A NOS line used to be handed the ₹/kg figure — 5.40
-  against a ₹1.49 pad — and a Samarth part with no weight priced itself at 0 kg × ₹14.50 = ₹0.
+- **Prefill uses it too** (`defaultLineRate`). A NOS line used to be handed the ₹/kg figure — several
+  rupees against a pad priced at a rupee or two — and a Samarth part with no weight priced itself at 0 kg × ₹14.50 = ₹0.
 - **T-HC is fixed.** The scanner priced every KG line off rates frozen into `_scanClientMap`, so a
   rate change or an override never reached a scanned challan. It now reads the client's records;
   the frozen figure is only a fallback for a client the app does not hold. A piece client's
@@ -2299,7 +2302,7 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   flagged.
 - **The register as it is really kept** (photos of 16–26 Sep 2026, owner). The first reader was built without a page
   in hand, and the pages broke it three ways:
-  - **VAT A2 writes START and END, and the END carries the batch** ("98×8+1", "3×156", "50+52+30"). The first build
+  - **VAT A2 writes START and END, and the END carries the batch** ("96×7+5", "3×144", "46+48+34"). The first build
     counted START as a round of the next figure, the rule for A1's round-by-round pages, and **doubled every A2 run**
     (1,930 for a page that says 1,145). The rule now applies only to a page with no END row.
   - **Figures are written as sums and products** and are added up in code (`prodRegisterQty`).
@@ -2393,7 +2396,7 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
     challan in the 45 days before, else the one with a challan open, else the one on the latest challan, else the one plated before at this
     round on this line (`prodPartRacks`, which never reads a match it made itself). Set on the entry (`partSrc: 'challan' | 'round'`),
     never learnt for the name. On the 30 Sep page, *(0706)* was the part of that code on the client's latest challan. **A figure for a group of codes**
-    (*(0706+3713)*, 25) is two entries, each code matched the same way and the figure shared by what is open on their challans, else by the
+    (*(0706+3713)*, 34) is two entries, each code matched the same way and the figure shared by what is open on their challans, else by the
     pieces on each part's latest challan (`qtySrc: 'split'`, said as an estimate).
   - **Who plated it** (owner: *"place workers on the specified production … we'll know who plated what and when, this can be useful
     later when we get replating issues"*): `prodCrew(e)`, read off the day's attendance and never stored: a general-shift run is the
@@ -2417,9 +2420,9 @@ Owner, 15 Oct 2026: *"our parser cannot read this message"*, of the supervisor's
 carrying UNLOAD had been taken for the April log (loads counted "×4" in barrels) and listed, not read. A list with an unload time beside a
 figure, or dashed blocks, is now read batch by batch (`parseBarrelBatches`, prodparse.js): a block between dashed lines a batch, its unload
 time its end (`to`), written before or after its figures, on its line or the line under ("UNLOAD TIMING" / "4:00 PM"), spelt UNOLD too, and
-closing every batch above it in the block that has none; the date between dashes ("----13/10/26/----"); two clients on one line two
-batches ("8257-60 KG PARAKH I BOLLT 50 KG", split after a figure followed by a name or a "+"); a client with an unload time and no figure
-a batch with none (amber); "PAWAN AUTO 1 BERRAL+ PARAKH 1 BERRAL" a batch each, counted in barrels and asked; LOADING TIME and what follows
+closing every batch above it in the block that has none; the date between dashes ("----07/10/26/----"); two clients on one line two
+batches ("9312-45 KG GAMMA I BOLLT 35 KG", split after a figure followed by a name or a "+"); a client with an unload time and no figure
+a batch with none (amber); "OMEGA 1 BERRAL+ GAMMA 1 BERRAL" a batch each, counted in barrels and asked; LOADING TIME and what follows
 it listed, never counted (it is counted when the next list unloads it); "----and----" the end; a power cut and its return. A list sent the
 next morning reads its times with no help from when it was sent. The April log, with no figure beside an unload and no dashed blocks, is
 still only listed. On the owner's lists of 12, 13 and 15 Oct: 20 batches and one cut.
@@ -2559,8 +2562,8 @@ there and we have rate data, we can actually show the info there"*, and on Floor
   in the Rounds' place for that role (the rounds are in the efficiency's split), Plated and Earned with their change lines against
   the usual day (`uiFactorTileHtml`'s `delta`), the week against the weeks before a fact; *The week, plated* an *Earned* row; the day
   card (Floor's Production hero) *At the live cost*, *Left after it*, *This week, a day plated* and *a day earned*, and *Not priced*
-  listing what no rate prices with the door to the client's rates. On the owner's book of 9 Oct: 8 Oct's VAT A1 ≈ ₹12,530 at ₹5.40 a
-  kg (a piece client's clamps) against a cost of ₹7.20, red; VAT A2 ≈ ₹8,530 with 1,386 pieces not priced (the same pieces nothing
+  listing what no rate prices with the door to the client's rates. On the owner's book of 9 Oct: one day's VAT A1 earned less a kilo than a
+  kilo cost (a piece client's clamps), red; VAT A2 ≈ ₹8,530 with 1,386 pieces not priced (the same pieces nothing
   weighs).
 
 ### Workers and the plant
@@ -2784,8 +2787,9 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
 - **What a cut costs is its damage, not its price** (Iuno's audit of the 30 Sep refresh, H-1; owner, 30 Sep 2026: *"also
   take into assumption OT that we had to do following the power cut due to the backlog of material it creates"*). The work a
   cut stops is either made up in overtime or never made. Made up, the cut cost that overtime; never made, it cost the
-  output's contribution and the wages that bought nothing. A restart (₹600 in a working window, the 30 May estimate) is paid
-  either way (**an estimate, not measured**, and said beside the total; kept until a quote, owner, 13 Oct 2026). So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
+  output's contribution and the wages that bought nothing. A restart (a flat figure a cut in a working window, the one set in the options' figures,
+  the book's own: the owner, 26 Oct 2026; blank, the 30 May case's ₹600) is paid either way (**not measured**, and said beside
+  the total). So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
   - **Catch-up overtime** (`powerRecovery`): a cut in working hours puts its own day and the next working day at risk. Each
     such day's overtime (`powerDayOt`: monthly and daily hands' OT at their overtime rate, an hourly hand's hours past eight,
     and the EXTRA on OT blocks; the general shift's EXTRA covers a missing hand, not carried-over work, and is left out) is
@@ -3561,7 +3565,7 @@ build: the people are the book's.
   the same time. **Read by the register's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`; the client picked goes with its id,
   `clientId` on the row, so a run is that client whatever its name reads as, its gauge and part rules included: *M & M AUTO* and *3M
   ENGINEERING* had read as no client and saved with none): the figure
-  added up as the register means it (*3+4×156* is seven racks of 156, *98×8+1*), the START rule, the gauge, part and series rules,
+  added up as the register means it (*3+4×156* is seven racks of 156, *96×7+5*), the START rule, the gauge, part and series rules,
   the shift's edges, a round its line has not run, the day total written against the rounds; each row says what was read under it,
   a run what it was read as. The rows redraw around the field being typed (`faceVatRedraw`, People → Day's way), so a tap on the next
   field lands. The face opens on the line with nothing recorded that day, else the one being typed (`?tab=pageFace&v=vat/vat-a2`).
@@ -3761,8 +3765,8 @@ open tab is remembered on the device; `renderStats()` draws the open tab's cards
   the variable cost, what it lacks of the full cost, the price at which it pays its share, and its share of the plant
   (it was settled both ways: if labour is fixed, if it scales). **Cost is spread per kg**, which
   the table says: a thin clamp and a heavy bracket cost the same per kg there. On the real book for the
-  quarter to 25 Sep: live cost ₹7.31/kg (40% measured) against ₹7.96 realised; SSS Mehta at ₹5.34 net is
-  −₹0.87/kg even with labour fixed.
+  quarter to 25 Sep: live cost ₹7.31/kg (40% measured) against ₹7.96 realised; the piece client (its figures not
+  given here) is below its cost even with labour fixed.
 
 ### One ranked list
 Intelligence step I3 (`todo.js`, 6 Oct 2026; P158). The owner's To-do held 23 tasks, three clients owing over 90 days, six
@@ -4687,7 +4691,7 @@ two of them wrong by shipping a single `contract` class.
 
 **Monthly overtime is ruled (owner, 25 Sep 2026): *"monthly hands get OT at day rate ÷ 8 × 1.1. Capped at
 68.2"*.** Hours over 8 on a day are overtime. The cap is per hour after the multiplier, so it binds any day
-rate above ₹496 (Shyam's ₹576 would pay ₹79.20 and pays ₹68.20). It is in Settings → Labour → Overtime (`otCap`), and
+rate above ₹496 (a ₹560 day rate would pay ₹77.00 and pays ₹68.20). It is in Settings → Labour → Overtime (`otCap`), and
 `workerOtHourPay()` is the one place both the labour card and the Areas cost read it. The hourly and daily
 tiers are not capped by it. ⚠ **This settles a disagreement in the record rather than creating one:** the
 history imported up to 7 Sep carries almost no monthly overtime (July 0 h, August 11 h), while September's
@@ -4712,10 +4716,10 @@ to the rupee for 8 of 9 hands off the imported marks; the ninth, the gate hand, 
   credit"*), and its hours are that day, **never OT as well** — which would pay them twice (the July slip took
   a hand's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way:
   its own reading until the owner kept it, 13 Oct 2026.
-- **A contracted monthly wage** (`worker.monthWage`, the worker's Edit on People → Roster): BM, 14 Sep, *"Uday is 9000/month. per day is
-  calculated as per days in that month"* and *"His sundays are not gate sensitive"*, *"Sunday is inside the
-  9000"*. So the day rate is wage ÷ days in the month, the Sundays are credited in full, and a Sunday worked
-  adds nothing. 22 + 1 + 5 = 28 × 9000/31 = ₹8,129.03, the ruled figure. The worker's total is rounded once
+- **A contracted monthly wage** (`worker.monthWage`, the worker's Edit on People → Roster): BM, 14 Sep, of a hand on a
+  contracted wage (the name and the wage made up here, *"Kiran is 8700/month. per day is calculated as per days in that
+  month"*), *"His sundays are not gate sensitive"* and *"Sunday is inside the 8700"*. So the day rate is wage ÷ days in
+  the month, the Sundays are credited in full, and a Sunday worked adds nothing. 22 + 1 + 5 = 28 × 8700/31 = ₹7,858.06. The worker's total is rounded once
   from the unrounded parts, or 28 days reads a paisa high.
 - Over a range shorter than a month the gate is judged on the part of the month the range covers, as before.
 
@@ -4754,8 +4758,8 @@ figures for a month **supersede**, and the old record is voided with the reason 
 never enter this public repo: the file is built privately from the slips. **April, May, July and August**
 exist; **June does not** — only its projection is on disk, not the slip it was paid on. August was
 **Revision 5 as paid on 14 Sep** (₹1,01,768.43), not Revision 15's ruled ₹1,02,247.46: the gate hand's row carries
-the ₹479.03 still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs. Since what was paid is read off
-the statement (10 Oct 2026), the file handed over then carries August as **Revision 15, as ruled** (the gate hand at ₹8,129.03):
+the balance still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs. Since what was paid is read off
+the statement (10 Oct 2026), the file handed over then carries August as **Revision 15, as ruled** (the gate hand at his ruled figure):
 the slip is what was earned, the statement what was paid, and the two differences carry.
 
 The salaried tier is `monthly` and **is not a flat salary**: the payout slips are written in

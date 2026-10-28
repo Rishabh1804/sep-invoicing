@@ -7,7 +7,7 @@ import { emptyState, loadAppWithState, switchTab, recentTs, SepState, toolbarMor
  * The fingerprint is deliberately content-based — client + challan date + the
  * multiset of line quantities — because the two hardest real cases both defeat
  * an identifier key: one copy of a challan had a blank challanNo, and
- * Dilip ch 47 carried the same 282.70 kg under an aliased part number. These
+ * another carried the same kilograms under an aliased part number. These
  * specs reproduce both shapes.
  */
 

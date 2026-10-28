@@ -50,47 +50,47 @@ test.describe('P85: the register page, read', () => {
   test('a START / END page: the END carries the batch, a START is never a round of its own', async ({ page }) => {
     await boot(page);
     const r = await read(page, { page: 'production', date: dmy(0), weekday: null, line: 'VAT-A2', rows: [
-      { time: '9:20 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'CLAMP' },
-      { time: '3:00 PM', mark: 'END', ditto: true, qtyText: '98×8+1' },
-      { time: '4:00 PM', mark: 'END', ditto: true, qtyText: '120x3' },
+      { time: '9:35 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'CLAMP' },
+      { time: '2:50 PM', mark: 'END', ditto: true, qtyText: '96×7+5' },
+      { time: '3:55 PM', mark: 'END', ditto: true, qtyText: '110x3' },
       { time: '4:10 PM', mark: 'START', customer: 'DURGA AUTO', part: 'TINA(0760)' },
       { time: '4:40 PM', mark: 'END', ditto: true, qtyText: '44+46+26' },
       { time: '4:55 PM', mark: 'END', ditto: true, qtyText: '7 boxes' }] });
     expect(r.style).toBe('startend');
-    // 98 × 8 + 1 = 785 and 120 × 3 = 360: not doubled by the START (the first build read 1,930 here).
-    expect(r.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 1145, '09:20', '16:00'], [12, 116, '16:10', '16:55']]);
-    expect(r.rounds[0]).toEqual([{ time: '3:00 PM', qty: 785, batch: true, written: '98×8+1', rack: 98, n: 8 }, { time: '4:00 PM', qty: 360, batch: true, written: '120x3', rack: 120, n: 3 }]);
+    // 96 × 7 + 5 = 677 and 110 × 3 = 330: not doubled by the START (the first build read 1,684 here).
+    expect(r.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 1007, '09:35', '15:55'], [12, 116, '16:10', '16:55']]);
+    expect(r.rounds[0]).toEqual([{ time: '2:50 PM', qty: 677, batch: true, written: '96×7+5', rack: 96, n: 7 }, { time: '3:55 PM', qty: 330, batch: true, written: '110x3', rack: 110, n: 3 }]);
     expect(r.rowIssues[5]).toContain('figure');         // "7 boxes" is not a figure it can add up: said, never guessed
   });
 
   test('a run opening on an END starts where the batch before it ended; with none before it, not known', async ({ page }) => {
     await boot(page);
-    // The shape of VAT A2's page of 9 Oct 2026, in made-up names: the second batch is written with its END and no START.
+    // The shape of a VAT A2 page, every name and figure made up: the second batch is written with its END and no START.
     const r = await read(page, { page: 'production', date: dmy(0), weekday: null, line: 'VAT-A2', rows: [
       { time: '9:15 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'CLAMP' },
-      { time: '10:30 AM', mark: 'END', ditto: true, qtyText: '2×156+46' },
-      { time: '11:45 AM', mark: 'END', customer: 'DURGA AUTO', part: 'TINA(0760)', qtyText: '2×120+10' },
+      { time: '10:30 AM', mark: 'END', ditto: true, qtyText: '2×150+38' },
+      { time: '11:45 AM', mark: 'END', customer: 'DURGA AUTO', part: 'TINA(0760)', qtyText: '2×110+14' },
       { time: '11:45 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'SLOT' },
-      { time: '2:40 PM', mark: 'END', ditto: true, qtyText: '4×120' }] });
+      { time: '2:40 PM', mark: 'END', ditto: true, qtyText: '4×110' }] });
     // It read 11:45 to 11:45, a batch that took no time, while the review said it began where the batch before it ended.
-    expect(r.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 358, '09:15', '10:30'], [12, 250, '10:30', '11:45'], [11, 480, '11:45', '14:40']]);
+    expect(r.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 338, '09:15', '10:30'], [12, 234, '10:30', '11:45'], [11, 440, '11:45', '14:40']]);
     expect(r.rowIssues[2]).toContain('nostart');
     // With no batch ending above it on the page, when it began is not known, and the review says so in amber.
     const alone = await page.evaluate((json) => {
       const ev = (0, eval), rd = ev('prodFromRegisterRead')(json, ev('prodCtx()'), null, {});
       return { run: [rd.runs[0].time, rd.runs[0].to], tones: rd.rows[0].issues.filter((x: any) => x.code === 'nostart').map((x: any) => x.tone) };
-    }, { page: 'production', date: dmy(0), line: 'VAT-A2', rows: [{ time: '10:30 AM', mark: 'END', customer: 'DURGA AUTO', part: 'TINA(0760)', qtyText: '250' }] });
+    }, { page: 'production', date: dmy(0), line: 'VAT-A2', rows: [{ time: '10:30 AM', mark: 'END', customer: 'DURGA AUTO', part: 'TINA(0760)', qtyText: '234' }] });
     expect(alone).toEqual({ run: ['10:30', '10:30'], tones: ['amber'] });
     // One START, two batches of different gauges by the owner's rules: two runs, and the second began as the first ended
-    // (the owner's 24 Sep page read the 120s as 4:00 to 4:00).
+    // (the owner's page had read the second as 3:55 to 3:55).
     await page.evaluate(() => (0, eval)('prodData()').gaugeRules.push(
-      { id: 'GR-t1', clientId: 11, family: 'CLAMP', racks: [98], gauges: ['25X6', '30X6'] },
-      { id: 'GR-t2', clientId: 11, family: 'CLAMP', racks: [120], gauges: ['35X6', '40X6'] }));
+      { id: 'GR-t1', clientId: 11, family: 'CLAMP', racks: [96], gauges: ['25X6', '30X6'] },
+      { id: 'GR-t2', clientId: 11, family: 'CLAMP', racks: [110], gauges: ['35X6', '40X6'] }));
     const split = await read(page, { page: 'production', date: dmy(0), line: 'VAT-A2', rows: [
-      { time: '9:20 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'CLAMP' },
-      { time: '3:00 PM', mark: 'END', ditto: true, qtyText: '98×8+1' },
-      { time: '4:00 PM', mark: 'END', ditto: true, qtyText: '120x3' }] });
-    expect(split.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 785, '09:20', '15:00'], [11, 360, '15:00', '16:00']]);
+      { time: '9:35 AM', mark: 'START', customer: 'NOVA CLAMPS', part: 'CLAMP' },
+      { time: '2:50 PM', mark: 'END', ditto: true, qtyText: '96×7+5' },
+      { time: '3:55 PM', mark: 'END', ditto: true, qtyText: '110x3' }] });
+    expect(split.runs.map((x: any) => [x[0], x[2], x[3], x[4]])).toEqual([[11, 677, '09:35', '14:50'], [11, 330, '14:50', '15:55']]);
     expect(split.rowIssues.flat()).not.toContain('nostart');   // its START is written: nothing to ask
   });
 
@@ -102,13 +102,13 @@ test.describe('P85: the register page, read', () => {
         rounds: rows.filter(x => / · END$/.test(x)).map(x => ({ time: x.split(' · ')[0], qty, batch: true })), ...extra });
     const P1 = { src: 'photo', photoId: 'PF-1' }, P2 = { src: 'photo', photoId: 'PF-2' }, P3 = { src: 'photo', photoId: 'PF-3' }, P4 = { src: 'photo', photoId: 'PF-4' }, I1 = { src: 'import', importId: 'PI-1' };
     const entries = [
-      run('PE-a', P1, 11, 'CLAMP', 352, '09:15', '10:30', ['9:15 AM · NOVA CLAMPS · CLAMP · START', '10:30 AM · NOVA CLAMPS · CLAMP · 2×156+40 · END']),
-      run('PE-b', P1, 12, 'TINA(0760)', 250, '11:45', '11:45', ['11:45 AM · DURGA AUTO · TINA(0760) · 2×120+10 · END']),     // no START written
-      run('PE-c', P1, 11, 'SLOT', 480, '11:45', '14:40', ['11:45 AM · NOVA CLAMPS · SLOT · START', '2:40 PM · NOVA CLAMPS · SLOT · 4×120 · END']),
+      run('PE-a', P1, 11, 'CLAMP', 332, '09:15', '10:30', ['9:15 AM · NOVA CLAMPS · CLAMP · START', '10:30 AM · NOVA CLAMPS · CLAMP · 2×150+32 · END']),
+      run('PE-b', P1, 12, 'TINA(0760)', 234, '11:45', '11:45', ['11:45 AM · DURGA AUTO · TINA(0760) · 2×110+14 · END']),     // no START written
+      run('PE-c', P1, 11, 'SLOT', 440, '11:45', '14:40', ['11:45 AM · NOVA CLAMPS · SLOT · START', '2:40 PM · NOVA CLAMPS · SLOT · 4×110 · END']),
       run('PE-e', { src: 'hand' }, 11, 'CLAMP', 40, '15:00', '15:00', ['3:00 PM · NOVA CLAMPS · CLAMP · 40 · END']),        // typed: the owner's time
-      // A file built by the reader, the owner's 24 Sep shape: the 120s split from the 98s' run by their gauge. Written without AM or PM.
-      run('PE-f', I1, 11, 'CLAMP', 785, '09:20', '15:00', ['9:20 · NOVA CLAMPS · CLAMP · START', '3:00 · NOVA CLAMPS · CLAMP · 98×8+1 · END']),
-      run('PE-g', I1, 11, 'CLAMP', 360, '16:00', '16:00', ['4:00 · NOVA CLAMPS · CLAMP · 120×3 · END']),
+      // A file built by the reader, the owner's shape: the 110s split from the 96s' run by their gauge. Written without AM or PM.
+      run('PE-f', I1, 11, 'CLAMP', 677, '09:35', '14:50', ['9:35 · NOVA CLAMPS · CLAMP · START', '2:50 · NOVA CLAMPS · CLAMP · 96×7+5 · END']),
+      run('PE-g', I1, 11, 'CLAMP', 330, '15:55', '15:55', ['3:55 · NOVA CLAMPS · CLAMP · 110×3 · END']),
       run('PE-h', I1, 12, 'TINA', 96, '16:10', '16:50', ['4:10 · DURGA AUTO · TINA · START', '4:50 · DURGA AUTO · TINA · 2×44+8 · END']),
       run('PE-d', P2, 12, 'TINA(0760)', 90, '12:00', '12:00', ['12:00 PM · DURGA AUTO · TINA(0760) · 90 · END']),           // nothing before it on its page
       run('PE-i', P3, 11, 'CLAMP', 100, '09:00', '10:00', ['9:00 AM · NOVA CLAMPS · CLAMP · START', '10:00 AM · NOVA CLAMPS · CLAMP · 100 · END']),
@@ -121,7 +121,7 @@ test.describe('P85: the register page, read', () => {
       production: { entries, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } } } as SepState);
     const stored = async () => Object.fromEntries(((await readStoredState(page)).production.entries as any[]).map(e => [e.id, [e.time, e.to, e.startWas || '']]));
     const want = { 'PE-a': ['09:15', '10:30', ''], 'PE-b': ['10:30', '11:45', '11:45'], 'PE-c': ['11:45', '14:40', ''], 'PE-e': ['15:00', '15:00', ''],
-      'PE-f': ['09:20', '15:00', ''], 'PE-g': ['15:00', '16:00', '16:00'], 'PE-h': ['16:10', '16:50', ''], 'PE-d': ['12:00', '12:00', ''],
+      'PE-f': ['09:35', '14:50', ''], 'PE-g': ['14:50', '15:55', '15:55'], 'PE-h': ['16:10', '16:50', ''], 'PE-d': ['12:00', '12:00', ''],
       'PE-i': ['09:00', '10:00', ''], 'PE-j': ['10:00', '10:30', ''], 'PE-k': ['11:30', '12:45', ''], 'PE-l': ['12:45', '13:05', '13:05'] };
     await expect.poll(stored).toEqual(want);
     await page.reload();

@@ -39,7 +39,7 @@ type Line = {
 /** `count` line items — enough to run a tax invoice past one sheet. */
 function manyLines(count: number): Line[] {
   return Array.from({ length: count }, (_, i) => ({
-    partNumber: `2082 3240 ${String(4000 + i)}`,
+    partNumber: `9205 0000 ${String(4000 + i)}`,
     desc: `CLAMP ${100 + i}X83 (NT) (40X6)`,
     qty: 10 + i,
     rate: 13,
@@ -68,7 +68,7 @@ function invoice(num: number, lines: Line[]) {
     clientId: 1,
     clientName: 'TEST CLIENT KG',
     clientGSTIN: '',
-    clientAddress: { add1: 'A-4, Road No. 2', add2: 'ADITYAPUR, JAMSHEDPUR', add3: '', state: 'JHARKHAND', stateCode: '20' },
+    clientAddress: { add1: 'Plot 12, Lane 7', add2: 'INDUSTRIAL AREA, ANYTOWN', add3: '', state: 'JHARKHAND', stateCode: '20' },
     gstType: 'intra',
     items,
     taxableValue: taxable,

@@ -221,7 +221,7 @@ test('the overtime a cut’s backlog took, above the usual, is its cost, and the
   const doc = page.locator('#powerContent [data-power-case]');
   await expect(doc).toContainText('Overtime to catch up');
   await expect(doc).toContainText('overtime to catch up the backlog ₹228.00');
-  await expect(doc).toContainText('an estimate, not measured');
+  await expect(doc).toContainText('as set in the options’ figures, not measured');
   await expect(doc).toContainText('The damage, not the revenue at stake');
 });
 

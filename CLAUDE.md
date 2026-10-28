@@ -2655,6 +2655,26 @@ prototypes). P162.
   hire a wage (paid from when it can start, never while it cannot take effect), a loan its amortised schedule. A move takes effect
   after what it needs (`plnReady`); one that never can is hatched. Weighted by each chance, a move counts at its own chance times its
   prerequisites' (`plnWeights`).
+- **Every option carries its details, and the plant register's units feed the plan** (owner, 28 Oct 2026: *"We have Acid recovery
+  and fume hood. How much acid recovery can be done? What would the fume hood give us? … The details under most of the options are
+  missing. Also, under machines and infrastructure we already have the machines that are down or need repairing, but we do nothing
+  with that information on planner"*; the four questions answered the same day; P245, `docs/PLANNER.md` §3.5):
+  - **An option folds open** to what it needs (`req`, and the moves it needs in the plan), each figure it rests on with its badge
+    (**set** in `cfg.fx[id]`, **measured**, **estimate**, **not set**; `plnInputVals`), its cost (blank where no estimate is honest:
+    *cost to set*) and what it adds to the month on show; **Set figures** and **Cost**, behind Settings' permission. A move's effect
+    is read from its figures (`plnFx`).
+  - **Acid recovery** (`acidSave`) is the share recovered × (HCl used a month, read from the stock record's HCl line, × a litre's
+    price with carriage) + the share × the spent acid sent away × what a KL costs, less its running cost; nothing until the share
+    is set (a second share for the spent acid no longer sent away); the flat ₹6,000 "less acid bought" had nothing behind it. **Fume extraction
+    and scrubber** is its own option with a running cost (an estimate until set), and ISO 9001 and CQI-11 need it. Pickling's
+    options stand alone (`alone`).
+  - **Units**: every line's figure is the line as it runs today, on its units working (`pltCapacity` says how many); each unit down, under repair or in need of work is a move under **Repairs and sales** (`plnUnitMoves`): bring it back
+    (its share of the round, its risk ended), overhaul it, or, marked *Not coming back* on the unit (`u.gone`), sell it (cash in
+    at the price set). A running unit in need of work or ageing with no risk typed may fail at an estimated chance
+    (`PLN_RISK_DEFAULT`) until its repair lands, stopping its share of the line. A unit's share counts tanks and barrels only.
+    *Another barrel* adds one barrel's share. A move with no cost set is said on the verdict. Plans saved before gain the fume
+    extraction once (`_plnHood1`).
+  - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge).
 - **The ledger adds up** (`plnAttribution`): today's margin, then each move in the order it takes effect, each the plan up to it
   against the plan before it, ending in the plan. If every move lands, or weighted by each chance.
 - **The trials** (600, seeded): each chance, CQI-11 up to three months late, the promotion's pass, each machine's risk until the

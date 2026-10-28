@@ -114,7 +114,8 @@ test.describe('P162 the planner', () => {
     await toolbarMore(page, 'Start a plan');
     await toolbarMore(page, 'Suggest a start');
     expect(await g(page, `plnPlanned().ready.cqi`)).toBeGreaterThan(0);
-    await expect(page.locator('#plnBoard .inv-pl-pin')).toHaveCount(10);
+    // Ten moves and the fume extraction ISO 9001 and CQI-11 need (owner, 28 Oct 2026).
+    await expect(page.locator('#plnBoard .inv-pl-pin')).toHaveCount(11);
     await page.locator('#pagePlanner [data-action="invPlnRoll"]').click();
     // The verdict's factor: the share of trials reaching the goal, then its stars.
     await expect(page.locator('[data-pl-hud="score"] .inv-tile-value')).toHaveText(/\d+%/);

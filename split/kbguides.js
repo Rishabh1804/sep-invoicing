@@ -463,13 +463,16 @@ var KB_APP_GUIDES = [
     '- **Roll the trials** does 600 runs that use every chance and risk. The score is the share of runs that reach the goal (Easy, Normal or Hard). **Replay one run** tells 1 run as a story.\n\n' +
     '# Keep it true\n- The **registers** are records: machines and their needs, the CQI-11 checklist, lenders, rates heard and work held back. Keep them up to date.\n' +
     '- Where the book measures nothing, use **Set the assumptions** (in Ledger or Moves → Plant). Set a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill and the cash.\n' +
-    '- Upgrade costs are estimates until a quote replaces them. Set them with **Cost** on each level.\n' +
+    '- Upgrade costs are estimates until a quote replaces them. Tap a level to see what it needs, each figure it rests on (**set**, **measured**, **estimate** or **not set**) and what it adds to the month. Set the cost with **Cost** and the other figures with **Set figures**.\n' +
+    '- **Acid recovery** adds nothing until you set the share it recovers. Its saving is the acid it saves and the spent acid not sent away. **Fume extraction and scrubber** has its own row: ISO 9001 and CQI-11 need it.\n' +
+    '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead.\n' +
     '- **Make the report** prints the plan for a lender or a meeting.',
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
     // card and More (TM2d).
     // Version 4: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    // Version 5: the Planner is Home's (UI pass 3, 16 Oct 2026).
-    { version: 5 }),
+    // Version 5: the Planner is Home's (UI pass 3, 16 Oct 2026). Version 6: each option's details, acid recovery and the fume
+    // extraction apart, the units down as repairs and sales (owner, 28 Oct 2026).
+    { version: 6 }),
   // The entry faces (docs/ENTRY_FACES.md, F6): Mine, one guide a face, and the owner's. Each person reads the one for what they
   // enter; the top bar's book on Mine lists them, and the role paths below carry them.
   _kbg('mine', 'Using the app: my screen (Mine)', 'Your day, what you enter, your sheets and the group’s message', ['pageFace'],

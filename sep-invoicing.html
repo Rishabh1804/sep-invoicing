@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="939a0ea9">
+<meta name="app-build" content="3e35c09f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -50922,6 +50922,7 @@ function pltEdit(id, station) {
     _pltSelect('pltStatus', 'Status', PLT_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'run') +
     _pltField('pltSince', 'Since', v.since || localDateStr(), 'date') +
     _pltField('pltReason', 'Why (when not running)', v.reason) +
+    _pltSelect('pltGone', 'When down, does it come back?', [['', 'It comes back (a repair in the planner)'], ['gone', 'Not coming back (a sale in the planner)']], v.gone ? 'gone' : '') +
     _pltSelect('pltCond', 'Condition', typeof PLN_MACHINE_STATES !== 'undefined' ? PLN_MACHINE_STATES.map(function(s) { return [s[0], s[1]]; }) : [['fair', 'Fair']], v.condition || 'fair') +
     _pltField('pltAge', 'Age', v.age) + _pltField('pltNeeds', 'What it needs', v.needs) + _pltField('pltNote', 'Note', v.note) +
     '<details class="inv-panel inv-panel-flush inv-panel-fold inv-mt-8"><summary class="inv-panel-head"><span class="inv-panel-title">If it fails (the planner’s trials)</span></summary><div class="inv-panel-body"><div class="inv-fields">' +
@@ -50956,7 +50957,7 @@ function pltSave(id) {
   var p = pltData(), u = id ? p.units.find(function(x) { return x.id === id; }) : null, now = Date.now(), who = pltWho();
   var pr = _pltNum('pltRiskP');
   var rec = { name: name, station: _pltVal('pltStation') || 'other', kind: _pltVal('pltKind') || 'tank', kgRound: _pltNum('pltKg'), condition: _pltVal('pltCond') || 'fair',
-    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'),
+    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'), gone: _pltVal('pltGone') === 'gone' && _pltVal('pltStatus') !== 'run' && _pltVal('pltStatus') !== 'standby',
     risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _pltNum('pltRiskCost') || 0, days: _pltNum('pltRiskDays') || 0, say: _pltVal('pltRiskSay') } : null };
   if (!u) {
     u = Object.assign({ id: pltId('PU'), status: status, since: since, reason: status === 'run' ? '' : reason, addedOn: since }, rec, { at: now, by: who });
@@ -51035,7 +51036,7 @@ function pltLineOf(u) { return u.line !== undefined && u.line !== null ? u.line 
 function pltMachines() {
   return pltUnits().map(function(u) {
     return { id: u.id, item: u.name, station: u.station, line: pltLineOf(u) || null, state: u.condition || 'fair',
-      age: u.age || '', needs: u.needs || '', risk: u.risk || null, status: u.status || 'run' };
+      age: u.age || '', needs: u.needs || '', risk: u.risk || null, status: u.status || 'run', kgRound: +u.kgRound || null, gone: !!u.gone, reason: u.reason || '' };
   });
 }
 /* The planner's machines move into the register once, their ids kept, so the change log and the trials know them. */
@@ -65945,42 +65946,67 @@ var PLN_GOALS = [
 
 /* ---------- The catalogue: generic, its costs the owner's to change (cfg.costs) ---------- */
 var PLN_STATIONS = [
+  // Pickling's options stand alone (`alone`): none needs the one listed before it. Acid recovery's worth is the acid it saves and
+  // the spent acid not sent away, from figures the owner sets, never a flat saving (owner, 28 Oct 2026); the fume extraction is a
+  // prerequisite of ISO 9001 and CQI-11.
   { id: 'pick', name: 'Pickling', levels: [{ t: 'As it runs' },
-    { id: 'pickAcid', t: 'Acid recovery and fume hood', cost: 120000, fx: { chemSave: 6000 }, say: '₹6,000 a month less acid bought (estimate)' },
-    { id: 'pick4', t: 'A fourth tank', cost: 150000, fx: { pickKgH: 140 }, say: 'pickling 140 kg an hour faster' }] },
+    { id: 'pickHood', t: 'Fume extraction and scrubber', cost: null, alone: true, gate: ['iso', 'cqi'],
+      req: 'A hood over the HCl tanks, a duct to a wet scrubber outside the room and a blower on its own supply; the scrubber’s water goes to the effluent plant. The pollution board’s consent to operate, not yet held, would name it.',
+      inputs: [{ key: 'runMo', label: 'Running cost a month (the blower’s power, the scrubber’s water)', unit: '₹', def: 4000 }],
+      say: 'acid fumes taken out at the tank; the plan puts it before ISO 9001 and CQI-11 (owner, 28 Oct 2026)' },
+    { id: 'pickAcid', t: 'Acid recovery', cost: null, alone: true,
+      req: 'A recovery unit beside the pickling tanks (membrane or retardation), a pump and a holding tank, power and water, and a hand to run it each shift; it treats the spent acid before what is left goes to the waste contractor.',
+      inputs: [{ key: 'hclL', label: 'HCl used a month', unit: 'L', def: 'stock' }, { key: 'share', label: 'Share of it recovered', unit: '%', def: null },
+        { key: 'acidRs', label: 'What a litre of HCl costs, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
+        { key: 'dispRs', label: 'What sending a KL away costs', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
+        { key: 'runMo', label: 'Running cost a month (its power, water, the hand’s time)', unit: '₹', def: null }],
+      // The acid recovered and the spent acid no longer sent away are two shares: what is left still goes to the contractor.
+      fxOf: function(v) {
+        var sh = v.share > 0 ? Math.min(100, v.share) / 100 : 0, ds = v.dispShare > 0 ? Math.min(100, v.dispShare) / 100 : 0;
+        return { acidSave: sh * (v.hclL || 0) * (v.acidRs || 0) + ds * (v.dispKL || 0) * (v.dispRs || 0), runMo: v.runMo || 0, acidL: sh * (v.hclL || 0), acidKL: ds * (v.dispKL || 0) };
+      },
+      sayOf: function(v, fx) {
+        if (!(v.share > 0)) return 'not worked out: set the share recovered';
+        if (v.hclL == null) return 'HCl used a month not recorded: set it, or keep an HCl line in Stock';
+        return formatNum(fx.acidL, 0) + ' L of acid a month recovered' + (fx.acidKL ? ', ' + formatNum(fx.acidKL, 1) + ' KL less sent away' : '') + ': ' + (fx.acidSave ? formatInrShort(fx.acidSave) + ' a month' : 'no saving at the figures set');
+      } },
+    { id: 'pick4', t: 'Another tank', cost: 150000, alone: true, fx: { pickKgH: 140 },
+      req: 'Floor space in the pickling room, a hoist that reaches it, and a hand to load it at the busiest hours.',
+      inputs: [{ key: 'pickKgH', label: 'Kg an hour more pickling', unit: 'kg/h', def: 140 }],
+      sayOf: function(v) { return 'pickling ' + formatNum(v.pickKgH || 0, 0) + ' kg an hour faster'; } }] },
   { id: 'vat-a1', name: 'VAT A1', levels: [{ t: 'As it runs' },
-    { id: 'a1Log', t: 'Rectifier and temperature logged', cost: 60000, say: 'the bath’s records keep themselves (bath analysis needs them)' },
-    { id: 'a1Racks', t: 'Two more racks a round', cost: 100000, fx: { line: 'vat-a1', kgRound: 12 }, say: '12 kg more a round' }] },
+    { id: 'a1Log', t: 'Rectifier and temperature logged', cost: 60000, req: 'A logger on each rectifier for amps and volts and a probe in each tank for temperature, wired to a box the app can read or a sheet filled each round.', say: 'the bath’s records keep themselves (bath analysis needs them)' },
+    { id: 'a1Racks', t: 'Two more racks a round', cost: 100000, fx: { line: 'vat-a1', kgRound: 12 }, req: 'Two racks and their hooks, a rectifier with the current to spare for the area added, and the bath’s volume for the larger load.', inputs: [{ key: 'kgRound', label: 'Kg more a round', unit: 'kg', def: 12 }], say: '12 kg more a round' }] },
   { id: 'vat-a2', name: 'VAT A2', levels: [{ t: 'As it runs' },
-    { id: 'a2Reline', t: 'Tank repaired or relined', cost: 80000, fixes: 'vat-a2', say: 'the tank’s risk on the machine register goes' },
-    { id: 'a2Rect', t: '1,000 A rectifier', cost: 180000, fx: { line: 'vat-a2', every: -6 }, say: 'a round 6 minutes sooner' }] },
+    { id: 'a2Reline', t: 'Tank repaired or relined', cost: 80000, fixes: 'vat-a2', req: 'The tank drained and its bath held in a spare tank, a liner or a welder, and three to five days with VAT A2 stopped.', say: 'the tank’s risk on the machine register goes' },
+    { id: 'a2Rect', t: '1,000 A rectifier', cost: 180000, fx: { line: 'vat-a2', every: -6 }, req: 'A 1,000 A rectifier, cable rated for it and the load on the bill to carry it.', inputs: [{ key: 'every', label: 'Minutes sooner a round', unit: 'min', def: -6 }], say: 'a round 6 minutes sooner' }] },
   { id: 'barrel', name: 'Barrel', levels: [{ t: 'As it runs' },
-    { id: 'barrelFix', t: 'Barrel overhaul', cost: 45000, fixes: 'barrel', say: 'the drive’s risk on the machine register goes' },
-    { id: 'barrel2', t: 'A second barrel', cost: 350000, fx: { line: 'barrel', kgRound: 60 }, needs: ['load50'], say: '60 kg more a load; needs the bigger load on the bill' }] },
+    { id: 'barrelFix', t: 'Barrel overhaul', cost: 45000, fixes: 'barrel', req: 'Spares for the drive (gearbox, chain, bearings) and two or three days of the barrel stopped.', say: 'the drive’s risk on the machine register goes' },
+    { id: 'barrel2', t: 'Another barrel', cost: 350000, fx: { line: 'barrel', kgRound: 60 }, needs: ['load50'], req: 'A barrel and its drive, a tank to run it in, a rectifier for it, and the bigger load on the bill.', inputs: [{ key: 'kgRound', label: 'Kg more a load', unit: 'kg', def: 'unit:barrel' }], say: '60 kg more a load; needs the bigger load on the bill' }] },
   { id: 'lab', name: 'Lab', levels: [{ t: 'Nothing yet' },
-    { id: 'lab1', t: 'Balance, glassware, Hull cell', cost: 30000, say: 'for daily bath analysis' },
-    { id: 'lab2', t: 'Thickness gauge, salt spray', cost: 140000, say: 'a test report with each batch' },
-    { id: 'lab3', t: 'XRF analyser', cost: 2000000, say: 'for zinc-nickel' }] },
+    { id: 'lab1', t: 'Balance, glassware, Hull cell', cost: 30000, req: 'A bench with water, a balance to 0.01 g, glassware and reagents, and a Hull cell with its panels.', say: 'for daily bath analysis' },
+    { id: 'lab2', t: 'Thickness gauge, salt spray', cost: 140000, req: 'A coating thickness gauge with its standards, and a salt spray cabinet with its own supply and drain, or a lab that tests for the plant.', say: 'a test report with each batch' },
+    { id: 'lab3', t: 'XRF analyser', cost: 2000000, req: 'An XRF analyser and a trained hand; it reads zinc-nickel alloy and thickness without cutting the part.', say: 'for zinc-nickel' }] },
   { id: 'oven', name: 'Bake oven', levels: [{ t: 'None' },
-    { id: 'oven1', t: 'Oven with recorder', cost: 150000, fx: { powerKg: 0.05 }, say: 'hydrogen relief for hard bolts; ₹0.05/kg more power' }] },
+    { id: 'oven1', t: 'Oven with recorder', cost: 150000, fx: { powerKg: 0.05 }, req: 'An oven to 220 °C with a recorder, its own supply, and the floor space beside the line.', inputs: [{ key: 'powerKg', label: 'More power a kg plated', unit: '₹/kg', def: 0.05 }], say: 'hydrogen relief for hard bolts; ₹0.05/kg more power' }] },
   { id: 'power', name: 'Power', levels: [{ t: 'As it runs' },
-    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, say: 'an excess-load charge on the bill stops (₹5,000 a month, an estimate to set)' },
-    { id: 'inverter', t: 'Inverter', cost: 300000, fx: { cutCover: 0.85 }, say: 'carries 85% of the cut minutes in working hours' },
-    { id: 'genset', t: 'Generator', cost: 600000, fx: { cutCover: 1, gensetRun: 4000 }, say: 'every cut covered, nights too; ₹4,000 a month diesel' }] },
+    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, req: 'The approved load entered on the bill by the supply company (Power → Load & bills).', inputs: [{ key: 'powerSave', label: 'The excess-load charge that stops, a month', unit: '₹', def: 5000 }], say: 'an excess-load charge on the bill stops (₹5,000 a month, an estimate to set)' },
+    { id: 'inverter', t: 'Inverter', cost: 300000, fx: { cutCover: 0.85 }, req: 'An inverter and batteries sized for the rectifiers and pumps, a room for the batteries, and the wiring to switch over.', inputs: [{ key: 'cutCover', label: 'Share of the cut minutes it carries', unit: 'share', def: 0.85 }], say: 'carries 85% of the cut minutes in working hours' },
+    { id: 'genset', t: 'Generator', cost: 600000, fx: { cutCover: 1, gensetRun: 4000 }, req: 'A generator within the factory licence’s rating, a plinth, a fuel store and a change-over panel.', inputs: [{ key: 'gensetRun', label: 'Diesel a month', unit: '₹', def: 4000 }], say: 'every cut covered, nights too; ₹4,000 a month diesel' }] },
   { id: 'etp', name: 'Effluent', levels: [{ t: 'As it runs' },
-    { id: 'etp1', t: 'Sludge drying bed', cost: 100000, fixes: 'etp', say: 'the effluent risk on the machine register goes' }] }
+    { id: 'etp1', t: 'Sludge drying bed', cost: 100000, fixes: 'etp', req: 'Space beside the effluent plant for the drying bed, and a disposal contract for the dried sludge.', say: 'the effluent risk on the machine register goes' }] }
 ];
 var PLN_TECH = [
-  { id: 'docs', tier: 0, t: 'FMEA, control plan, records', cost: 20000, months: 1, say: 'the app keeps the records' },
-  { id: 'course', tier: 0, t: 'CQI-11 auditor course', cost: 15000, months: 1, say: 'two days online' },
-  { id: 'bath', tier: 1, t: 'Daily bath analysis', needs: ['lab1', 'labHand', 'a1Log'], months: 1, say: 'zinc, pH, Hull cell, every shift' },
-  { id: 'test', tier: 1, t: 'Thickness and salt-spray tests', needs: ['lab2'], months: 1, say: 'a report with each batch' },
-  { id: 'trival', tier: 1, t: 'Trivalent passivation', cost: 50000, needs: ['bath'], months: 2, fx: { chemKg: 0.08 }, say: '₹0.08/kg more chemicals' },
-  { id: 'cqi', tier: 2, t: 'CQI-11 self-assessed', needs: ['docs', 'course', 'bath', 'test', 'specialist'], months: 5, say: 'five months of records read back' },
-  { id: 'iso', tier: 2, t: 'ISO 9001', cost: 60000, needs: ['docs'], months: 4, say: 'what an OEM asks of a Tier 2' },
-  { id: 'oem', tier: 3, t: 'Approved plating source', needs: ['iso', 'trival', 'cqi'], months: 3, say: 'opens work held back for approval (Clients)' },
-  { id: 'iatf', tier: 4, t: 'IATF 16949', cost: 300000, needs: ['oem'], months: 12, say: 'twelve months of data first' },
-  { id: 'zn', tier: 4, t: 'Zinc-nickel line', cost: 1500000, needs: ['lab3', 'cqi'], months: 4, say: 'opens zinc-nickel work (Clients)' }
+  { id: 'docs', tier: 0, t: 'FMEA, control plan, records', cost: 20000, months: 1, req: 'The process written down: an FMEA, a control plan and the records each shift keeps.', say: 'the app keeps the records' },
+  { id: 'course', tier: 0, t: 'CQI-11 auditor course', cost: 15000, months: 1, req: 'Two days for the specialist or the supervisor on an online course.', say: 'two days online' },
+  { id: 'bath', tier: 1, t: 'Daily bath analysis', needs: ['lab1', 'labHand', 'a1Log'], months: 1, req: 'The lab’s first level, a lab hand on each shift, and the rectifier and temperature logged.', say: 'zinc, pH, Hull cell, every shift' },
+  { id: 'test', tier: 1, t: 'Thickness and salt-spray tests', needs: ['lab2'], months: 1, req: 'The thickness gauge and salt spray, or a lab that tests for the plant.', say: 'a report with each batch' },
+  { id: 'trival', tier: 1, t: 'Trivalent passivation', cost: 50000, needs: ['bath'], months: 2, fx: { chemKg: 0.08 }, req: 'A trivalent passivate and its bath, and the bath analysed each day.', say: '₹0.08/kg more chemicals' },
+  { id: 'cqi', tier: 2, t: 'CQI-11 self-assessed', needs: ['docs', 'course', 'bath', 'test', 'specialist', 'pickHood'], months: 5, req: 'Records, the course, bath analysis, the tests and a plating specialist on site; and fume extraction at the pickling tanks, the plant’s own condition for the audit (owner, 28 Oct 2026).', say: 'five months of records read back' },
+  { id: 'iso', tier: 2, t: 'ISO 9001', cost: 60000, needs: ['docs', 'pickHood'], months: 4, req: 'The records kept and an auditor’s visit; and fume extraction at the pickling tanks, the plant’s own condition for the audit (owner, 28 Oct 2026).', say: 'what an OEM asks of a Tier 2' },
+  { id: 'oem', tier: 3, t: 'Approved plating source', needs: ['iso', 'trival', 'cqi'], months: 3, req: 'ISO 9001, CQI-11 and trivalent passivation, then an approval audit by the customer.', say: 'opens work held back for approval (Clients)' },
+  { id: 'iatf', tier: 4, t: 'IATF 16949', cost: 300000, needs: ['oem'], months: 12, req: 'Approval as a plating source and twelve months of the system’s data.', say: 'twelve months of data first' },
+  { id: 'zn', tier: 4, t: 'Zinc-nickel line', cost: 1500000, needs: ['lab3', 'cqi'], months: 4, req: 'A zinc-nickel bath and line, the XRF analyser and CQI-11.', say: 'opens zinc-nickel work (Clients)' }
 ];
 var PLN_ROLES = [
   { id: 'specialist', t: 'Plating specialist, 5 years', run: 35000, say: 'CQI-11 asks for one on site, full time' },
@@ -66030,6 +66056,121 @@ function plnCfg() {
 function plnId(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function plnUpgradeCost(lv) { var c = plnCfg().costs[lv.id]; return c != null && c !== '' && isFinite(+c) ? +c : (lv.cost || 0); }
 function plnTechCost(t) { var c = plnCfg().costs[t.id]; return c != null && c !== '' && isFinite(+c) ? +c : (t.cost || 0); }
+/* An option's figures: what the owner set (cfg.fx[id][key]) over its defaults; a default of 'stock' is read from the stock
+   record. Each comes with what it rests on: set, measured, an estimate, or not set (owner, 28 Oct 2026: *"The details under
+   most of the options are missing"*). */
+var PLN_SAY = {
+  a1Racks: function(v) { return formatNum(v.kgRound || 0, 0) + ' kg more a round'; },
+  a2Rect: function(v) { return 'a round ' + formatNum(Math.abs(v.every || 0), 0) + ' minutes ' + ((v.every || 0) <= 0 ? 'sooner' : 'later'); },
+  barrel2: function(v) { return formatNum(v.kgRound || 0, 0) + ' kg more a load; needs the bigger load on the bill'; },
+  oven1: function(v) { return 'hydrogen relief for hard bolts; ₹' + formatNum(v.powerKg || 0, 2) + '/kg more power'; },
+  load50: function(v) { return 'an excess-load charge on the bill stops (' + formatInrShort(v.powerSave || 0) + ' a month)'; },
+  inverter: function(v) { return 'carries ' + Math.round((v.cutCover || 0) * 100) + '% of the cut minutes in working hours'; },
+  genset: function(v) { return 'every cut covered, nights too; ' + formatInrShort(v.gensetRun || 0) + ' a month diesel'; }
+};
+function plnOption(id) {
+  var r = null;
+  PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.id === id) r = lv; }); });
+  return r || PLN_TECH.find(function(t) { return t.id === id; }) || null;
+}
+/* HCl used a month over the 90 days to today, from the stock record: the uses and charges of a line named for it, else what
+   came in (the acid is drawn as it arrives). Null where no such line is recorded. */
+function plnHclMonth() {
+  // A line kept in another unit than litres is not read (a kilo of acid is not a litre).
+  var st = S && S.stock ? S.stock : {}, items = (st.items || []).filter(function(it) { return it && /\bHCL\b|HYDROCHLOR/i.test(String(it.name || '')) && /^(l|ltr|litre|liter|lit)s?$/i.test(String(it.unit || 'L').trim()); });
+  if (!items.length) return null;
+  var ids = {}; items.forEach(function(it) { ids[it.id] = 1; });
+  var today = localDateStr(), from = isoAddDays(today, -89), used = 0, came = 0, any = false, first = today;
+  (st.entries || []).forEach(function(e) {
+    if (!e || e.voided || !ids[e.itemId] || !e.date || e.date < from || e.date > today) return;
+    var q = Number(e.qty) || 0;
+    if (e.kind === 'used' || e.kind === 'charged') { used += q; any = true; } else if (e.kind === 'received') { came += q; any = true; }
+    if (e.date < first) first = e.date;
+  });
+  if (!any) return null;
+  // A month is 30 days of what the record covers, never the window's 90 where the record began within it.
+  var days = Math.max(1, isoDaysBetween(first, today) + 1);
+  return { l: Math.round((used > 0 ? used : came) * 30 / days), from: used > 0 ? 'its uses' : 'what came in', days: days, part: days < 28 };
+}
+function plnInputVals(id) {
+  var lv = plnOption(id), set = ((plnRead().cfg || {}).fx || {})[id] || {}, out = { _src: {} };
+  ((lv && lv.inputs) || []).forEach(function(inp) {
+    var sv = set[inp.key];
+    if (sv != null && sv !== '' && isFinite(+sv)) { out[inp.key] = +sv; out._src[inp.key] = 'set'; return; }
+    // A unit's share of the line as it runs: today's round over the units working (a new barrel adds what one barrel does).
+    if (typeof inp.def === 'string' && inp.def.indexOf('unit:') === 0) {
+      var ln = inp.def.slice(5), B0 = _plnBase || null, cap0 = typeof pltCapacity === 'function' ? pltCapacity(ln, null, true) : null;
+      var per = B0 && B0.lines[ln] && cap0 && cap0.nAvail > 0 ? B0.lines[ln].kgRound / cap0.nAvail : null;
+      out[inp.key] = per != null ? Math.round(per) : 60; out._src[inp.key] = per != null ? 'measured' : 'estimate'; return;
+    }
+    if (inp.def === 'stock') { var h = plnHclMonth(); out[inp.key] = h ? h.l : null; out._src[inp.key] = !h ? 'unset' : h.part ? 'estimate' : 'measured'; return; }
+    out[inp.key] = inp.def; out._src[inp.key] = inp.def == null ? 'unset' : 'estimate';
+  });
+  return out;
+}
+/* What an option changes, at its figures. */
+function plnFx(id) {
+  var lv = plnOption(id);
+  if (!lv) return {};
+  var v = plnInputVals(id);
+  if (lv.fxOf) return lv.fxOf(v);
+  var fx = Object.assign({}, lv.fx || {});
+  (lv.inputs || []).forEach(function(inp) { if (v[inp.key] != null) fx[inp.key] = v[inp.key]; });
+  return fx;
+}
+function plnSay(id) {
+  var lv = plnOption(id); if (!lv) return '';
+  var v = plnInputVals(id);
+  return lv.sayOf ? lv.sayOf(v, plnFx(id)) : PLN_SAY[id] ? PLN_SAY[id](v) : lv.say || '';
+}
+/* An option's cost is to set where the catalogue has no estimate and the owner has typed none. */
+function plnCostToSet(lv) { var c = plnCfg().costs[lv.id]; return lv.cost == null && !(c != null && c !== '' && isFinite(+c)); }
+
+/* ---------- The plant register's units in the plan (owner, 28 Oct 2026: *"under machines and infrastructure we already have the
+   machines that are down or need repairing, but we do nothing with that information on planner"*) ----------
+   A line's units side by side (pltCapacity): the plan plates with the units working today; a unit down, under repair or in need
+   of work is a Repair move that brings its share of the line back and ends its risk; one marked not coming back is a Sale. A
+   running unit in need of work or ageing, with no risk typed on it, may fail in the trials (PLN_RISK_DEFAULT, an estimate). */
+var PLN_RISK_DEFAULT = { needs: { p: 0.05, days: 3 }, ageing: { p: 0.02, days: 2 } };
+function plnUnitMoves() {
+  if (typeof pltUnits !== 'function') return [];
+  var out = [];
+  // A line's units are the tanks and barrels that plate on it (a rectifier is not a share of the round).
+  var plating = function(u, line) { return (pltLineOf(u) || (u.station === 'pick' ? 'pick' : '')) === line && (!u.kind || u.kind === 'tank' || u.kind === 'barrel'); };
+  pltUnits().forEach(function(u) {
+    var down = !pltAvailable(u.status || 'run'), needs = u.condition === 'needs';
+    if (!down && !needs) return;
+    var line = pltLineOf(u) || (u.station === 'pick' ? 'pick' : ''), share = 0, basis = '';
+    if (down && line && !u.gone && plating(u, line)) {
+      var all = pltUnits().filter(function(x) { return plating(x, line); }), work = all.filter(function(x) { return pltAvailable(x.status || 'run'); });
+      var byKg = all.length && all.every(function(x) { return +x.kgRound > 0; }), kg = function(l) { return l.reduce(function(t, x) { return t + (+x.kgRound || 0); }, 0); };
+      if (work.length) { share = byKg ? (+u.kgRound || 0) / kg(work) : 1 / work.length; basis = byKg ? 'kg' : 'count'; }
+      // Every unit down: the share of the line whole, of its round as assumed.
+      else if (all.length) { share = byKg ? (+u.kgRound || 0) / kg(all) : 1 / all.length; basis = byKg ? 'kg-all' : 'count-all'; }
+    }
+    var kind = u.gone && down ? 'sell' : 'fix';
+    out.push({ id: kind + ':' + u.id, kind: kind, unit: u, down: down, line: line, share: share, basis: basis,
+      same: PLN_STATIONS.reduce(function(r, st) { st.levels.forEach(function(lv) { if (lv.fixes && lv.fixes === u.station) r = st.name + ': ' + lv.t; }); return r; }, ''),
+      t: (kind === 'sell' ? 'Sell ' : down ? 'Bring back ' : 'Overhaul ') + u.name,
+      req: kind === 'sell' ? 'A buyer, and the unit taken out of the line.' : (u.needs ? 'It needs: ' + u.needs + '.' : 'What it needs is not written on the unit (Production → Equipment).') + (u.reason ? ' Down: ' + u.reason + '.' : '') });
+  });
+  return out;
+}
+/* A unit's share of its line when it fails: a tank of four stops a quarter of the line's round, not the line (Vulcanus, 28 Oct
+   2026). A rectifier or a unit of another kind stops the whole line it feeds. */
+function plnUnitShareOf(x) {
+  var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
+  if (!u || !x.line || (u.kind && u.kind !== 'tank' && u.kind !== 'barrel')) return 1;
+  var all = pltUnits().filter(function(y) { return pltLineOf(y) === x.line && (!y.kind || y.kind === 'tank' || y.kind === 'barrel') && pltAvailable(y.status || 'run'); });
+  if (!all.length) return 1;
+  var byKg = all.every(function(y) { return +y.kgRound > 0; }), tot = all.reduce(function(t, y) { return t + (+y.kgRound || 0); }, 0);
+  return byKg && tot > 0 ? (+u.kgRound || 0) / tot : 1 / all.length;
+}
+/* Moves in the plan with no cost set (a blank where no estimate is honest): the plan's spend is short by their cost. */
+function plnUnpriced(P) {
+  return (P.L || []).filter(function(mv) { var lv = plnOption(mv.key); return lv ? plnCostToSet(lv) : /^fix:/.test(mv.key) ? !((plnCfg().costs || {})[mv.key] > 0) : /^sell:/.test(mv.key) ? !(mv.cost < 0) : false; });
+}
+function plnUnitMoveOf(key) { return plnUnitMoves().find(function(x) { return x.id === key; }) || null; }
 
 /* ---------- The baseline, read from the book ---------- */
 /* The last three full months before this one. */
@@ -66043,7 +66184,8 @@ var _plnBase = null;
 function plnBaseKey() {
   var pr = S.production && Array.isArray(S.production.entries) ? S.production.entries.length : 0;
   return [plnPeriod().from, typeof _bookWrites !== 'undefined' ? _bookWrites : 0, (S.invoices || []).length, (S.creditNotes || []).length, pr, (S.costBills || []).length, ((S.bank || {}).rows || []).length,
-    Object.keys(S.attendance || {}).length, ((S.stock || {}).entries || []).length, JSON.stringify(plnRead().cfg || {})].join('|');
+    Object.keys(S.attendance || {}).length, ((S.stock || {}).entries || []).length, JSON.stringify(plnRead().cfg || {}),
+    typeof pltUnits === 'function' ? pltUnits().map(function(u) { return [u.id, u.station, u.status, u.kgRound, u.condition, u.gone ? 1 : 0].join(':'); }).join(',') : ''].join('|');
 }
 /* Rounds a day and minutes between them on a line, from the production register's rounds (days with 10+ rounds). */
 function plnClock(t) {
@@ -66177,6 +66319,13 @@ function plnBase() {
   // A line nothing measures is assumed; where the assumption could not have plated what the book billed in the general shift
   // and the two OT blocks less the cuts, its kilos a round are raised until it could, and it says so (fitted): the plant as it
   // runs must reproduce the book.
+  // The units working today (pltCapacity): every line's figure is the line as it runs today, on the units working (the register's
+  // measure, the owner's figure, or the assumption fitted to what the book plated), so a unit brought back adds its share of it.
+  PLN_LINE_IDS.forEach(function(l) {
+    if (typeof pltCapacity !== 'function') return;
+    var cap = pltCapacity(l, null, true);
+    if (cap.n) lines[l].units = { n: cap.n, nAvail: cap.nAvail, pct: cap.pct, byKg: cap.byKg };
+  });
   var availFit = PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening - cutMin / 60;
   PLN_LINE_IDS.forEach(function(l) {
     var L0 = lines[l];
@@ -66211,6 +66360,8 @@ function plnBase() {
     });
     _plnBase.pick = { kgH: busiest > cutH0 ? Math.ceil(kgMo / wd / (busiest - cutH0) * 1.1 / 10) * 10 : 400, src: 'assumed' };
   }
+  // Pickling's units: what is set or worked from today's kilos already runs on the tanks working; the record of them is said.
+  if (typeof pltCapacity === 'function') { var pc = pltCapacity('pick', null, true); if (pc.n) _plnBase.pick.units = { n: pc.n, nAvail: pc.nAvail, pct: pc.pct, byKg: pc.byKg }; }
   _plnBase.otBase = plnMonth(0, [], {}, {}).otH;
   return _plnBase;
 }
@@ -66236,8 +66387,15 @@ function plnGoal(sc) { return PLN_GOALS.find(function(g) { return g.id === (sc &
 function plnMoves(sc) {
   if (!sc) return [];
   var plan = sc.plan || {}, on = function(k) { return plan[k] != null; }, L = [];
-  PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv, i) { if (i && on(lv.id)) L.push({ key: lv.id, lane: 'plant', label: st.name + ': ' + lv.t, at: plan[lv.id], cost: plnUpgradeCost(lv), fx: lv.fx || {}, fixes: lv.fixes, needs: (lv.needs || []).concat(i > 1 ? [st.levels[i - 1].id] : []), months: 0 }); }); });
-  PLN_TECH.forEach(function(t) { if (on(t.id)) L.push({ key: t.id, lane: 'tech', label: t.t, at: plan[t.id], cost: plnTechCost(t), fx: t.fx || {}, needs: t.needs || [], months: t.months }); });
+  PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv, i) { if (i && on(lv.id)) L.push({ key: lv.id, lane: 'plant', label: st.name + ': ' + lv.t, at: plan[lv.id], cost: plnUpgradeCost(lv), fx: plnFx(lv.id), fixes: lv.fixes, needs: (lv.needs || []).concat(i > 1 && !lv.alone ? [st.levels[i - 1].id] : []), months: 0 }); }); });
+  // The plant register's units: a repair brings a unit's share of its line back and ends its risk; a sale is cash in.
+  plnUnitMoves().forEach(function(x) {
+    if (!on(x.id)) return;
+    var price = +(((plnRead().cfg || {}).fx || {})[x.id] || {}).price || 0;
+    L.push({ key: x.id, lane: 'plant', label: x.t, at: plan[x.id], cost: x.kind === 'sell' ? -price : plnUpgradeCost({ id: x.id, cost: null }),
+      fx: x.kind === 'fix' && x.down && x.share > 0 ? { unitLine: x.line, unitShare: x.share } : {}, fixesUnit: x.unit.id, needs: [], months: 0 });
+  });
+  PLN_TECH.forEach(function(t) { if (on(t.id)) L.push({ key: t.id, lane: 'tech', label: t.t, at: plan[t.id], cost: plnTechCost(t), fx: plnFx(t.id), needs: t.needs || [], months: t.months }); });
   PLN_ROLES.forEach(function(r) { if (on(r.id)) L.push({ key: r.id, lane: 'staff', label: r.t, at: plan[r.id], cost: plnTechCost(r), run: r.run || 0, p: r.id === 'promote' ? plnRoleChance(sc, r) : r.p, as: r.as, fx: r.fx || {}, needs: r.needs || [], months: r.id === 'promote' ? 2 : 1 }); });
   var base = plnBase();
   (base ? base.clients : []).forEach(function(c) {
@@ -66326,16 +66484,19 @@ function plnMonth(m, L, ready, opts) {
   opts = opts || {};
   var live = function(mv) { var r = ready[mv.key]; return r != null && m >= r && !(opts.drop && opts.drop[mv.key]); };
   var w = function(mv) { return !opts.expected ? 1 : opts.weights && opts.weights[mv.key] != null ? opts.weights[mv.key] : mv.p != null ? mv.p : 1; };
-  var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0 };
+  var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, acidSave: 0, runMo: 0 };
   PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0 }; });
   L.forEach(function(mv) {
     if (!live(mv)) return;
     var f = mv.fx || {}, s = w(mv);
     if (f.line && lines[f.line]) { lines[f.line].kgRound += (f.kgRound || 0) * s; lines[f.line].every = Math.max(5, lines[f.line].every + (f.every || 0) * s); }
     if (f.pickKgH) fx.pickKgH += f.pickKgH * s;
+    // A unit brought back: its share of what the line plates a round with the units working today.
+    if (f.unitLine && lines[f.unitLine]) lines[f.unitLine].kgRound += B.lines[f.unitLine].kgRound * (f.unitShare || 0) * s;
+    if (f.unitLine === 'pick' && B.pick) fx.pickKgH += B.pick.kgH * (f.unitShare || 0) * s;
     if (f.cutCover) fx.cutCover = Math.max(fx.cutCover, f.cutCover * s);
     if (f.night && s >= 0.5) fx.night = true;
-    ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
+    ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo', 'acidSave', 'runMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
   });
   // Demand by part, at its rate after any ask.
   var rows = [], uw = {}, uwDelta = 0;
@@ -66411,7 +66572,7 @@ function plnMonth(m, L, ready, opts) {
     labourFixed: C.labourFixed, labourPool: C.labourPool,
     labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther,
     hires: hires, zinc: plated * C.zincKg, chem: plated * (C.chemKg + fx.chemKg) - fx.chemSave,
-    power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo
+    power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.acidSave + fx.runMo
   };
   var costTot = 0; Object.keys(cost).forEach(function(k) { costTot += cost[k]; });
   var capex = 0, loanIn = 0, interest = 0, principal = 0;
@@ -66483,8 +66644,18 @@ function plnAttribution(m, mode) {
 function plnRng(seed) { return function() { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; }; }
 function plnTrials() {
   var sc = plnScenario(), B = plnBase(), L = plnMoves(sc), r = plnRng(20261006), all = [], g = plnGoal(sc);
-  var machines = plnLive('machines').filter(function(x) { return x.risk && +x.risk.p > 0; });
-  var fixAt = function(ready, station) { var hit = null; PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.fixes === station && ready[lv.id] != null) hit = hit == null ? ready[lv.id] : Math.min(hit, ready[lv.id]); }); }); return hit; };
+  // A running unit in need of work or ageing, with no risk typed on it, may fail at the catalogue's chance (an estimate).
+  // A unit not working cannot fail; a unit sold is gone.
+  var machines = plnLive('machines').filter(function(x) { return (x.status || 'run') === 'run' || x.status === 'standby'; }).map(function(x) {
+    if (x.risk && +x.risk.p > 0) return x;
+    var d = (x.status || 'run') === 'run' || x.status === 'standby' ? PLN_RISK_DEFAULT[x.state] : null;
+    return d ? Object.assign({}, x, { risk: { p: d.p, cost: 0, days: d.days, say: x.needs || 'breaks down', assumed: true } }) : x;
+  }).filter(function(x) { return x.risk && +x.risk.p > 0; });
+  var fixAt = function(ready, station, id) {
+    var hit = id && ready['fix:' + id] != null ? ready['fix:' + id] : null;
+    PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.fixes === station && ready[lv.id] != null) hit = hit == null ? ready[lv.id] : Math.min(hit, ready[lv.id]); }); });
+    return hit;
+  };
   for (var t = 0; t < PLN_TRIALS; t++) {
     var draws = {}, luck = { cqi: Math.floor(r() * 4), promote: r() < plnRoleChance(sc, PLN_ROLES[1]), lands: function(k, p) { if (!(k in draws)) draws[k] = r() < p; return draws[k]; } };
     var ready = plnReady(L, luck), refused = {};
@@ -66494,8 +66665,8 @@ function plnTrials() {
     for (var m = 0; m < PLN_N; m++) {
       var down = {}, hit = 0;
       machines.forEach(function(x) {
-        var f = fixAt(ready, x.station);
-        if ((f == null || m < f) && r() < +x.risk.p) { hit += +x.risk.cost || 0; if (x.line && x.risk.days) down[x.line] = (down[x.line] || 0) + (+x.risk.days); if (events.length < 16) events.push([m, x.item + ': ' + (x.risk.say || 'broke down') + (x.risk.cost ? ', ' + formatInrShort(x.risk.cost) : ''), 'danger']); }
+        var f = fixAt(ready, x.station, x.id);
+        if ((f == null || m < f) && r() < +x.risk.p) { hit += +x.risk.cost || 0; if (x.line && x.risk.days) down[x.line] = (down[x.line] || 0) + (+x.risk.days) * plnUnitShareOf(x); if (events.length < 16) events.push([m, x.item + ': ' + (x.risk.say || 'broke down') + (x.risk.cost ? ', ' + formatInrShort(x.risk.cost) : ''), 'danger']); }
       });
       var mo = plnMonth(m, L, ready, { down: down, refused: refused, cutMin: B.cutMin * (0.6 + r() * 0.9) });
       mo.margin -= hit; cash += mo.margin - mo.capex + mo.loanIn - mo.principal;
@@ -66637,12 +66808,13 @@ function plnVerdictHtml() {
   var at = Math.min(PLN_N - 1, g.at), up = P.months[at].margin - P.base[at].margin, mo = P.months[_plnMonth], base = P.base[_plnMonth];
   var lowAt = 0; P.months.forEach(function(x, i) { if (x.cash < P.months[lowAt].cash) lowAt = i; });
   var low = P.months[lowAt].cash, cqi = P.ready.cqi, cqiOk = cqi != null && cqi <= g.cqi;
-  var stars = R ? (R.score >= 0.8 ? 3 : R.score >= 0.6 ? 2 : R.score >= 0.4 ? 1 : 0) : 0;
-  var tone = low < g.floor ? 'danger' : g.marginUp && up < g.marginUp / 2 ? 'danger' : g.marginUp && up < g.marginUp ? 'warning' : !cqiOk ? 'warning' : 'ok';
+  var stars = R ? (R.score >= 0.8 ? 3 : R.score >= 0.6 ? 2 : R.score >= 0.4 ? 1 : 0) : 0, unp = plnUnpriced(P);
+  var tone = low < g.floor ? 'danger' : g.marginUp && up < g.marginUp / 2 ? 'danger' : g.marginUp && up < g.marginUp ? 'warning' : !cqiOk || unp.length ? 'warning' : 'ok';
   var view = _plnView === 'moves' ? 'Moves · ' + _navFind(PLN_MOVES, _plnMovesKind) : _navFind(PLN_VIEWS, _plnView);
   return uiVerdictHtml({ screen: 'Planner · ' + view, tone: tone,
     verdict: 'The plan: ' + plnSigned(up) + ' a month' + (g.marginUp ? ' · goal +' + plnRs(g.marginUp) : ''),
-    facts: ['cash low ' + plnRs(low) + ' in ' + plnMonthLabel(lowAt), cqi != null ? 'CQI-11 ' + plnMonthLabel(Math.min(PLN_N - 1, cqi)) : 'CQI-11 not in the plan', 'a simulation: the book is untouched'],
+    facts: ['cash low ' + plnRs(low) + ' in ' + plnMonthLabel(lowAt), cqi != null ? 'CQI-11 ' + plnMonthLabel(Math.min(PLN_N - 1, cqi)) : 'CQI-11 not in the plan',
+      unp.length ? unp.length + ' move' + (unp.length === 1 ? '' : 's') + ' with no cost set: spend reads short' : 'a simulation: the book is untouched'],
     factors: [
       { label: 'Margin, ' + plnMonthLabel(_plnMonth), fig: escHtml(plnSigned(mo.margin)), tone: plnTone(mo.margin) || null, sub: 'as it runs ' + plnSigned(base.margin), attrs: ' data-pl-hud="margin"' },
       { label: 'Cash, ' + plnMonthLabel(_plnMonth), fig: figWrapHtml(escHtml(plnRs(mo.cash))), tone: mo.cash < 0 ? 'danger' : mo.cash < Math.abs(base.margin) * 2 ? 'warning' : 'ok',
@@ -66667,7 +66839,7 @@ function plnStarsSvg(n) {
 function plnRowHtml(o) {
   var facts = (o.facts || []).filter(Boolean), acts = (o.actions || []).filter(Boolean);
   // A plain row where it fits.
-  if (facts.length <= 2 && (_isDesktop || (!o.extra && (!acts.length || (acts.length === 1 && !o.end))))) {
+  if (!o.detail && facts.length <= 2 && (_isDesktop || (!o.extra && (!acts.length || (acts.length === 1 && !o.end))))) {
     return '<div class="inv-row inv-row-2"' + (o.attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
       (facts.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(facts.join(' · ')) + '</span>' : '') + (o.extra || '') + '</span>' +
       '<span class="inv-row-end">' + (o.end || '') + acts.join('') + '</span></div>';
@@ -66681,7 +66853,7 @@ function plnRowHtml(o) {
     // The desktop keeps its actions at the head's end, where it has the room (a button in a summary acts, it does not fold).
     (o.end || (_isDesktop && acts.length) ? '<span class="inv-row-end">' + (o.end || '') + (_isDesktop ? acts.join('') : '') + '</span>' : '') + '</summary><div class="inv-row-children">' +
     rest.map(function(f) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(f) + '</span></span></div>'; }).join('') +
-    (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') +
+    (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') + (o.detail || '') +
     uiRowMoreHtml(acts) + '</div></details>';
 }
 /* A move's place in the plan as a row's end on the phone: its month, or what stands in its way; the controls are in its fold. */
@@ -66887,6 +67059,7 @@ function plnNameOf(k) {
   PLN_STATIONS.forEach(function(s) { s.levels.forEach(function(lv) { if (lv.id === k) r = s.name + ': ' + lv.t; }); });
   if (r) return r;
   if (k === 'specialist') return 'a plating specialist, hired or promoted';
+  if (/^(fix|sell):/.test(k)) { var um = plnUnitMoveOf(k); return um ? um.t : k; }
   var x = PLN_ROLES.find(function(y) { return y.id === k; }) || PLN_TECH.find(function(y) { return y.id === k; });
   if (x) return x.t;
   return String(k).split('|').map(function(y) { return y === k ? y : plnNameOf(y); }).join(' or ');
@@ -66930,6 +67103,8 @@ function plannerAction(action, btn) {
     case 'invPlnCardRetire': plnCardRemove(d.id); return true;
     case 'invPlnCfg': plnCfgEdit(); return true;
     case 'invPlnCost': plnCostEdit(d.id); return true;
+    case 'invPlnFig': plnFigEdit(d.id); return true;
+    case 'invPlnFigSave': plnFigSave(d.id); return true;
     case 'invPlnCfgSave': plnCfgSave(); return true;
     case 'invPlnReport': plnReportOpen(); return true;
   }
@@ -66979,7 +67154,7 @@ function plnScenarioClear() {
 }
 /* The CQI-11 path at its earliest: the lab, the records, a lab hand, the supervisor trained, bath analysis, the tests. */
 function plnSuggestStart(sc) {
-  ['lab1', 'lab2', 'a1Log', 'docs', 'course', 'labHand', 'promote'].forEach(function(k) { if (sc.plan[k] == null) sc.plan[k] = 1; });
+  ['lab1', 'lab2', 'a1Log', 'docs', 'course', 'labHand', 'promote', 'pickHood'].forEach(function(k) { if (sc.plan[k] == null) sc.plan[k] = 1; });
   ['bath', 'test'].forEach(function(k) { if (sc.plan[k] == null) sc.plan[k] = 2; });
   if (sc.plan.cqi == null) sc.plan.cqi = 3;
 }
@@ -67245,7 +67420,7 @@ function plnDayHtml() {
 /* ---------- Plant: what each line can do, the machines, an upgrade tree per station ---------- */
 function plnPlantHtml() {
   var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], B = P.B, sc = P.sc;
-  var srcOf = function(l) { var L = B.lines[l]; return L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : L.fitted ? 'assumed, its kilos a round raised to what the book plated: no register read for this line' : 'assumed: no register read for this line'; };
+  var srcOf = function(l) { var L = B.lines[l], u = L.units, w = u && u.nAvail < u.n ? u.nAvail + ' of ' + u.n + ' units working; ' : ''; return w + (L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : L.fitted ? 'assumed, its kilos a round raised to what the book plated: no register read for this line' : 'assumed: no register read for this line'); };
   var head = '<div class="inv-panel inv-panel-flush" id="plnLines"><div class="inv-panel-head"><span class="inv-panel-title">What each line can do in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCfg">Set the assumptions</button></div>';
   // On the phone a line is a row: what it plates and runs a day, its kg an hour at the end, how it is worked out folded (TM2d).
@@ -67260,7 +67435,7 @@ function plnPlantHtml() {
       plnRowHtml({ key: 'pl-line-pick', title: 'Pickling', facts: [plnKg(mo.pickCap) + ' it can feed', plnHm(mo.pickH) + ' h', B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare'],
         end: '<span class="inv-num">' + formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg/h</span>' }) +
       plnRowHtml({ key: 'pl-line-cuts', title: 'Power cuts', facts: [formatNum(B.cutMin, 0) + ' min a working day, the Power tab'], end: '<span class="inv-num">' + formatNum(mo.cutH * 60, 0) + ' min</span>' }) + '</div>';
-    return h0 + '<div class="inv-panels">' + plnMachinesHtml() + '</div><div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
+    return h0 + '<div class="inv-panels">' + plnMachinesHtml() + plnRepairsHtml(P) + '</div><div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
   }
   var h = head + '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kg a round</th><th class="inv-num">A round every</th><th class="inv-num">Kg an hour</th><th class="inv-num">Kilos a day</th><th class="inv-num">Hours a day</th></tr></thead><tbody>' +
     PLN_LINE_IDS.map(function(l) {
@@ -67272,7 +67447,7 @@ function plnPlantHtml() {
     '<tr><td>Pickling<div class="inv-row-meta inv-row-wrap">' + escHtml(B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare') + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
       '<td class="inv-num">' + escHtml(plnKg(mo.pickCap)) + ' it can feed</td><td class="inv-num">' + plnHm(mo.pickH) + '</td></tr>' +
     '<tr><td>Power cuts<div class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(B.cutMin, 0) + ' min a working day in working hours, the Power tab') + '</div></td><td class="inv-num" colspan="5">' + escHtml(formatNum(mo.cutH * 60, 0) + ' min a day lost') + '</td></tr></tbody></table></div></div>';
-  h += '<div class="inv-panels">' + plnMachinesHtml() + '</div>';
+  h += '<div class="inv-panels">' + plnMachinesHtml() + plnRepairsHtml(P) + '</div>';
   h += '<div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
   return h;
 }
@@ -67282,15 +67457,16 @@ function plnTreeHtml(st, sc, P) {
   var rows = st.levels.slice().reverse().map(function(lv, ri) {
     var i = st.levels.length - 1 - ri;
     if (!i) return '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">Lv 0 · ' + escHtml(lv.t) + '</span><span class="inv-row-meta">today</span></span><span class="inv-row-end"><span class="inv-dot inv-dot-ok">Today</span></span></div>';
-    var inPlan = plan[lv.id] != null, below = i === 1 || plan[st.levels[i - 1].id] != null;
+    var inPlan = plan[lv.id] != null, below = i === 1 || lv.alone || plan[st.levels[i - 1].id] != null;
     var missing = (lv.needs || []).filter(function(n) { return plan[n] == null; });
     var end = inPlan ? plnMoveCtlHtml(lv.id, true) : !below ? '<span class="inv-dot inv-dot-neutral">Level ' + (i - 1) + ' first</span>' : missing.length ? '<span class="inv-dot inv-dot-neutral">' + escHtml('Needs ' + missing.map(plnNameOf).join(', ')) + '</span>' : plnMoveCtlHtml(lv.id, false, 1);
-    var cost = plnUpgradeCost(lv), costBtn = '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>';
+    var cost = plnUpgradeCost(lv);
     // On the phone the row ends in its month, Plan it, or what stands in its way; its other controls fold under it (§1a-11).
     return plnRowHtml({ key: 'pl-level-' + lv.id, attrs: ' data-pl-level="' + escHtml(lv.id) + '"', title: 'Lv ' + i + ' · ' + lv.t,
       // Two facts: what it costs and when it takes effect, then what it does.
-      facts: [(cost ? formatCurrency(cost) : 'no cost') + (P.ready[lv.id] != null ? ', in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''), lv.say || ''],
-      end: _isDesktop ? '' : inPlan ? plnMoveEnd(lv.id, true) : end, actions: [_isDesktop || inPlan ? end : '', costBtn] });
+      facts: [(plnCostToSet(lv) ? 'cost to set' : cost ? formatCurrency(cost) : 'no cost') + (P.ready[lv.id] != null ? ', in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''), plnSay(lv.id)],
+      detail: plnOptionDetailHtml(lv, P, (lv.needs || []).concat(i > 1 && !lv.alone ? [st.levels[i - 1].id] : [])),
+      end: _isDesktop ? '' : inPlan ? plnMoveEnd(lv.id, true) : end, actions: [_isDesktop || inPlan ? end : ''] });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-pl-tree="' + st.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(st.name) + ' <span class="inv-panel-count">Lv ' + lvNow + ' in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></span></div>' + rows + '</div>';
 }
@@ -67299,14 +67475,106 @@ function plnCostEdit(id) {
   if (!plnRegGate(function() { plnCostEdit(id); })) return;
   var lv = null; PLN_STATIONS.forEach(function(s) { s.levels.forEach(function(x) { if (x.id === id) lv = x; }); });
   lv = lv || PLN_TECH.find(function(t) { return t.id === id; }) || PLN_ROLES.find(function(r) { return r.id === id; });
+  if (!lv && /^fix:/.test(id)) { var um = plnUnitMoveOf(id); if (um) lv = { id: id, t: um.t, cost: null }; }
   if (!lv) return;
-  uiPrompt({ title: 'What it costs: ' + lv.t, label: 'Rupees, once (blank for the estimate, ' + formatCurrency(lv.cost || 0) + ')', value: String((plnCfg().costs || {})[id] != null ? plnCfg().costs[id] : '') }).then(function(v) {
+  uiPrompt({ title: 'What it costs: ' + lv.t, label: lv.cost == null ? 'Rupees, once (blank until you have a quote)' : 'Rupees, once (blank for the estimate, ' + formatCurrency(lv.cost || 0) + ')', value: String((plnCfg().costs || {})[id] != null ? plnCfg().costs[id] : '') }).then(function(v) {
     if (v == null) return;
     var p = plnData(); p.cfg.costs = Object.assign({}, p.cfg.costs || {});
     var n = String(v).replace(/[₹,\s]/g, '');
     if (n === '') delete p.cfg.costs[id]; else if (isFinite(+n) && +n >= 0) p.cfg.costs[id] = +n; else return uiAlert({ title: 'Not a figure', body: 'Type the cost in rupees, or leave it blank for the estimate.' });
     saveState(); renderPlanner();
   });
+}
+
+/* An option's details, folded under its row (owner, 28 Oct 2026: *"The details under most of the options are missing"*): what it
+   needs, each figure it rests on and where that figure comes from, what it adds to the month on show, and its own buttons. */
+var PLN_SRC = { set: ['ok', 'set'], measured: ['info', 'measured'], estimate: ['warning', 'estimate'], unset: ['neutral', 'not set'] };
+var _plnAttr = null;
+function plnAttrOf(key, P) {
+  var k = P.key + '|' + _plnMonth + '|' + _plnMode;
+  if (!_plnAttr || _plnAttr.k !== k) { try { _plnAttr = { k: k, a: plnAttribution(_plnMonth, _plnMode) }; } catch (e) { _plnAttr = { k: k, a: { rows: [], idle: [] } }; } }
+  var r = _plnAttr.a.rows.concat(_plnAttr.a.idle).find(function(x) { return x.mv.key === key; });
+  return r || null;
+}
+function plnFigFmt(inp, v) {
+  if (v == null) return '';
+  if (inp.unit === '₹') return formatCurrency(v);
+  if (inp.unit === '₹/kg') return '₹' + formatNum(v, 2) + '/kg';
+  if (inp.unit === 'share') return Math.round(v * 100) + '%';
+  if (inp.unit === '%') return formatNum(v, 0) + '%';
+  return formatNum(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) + ' ' + inp.unit;
+}
+function plnOptionDetailHtml(lv, P, needs) {
+  var plan = (P.sc && P.sc.plan) || {}, rows = [];
+  var have = function(n) { return n.split('|').some(function(x) { return x === 'specialist' ? plan.specialist != null || plan.promote != null : plan[x] != null; }); };
+  if (lv.req || needs.length) rows.push({ label: 'What it needs', sub: [lv.req || '', needs.length ? 'In the plan first: ' + needs.map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); }).join(', ') : ''].filter(Boolean).join(' '), wrap: true });
+  if (lv.gate) rows.push({ label: 'What it opens', sub: lv.gate.map(plnNameOf).join(', ') + ' wait on it in the plan (owner, 28 Oct 2026)' + (P.sc && P.sc.hoodAdded && lv.id === 'pickHood' ? '. Added to this plan on its next open, when they came to need it.' : ''), wrap: true });
+  var v = lv.inputs ? plnInputVals(lv.id) : null;
+  (lv.inputs || []).forEach(function(inp) {
+    var src = v._src[inp.key], h = inp.def === 'stock' && src === 'measured' ? plnHclMonth() : null;
+    rows.push({ label: inp.label, value: v[inp.key] == null ? '' : plnFigFmt(inp, v[inp.key]), src: PLN_SRC[src], sub: h ? 'the stock record’s ' + h.from + ', 90 days' : '' });
+  });
+  var cost = lv.tier != null ? plnTechCost(lv) : plnUpgradeCost(lv), costSet = ((plnRead().cfg || {}).costs || {})[lv.id] != null;
+  if (lv.cost !== undefined) rows.push({ label: 'What it costs, once', value: plnCostToSet(lv) ? '' : formatCurrency(cost), src: plnCostToSet(lv) ? PLN_SRC.unset : costSet ? PLN_SRC.set : cost ? PLN_SRC.estimate : null });
+  var at = plnAttrOf(lv.id, P);
+  if (plan[lv.id] != null) rows.push({ label: 'What it adds to ' + plnMonthLabel(_plnMonth), value: at ? plnSigned(at.margin) + ' a month' : '—', sub: at && Math.abs(at.kg) >= 1 ? (at.kg > 0 ? '+' : '−') + plnKg(Math.abs(at.kg)) + ' plated' : at && at.ready != null && at.ready > _plnMonth ? 'not in effect until ' + plnMonthLabel(Math.min(PLN_N - 1, at.ready)) : '', tone: at && at.margin < -0.5 ? 'danger' : at && at.margin > 0.5 ? 'ok' : null });
+  var btns = (lv.inputs && lv.inputs.length ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnFig" data-id="' + escHtml(lv.id) + '">Set figures</button>' : '') +
+    (lv.cost !== undefined ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>' : '');
+  return '<div data-pl-detail="' + escHtml(lv.id) + '">' + rows.map(uiFactRowHtml).join('') + (btns ? '<div class="inv-row inv-row-flow"><span class="inv-row-end inv-row-actions">' + btns + '</span></div>' : '') + '</div>';
+}
+/* Repairs and sales: one move a unit down, under repair or in need of work, from the plant register. */
+function plnRepairsHtml(P) {
+  var list = plnUnitMoves(), plan = (P.sc && P.sc.plan) || {}, B = P.B;
+  if (!list.length) return '';
+  return '<div class="inv-panel inv-panel-flush" id="plnRepairs"><div class="inv-panel-head"><span class="inv-panel-title">Repairs and sales <span class="inv-panel-count">' + list.length + '</span></span></div>' +
+    list.map(function(x) {
+      var inPlan = plan[x.id] != null, end = plnMoveCtlHtml(x.id, inPlan, 1), u = x.unit;
+      var price = +(((plnRead().cfg || {}).fx || {})[x.id] || {}).price || 0, cost = plnUpgradeCost({ id: x.id, cost: null });
+      var gain = x.kind === 'sell' ? (price ? formatCurrency(price) + ' in' : 'price to set') : (cost ? formatCurrency(cost) : 'cost to set');
+      var does = x.kind === 'sell' ? 'cash in; its capacity is gone for good' : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more on ' + plnLineName(x.line) + ' a round' + (x.line === 'pick' ? '' : '') + ', and its risk ends' : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
+      var rows = [{ label: 'What it needs', sub: x.req, wrap: true }];
+      if (x.kind === 'sell') rows.push({ label: 'What it sells for', value: price ? formatCurrency(price) : '', src: price ? PLN_SRC.set : PLN_SRC.unset });
+      else rows.push({ label: 'What it costs, once', value: cost ? formatCurrency(cost) : '', src: cost ? PLN_SRC.set : PLN_SRC.unset });
+      if (x.down && x.line && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',
+        sub: (/^kg/.test(x.basis) ? formatNum(+u.kgRound, 0) + ' kg a round' : 'by count') + (/all$/.test(x.basis) ? ' of the whole line: no unit works' : ' against the units working') + (B && B.lines[x.line] && B.lines[x.line].src === 'set' ? '; your figure for the line is read as today’s, on the units working' : ''),
+        src: /^kg/.test(x.basis) ? PLN_SRC.measured : PLN_SRC.estimate });
+      if (x.same) rows.push({ label: 'The same work', sub: x.same + ' covers this station too: plan one, not both', wrap: true });
+      if (!x.down) { var d = PLN_RISK_DEFAULT[u.condition]; rows.push({ label: 'Its chance of failing a month', value: u.risk && +u.risk.p > 0 ? Math.round(u.risk.p * 100) + '%' : d ? Math.round(d.p * 100) + '%' : '', src: u.risk && +u.risk.p > 0 ? PLN_SRC.set : PLN_SRC.estimate, sub: u.risk && +u.risk.p > 0 ? '' : 'type the unit’s own risk on the register; its worth shows in the trials' }); }
+      var at = plnAttrOf(x.id, P);
+      if (inPlan) rows.push(x.kind === 'sell' ? { label: 'Cash in', value: price ? formatCurrency(price) : '', sub: plnMonthLabel(Math.max(0, plan[x.id])), tone: price ? 'ok' : null }
+        : { label: 'What it adds to ' + plnMonthLabel(_plnMonth), value: at ? plnSigned(at.margin) + ' a month' : '—', sub: x.down ? '' : 'an overhaul’s worth is in the trials', tone: at && at.margin > 0.5 ? 'ok' : null });
+      var btn = '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="' + (x.kind === 'sell' ? 'invPlnFig' : 'invPlnCost') + '" data-id="' + escHtml(x.id) + '">' + (x.kind === 'sell' ? 'Set the price' : 'Cost') + '</button>';
+      return plnRowHtml({ key: 'pl-unit-' + x.id, attrs: ' data-pl-unit="' + escHtml(x.id) + '"', title: x.t, facts: [gain, does],
+        detail: '<div data-pl-detail="' + escHtml(x.id) + '">' + rows.map(uiFactRowHtml).join('') + '<div class="inv-row inv-row-flow"><span class="inv-row-end inv-row-actions">' + btn + '</span></div></div>',
+        end: _isDesktop ? '' : inPlan ? plnMoveEnd(x.id, true) : end, actions: [_isDesktop || inPlan ? end : ''] });
+    }).join('') + '</div>';
+}
+/* An option's figures, set in one dialog (the owner's, as the costs are). Blank goes back to the default. */
+function plnFigEdit(id) {
+  if (!plnRegGate(function() { plnFigEdit(id); })) return;
+  var set = ((plnRead().cfg || {}).fx || {})[id] || {}, lv = plnOption(id), um = /^sell:/.test(id) ? plnUnitMoveOf(id) : null;
+  if (!lv && !um) return;
+  var inputs = um ? [{ key: 'price', label: 'What it sells for', unit: '₹', def: null }] : lv.inputs || [];
+  var v = um ? {} : plnInputVals(id);
+  var f = inputs.map(function(inp, i) {
+    var ph = inp.def === 'stock' ? (v[inp.key] != null ? formatNum(v[inp.key], 0) + ' (stock record)' : 'not recorded') : inp.def != null ? String(inp.def) + ' (estimate)' : '';
+    return _plnField('plnFig_' + i, escHtml(inp.label + (inp.unit && inp.unit !== 'share' ? ', ' + inp.unit : inp.unit === 'share' ? ', 0 to 1' : '')), set[inp.key], 'number', ph ? ' placeholder="' + escHtml(ph) + '"' : '');
+  }).join('');
+  dialogOpen('<div class="inv-dialog" data-pl-fig="' + escHtml(id) + '">' + dialogHeadHtml('Figures: ' + escHtml(um ? um.t : lv.t)) + '<div class="inv-fields">' + f + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPlnFigSave" data-id="' + escHtml(id) + '">Save</button></div></div>', { dismiss: true });
+}
+function plnFigSave(id) {
+  if (!plnRegGate(function() { plnFigSave(id); })) return;
+  var lv = plnOption(id), inputs = /^sell:/.test(id) ? [{ key: 'price' }] : (lv && lv.inputs) || [], o = {};
+  for (var i = 0; i < inputs.length; i++) {
+    var raw = _plnVal('plnFig_' + i).replace(/[₹,\s]/g, '');
+    if (raw === '') continue;
+    if (!isFinite(+raw)) return uiAlert({ title: 'Not a figure', body: inputs[i].label + ': type a figure, or leave it blank for the default.' });
+    o[inputs[i].key] = +raw;
+  }
+  var p = plnData(); p.cfg.fx = Object.assign({}, p.cfg.fx || {});
+  if (Object.keys(o).length) p.cfg.fx[id] = o; else delete p.cfg.fx[id];
+  closeOverlay(); saveState(); renderPlanner(); showToast('Figures saved');
 }
 
 /* ---------- Tech tree: tier by tier, each node with what it needs; the checklist under it ---------- */
@@ -67321,11 +67589,11 @@ function plnTechHtml() {
       var missing = (t.needs || []).filter(function(n) { return !have(n); });
       var end = plan[t.id] != null ? plnMoveCtlHtml(t.id, true) : missing.length ? '<span class="inv-dot inv-dot-neutral">Locked</span>' : plnMoveCtlHtml(t.id, false, 1);
       var cost = plnTechCost(t), r = P.ready[t.id], inPlan = plan[t.id] != null;
-      return plnRowHtml({ key: 'pl-node-' + t.id, attrs: ' data-pl-node="' + t.id + '"', title: t.t,
-        facts: [cost ? formatCurrency(cost) : '', t.months + ' month' + (t.months === 1 ? '' : 's'), t.say, r != null ? 'ready ' + plnMonthLabel(Math.min(PLN_N - 1, r)) + (t.id === 'cqi' ? ', if each step lands' : '') : inPlan ? 'never ready: something it needs is missing' : '',
+      return plnRowHtml({ key: 'pl-node-' + t.id, attrs: ' data-pl-node="' + t.id + '"', title: t.t, detail: plnOptionDetailHtml(t, P, t.needs || []),
+        facts: [cost ? formatCurrency(cost) : '', t.months + ' month' + (t.months === 1 ? '' : 's'), plnSay(t.id), r != null ? 'ready ' + plnMonthLabel(Math.min(PLN_N - 1, r)) + (t.id === 'cqi' ? ', if each step lands' : '') : inPlan ? 'never ready: something it needs is missing' : '',
           needs.length ? 'needs ' + needs.join(', ') : ''],
         end: _isDesktop ? '' : inPlan ? plnMoveEnd(t.id, true) : end,
-        actions: [_isDesktop || inPlan ? end : '', t.cost ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + t.id + '">Cost</button>' : ''] });
+        actions: [_isDesktop || inPlan ? end : ''] });
     }).join('') + '</div>';
   }).join('') + plnChecklistHtml() + '</div>';
   return h;
@@ -68080,13 +68348,16 @@ var KB_APP_GUIDES = [
     '- **Roll the trials** does 600 runs that use every chance and risk. The score is the share of runs that reach the goal (Easy, Normal or Hard). **Replay one run** tells 1 run as a story.\n\n' +
     '# Keep it true\n- The **registers** are records: machines and their needs, the CQI-11 checklist, lenders, rates heard and work held back. Keep them up to date.\n' +
     '- Where the book measures nothing, use **Set the assumptions** (in Ledger or Moves → Plant). Set a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill and the cash.\n' +
-    '- Upgrade costs are estimates until a quote replaces them. Set them with **Cost** on each level.\n' +
+    '- Upgrade costs are estimates until a quote replaces them. Tap a level to see what it needs, each figure it rests on (**set**, **measured**, **estimate** or **not set**) and what it adds to the month. Set the cost with **Cost** and the other figures with **Set figures**.\n' +
+    '- **Acid recovery** adds nothing until you set the share it recovers. Its saving is the acid it saves and the spent acid not sent away. **Fume extraction and scrubber** has its own row: ISO 9001 and CQI-11 need it.\n' +
+    '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead.\n' +
     '- **Make the report** prints the plan for a lender or a meeting.',
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
     // card and More (TM2d).
     // Version 4: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    // Version 5: the Planner is Home's (UI pass 3, 16 Oct 2026).
-    { version: 5 }),
+    // Version 5: the Planner is Home's (UI pass 3, 16 Oct 2026). Version 6: each option's details, acid recovery and the fume
+    // extraction apart, the units down as repairs and sales (owner, 28 Oct 2026).
+    { version: 6 }),
   // The entry faces (docs/ENTRY_FACES.md, F6): Mine, one guide a face, and the owner's. Each person reads the one for what they
   // enter; the top bar's book on Mine lists them, and the role paths below carry them.
   _kbg('mine', 'Using the app: my screen (Mine)', 'Your day, what you enter, your sheets and the group’s message', ['pageFace'],
@@ -76735,6 +77006,24 @@ if (!S._cnSeriesStart1) {
   if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
   if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
   S._powerLoad1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+/* ===== THE FUME EXTRACTION IN PLANS ALREADY SAVED, ONCE =====
+   Owner, 28 Oct 2026: the fume extraction is its own option, and ISO 9001 and CQI-11 need it. A plan saved before then holding
+   ISO 9001, CQI-11 or "Acid recovery and fume hood" gains it at the earliest month of those, so it does not lose them unseen;
+   the plan says so on the option (`hoodAdded`). The flag travels with the book. */
+(function() {
+  if (S._plnHood1) return;
+  var list = S.planner && Array.isArray(S.planner.scenarios) ? S.planner.scenarios : [];
+  if (!list.length) return;
+  list.forEach(function(sc) {
+    var plan = sc && sc.plan;
+    if (!plan || plan.pickHood != null) return;
+    var at = ['iso', 'cqi', 'pickAcid'].map(function(k) { return plan[k]; }).filter(function(v) { return v != null; });
+    if (!at.length) return;
+    plan.pickHood = Math.max(0, Math.min.apply(null, at)); sc.hoodAdded = true;
+  });
+  S._plnHood1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

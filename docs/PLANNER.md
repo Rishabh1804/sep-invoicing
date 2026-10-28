@@ -24,6 +24,7 @@ the device when the planner opens, and every register is the owner's own record.
 | PL4 | Play: the board, goals, cards, new cards, the trials; the Ledger; A day | Built |
 | PL4b | The report: the scenario as printed pages | Built |
 | PL5 | Links out: To-do, History, the knowledge base's how-to | Built |
+| PL6 | Each option's details and figures; acid recovery and the fume extraction apart; the units down as repairs and sales (owner, 28 Oct 2026) | Built |
 
 One PR (owner, 6 Oct 2026: *"start implementation sequentially and run the QA chain once the entire implementation … is
 done"*), one commit per step, the QA chain at the end.
@@ -69,10 +70,30 @@ and the day is the month divided by its working days.
    run, plus a set cost for each new overtime line-hour; the hires; interest. **As it runs** must reproduce the book's average
    month: a spec checks it.
 5. **A move changes an input, never a total.** An ask changes a part's rate (per part, or by a percentage on a piece-billed
-   client). Work held back adds parts on a line. A rack, rectifier or second barrel changes a line's kg a round or minutes. A
-   fourth pickling tank changes pickling's rate. Backup power changes the cut minutes. A night crew adds hours. A hire is a wage, paid from when it can start
+   client). Work held back adds parts on a line. A rack, rectifier or another barrel changes a line's kg a round or minutes. Another
+   pickling tank changes pickling's rate. Backup power changes the cut minutes. A night crew adds hours. A hire is a wage, paid from when it can start
    (once what it needs is ready), never while it cannot take effect. Overtime saved never takes labour below nothing.
    A loan is its amount, rate, months and interest-only months, repaid by amortised instalment.
+   **Every option carries its details** (owner, 28 Oct 2026: *"The details under most of the options are missing"*): what it
+   needs (`req`, and the moves it needs in the plan), each figure it rests on (`inputs`, read by `plnInputVals`: **set** by the
+   owner in `cfg.fx[id]`, **measured**, an **estimate**, or **not set**), what it costs (blank until a quote where no estimate is
+   honest) and what it adds to the month on show. A move's effect is read from its figures (`plnFx`), never a figure in the code
+   alone. **Acid recovery** (`acidSave`): the share recovered × (HCl used a month, read from the stock record's HCl line, × a
+   litre's price, carriage included) + the share × the spent acid sent away a month × what a KL costs to send, less its running
+   cost; with no share set it adds nothing and says so (the old flat ₹6,000 had nothing behind it). The acid's price and the
+   disposal's share less sent away are the owner's to set. **Fume extraction and scrubber** is its own option, a running cost a month (`runMo`, an estimate until
+   set), and ISO 9001 and CQI-11 need it. Pickling's options stand alone (`alone`): none needs the one listed before it.
+   **The plant register's units** (owner: *"we already have the machines that are down or need repairing, but we do nothing with
+   that information on planner"*): every line's figure is the line as it runs today, on its units working (`pltCapacity` says how
+   many), so each unit down, under repair or in need of work is a move under **Repairs
+   and sales** (`plnUnitMoves`): **Bring back** adds its share of the line's round (its kg a round over the kg working, else one
+   over the units working, counting only tanks and barrels; with none working, its share of the whole line) and ends its risk;
+   **Another barrel** adds one barrel's share on the same basis; **Overhaul** a running unit in need of work ends its risk, and a unit marked *Not
+   coming back* on the register is a **Sale**, cash in at the price set. A running unit in need of work or ageing with no risk
+   typed on it may fail in the trials at an estimated chance (`PLN_RISK_DEFAULT`: 5% and 2% a month, days down 3 and 2), and a
+   failing tank stops its share of the line, not the line; a unit not working never fails. A move with no cost set is said on
+   the verdict (*N moves with no cost set: spend reads short*). Plans saved before hold the fume extraction from the earliest
+   month of ISO 9001, CQI-11 or the old acid option (`_plnHood1`, once).
 6. **The ledger** lists every month (kilos, revenue, labour, hires, zinc and chemicals, power and other, interest, margin, spend,
    the loan, cash). A month opens to **how the margin adds up**: today's margin, then each move in the order it takes effect, each
    row what it added on top of the rows above, ending in the plan, so the rows sum to the plan. It reads **if every move lands**

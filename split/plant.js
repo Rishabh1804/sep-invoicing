@@ -295,6 +295,7 @@ function pltEdit(id, station) {
     _pltSelect('pltStatus', 'Status', PLT_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'run') +
     _pltField('pltSince', 'Since', v.since || localDateStr(), 'date') +
     _pltField('pltReason', 'Why (when not running)', v.reason) +
+    _pltSelect('pltGone', 'When down, does it come back?', [['', 'It comes back (a repair in the planner)'], ['gone', 'Not coming back (a sale in the planner)']], v.gone ? 'gone' : '') +
     _pltSelect('pltCond', 'Condition', typeof PLN_MACHINE_STATES !== 'undefined' ? PLN_MACHINE_STATES.map(function(s) { return [s[0], s[1]]; }) : [['fair', 'Fair']], v.condition || 'fair') +
     _pltField('pltAge', 'Age', v.age) + _pltField('pltNeeds', 'What it needs', v.needs) + _pltField('pltNote', 'Note', v.note) +
     '<details class="inv-panel inv-panel-flush inv-panel-fold inv-mt-8"><summary class="inv-panel-head"><span class="inv-panel-title">If it fails (the planner’s trials)</span></summary><div class="inv-panel-body"><div class="inv-fields">' +
@@ -329,7 +330,7 @@ function pltSave(id) {
   var p = pltData(), u = id ? p.units.find(function(x) { return x.id === id; }) : null, now = Date.now(), who = pltWho();
   var pr = _pltNum('pltRiskP');
   var rec = { name: name, station: _pltVal('pltStation') || 'other', kind: _pltVal('pltKind') || 'tank', kgRound: _pltNum('pltKg'), condition: _pltVal('pltCond') || 'fair',
-    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'),
+    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'), gone: _pltVal('pltGone') === 'gone' && _pltVal('pltStatus') !== 'run' && _pltVal('pltStatus') !== 'standby',
     risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _pltNum('pltRiskCost') || 0, days: _pltNum('pltRiskDays') || 0, say: _pltVal('pltRiskSay') } : null };
   if (!u) {
     u = Object.assign({ id: pltId('PU'), status: status, since: since, reason: status === 'run' ? '' : reason, addedOn: since }, rec, { at: now, by: who });
@@ -408,7 +409,7 @@ function pltLineOf(u) { return u.line !== undefined && u.line !== null ? u.line 
 function pltMachines() {
   return pltUnits().map(function(u) {
     return { id: u.id, item: u.name, station: u.station, line: pltLineOf(u) || null, state: u.condition || 'fair',
-      age: u.age || '', needs: u.needs || '', risk: u.risk || null, status: u.status || 'run' };
+      age: u.age || '', needs: u.needs || '', risk: u.risk || null, status: u.status || 'run', kgRound: +u.kgRound || null, gone: !!u.gone, reason: u.reason || '' };
   });
 }
 /* The planner's machines move into the register once, their ids kept, so the change log and the trials know them. */

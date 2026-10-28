@@ -735,7 +735,7 @@ function attEditHtml() {
   var states = hourly ? ['P', 'A'] : ATT_STATES;
   return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
     dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
-    '<div class="inv-dialog-body" data-nodirty>' + (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + '<div class="inv-fields">' +
+    '<div class="inv-dialog-body" data-nodirty>' + (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + attWhoHtml(m, w.id) + '<div class="inv-fields">' +
     '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
@@ -753,6 +753,29 @@ function attEditHtml() {
       : 'Type the in and out from the sheet, and the hours and OT are worked out as a roll works them out. Left blank, the shift (8:30 AM to 5:00 PM) is assumed.') + '</div>'
       : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose" data-att-done>Done</button></div></div>';
+}
+/* Who marked the hand and who changed the mark (changelog.js tagWho), and a version a sync held for the owner: two phones
+   marked the hand differently before either saw the other (merge.js mrgDeep). The owner uses it or keeps the one standing;
+   anyone else is told whose version stands and that the owner decides (owner, 28 Oct 2026: "keep both versions"). */
+function attWhoHtml(m, sid) {
+  // A mark from before the stamps keeps the ID that typed it, if it was typed by hand (`by`, _attHandEdit).
+  var who = m && typeof tagWho === 'function' ? tagWho(m) || (m.by != null && typeof tagName === 'function' ? 'Typed by ' + tagName(m.by) : '') : '';
+  var held = typeof mrgHeldFor === 'function' ? mrgHeldFor('attendance', _attDate, 'marks.' + sid) : [];
+  var owner = !(typeof grdOn === 'function' && grdOn()) || (typeof grdIsOwner === 'function' && grdIsOwner());
+  // With a version held, the standing row says who made the mark: the note would say it twice.
+  var h = who && !held.length ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';
+  // The two versions as an analysis (design §6.27) on a coded card (§3.3 Fills; owner, 28 Oct 2026: "the new options don't carry
+  // the colour codes"): a hero in the warning tone (a question for the owner), a fact a row (the mark its figure in its state's
+  // tone, who made it under the label), the owner's two moves its foot. Never a sentence.
+  held.forEach(function(x) {
+    h += uiHeroHtml({ tone: 'warning', eyebrow: 'Two versions', title: 'Two phones marked this hand differently',
+      sub: owner ? 'One stands until you pick' : 'The owner picks', open: true,
+      body: '<div class="inv-hero-sheet">' + mrgMarkRowHtml('Standing', x.kept.v, ' data-att-held-kept') + mrgMarkRowHtml('Held from the other phone', x.other.v, ' data-att-held-other') + '</div>',
+      foot: owner ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use held</button>' +
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeepHere" data-id="' + escHtml(x.id) + '">Keep standing</button>' : '',
+      attrs: ' data-att-held="' + escHtml(x.id) + '"' });
+  });
+  return h;
 }
 function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
 /* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). Its own
@@ -962,6 +985,7 @@ function _attExtraRowHtml(iso, x, i, rows) {
     '" step="0.5" min="0" value="' + (x.hours || 0) + '" aria-label="Extra hours">' +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invAttRemoveExtra" data-idx="' + i + '" aria-label="Remove">&times;</button>' +
     '</div><div class="inv-note inv-mt-4">' + escHtml((EXTRA_KINDS.find(function(k) { return k.id === kind; }) || EXTRA_KINDS[0]).hint) + '</div>' +
+    (typeof tagWho === 'function' && tagWho(x) ? '<div class="inv-note" data-extra-who>' + escHtml(tagWho(x)) + '</div>' : '') +
     (block ? _attBlockFields(x, i, siblings) : '');
   return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-extra-row="' + i + '"' + (open ? ' open' : '') + '>' +
     '<summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(block ? _attBlockAreaSummary(x) : areaLabel(x.area)) + '</span>' +

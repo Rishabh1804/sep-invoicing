@@ -1378,7 +1378,10 @@ function stockItemBodyHtml(item) {
 function stockEntryRowHtml(e, r, unit, checks) {
   var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
   var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
-  if (e.by) src += ' · entered by ' + e.by;
+  // Who entered it and who changed it, by ID (changelog.js tagWho); an entry from before the stamps keeps the name typed.
+  // A meta line holds two or three facts (design §6.27): the stamp is a line of its own under the day and the door.
+  var who = typeof tagWho === 'function' ? tagWho(e) : '';
+  if (!who && e.by) who = 'Entered by ' + e.by;
   var extra = [];
   if (e.kind === 'received' || e.kind === 'bill') {
     if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
@@ -1403,6 +1406,7 @@ function stockEntryRowHtml(e, r, unit, checks) {
     '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-num">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
     (e.unsettled ? ' <span class="inv-badge inv-badge-warning">Unsettled</span>' : '') + (e.voided ? ' <span class="inv-badge inv-badge-neutral">Voided</span>' : '') + '</div>' +
     '<div class="inv-row-meta inv-row-wrap">' + escHtml(when + ' · ' + src) + '</div>' +
+    (who ? '<div class="inv-row-meta inv-row-wrap" data-entry-who>' + escHtml(who) + '</div>' : '') +
     (extra.length ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(extra.join(' · ')) + '</div>' : '') + gap +
     (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
     (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +

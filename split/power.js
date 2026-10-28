@@ -886,7 +886,11 @@ function powerLoadEdit() {
 }
 function _pwVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 function _pwNum(id) { var v = parseFloat(_pwVal(id)); return v > 0 ? v : null; }
+/* Power's figures are the owner's settings (owner, 28 Oct 2026: "yes, ask for PIN"): the load, a bill's details and the
+   options' figures save behind the settings permission, so a role that opens Power cannot change them unasked. The dialog
+   stays open under the PIN's, and the save runs again on a yes. */
 function powerLoadSave() {
+  if (!grdGate('settings', 'change the connection’s load', powerLoadSave)) return;
   var p = powerData();
   var on = _pwVal('pwApprovedOn');
   p.load = { sanctioned: _pwNum('pwSanctioned'), approved: _pwNum('pwApproved'), approvedOn: /^\d{4}-\d{2}-\d{2}$/.test(on) ? on : null, ref: _pwVal('pwRef'), note: _pwVal('pwNote'), at: Date.now() };
@@ -906,6 +910,7 @@ function powerBillEdit(id) {
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPowerBillSave" data-id="' + escHtml(b.id) + '">Save</button></div></div>', { dismiss: true });
 }
 function powerBillSave(id) {
+  if (!grdGate('settings', 'change a bill’s details', function() { powerBillSave(id); })) return;
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b) { closeOverlay(); return; }
   var pen = _pwNum('pwb_penalty'), arr = Number(b.arrears) || 0;
@@ -930,6 +935,7 @@ function powerCfgEdit() {
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPowerCfgSave">Save</button></div></div>', { dismiss: true });
 }
 function powerCfgSave() {
+  if (!grdGate('settings', 'change the options’ figures', powerCfgSave)) return;
   var p = powerData(), cfg = {};
   POWER_CFG_FIELDS.forEach(function(f) {
     var v = _pwNum('pwc_' + f[0]);

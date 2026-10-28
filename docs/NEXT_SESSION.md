@@ -7,6 +7,22 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 28 Oct 2026: who entered it, both versions kept, Power's PIN (read this first)
+
+- **Who entered it and who changed it** (owner, 26 Oct 2026: *"tag their IDs and show who updated what"*; P244): every stock entry,
+  production entry, attendance mark and EXTRA row carries the ID that entered it and the ID that last changed it (`tagIn`, `tagCh`,
+  stamped at each save, changelog.js), said on the entry. Nothing in the book before this build is stamped.
+- **Two phones marking one day keep both versions** (owner, 28 Oct 2026: *"keep both versions"*): the merge takes a day's marks hand by
+  hand; a hand both phones marked differently keeps one standing and holds the other whole, each with its stamp, for the owner on that
+  hand's day or in *Held for you*.
+- **Power's figures ask the owner's PIN** (owner, 28 Oct 2026: *"yes, ask for PIN"*; P243): the options' figures, the load and a bill's
+  details.
+- **Only Shyam marks attendance for now** (owner, 28 Oct 2026): Deepak's attendance duty is not set.
+- **A data flow changed**: the stamps travel in the book, so in the `sep-stock` and `sep-production` exports soma-internal reads, and in
+  every backup and pull.
+- **The suite is 2,096 tests.**
+
+
 ## Built 22 Oct 2026: this repository holds no client's data, HR-10 (read this first)
 
 - **This repository holds no client's data** (owner, 22 Oct 2026; CLAUDE.md, HR-10, and *What the public repository holds*). It is

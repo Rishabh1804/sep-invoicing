@@ -72,7 +72,9 @@ var CHG_TRACK = [
   { path: 'suppliers', kind: 'arr', noun: 'supplier', label: function(r) { return r.name; } },
   { path: 'supplierPays', kind: 'arr', noun: 'payment to a supplier', plural: 'payments to suppliers',
     label: function(r) { var sp = (S.suppliers || []).find(function(x) { return x.id === r.supplierId; }); return chgJoin(sp ? sp.name : '', chgMoney(r.amount), r.how, r.date ? chgDay(r.date) : ''); } },
-  { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
+  // A day's marks merge hand by hand (`deep`, merge.js): two phones marking different hands are both taken, and a hand both
+  // marked differently keeps both versions, each with its stamp, for the owner to pick (owner, 28 Oct 2026: "keep both versions").
+  { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], deep: ['marks'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
@@ -177,7 +179,7 @@ var CHG_SCALARS = { invPrefix: 'invoice', invNextNum: 'invoice', invNextSetAt: '
   defaultCostPerKg: 'fullCost', companyLogo: 'logo' };
 var CHG_SCALAR_SEC = { invoice: 'Invoice series', cn: 'Credit note series', bank: 'Bank details', fullCost: 'Full cost', logo: 'Company logo' };
 // Fields never compared, at any depth (with every key starting _).
-var CHG_OMIT = { updatedAt: 1 };
+var CHG_OMIT = { updatedAt: 1, tagIn: 1, tagCh: 1 };
 // A secret is said to have changed, never shown: not its hash, not its salt.
 var CHG_SECRET = { secret: 1, recovery: 1, salt: 1, hash: 1, pin: 1, pinHash: 1, password: 1, token: 1 };
 // Said to have changed without the value (an image).
@@ -320,6 +322,7 @@ function chgEach(sp, cont, fn) {
 /* ---------- the starting point ---------- */
 function chgBaseline() {
   var t0 = chgNow(), prev = _chg;
+  tagBaseline();
   try {
     // What the book held before it was replaced (an import, a pull: chgAdopted says so).
     var o = prev && prev.of && prev.of !== S ? prev.of : null;
@@ -359,6 +362,101 @@ function chgAdopted() {
   } catch (e) { chgNoteError(e); }
 }
 
+/* ---------- Who entered it, and who changed it ----------
+   The owner, 26 Oct 2026: "For areas that have multiple people that can enter it before my approval, lets simply tag their
+   IDs and show who updated what". A stock entry, a production entry, an attendance mark and an EXTRA row each carry the ID
+   that entered it (`tagIn: {by, at}`) and the ID that last changed it (`tagCh`), stamped here at each save, whatever made the
+   change: a form, a paste, a roll saved on Mine, a correction. A record is stamped against the copy the last save left:
+   new is entered, a different string is changed. A book that arrives whole (the boot, a pull, an import, another window's
+   save, a merge) is the new starting point, stamped nothing: what was in it was somebody's before this device saw it, and
+   the merge keeps each side's stamps. Nothing is stamped while nobody is signed in (the guard off: there is no ID to tag).
+   The change log never compares the stamps (CHG_OMIT); History says the same thing at the save's own grain. */
+var _tag = null;   // { of: S, recs: Map(key → the record's string without its stamps) }
+function tagStrip(r) {
+  if (!r || typeof r !== 'object') return JSON.stringify(r);
+  var o = {};
+  Object.keys(r).forEach(function(k) { if (k !== 'tagIn' && k !== 'tagCh') o[k] = r[k]; });
+  return JSON.stringify(o);
+}
+/* Every record the stamps are kept on: fn(key, record). An EXTRA row has no id: its key is its day and its own string, so a
+   row typed again reads as entered, and a row changed as entered or changed by its stamp. */
+function tagEach(fn) {
+  if (!S) return;
+  ((S.stock && S.stock.entries) || []).forEach(function(e) { if (e && e.id != null) fn('s|' + e.id, e); });
+  ((S.production && S.production.entries) || []).forEach(function(e) { if (e && e.id != null) fn('p|' + e.id, e); });
+  var att = S.attendance || {};
+  Object.keys(att).forEach(function(day) {
+    var d = att[day];
+    if (!d || typeof d !== 'object') return;
+    var marks = d.marks || {};
+    Object.keys(marks).forEach(function(sid) { if (marks[sid] && typeof marks[sid] === 'object') fn('a|' + day + '|' + sid, marks[sid]); });
+    (Array.isArray(d.extra) ? d.extra : []).forEach(function(x) { if (x && typeof x === 'object') fn('x|' + day + '|' + tagStrip(x), x); });
+  });
+}
+function tagBaseline() {
+  try {
+    var recs = new Map();
+    tagEach(function(k, r) { recs.set(k, tagStrip(r)); });
+    _tag = { of: S, recs: recs };
+  } catch (e) { chgNoteError(e); _tag = null; }
+}
+function tagOnSave() {
+  if (!S) return;
+  if (!_tag || _tag.of !== S) { tagBaseline(); return; }
+  var by = chgBy(), at = Date.now(), prev = _tag.recs, next = new Map();
+  // An EXTRA row is keyed by its string, so an edit is one row gone and one not seen before. A day's rows gone this save are
+  // counted, and a new unstamped row on a day that lost one is that row changed (one from before the build keeps no
+  // "entered"), never entered by whoever edited it.
+  var gone = {};
+  if (by != null) {
+    var now = new Set();
+    tagEach(function(k) { if (k.charAt(0) === 'x') now.add(k); });
+    prev.forEach(function(v, k) {
+      if (k.charAt(0) !== 'x' || now.has(k)) return;
+      var day = k.split('|')[1];
+      gone[day] = (gone[day] || 0) + 1;
+    });
+  }
+  tagEach(function(k, r) {
+    var str = tagStrip(r);
+    next.set(k, str);
+    if (by == null || prev.get(k) === str) return;
+    var stamp = { by: by, at: at };
+    // A record seen before and different now is changed (one from before the build keeps no "entered"). A record not seen
+    // before is entered, unless it came stamped (an import's, a copy's), or it is an EXTRA row standing in for one gone.
+    if (prev.has(k)) { r.tagCh = stamp; return; }
+    if (k.charAt(0) === 'x') {
+      var day = k.split('|')[1];
+      if (r.tagIn || gone[day] > 0) { if (gone[day] > 0) gone[day]--; r.tagCh = stamp; return; }
+    }
+    if (!r.tagIn) r.tagIn = stamp;
+  });
+  _tag.recs = next;
+}
+/* A stamp as words: "Shyam", the ID's name; an ID no longer in the book reads as removed. */
+function tagName(id) {
+  if (id == null) return '';
+  var u = (S && Array.isArray(S.users) ? S.users : []).find(function(x) { return x && String(x.id) === String(id); });
+  return u ? u.name : 'an ID since removed';
+}
+/* A stamp's moment, short: the day and the time, the year only when it is not this one ("28 Oct, 10:42"), since the stamp is one
+   fact in a meta line that holds two or three (design §6.27). */
+function tagWhen(ts) {
+  if (!ts) return '';
+  var d = new Date(ts), now = new Date();
+  return d.getFullYear() === now.getFullYear() ? formatTimestamp(ts).replace(' ' + d.getFullYear() + ',', ',') : formatTimestamp(ts);
+}
+/* "Entered by Shyam · changed by Rishabh, 28 Oct, 10:42", or '' where nothing is stamped (a record from before the build, or
+   entered with the guard off). */
+function tagWho(r) {
+  if (!r) return '';
+  var a = r.tagIn ? 'Entered by ' + tagName(r.tagIn.by) : '';
+  var c = r.tagCh && (!r.tagIn || String(r.tagCh.by) !== String(r.tagIn.by) || r.tagCh.at !== r.tagIn.at)
+    ? 'changed by ' + tagName(r.tagCh.by) + ', ' + tagWhen(r.tagCh.at) : '';
+  if (a && c) return a + ' · ' + c;
+  return a || (c ? c.charAt(0).toUpperCase() + c.slice(1) : '');
+}
+
 /* ---------- at each save (saveState) ---------- */
 function chgOnSave() {
   if (!S) return;
@@ -366,6 +464,7 @@ function chgOnSave() {
   try {
     // The book was replaced without a word here: what is in memory is the new starting point.
     if (!_chg || _chg.of !== S || _chg.broken) { chgBaseline(); return; }
+    try { tagOnSave(); } catch (e) { chgNoteError(e); }
     var entries = chgCollect();
     if (entries.length) chgAppend(entries);
     _chgHealth.saves++;

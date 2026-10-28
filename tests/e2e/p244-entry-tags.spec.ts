@@ -47,16 +47,16 @@ test('a stock entry, a production entry, a mark and an EXTRA row carry the ID th
   const c = await ev(page, `({ m: S.attendance['${day}'].marks[21], s: S.stock.entries.find(e => e.id === 'SE-1'), t: tagWho(S.stock.entries.find(e => e.id === 'SE-1')) })`);
   expect((c as any).m.tagIn.by).toBe('U-sup');
   expect((c as any).m.tagCh.by).toBe('U-own');
-  expect((c as any).t).toMatch(/^Entered by Birsa Munda · changed by Asha Rao, /);
+  expect((c as any).t).toMatch(/^Entered by Birsa Munda · changed by Asha Rao, \d\d \w\w\w, \d\d:\d\d$/);   // the year left off: it is this one
   // Shown where the entry is: the stock line's row, the production entry, the hand's day.
   await switchTab(page, 'pageStock');
-  expect(await ev(page, `stockEntryRowHtml(S.stock.entries.find(e => e.id === 'SE-1'), null, 'L')`)).toContain('entered by Birsa Munda · changed by Asha Rao');
+  expect(await ev(page, `stockEntryRowHtml(S.stock.entries.find(e => e.id === 'SE-1'), null, 'L')`)).toContain('Entered by Birsa Munda · changed by Asha Rao');
   expect(await ev(page, `JSON.stringify(prodEntryKv(S.production.entries.find(e => e.id === 'PE-1')))`)).toContain('Birsa Munda');
   expect(await ev(page, `JSON.stringify(prodEntryKv(S.production.entries.find(e => e.id === 'PE-old')))`)).toContain('Typed name');
   await switchTab(page, 'pageStaff');
   await openAttendance(page, 'day');
   await ev(page, `attEditOpen(21)`);
-  await expect(page.locator('[data-att-who]')).toHaveText(/^Entered by Birsa Munda · changed by Asha Rao, /);
+  await expect(page.locator('[data-att-who]')).toHaveText(/^Entered by Birsa Munda · changed by Asha Rao, \d\d \w\w\w, \d\d:\d\d$/);
   // A mark from before the stamps, typed by hand, says the ID that typed it.
   await ev(page, `closeOverlay(); _attDate = '2026-10-01'; attEditOpen(22)`);
   await expect(page.locator('[data-att-who]')).toHaveText('Typed by Asha Rao');
@@ -93,13 +93,19 @@ test('a hand’s held version is shown on its day, and the owner uses it there',
   await openAttendance(page, 'day');
   await ev(page, `attEditOpen(21)`);
   const held = page.locator('[data-att-held="MH-1"]');
-  await expect(held).toContainText('Standing: Present');
-  await expect(held).toContainText('Birsa Munda');
-  await expect(held).toContainText('Held from the other phone: Absent');
-  await expect(held).toContainText('Chitra Sen');
+  // Two versions as fact rows: the mark its figure, who made it under the label (design §6.27), never a sentence.
+  await expect(held.locator('[data-att-held-kept]')).toContainText('Standing');
+  await expect(held.locator('[data-att-held-kept] .inv-row-end')).toHaveText('Present, VAT A1, 8 h');
+  await expect(held.locator('[data-att-held-kept] .inv-row-meta')).toHaveText('entered by Birsa Munda');
+  await expect(held.locator('[data-att-held-other]')).toContainText('Held from the other phone');
+  await expect(held.locator('[data-att-held-other] .inv-row-end')).toHaveText('Absent, VAT A1');
+  await expect(held.locator('[data-att-held-other] .inv-row-meta')).toHaveText('entered by Chitra Sen');
   await held.locator('[data-action="invMrgUseHere"]').click();
   await expect.poll(() => ev(page, `S.attendance['${day}'].marks[21].st`)).toBe('A');
   await expect(page.locator('[data-att-held]')).toHaveCount(0);
   // The held list says it as a hand's mark, never as JSON.
-  expect(await ev(page, `mrgHeldRowHtml(S.mergeHeld[0])`)).toContain('ALFA KUMAR’s mark on today');
+  const row = await ev(page, `mrgHeldRowHtml(S.mergeHeld[0])`) as string;
+  expect(row).toContain('ALFA KUMAR’s mark on today');
+  expect(row).toContain('entered by Chitra Sen');
+  expect(row).not.toContain('tagIn');
 });

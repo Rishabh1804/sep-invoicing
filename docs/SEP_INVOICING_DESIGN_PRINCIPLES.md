@@ -1071,8 +1071,12 @@ manner"*. Every figure the app works out is drawn in three layers, and nothing o
 - **How the analysis works is the screen's guide** (`kbguides.js`, *Reading the plant's figures*), one tap away on the top bar's
   book; a panel's note is a line at most.
 - Inside a card the caption and the working are drawn on the card's box (no page-coloured band; the card's hairlines).
-Built on Floor → Day's line cards, Production's day card, Production → Lines (*Into the bath*), a stock line's *By line* and the
-plant strip's round. The other screens that reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed
+Built on Floor → Day's line cards, Production's day card, Production → Lines (*Into the bath*), a stock line's *By line*, the
+plant strip's round, and (28 Oct 2026) a hand's mark held by a sync beside the one standing: on the hand's day a flush panel captioned
+*Two versions*, a fact row a version (the mark its figure, who entered and changed it under the label, `wrap` so the stamp is read
+whole) and the owner's two moves a line under them; in *Held for you* the same two rows under the row naming the hand and the day.
+Who entered and changed an entry is one meta line of its own (a stock entry's row) or a cell (a production entry's *Entered* and
+*Changed*, the moment then the name), never a fourth fact chained onto the row's meta. The other screens that reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed
 data*) and fixed in the steps of `docs/TAB_MAP.md` (its §3d), whose §3b states the benchmark's rules with what measures each.
 
 ### 6.28 The verdict card — `uiVerdictHtml` (state.js), `data-verdict`

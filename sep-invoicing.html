@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="32deb6f4">
+<meta name="app-build" content="a1ae01fd">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -4780,13 +4780,14 @@ function uiFoldCard(key, card, dflt) {
    the working is folded under them, shut until opened and remembered on the device: one fact a row, a label of a few words, its
    figure at the end, at most a few words under the label, and where a figure comes from as a badge, never a clause. How the
    analysis works is the screen's guide (kbguides.js). Every field is plain text, escaped here.
-   A fact: { label, value, sub, src: [tone, word], tone (the figure's, §3c: whether it is good), attrs, actions (HTML: the caller
-   escapes) }. A value null or '' is withheld: a dash. */
+   A fact: { label, value, sub, wrap (the sub wraps whole where its facts must all be read: who made a held version), src: [tone,
+   word], tone (the figure's, §3c: whether it is good), attrs, actions (HTML: the caller escapes) }. A value null or '' is
+   withheld: a dash. */
 function _uiFactInner(f) {
   var v = f.value != null && f.value !== '' ? figHtml(escHtml(String(f.value)), /^(ok|warning|danger)$/.test(f.tone || '') ? f.tone : null) : '&mdash;';
   return '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) +
     (f.src ? ' <span class="inv-badge inv-badge-' + uiTone(f.src[0]) + '">' + escHtml(f.src[1]) + '</span>' : '') + '</span>' +
-    (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
+    (f.sub ? '<span class="inv-row-meta' + (f.wrap ? ' inv-row-wrap' : '') + '">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
     // A fact's own move (a Change beside a default): the figure and its buttons, a line of their own under it on the phone.
     (f.actions ? '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + v + '</span>' + f.actions + '</span>'
       : '<span class="inv-row-end ' + (f.count ? 'inv-panel-count' : 'inv-num') + '">' + v + '</span>');
@@ -7342,13 +7343,20 @@ function tagName(id) {
   var u = (S && Array.isArray(S.users) ? S.users : []).find(function(x) { return x && String(x.id) === String(id); });
   return u ? u.name : 'an ID since removed';
 }
+/* A stamp's moment, short: the day and the time, the year only when it is not this one ("28 Oct, 10:42"), since the stamp is one
+   fact in a meta line that holds two or three (design §6.27). */
+function tagWhen(ts) {
+  if (!ts) return '';
+  var d = new Date(ts), now = new Date();
+  return d.getFullYear() === now.getFullYear() ? formatTimestamp(ts).replace(' ' + d.getFullYear() + ',', ',') : formatTimestamp(ts);
+}
 /* "Entered by Shyam · changed by Rishabh, 28 Oct, 10:42", or '' where nothing is stamped (a record from before the build, or
    entered with the guard off). */
 function tagWho(r) {
   if (!r) return '';
   var a = r.tagIn ? 'Entered by ' + tagName(r.tagIn.by) : '';
   var c = r.tagCh && (!r.tagIn || String(r.tagCh.by) !== String(r.tagIn.by) || r.tagCh.at !== r.tagIn.at)
-    ? 'changed by ' + tagName(r.tagCh.by) + ', ' + formatTimestamp(r.tagCh.at) : '';
+    ? 'changed by ' + tagName(r.tagCh.by) + ', ' + tagWhen(r.tagCh.at) : '';
   if (a && c) return a + ' · ' + c;
   return a || (c ? c.charAt(0).toUpperCase() + c.slice(1) : '');
 }
@@ -24110,11 +24118,16 @@ function attWhoHtml(m, sid) {
   var who = m && typeof tagWho === 'function' ? tagWho(m) || (m.by != null && typeof tagName === 'function' ? 'Typed by ' + tagName(m.by) : '') : '';
   var held = typeof mrgHeldFor === 'function' ? mrgHeldFor('attendance', _attDate, 'marks.' + sid) : [];
   var owner = !(typeof grdOn === 'function' && grdOn()) || (typeof grdIsOwner === 'function' && grdIsOwner());
-  var h = who ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';
+  // With a version held, the standing row says who made the mark: the note would say it twice.
+  var h = who && !held.length ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';
+  // The two versions as an analysis (design §6.27): a caption, a fact a row (the mark its figure, who made it under the label),
+  // the owner's two moves a line under them. Never a sentence.
   held.forEach(function(x) {
-    h += '<div class="inv-callout inv-callout-warning" data-att-held="' + escHtml(x.id) + '"><strong>Two versions.</strong> Standing: ' + escHtml(mrgMarkText(x.kept.v)) +
-      '. Held from the other phone: ' + escHtml(mrgMarkText(x.other.v)) + '.' + (owner ? '' : ' The owner picks.') +
-      (owner ? '<div class="inv-row-actions"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use the held version</button>' +
+    h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-att-held="' + escHtml(x.id) + '">' +
+      '<div class="inv-row-group">' + uiDot('warning', 'Two versions') + (owner ? '' : ' <span class="inv-note">The owner picks</span>') + '</div>' +
+      uiFactRowHtml({ label: 'Standing', sub: lcLead(tagWho(x.kept.v)) || undefined, wrap: true, value: mrgMarkText(x.kept.v), attrs: ' data-att-held-kept' }) +
+      uiFactRowHtml({ label: 'Held from the other phone', sub: lcLead(tagWho(x.other.v)) || undefined, wrap: true, value: mrgMarkText(x.other.v), attrs: ' data-att-held-other' }) +
+      (owner ? '<div class="inv-row-actions inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use the held version</button>' +
         '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeepHere" data-id="' + escHtml(x.id) + '">Keep the standing one</button></div>' : '') + '</div>';
   });
   return h;
@@ -30227,9 +30240,9 @@ function stockEntryRowHtml(e, r, unit, checks) {
   var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
   var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
   // Who entered it and who changed it, by ID (changelog.js tagWho); an entry from before the stamps keeps the name typed.
+  // A meta line holds two or three facts (design §6.27): the stamp is a line of its own under the day and the door.
   var who = typeof tagWho === 'function' ? tagWho(e) : '';
-  if (who) src += ' · ' + lcLead(who);
-  else if (e.by) src += ' · entered by ' + e.by;
+  if (!who && e.by) who = 'Entered by ' + e.by;
   var extra = [];
   if (e.kind === 'received' || e.kind === 'bill') {
     if (e.price != null) extra.push(formatCurrency(e.price) + '/' + (unit || 'unit'));
@@ -30254,6 +30267,7 @@ function stockEntryRowHtml(e, r, unit, checks) {
     '<div class="inv-row-title">' + escHtml(STOCK_KIND_LABEL[e.kind] || e.kind) + ' <strong class="inv-num">' + escHtml(stockFmtQty(e.qty)) + ' ' + escHtml(unit) + '</strong>' +
     (e.unsettled ? ' <span class="inv-badge inv-badge-warning">Unsettled</span>' : '') + (e.voided ? ' <span class="inv-badge inv-badge-neutral">Voided</span>' : '') + '</div>' +
     '<div class="inv-row-meta inv-row-wrap">' + escHtml(when + ' · ' + src) + '</div>' +
+    (who ? '<div class="inv-row-meta inv-row-wrap" data-entry-who>' + escHtml(who) + '</div>' : '') +
     (extra.length ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(extra.join(' · ')) + '</div>' : '') + gap +
     (e.raw ? '<details class="inv-mt-4"><summary class="inv-btn-link inv-summary">Message text</summary><div class="inv-quote inv-mt-4">' + escHtml(e.raw) + '</div></details>' : '') +
     (e.kind === 'received' && e.price == null && !e.voided ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invStockBillOpen" data-entry="' + escHtml(e.id) + '">Add its bill</button>' : '') +
@@ -38263,28 +38277,36 @@ function mrgValText(v) {
   if (typeof v === 'object') { var s = JSON.stringify(v); return s.length > 140 ? s.slice(0, 139) + '…' : s; }
   return String(v);
 }
-/* A held mark said as one: its state and place, its hours, and who made it (the stamps), never its JSON. */
+/* A held mark said as one: its state and place, its hours and OT, never its JSON. Who made it is the stamp (tagWho), drawn under
+   the label where the mark is a fact row (the hand's day, Held for you), so it is not in the figure. */
 function mrgMarkText(v) {
   if (v === undefined) return 'removed';
   if (!mrgIsObj(v)) return mrgValText(v);
   var st = { P: 'Present', H: 'Half day', A: 'Absent' }[v.st] || (v.st ? String(v.st) : 'Not marked');
-  var who = typeof tagWho === 'function' ? tagWho(v) : '';
-  return [st, v.area && typeof areaLabel === 'function' ? areaLabel(v.area) : '', v.hours ? v.hours + ' h' : '', v.ot ? v.ot + ' h OT' : '', who].filter(Boolean).join(', ');
+  return [st, v.area && typeof areaLabel === 'function' ? areaLabel(v.area) : '', v.hours ? v.hours + ' h' : '', v.ot ? v.ot + ' h OT' : ''].filter(Boolean).join(', ');
 }
 function mrgHeldRowHtml(h) {
   var mk = h.coll === 'attendance' && h.field && /^marks\./.test(h.field) ? h.field.slice(6) : null;
   var who = mk != null ? (typeof chgStaffName === 'function' && chgStaffName(mk)) || 'A hand' : '';
   var where = mk != null ? who + '’s mark on ' + h.label : (h.field ? h.field + ' on ' : '') + h.label;
-  var txt = mk != null ? mrgMarkText : mrgValText;
   var why = h.why === 'removed' ? (h.other.v === undefined ? 'Removed on ' + mrgSideName(h.other.side, h.from) + ', changed on ' + mrgSideName(h.kept.side, h.from) + ': kept'
     : 'Removed on ' + mrgSideName(h.kept.side, h.from) + ', changed on ' + mrgSideName(h.other.side, h.from))
     : h.why === 'number' ? 'Two records carry this number: reissue or delete one'
     : 'Both changed it: ' + mrgSideName(h.kept.side, h.from) + '\'s stands';
+  var acts = (h.why === 'number' ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUse" data-id="' + escHtml(h.id) + '">Use held</button>') +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeep" data-id="' + escHtml(h.id) + '">' + (h.why === 'number' ? 'Noted' : 'Keep') + '</button>';
+  // A hand's mark: the row names the hand and the day, and the two versions are a fact row each under it (the mark its figure, who
+  // made it under the label), the moves a line of their own on the phone (design §6.27); a chain of nine lines in the meta before.
+  if (mk != null) {
+    var sub = function(v) { return typeof tagWho === 'function' ? lcLead(tagWho(v)) || undefined : undefined; };
+    return '<div data-held="' + escHtml(h.id) + '"><div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(why) + ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span><span class="inv-row-end inv-row-actions">' + acts + '</span></div>' +
+      '<div class="inv-row-children">' + uiFactRowHtml({ label: 'Stands', sub: sub(h.kept.v), wrap: true, value: mrgMarkText(h.kept.v) }) +
+      uiFactRowHtml({ label: 'Held', sub: sub(h.other.v), wrap: true, value: mrgMarkText(h.other.v) }) + '</div></div>';
+  }
   return '<div class="inv-row inv-row-2 inv-row-flow" data-held="' + escHtml(h.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(txt(h.kept.v)) + ' · held: ' + escHtml(txt(h.other.v))) +
-    ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span>' +
-    '<span class="inv-row-end">' + (h.why === 'number' ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUse" data-id="' + escHtml(h.id) + '">Use held</button>') +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeep" data-id="' + escHtml(h.id) + '">' + (h.why === 'number' ? 'Noted' : 'Keep') + '</button></span></div>';
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(mrgValText(h.kept.v)) + ' · held: ' + escHtml(mrgValText(h.other.v))) +
+    ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span><span class="inv-row-end">' + acts + '</span></div>';
 }
 function mrgHeldOpenDialog() {
   var list = mrgHeldOpen();
@@ -53220,7 +53242,7 @@ function prodEntryKv(e) {
   if (e.sentBy) kv.push(['Sent by', e.sentBy]);
   // Who entered it and who changed it, by ID (changelog.js tagWho): the entry's ID, else the name it was saved with.
   if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.tagIn ? ' · ' + tagName(e.tagIn.by) : e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
-  if (e.tagCh) kv.push(['Changed', tagName(e.tagCh.by) + ', ' + formatTimestamp(e.tagCh.at)]);
+  if (e.tagCh) kv.push(['Changed', formatTimestamp(e.tagCh.at) + ' · ' + tagName(e.tagCh.by)]);   // the same order as Entered
   if (e.voidedAt) kv.push(['Void', e.voidReason || 'no reason given']);
   return kv;
 }

@@ -439,13 +439,20 @@ function tagName(id) {
   var u = (S && Array.isArray(S.users) ? S.users : []).find(function(x) { return x && String(x.id) === String(id); });
   return u ? u.name : 'an ID since removed';
 }
+/* A stamp's moment, short: the day and the time, the year only when it is not this one ("28 Oct, 10:42"), since the stamp is one
+   fact in a meta line that holds two or three (design §6.27). */
+function tagWhen(ts) {
+  if (!ts) return '';
+  var d = new Date(ts), now = new Date();
+  return d.getFullYear() === now.getFullYear() ? formatTimestamp(ts).replace(' ' + d.getFullYear() + ',', ',') : formatTimestamp(ts);
+}
 /* "Entered by Shyam · changed by Rishabh, 28 Oct, 10:42", or '' where nothing is stamped (a record from before the build, or
    entered with the guard off). */
 function tagWho(r) {
   if (!r) return '';
   var a = r.tagIn ? 'Entered by ' + tagName(r.tagIn.by) : '';
   var c = r.tagCh && (!r.tagIn || String(r.tagCh.by) !== String(r.tagIn.by) || r.tagCh.at !== r.tagIn.at)
-    ? 'changed by ' + tagName(r.tagCh.by) + ', ' + formatTimestamp(r.tagCh.at) : '';
+    ? 'changed by ' + tagName(r.tagCh.by) + ', ' + tagWhen(r.tagCh.at) : '';
   if (a && c) return a + ' · ' + c;
   return a || (c ? c.charAt(0).toUpperCase() + c.slice(1) : '');
 }

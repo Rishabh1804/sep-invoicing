@@ -887,13 +887,14 @@ function uiFoldCard(key, card, dflt) {
    the working is folded under them, shut until opened and remembered on the device: one fact a row, a label of a few words, its
    figure at the end, at most a few words under the label, and where a figure comes from as a badge, never a clause. How the
    analysis works is the screen's guide (kbguides.js). Every field is plain text, escaped here.
-   A fact: { label, value, sub, src: [tone, word], tone (the figure's, §3c: whether it is good), attrs, actions (HTML: the caller
-   escapes) }. A value null or '' is withheld: a dash. */
+   A fact: { label, value, sub, wrap (the sub wraps whole where its facts must all be read: who made a held version), src: [tone,
+   word], tone (the figure's, §3c: whether it is good), attrs, actions (HTML: the caller escapes) }. A value null or '' is
+   withheld: a dash. */
 function _uiFactInner(f) {
   var v = f.value != null && f.value !== '' ? figHtml(escHtml(String(f.value)), /^(ok|warning|danger)$/.test(f.tone || '') ? f.tone : null) : '&mdash;';
   return '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) +
     (f.src ? ' <span class="inv-badge inv-badge-' + uiTone(f.src[0]) + '">' + escHtml(f.src[1]) + '</span>' : '') + '</span>' +
-    (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
+    (f.sub ? '<span class="inv-row-meta' + (f.wrap ? ' inv-row-wrap' : '') + '">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
     // A fact's own move (a Change beside a default): the figure and its buttons, a line of their own under it on the phone.
     (f.actions ? '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + v + '</span>' + f.actions + '</span>'
       : '<span class="inv-row-end ' + (f.count ? 'inv-panel-count' : 'inv-num') + '">' + v + '</span>');

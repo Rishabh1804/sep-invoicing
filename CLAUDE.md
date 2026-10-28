@@ -3709,16 +3709,20 @@ build: the people are the book's.
   stamped at each save against the copy the save before left (`tagOnSave`), whatever made the change: a form, a paste, a roll saved
   on Mine, a void. A book that arrives whole (the boot, a pull, an import, another window's save, a merge) is the starting point and
   stamps nothing, so nothing from before is put on whoever saves next; nothing is stamped while nobody is signed in. Said where the
-  entry is (`tagWho`: *Entered by Shyam · changed by Rishabh, 28 Oct, 10:42*): a stock entry's row, a production entry's fold and
-  pane, the hand's day dialog (`data-att-who`), an EXTRA row's fold. The change log never compares the stamps (`CHG_OMIT`), and the
+  entry is (`tagWho`: *Entered by Shyam · changed by Rishabh, 28 Oct, 10:42*, the year only when not this one, `tagWhen`): a stock
+  entry's row (a meta line of its own under the day and the door, `data-entry-who`), a production entry's fold and pane (*Entered* and
+  *Changed*, each the moment then the name), the hand's day dialog (`data-att-who`), an EXTRA row's fold. The change log never compares the stamps (`CHG_OMIT`), and the
   merge never holds on them (`MRG_QUIET`). A mark's own `by` (the ID that typed it, `_attHandEdit`) is kept: Mine's sheet check reads it.
 - **Two phones on one day keep both versions** (owner, 28 Oct 2026: *"Tagging - keep both versions"*). A day's marks merge hand by
   hand (`deep: ['marks']` on the attendance row of `CHG_TRACK`, `mrgDeep`): a hand marked on one phone is taken; a hand both marked
   alike (their stamps aside) is one; a hand both marked differently keeps the owner's, else the later, and **the other version is
-  held whole** (`marks.<id>`), each with its stamp. The hand's day says so (*Two versions. Standing: Present, entered by Shyam. Held
-  from the other phone: Absent, entered by …*, `data-att-held`), and the owner uses the held one or keeps the standing one there
-  (`invMrgUseHere`, `invMrgKeepHere`) or in *Held for you*, which says a held mark as a hand's mark (`mrgMarkText`). Only Shyam marks
-  attendance for now (owner, 28 Oct 2026), so Deepak's duty is not set.
+  held whole** (`marks.<id>`), each with its stamp. The hand's day says so as an analysis (design §6.27; the design pass of 28 Oct
+  2026, which found a sentence of 190 characters): a flush panel `data-att-held` captioned *Two versions* (a warning dot), a fact
+  row each (*Standing*, *Held from the other phone*: the mark its figure, `mrgMarkText`, who made it under the label), and the
+  owner's two moves a line under them (`invMrgUseHere`, `invMrgKeepHere`); anyone else reads *The owner picks*. *Held for you* draws
+  a hand's mark the same way: the row names the hand and the day with its moves, and *Stands* and *Held* are fact rows under it
+  (`mrgHeldRowHtml`; a fact row's `wrap` lets the stamp wrap whole). Only Shyam marks attendance for now (owner, 28 Oct 2026), so
+  Deepak's duty is not set.
 - **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
   can only import. The token is kept encrypted under a key that cannot leave the device. **A device whose guard was turned on apart from the one that pushed** (its own owner ID, not on GitHub's copy; owner, 14 Oct

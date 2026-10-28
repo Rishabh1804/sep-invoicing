@@ -384,28 +384,36 @@ function mrgValText(v) {
   if (typeof v === 'object') { var s = JSON.stringify(v); return s.length > 140 ? s.slice(0, 139) + '…' : s; }
   return String(v);
 }
-/* A held mark said as one: its state and place, its hours, and who made it (the stamps), never its JSON. */
+/* A held mark said as one: its state and place, its hours and OT, never its JSON. Who made it is the stamp (tagWho), drawn under
+   the label where the mark is a fact row (the hand's day, Held for you), so it is not in the figure. */
 function mrgMarkText(v) {
   if (v === undefined) return 'removed';
   if (!mrgIsObj(v)) return mrgValText(v);
   var st = { P: 'Present', H: 'Half day', A: 'Absent' }[v.st] || (v.st ? String(v.st) : 'Not marked');
-  var who = typeof tagWho === 'function' ? tagWho(v) : '';
-  return [st, v.area && typeof areaLabel === 'function' ? areaLabel(v.area) : '', v.hours ? v.hours + ' h' : '', v.ot ? v.ot + ' h OT' : '', who].filter(Boolean).join(', ');
+  return [st, v.area && typeof areaLabel === 'function' ? areaLabel(v.area) : '', v.hours ? v.hours + ' h' : '', v.ot ? v.ot + ' h OT' : ''].filter(Boolean).join(', ');
 }
 function mrgHeldRowHtml(h) {
   var mk = h.coll === 'attendance' && h.field && /^marks\./.test(h.field) ? h.field.slice(6) : null;
   var who = mk != null ? (typeof chgStaffName === 'function' && chgStaffName(mk)) || 'A hand' : '';
   var where = mk != null ? who + '’s mark on ' + h.label : (h.field ? h.field + ' on ' : '') + h.label;
-  var txt = mk != null ? mrgMarkText : mrgValText;
   var why = h.why === 'removed' ? (h.other.v === undefined ? 'Removed on ' + mrgSideName(h.other.side, h.from) + ', changed on ' + mrgSideName(h.kept.side, h.from) + ': kept'
     : 'Removed on ' + mrgSideName(h.kept.side, h.from) + ', changed on ' + mrgSideName(h.other.side, h.from))
     : h.why === 'number' ? 'Two records carry this number: reissue or delete one'
     : 'Both changed it: ' + mrgSideName(h.kept.side, h.from) + '\'s stands';
+  var acts = (h.why === 'number' ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUse" data-id="' + escHtml(h.id) + '">Use held</button>') +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeep" data-id="' + escHtml(h.id) + '">' + (h.why === 'number' ? 'Noted' : 'Keep') + '</button>';
+  // A hand's mark: the row names the hand and the day, and the two versions are a fact row each under it (the mark its figure, who
+  // made it under the label), the moves a line of their own on the phone (design §6.27); a chain of nine lines in the meta before.
+  if (mk != null) {
+    var sub = function(v) { return typeof tagWho === 'function' ? lcLead(tagWho(v)) || undefined : undefined; };
+    return '<div data-held="' + escHtml(h.id) + '"><div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(why) + ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span><span class="inv-row-end inv-row-actions">' + acts + '</span></div>' +
+      '<div class="inv-row-children">' + uiFactRowHtml({ label: 'Stands', sub: sub(h.kept.v), wrap: true, value: mrgMarkText(h.kept.v) }) +
+      uiFactRowHtml({ label: 'Held', sub: sub(h.other.v), wrap: true, value: mrgMarkText(h.other.v) }) + '</div></div>';
+  }
   return '<div class="inv-row inv-row-2 inv-row-flow" data-held="' + escHtml(h.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(where) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(txt(h.kept.v)) + ' · held: ' + escHtml(txt(h.other.v))) +
-    ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span>' +
-    '<span class="inv-row-end">' + (h.why === 'number' ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUse" data-id="' + escHtml(h.id) + '">Use held</button>') +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeep" data-id="' + escHtml(h.id) + '">' + (h.why === 'number' ? 'Noted' : 'Keep') + '</button></span></div>';
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + (h.why === 'number' ? '' : ' · stands: ' + escHtml(mrgValText(h.kept.v)) + ' · held: ' + escHtml(mrgValText(h.other.v))) +
+    ' · ' + escHtml(formatTimestamp(h.at)) + '</span></span><span class="inv-row-end">' + acts + '</span></div>';
 }
 function mrgHeldOpenDialog() {
   var list = mrgHeldOpen();

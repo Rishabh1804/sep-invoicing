@@ -762,11 +762,16 @@ function attWhoHtml(m, sid) {
   var who = m && typeof tagWho === 'function' ? tagWho(m) || (m.by != null && typeof tagName === 'function' ? 'Typed by ' + tagName(m.by) : '') : '';
   var held = typeof mrgHeldFor === 'function' ? mrgHeldFor('attendance', _attDate, 'marks.' + sid) : [];
   var owner = !(typeof grdOn === 'function' && grdOn()) || (typeof grdIsOwner === 'function' && grdIsOwner());
-  var h = who ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';
+  // With a version held, the standing row says who made the mark: the note would say it twice.
+  var h = who && !held.length ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';
+  // The two versions as an analysis (design §6.27): a caption, a fact a row (the mark its figure, who made it under the label),
+  // the owner's two moves a line under them. Never a sentence.
   held.forEach(function(x) {
-    h += '<div class="inv-callout inv-callout-warning" data-att-held="' + escHtml(x.id) + '"><strong>Two versions.</strong> Standing: ' + escHtml(mrgMarkText(x.kept.v)) +
-      '. Held from the other phone: ' + escHtml(mrgMarkText(x.other.v)) + '.' + (owner ? '' : ' The owner picks.') +
-      (owner ? '<div class="inv-row-actions"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use the held version</button>' +
+    h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-att-held="' + escHtml(x.id) + '">' +
+      '<div class="inv-row-group">' + uiDot('warning', 'Two versions') + (owner ? '' : ' <span class="inv-note">The owner picks</span>') + '</div>' +
+      uiFactRowHtml({ label: 'Standing', sub: lcLead(tagWho(x.kept.v)) || undefined, wrap: true, value: mrgMarkText(x.kept.v), attrs: ' data-att-held-kept' }) +
+      uiFactRowHtml({ label: 'Held from the other phone', sub: lcLead(tagWho(x.other.v)) || undefined, wrap: true, value: mrgMarkText(x.other.v), attrs: ' data-att-held-other' }) +
+      (owner ? '<div class="inv-row-actions inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgUseHere" data-id="' + escHtml(x.id) + '">Use the held version</button>' +
         '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMrgKeepHere" data-id="' + escHtml(x.id) + '">Keep the standing one</button></div>' : '') + '</div>';
   });
   return h;

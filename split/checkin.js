@@ -318,6 +318,7 @@ function ckPrint() {
   document.getElementById('invPrintBody').innerHTML = ckSheetHtml(cfg);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ may: 'settings' });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

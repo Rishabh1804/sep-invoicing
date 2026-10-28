@@ -794,6 +794,7 @@ function showCreditNotePreview(cnId, said) {
   body.innerHTML = banner + buildCreditNoteHtml(cn);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pageRegister'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

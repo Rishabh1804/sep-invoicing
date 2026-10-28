@@ -233,10 +233,17 @@ function _invoiceFrameHtml(d, copyLabel, body) {
 var INVOICE_COPIES = ['ORIGINAL FOR RECIPIENT', 'DUPLICATE FOR TRANSPORTER', 'TRIPLICATE FOR SUPPLIER'];
 
 var _printInvId = null;   // the invoice in the preview; null for any other document
+/* What another ID needs to open the document in the preview from the office's queue (owner, 28 Oct 2026, of an Office ID opening a
+   pay slip's wages with Print it here: "definitely not acceptable"): the pages its own screen is on, and wages, money, a permission
+   (`may`) or the owner where that screen asks them. Every preview says it (printNeed); prtSend keeps it on the job, and the queue
+   opens a job only for an ID it fits (prtlight.js prtJobOpens). */
+var _printNeed = null;
+function printNeed(need) { _printNeed = need || null; }
 function showPrintPreview(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv) return;
   _printInvId = invId;
+  printNeed({ pages: ['pageRegister'] });
   var d = formatInvoiceData(inv);
 
   var copies = INVOICE_COPIES;
@@ -294,6 +301,7 @@ function printMarkPrinted() {
 
 function closePrintPreview() {
   _printInvId = null;
+  _printNeed = null;
   if (typeof idcPrintDiscard === 'function') idcPrintDiscard();   // ID card numbers previewed and not printed are not given
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
   document.body.style.overflow = '';

@@ -220,8 +220,9 @@ async function prtSend() {
   var title = String(document.title || 'Document').slice(0, 120);
   var id = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 7);
   var invId = typeof _printInvId !== 'undefined' ? _printInvId : null;
+  // What another ID needs to open it from the queue (print.js printNeed; prtlight.js prtJobOpens). None said: the owner's.
   var job = { kind: 'sep-print', v: 1, id: id, title: title, html: html, sentAt: Date.now(), sentBy: prtSenderName(),
-    build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '' };
+    build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '', need: typeof _printNeed !== 'undefined' ? _printNeed : null };
   var cfg = getGhConfig();
   var btn = document.getElementById('invPrintRemote');
   if (btn) btn.disabled = true;
@@ -348,6 +349,7 @@ function prtPrintHere(data) {
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   body.innerHTML = prtClean(data.html);
   view.classList.add('inv-print-view-active');
+  printNeed(data.need);
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = String(data.title || 'Document');

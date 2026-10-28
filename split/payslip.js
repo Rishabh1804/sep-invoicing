@@ -199,6 +199,7 @@ function psShow(rows) {
   body.innerHTML = psSheetsHtml(rows);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pageStaff'], wages: true });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

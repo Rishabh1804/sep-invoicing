@@ -1172,6 +1172,7 @@ function plnReportOpen() {
   body.innerHTML = plnReportHtml();
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pagePlanner'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

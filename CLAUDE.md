@@ -165,7 +165,7 @@ split/
 ├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Office → Challans: Awaiting invoice and Invoiced, each led by its verdict; a challan's wait judged once (imWaitTone); the list and selection (~810 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
-├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room (224 lines)
+├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room; what another ID needs to open a preview from the queue (`printNeed`) (~320 lines)
 ├── remoteprint.js     ← The office printer: a preview sent as a job over GitHub sync, the print station that prints it (~290 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
@@ -218,7 +218,7 @@ split/
 ├── today.js           ← Home: the masthead (`homeMastHtml`: the greeting, one lead, the first thing to do with its own button (`homeMastLead`), the clock on the minute, the general shift before, during and after it or the day the plant is shut; flat, never folded; the phone's board tools at its act row's end), the board's toolbar, Home left and arrived (the clock and the live widgets stopped and started); Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) (~720 lines)
 ├── widgets.js         ← The card family's framework (UI pass 3 §7, §24; design §6.33–§6.35): `wdgDefine` (a type required), one skeleton (`wdgCardHtml`: head, figure, verdict, body, Act, Source) and its states (`uiBlankHtml`), the five action rows (Open, Choose, More, Act, Source), the seven types' builders (`wdgLedgerHtml`, `wdgDocketRowHtml`, `wdgPlantRowHtml`, `wdgSeatsHtml`, `wdgMovesHtml`, `wdgWireHtml`, `wdgTrayHtml`, …), the fit (`wdgFit`: the parts it can do without, then each column's and the list's last rows, More or a Ledger's rest line), a bare chart drawn into the room left, the board (fixed rows packed dense; on the phone a card as tall as what it holds; `wdgPlace` and its slots while arranging), arranging (drag, keys, sizes, remove), the gallery, the presets by role (about seven cards on the phone), a board's period (`wdgPeriod`: Home's this month), a trend never edged (`trend`), the layout per person and layout (`sep_inv_layout`) (~1,580 lines)
 ├── widgetcards.js     ← The widgets (`WIDGET_DEFS`), each of its type (UI pass 3 §24f): Money, Office, Floor, People, Market, Analysis and the questions, each reading the function its screen draws with and handing its figures to its type's builders; a question's story without its tiles and charts (`wcStoryBrief`) (~2,240 lines)
-├── prtlight.js        ← The print station's light: its check-in and the queue read every 2 minutes while Home shows, worked out (`prtLightState`, pure), one of the masthead's facts and, red with a job waiting, its lead; the station's dialog, the jobs printed here (each taken off the queue first), Needs you's `prtStation` (~330 lines)
+├── prtlight.js        ← The print station's light: its check-in and the queue read every 2 minutes while Home shows, worked out (`prtLightState`, pure), one of the masthead's facts and, red with a job waiting, its lead; the station's dialog, the jobs printed here (each taken off the queue first, and only those the ID's own screens open: `prtJobOpens`), Needs you's `prtStation` (~370 lines)
 ├── feeds.js           ← The world outside: the news and the weather from the owner's feeds Worker (`S.feedsCfg.url`), else straight from GDELT and MET Norway (`feedAskVia`), a copy on the device, never in the book; the weather's place typed, the Office QR's, or the company's address placed on OpenStreetMap once (`feedGeoEnsure`, on the device); Tata Motors' months and the models followed (`S.market`), Tata's plant's calendar; what the widgets read (`feedNews`, `feedWeather`, `mktTataLatest`…) (~1,550 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -1291,6 +1291,13 @@ safe, just to be sure, if someone is updating on the kiosk then auto-reload shou
   each with **Cancel**; **Print it here** / **Print the 3 here**: oldest first, each job taken off the queue (deleted) before its preview
   opens, so the station never prints it too; closing the preview asks *Did it print?*, and **Put it back** writes it back under its own
   name, keeping its place. A job printed here marks no invoice Printed (`_printInvId` cleared).
+- **A job opens only where its document could** (owner, 28 Oct 2026, on Castor's finding that an Office ID's *Print it here* opened a
+  pay slip's wages: *"That's definitely not acceptable"*). Every preview says what its document needs (`printNeed`, print.js: the pages
+  its own screen is on, and wages, money, a permission or the owner, the same gate as that screen), `prtSend` keeps it on the job
+  (`need`), and **Cancel** and **Print it here** reach a job only for an ID whose screens open the same document (`prtJobOpens`,
+  prtlight.js). Another's job is listed as *A document your ID doesn’t open*, with nothing to do, and stays on the queue for the station;
+  a job sent before jobs said so is the owner's. The station prints every job, as before: the paper comes out at the office either way.
+  P247 holds it, and reads every function that opens the print view for its need.
 - **Send to office asks first** where the station is not on (waiting, stuck, unseen, down, off, never: `PRT_ASK_STATES`), over the preview
   (`uiConfirm`'s `altLabel` and `overPrint`): **Print here** prints on this device (a Created invoice marked Printed), **Send anyway**
   sends as before, × sends nothing. On, old, or not known (offline), it sends without asking.

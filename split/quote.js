@@ -206,6 +206,7 @@ function qtPrint(id) {
   body.innerHTML = qtDocHtml(q);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pageClients'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

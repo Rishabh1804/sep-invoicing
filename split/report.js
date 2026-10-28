@@ -616,6 +616,7 @@ function rptPrint() {
   body.innerHTML = rptHtml(p.kind, p.from);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pageReports'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

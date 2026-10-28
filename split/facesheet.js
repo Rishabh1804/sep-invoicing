@@ -198,26 +198,26 @@ function fshVatHtml(iso, line, filled) {
 /* Each duty's paper: its blank sheet and the day as entered. A sheet two duties share prints once (the roll's two sides; the
    pickling sheet carries Material in). `has` says whether the day holds anything for it. */
 var FSH_SHEETS = [
-  { id: 'roll', duties: ['roll-in', 'roll-out'], title: 'The roll, in time and out time',
+  { id: 'roll', duties: ['roll-in', 'roll-out'], title: 'The roll, in time and out time', page: 'pageStaff',
     blank: function(d) { return attSheetShyamHtml(d); },
     filled: function(d) { return attSheetShyamHtml(d, attDay(d, false), 'As entered in the app.'); },
     has: function(d) { var r = attDay(d, false); return !!(r && Object.keys(r.marks || {}).length); } },
-  { id: 'attsheet', duties: ['attsheet'], title: 'The attendance sheet',
+  { id: 'attsheet', duties: ['attsheet'], title: 'The attendance sheet', page: 'pageStaff',
     blank: function(d) { return attSheetDeepakHtml(d, false); }, filled: function(d) { return attSheetDeepakHtml(d, true); },
     has: function(d) { var r = attDay(d, false); return !!(r && Object.keys(r.marks || {}).length); } },
-  { id: 'pickling', duties: ['pickling', 'incoming'], title: 'The pickling sheet',
+  { id: 'pickling', duties: ['pickling', 'incoming'], title: 'The pickling sheet', page: 'pageProduction',
     blank: function(d, ds) { return fshPicklingHtml(d, false, fshPicklingParts(ds)); }, filled: function(d, ds) { return fshPicklingHtml(d, true, fshPicklingParts(ds)); },
     has: function(d, ds) { var p = fshPicklingParts(ds); return (p.loads && fshEntries(d, 'pickled').length > 0) || (p.incoming && fshEntries(d, 'arrived').length > 0); } },
-  { id: 'stock', duties: ['stock'], title: 'The stock message',
+  { id: 'stock', duties: ['stock'], title: 'The stock message', page: 'pageStock',
     // As entered: the stock with its bills and prices for a role that sees money, else the supervisor's own sheet filled (a face
     // never prints a money figure its role does not see).
     blank: function(d) { return stockSheetSupHtml(d, false); },
     filled: function(d) { return grdSeesMoney() ? stockSheetDeepakHtml(d, true) : stockSheetSupHtml(d, true, 'As entered in the app.'); },
     has: function(d) { return (stockData().entries || []).some(function(e) { return e && e.date === d && !e.voided; }); } },
-  { id: 'barrel', duties: ['barrel'], title: 'The barrel batch sheet',
+  { id: 'barrel', duties: ['barrel'], title: 'The barrel batch sheet', page: 'pageProduction',
     blank: function(d) { return fshBarrelHtml(d, false); }, filled: function(d) { return fshBarrelHtml(d, true); },
     has: function(d) { return fshBatches(d).length > 0; } },
-  { id: 'vat', duties: ['vat'], title: 'The VAT register pages',
+  { id: 'vat', duties: ['vat'], title: 'The VAT register pages', page: 'pageProduction',
     blank: function(d) { return FACE_VAT_LINES.map(function(l) { return fshVatHtml(d, l, false); }).join(''); },
     filled: function(d) { return FACE_VAT_LINES.filter(function(l) { return fshVatHas(d, l); }).map(function(l) { return fshVatHtml(d, l, true); }).join(''); },
     has: function(d) { return FACE_VAT_LINES.some(function(l) { return fshVatHas(d, l); }); } }
@@ -249,13 +249,19 @@ function fshFacePrint(kind) {
   var u = faceUser(), day = faceDayIso(), list = fshSheetsOf(u);
   if (kind === 'filled') list = list.filter(function(x) { return x.s.has(day, x.duties); });
   if (!list.length) { showToast(kind === 'filled' ? 'Nothing is entered on ' + formatDate(day) + ' yet' : 'No sheet goes with these duties', 'warning'); return; }
-  fshShow(list.map(function(x) { return x.s[kind === 'filled' ? 'filled' : 'blank'](day, x.duties); }).join(''), (kind === 'filled' ? 'As entered ' : 'Sheets ') + day);
+  // Another ID opens them from the office's queue only where its screens show the same: each sheet's page, and money where the
+  // stock as entered carries its bills and prices (print.js printNeed).
+  var pages = list.map(function(x) { return x.s.page; }).filter(function(p, i, a) { return a.indexOf(p) === i; });
+  var money = kind === 'filled' && list.some(function(x) { return x.s.id === 'stock'; }) && grdSeesMoney();
+  fshShow(list.map(function(x) { return x.s[kind === 'filled' ? 'filled' : 'blank'](day, x.duties); }).join(''), (kind === 'filled' ? 'As entered ' : 'Sheets ') + day,
+    { pages: pages, money: money });
 }
 /* The print view, as the other sheets open it. */
-function fshShow(html, title) {
+function fshShow(html, title, need) {
   document.getElementById('invPrintBody').innerHTML = html;
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed(need);
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
@@ -291,6 +297,6 @@ function fshProdPreview(kind) {
   });
   if (!h) { showToast(filled && left.length ? 'Nothing is entered on ' + formatDate(day) + ' for ' + left.join(', ') : 'Pick at least one sheet', 'error'); return; }
   closeOverlay();
-  fshShow(h, (filled ? 'Production as entered ' : 'Production sheets ') + day);
+  fshShow(h, (filled ? 'Production as entered ' : 'Production sheets ') + day, { pages: ['pageProduction'] });
   if (left.length) showToast('Left out, nothing entered: ' + left.join(', '), 'warning');
 }

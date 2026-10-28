@@ -598,12 +598,16 @@ var KB_APP_GUIDES = [
     '# When the station is not on\n1. Open the station from the light. Tap **Print it here**. Each job comes off the queue first, so the station does not print it too.\n' +
     '2. Print it from the preview, then close the preview. If it did not print, tap **Put it back**. The job goes back in its place.\n' +
     '- To stop a job, tap **Cancel** beside it.\n' +
+    '- **Print it here** and **Cancel** show only for the jobs that your ID opens on its own screens.\n' +
+    '- For example, pay slips need **Pay** and the wages. ID cards are for the owner only.\n' +
+    '- The list shows each other job as **A document your ID doesn’t open**. That job waits for the station.\n' +
     '- If the station is not on when you tap **Send to office**, the app asks first. Tap **Print here** to print on this device, or **Send anyway**.\n\n' +
     '# A new version on the station\n- The station loads a new version of the app by itself. It waits until nothing is typed, open, saving or printing.\n' +
     '- It also waits until 5 minutes after the last touch. So it never reloads while somebody uses it.\n' +
     '- Until it reloads, the light says **Print station on an old build**, in amber.',
     // Version 2: the light on Home, the jobs printed here, and the station's own reload (owner, 28 Oct 2026).
-    { roles: ['office'], version: 2 }),
+    // Version 3: a job printed here only where the ID's own screens open it (owner, 28 Oct 2026).
+    { roles: ['office'], version: 3 }),
   _kbg('sync', 'Setting up: GitHub sync', 'One book on every device: the token, push, pull and what both changed', [],
     'Each device keeps the book. GitHub sync keeps a copy in a private GitHub repository. Then the phone and the desktop use the same book. The copy is also the backup.\n\n' +
     '# Set it up on a device\n1. In GitHub, make a **fine-grained token** for this repository only, with **Contents: Read and write**. Make 1 token for each device. Then, if you lose a phone, you revoke only the token of that phone.\n' +

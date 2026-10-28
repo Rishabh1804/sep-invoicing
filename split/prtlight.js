@@ -31,6 +31,22 @@ function prtLightSees() {
   var u = grdUser();
   return !!u && (u.role === 'owner' || u.role === 'office');
 }
+/* The one signed in may open a waiting job on this device (owner, 28 Oct 2026, of an Office ID opening a pay slip's wages with Print
+   it here: "That's definitely not acceptable"): its document is one their own screens open. The job says what that takes
+   (print.js printNeed, kept by prtSend): the pages its screen is on, and wages, money, a permission or the owner. A job that does
+   not say (sent by a build before jobs did) is the owner's. With the guard off everyone is the owner. */
+function prtJobOpens(need) {
+  if (typeof grdOn !== 'function' || !grdOn()) return true;
+  var u = grdUser();
+  if (!u) return false;
+  if (u.role === 'owner') return true;
+  if (!need || typeof need !== 'object' || need.owner) return false;
+  if ((Array.isArray(need.pages) ? need.pages : []).some(function(p) { return !grdSees(p); })) return false;
+  if (need.wages && !grdSeesWages()) return false;
+  if (need.money && !grdSeesMoney()) return false;
+  if (need.may && !grdCan(need.may)) return false;
+  return true;
+}
 function prtLightLoad() { var r = loadJSON(PRT_LIGHT_KEY, null); return r && typeof r === 'object' ? r : null; }
 function prtLightKeep(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* the device's own, a read again restores it */ } }
 /* A job's own time is its id's first 14 digits (prtSend writes them in UTC). */
@@ -185,7 +201,12 @@ window.addEventListener('offline', function() { if (S) prtLightRedraw(); });
 window.addEventListener('online', function() { if (S) { prtLightRedraw(); prtLightAsk(); } });
 
 /* ---- The station's dialog ---- */
-var _prtLightJobs = {};   // each waiting job's title and sender, read once for the dialog
+var _prtLightJobs = {};   // each waiting job's title, sender and need, read once for the dialog
+/* A waiting job this ID may open here: any, for the owner; for another ID, one read and fitting (prtJobOpens). */
+function prtJobMine(id) {
+  var info = _prtLightJobs[id];
+  return prtJobOpens(info && info.read ? info.need : null);
+}
 function prtLightOpen() {
   // Opened: the blink holds steady until the light gets worse.
   prtLightAck();
@@ -204,7 +225,7 @@ async function prtLightTitles(r) {
     if (_prtLightJobs[j.id]) continue;
     try {
       var d = JSON.parse(await ghRequest(prtJobUrl(cfg, j.id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
-      _prtLightJobs[j.id] = { title: String(d.title || '').slice(0, 120), sentBy: String(d.sentBy || '').slice(0, 80) };
+      _prtLightJobs[j.id] = { title: String(d.title || '').slice(0, 120), sentBy: String(d.sentBy || '').slice(0, 80), need: d.need || null, read: true };
     } catch (e) { _prtLightJobs[j.id] = { title: '', sentBy: '' }; }
   }
 }
@@ -222,15 +243,18 @@ function prtLightDialogInner() {
       sub: old ? 'It reloads itself once nothing is typed or printing' : '', attrs: s.build ? ' title="' + escHtml(s.build) + '"' : '' }));
   }
   var jobs = r && r.ok ? (r.jobs || []) : [];
+  var mine = jobs.filter(function(j) { return prtJobMine(j.id); }).length;
   var list = '';
   if (jobs.length) {
     list = '<div class="inv-field-label inv-mt-8">Waiting · ' + jobs.length + '</div>' + jobs.map(function(j) {
-      var info = _prtLightJobs[j.id] || {}, m = j.at ? (Date.now() - j.at) / 60000 : 0;
+      var info = _prtLightJobs[j.id] || {}, m = j.at ? (Date.now() - j.at) / 60000 : 0, ours = prtJobMine(j.id);
       var tone = m > PRT_STUCK_MIN ? 'danger' : m > PRT_WAIT_MIN ? 'warning' : '';
-      return '<div class="inv-row inv-row-2" data-prt-job="' + escHtml(j.id) + '"><span class="inv-row-main"><span class="inv-row-title"' + (info.sentBy ? ' title="' + escHtml('Sent from ' + info.sentBy) + '"' : '') + '>' +
-        escHtml(info.title || 'A job') + '</span><span class="inv-row-meta">' + escHtml(j.at ? 'Sent ' + prtWhenSaid(j.at) : 'Sent') + ' · ' +
+      // A job this ID does not open: listed, so the count adds up, without its title; it stays on the queue for the station.
+      var title = info.read && !ours ? 'A document your ID doesn’t open' : info.title || 'A job';
+      return '<div class="inv-row inv-row-2" data-prt-job="' + escHtml(j.id) + '"' + (info.read && !ours ? ' data-prt-closed' : '') + '><span class="inv-row-main"><span class="inv-row-title"' + (info.sentBy ? ' title="' + escHtml('Sent from ' + info.sentBy) + '"' : '') + '>' +
+        escHtml(title) + '</span><span class="inv-row-meta">' + escHtml(j.at ? 'Sent ' + prtWhenSaid(j.at) : 'Sent') + ' · ' +
         (tone ? '<span class="inv-fig-' + tone + '">' : '') + escHtml('waiting ' + prtMinSaid(m)) + (tone ? '</span>' : '') + '</span></span>' +
-        '<span class="inv-row-end"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPrtLightCancel" data-id="' + escHtml(j.id) + '">Cancel</button></span></div>';
+        (ours ? '<span class="inv-row-end"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPrtLightCancel" data-id="' + escHtml(j.id) + '">Cancel</button></span>' : '') + '</div>';
     }).join('');
   }
   return '<div class="inv-dialog" data-prt-dialog role="dialog" aria-modal="true" aria-labelledby="prtLightT">' +
@@ -238,7 +262,7 @@ function prtLightDialogInner() {
     '<div class="inv-dialog-body">' + rows.join('') + list +
       '<p class="inv-note inv-mt-8">The station checks in every 10 minutes. It cannot see the printer’s paper or toner.</p></div>' +
     '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-link" data-action="invPrtGuide">Setting up the printer</button>' +
-      (jobs.length ? '<button type="button" class="inv-btn inv-btn-primary" data-action="invPrtHere">' + escHtml(jobs.length === 1 ? 'Print it here' : 'Print the ' + jobs.length + ' here') + '</button>' : '') +
+      (mine ? '<button type="button" class="inv-btn inv-btn-primary" data-action="invPrtHere">' + escHtml(mine === 1 ? 'Print it here' : 'Print the ' + mine + ' here') + '</button>' : '') +
     '</div></div>';
 }
 /* A waiting job cancelled from the dialog: taken off the queue (remoteprint.js prtCancel), then the light read again. */
@@ -252,20 +276,31 @@ function prtLightCancel(id) {
    goes back on the queue under its own name, so it keeps its place. Then the next, oldest first. */
 var _prtHere = null;   // {left: jobs still to take, job: {id, data} taken off the queue and not yet settled}
 function prtHereStart() {
-  var r = prtLightLoad(), n = r && r.ok && r.jobs ? r.jobs.length : 0;
-  if (!n) { showToast('Nothing is waiting at the office', 'info'); return; }
+  var r = prtLightLoad(), all = r && r.ok && r.jobs ? r.jobs : [], n = all.filter(function(j) { return prtJobMine(j.id); }).length;
+  if (!n) { showToast(all.length ? 'Your ID doesn’t open the jobs waiting' : 'Nothing is waiting at the office', 'info'); return; }
   closeOverlay();
-  _prtHere = { left: n, job: null };
+  _prtHere = { left: n, job: null, skip: {} };
   prtHereNext();
 }
 async function prtHereNext() {
   if (!_prtHere || _prtHere.left <= 0) { _prtHere = null; prtLightRead(true).catch(function() {}); return; }
   var cfg = getGhConfig(), job = null, data = null;
   try {
-    job = (await prtList(cfg))[0];
-    if (!job) { _prtHere = null; showToast('Nothing is waiting now: the station took them', 'success'); prtLightRead(true).catch(function() {}); return; }
-    data = JSON.parse(await ghRequest(prtJobUrl(cfg, job.id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
-    if (!data || data.kind !== 'sep-print' || typeof data.html !== 'string') throw new Error('the job could not be read.');
+    var list = await prtList(cfg), left = 0;
+    for (var i = 0; i < list.length && !job; i++) {
+      if (_prtHere.skip[list[i].id]) { left++; continue; }
+      var d = JSON.parse(await ghRequest(prtJobUrl(cfg, list[i].id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }));
+      if (!d || d.kind !== 'sep-print' || typeof d.html !== 'string') throw new Error('the job could not be read.');
+      // A job whose document this ID does not open stays on the queue for the station: never drawn here (prtJobOpens).
+      if (!prtJobOpens(d.need)) { _prtHere.skip[list[i].id] = true; left++; continue; }
+      job = list[i]; data = d;
+    }
+    if (!job) {
+      _prtHere = null;
+      showToast(left ? 'The jobs left are not yours to open: they wait for the station' : 'Nothing is waiting now: the station took them', left ? 'info' : 'success');
+      prtLightRead(true).catch(function() {});
+      return;
+    }
     await prtDelete(cfg, job, 'Taken to print on ' + prtSenderName() + ': ' + String(data.title || job.id).slice(0, 100));
   } catch (e) {
     _prtHere = null;
@@ -282,6 +317,7 @@ async function prtHereNext() {
 function prtHereShow(held) {
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   _printInvId = null;   // a job from the queue is no invoice of this preview's: its Print marks nothing Printed here
+  printNeed(held.data.need);   // sent to the office again, it keeps what it needs
   body.innerHTML = prtClean(held.data.html);
   view.classList.add('inv-print-view-active');
   document.body.style.overflow = 'hidden';

@@ -720,6 +720,13 @@ function plnDayHtml() {
 }
 
 /* ---------- Plant: what each line can do, the machines, an upgrade tree per station ---------- */
+/* Where pickling's figure comes from: set, or assumed from today's kilos on the tanks working today (pltCapacity), never scaled by
+   them, so a tank brought back adds its share of that assumed rate (Vulcanus L-4, 28 Oct 2026). */
+function plnPickSrc(B) {
+  if (B.pick.src === 'set') return 'set by you';
+  var u = B.pick.units;
+  return 'assumed: today’s kilos with a tenth to spare' + (u && u.n ? ', on the ' + u.nAvail + ' of ' + u.n + ' tanks working' : '');
+}
 function plnPlantHtml() {
   var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], B = P.B, sc = P.sc;
   var srcOf = function(l) { var L = B.lines[l], u = L.units, w = u && u.nAvail < u.n ? u.nAvail + ' of ' + u.n + ' units working; ' : ''; return w + (L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : L.fitted ? 'assumed, its kilos a round raised to what the book plated: no register read for this line' : 'assumed: no register read for this line'); };
@@ -734,7 +741,7 @@ function plnPlantHtml() {
           formatNum(x.kgRound, 0) + ' kg a round every ' + formatNum(x.every, 0) + ' min', srcOf(l)],
         end: '<span class="inv-num">' + formatNum(x.kgH, 0) + ' kg/h</span>' });
     }).join('') +
-      plnRowHtml({ key: 'pl-line-pick', title: 'Pickling', facts: [plnKg(mo.pickCap) + ' it can feed', plnHm(mo.pickH) + ' h', B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare'],
+      plnRowHtml({ key: 'pl-line-pick', title: 'Pickling', facts: [plnKg(mo.pickCap) + ' it can feed', plnHm(mo.pickH) + ' h', plnPickSrc(B)],
         end: '<span class="inv-num">' + formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg/h</span>' }) +
       plnRowHtml({ key: 'pl-line-cuts', title: 'Power cuts', facts: [formatNum(B.cutMin, 0) + ' min a working day, the Power tab'], end: '<span class="inv-num">' + formatNum(mo.cutH * 60, 0) + ' min</span>' }) + '</div>';
     return h0 + '<div class="inv-panels">' + plnMachinesHtml() + plnRepairsHtml(P) + '</div><div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
@@ -746,7 +753,7 @@ function plnPlantHtml() {
         '<td class="inv-num">' + formatNum(x.kgH, 0) + '</td><td class="inv-num">' + escHtml(plnKg(x.plated)) + (x.demand > x.plated + 1 ? '<div class="inv-row-meta inv-row-wrap inv-num-neg">' + escHtml('of ' + plnKg(x.demand)) + '</div>' : '') + '</td>' +
         '<td class="inv-num">' + plnHm(x.hours) + (x.need > x.hours + 0.01 ? '<div class="inv-row-meta inv-row-wrap inv-num-neg">' + plnHm(x.need - x.hours) + ' short</div>' : '') + '</td></tr>';
     }).join('') +
-    '<tr><td>Pickling<div class="inv-row-meta inv-row-wrap">' + escHtml(B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare') + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
+    '<tr><td>Pickling<div class="inv-row-meta inv-row-wrap">' + escHtml(plnPickSrc(B)) + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
       '<td class="inv-num">' + escHtml(plnKg(mo.pickCap)) + ' it can feed</td><td class="inv-num">' + plnHm(mo.pickH) + '</td></tr>' +
     '<tr><td>Power cuts<div class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(B.cutMin, 0) + ' min a working day in working hours, the Power tab') + '</div></td><td class="inv-num" colspan="5">' + escHtml(formatNum(mo.cutH * 60, 0) + ' min a day lost') + '</td></tr></tbody></table></div></div>';
   h += '<div class="inv-panels">' + plnMachinesHtml() + plnRepairsHtml(P) + '</div>';

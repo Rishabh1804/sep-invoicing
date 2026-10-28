@@ -167,6 +167,14 @@ test.describe('P245 the planner’s options and the units down', () => {
     expect(r.typed).toBeGreaterThan(0);
   });
 
+  test('pickling’s row names the tanks its assumed rate stands on', async ({ page }) => {
+    const s: any = book();
+    const p = (id: string, status: string) => ({ id, name: 'Pickling ' + id, station: 'pick', kind: 'tank', status, since: todayIso(), condition: 'fair', addedOn: todayIso(), at: Date.now() });
+    s.plant.units.push(p('PU-10', 'run'), p('PU-11', 'run'), p('PU-12', 'down'));
+    await loadAppWithState(page, s);
+    expect(await g(page, `plnPickSrc(plnBase())`)).toBe('assumed: today’s kilos with a tenth to spare, on the 2 of 3 tanks working');
+  });
+
   test('acid recovery adds nothing until its figures are set, then the acid and the spent acid it saves', async ({ page }) => {
     await loadAppWithState(page, book(false));
     const r: any = await g(page, `(function () {

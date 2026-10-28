@@ -758,7 +758,8 @@ function attEditHtml() {
    marked the hand differently before either saw the other (merge.js mrgDeep). The owner uses it or keeps the one standing;
    anyone else is told whose version stands and that the owner decides (owner, 28 Oct 2026: "keep both versions"). */
 function attWhoHtml(m, sid) {
-  var who = m && typeof tagWho === 'function' ? tagWho(m) : '';
+  // A mark from before the stamps keeps the ID that typed it, if it was typed by hand (`by`, _attHandEdit).
+  var who = m && typeof tagWho === 'function' ? tagWho(m) || (m.by != null && typeof tagName === 'function' ? 'Typed by ' + tagName(m.by) : '') : '';
   var held = typeof mrgHeldFor === 'function' ? mrgHeldFor('attendance', _attDate, 'marks.' + sid) : [];
   var owner = !(typeof grdOn === 'function' && grdOn()) || (typeof grdIsOwner === 'function' && grdIsOwner());
   var h = who ? '<div class="inv-note" data-att-who>' + escHtml(who) + '</div>' : '';

@@ -404,17 +404,32 @@ function tagOnSave() {
   if (!S) return;
   if (!_tag || _tag.of !== S) { tagBaseline(); return; }
   var by = chgBy(), at = Date.now(), prev = _tag.recs, next = new Map();
+  // An EXTRA row is keyed by its string, so an edit is one row gone and one not seen before. A day's rows gone this save are
+  // counted, and a new unstamped row on a day that lost one is that row changed (one from before the build keeps no
+  // "entered"), never entered by whoever edited it.
+  var gone = {};
+  if (by != null) {
+    var now = new Set();
+    tagEach(function(k) { if (k.charAt(0) === 'x') now.add(k); });
+    prev.forEach(function(v, k) {
+      if (k.charAt(0) !== 'x' || now.has(k)) return;
+      var day = k.split('|')[1];
+      gone[day] = (gone[day] || 0) + 1;
+    });
+  }
   tagEach(function(k, r) {
     var str = tagStrip(r);
     next.set(k, str);
     if (by == null || prev.get(k) === str) return;
     var stamp = { by: by, at: at };
     // A record seen before and different now is changed (one from before the build keeps no "entered"). A record not seen
-    // before is entered, unless it came stamped (an import's, a copy's). An EXTRA row is keyed by its string, so a changed row
-    // is one not seen before that carries a stamp.
-    if (prev.has(k)) r.tagCh = stamp;
-    else if (!r.tagIn) r.tagIn = stamp;
-    else if (k.charAt(0) === 'x') r.tagCh = stamp;
+    // before is entered, unless it came stamped (an import's, a copy's), or it is an EXTRA row standing in for one gone.
+    if (prev.has(k)) { r.tagCh = stamp; return; }
+    if (k.charAt(0) === 'x') {
+      var day = k.split('|')[1];
+      if (r.tagIn || gone[day] > 0) { if (gone[day] > 0) gone[day]--; r.tagCh = stamp; return; }
+    }
+    if (!r.tagIn) r.tagIn = stamp;
   });
   _tag.recs = next;
 }

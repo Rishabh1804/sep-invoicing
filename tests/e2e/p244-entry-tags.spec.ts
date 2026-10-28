@@ -13,7 +13,8 @@ const book = () => {
     { id: 22, name: 'BRAVO DAS', comp: 'monthly', dayRate: 500, area: 'vat-a2', onFloor: true, active: true }];
   // An entry and a day from before the stamps: never stamped by a save that does not change them.
   s.production = { entries: [{ id: 'PE-old', kind: 'plated', date: todayIso(), line: 'vat-a1', qty: 100, unit: 'NOS', at: recentTs(), by: 'Typed name' }] };
-  s.attendance = { '2026-10-01': { marks: { 21: { st: 'P', area: 'vat-a1', hours: 8 } }, extra: [], note: '' } };
+  s.attendance = { '2026-10-01': { marks: { 21: { st: 'P', area: 'vat-a1', hours: 8 }, 22: { st: 'P', area: 'vat-a2', hours: 8, by: 'U-own' } },
+    extra: [{ area: 'vat-a1', hours: 8, kind: 'general' }], note: '' } };
   return s;
 };
 
@@ -34,6 +35,11 @@ test('a stock entry, a production entry, a mark and an EXTRA row carry the ID th
   // What was in the book before is never stamped as the supervisor's.
   expect((t as any).old).toBeNull();
   expect((t as any).oldMark).toBeNull();
+  // An EXTRA row from before the stamps, edited: changed by the editor, never entered by them.
+  await ev(page, `S.attendance['2026-10-01'].extra[0].hours = 16; saveState()`);
+  const ox = await ev(page, `S.attendance['2026-10-01'].extra[0]`);
+  expect((ox as any).tagIn).toBeUndefined();
+  expect((ox as any).tagCh.by).toBe('U-sup');
   // The owner changes the mark and voids the stock entry: each says who changed it, the entry keeps who entered it.
   await lockNow(page);
   await unlock(page, 'U-own', PINS.owner);
@@ -51,6 +57,9 @@ test('a stock entry, a production entry, a mark and an EXTRA row carry the ID th
   await openAttendance(page, 'day');
   await ev(page, `attEditOpen(21)`);
   await expect(page.locator('[data-att-who]')).toHaveText(/^Entered by Birsa Munda · changed by Asha Rao, /);
+  // A mark from before the stamps, typed by hand, says the ID that typed it.
+  await ev(page, `closeOverlay(); _attDate = '2026-10-01'; attEditOpen(22)`);
+  await expect(page.locator('[data-att-who]')).toHaveText('Typed by Asha Rao');
 });
 
 test('two phones marking different hands on one day are both kept; one hand marked differently keeps both versions for the owner', async ({ page }) => {

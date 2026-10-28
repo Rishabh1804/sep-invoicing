@@ -764,6 +764,7 @@ function prodEntryKv(e) {
     kv.push(['Client', e.clientId != null ? prodClientName(e.clientId) || e.client || '' : (e.client ? e.client + ', not in the book' : 'Not written')]);
     if (e.part || e.partNumber) kv.push(['Part', [e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '', e.gauge].filter(Boolean).join(' · ')]);
     kv.push(['Quantity', prodQtyText(e.qty, e.unit) + (e.qty2 != null ? ' · ' + prodQtyText(e.qty2, e.unit2) : '')]);
+    if (e.barrels) kv.push(['Barrels', String(e.barrels)]);
     var w = e.unit === 'NOS' ? prodWeigh(e) : null;
     if (w) kv.push(['Weight', w.kg == null ? 'Not weighed' : prodKgFig(w.kg, prodWeighEst(w)) + ({ written: ', written', record: ', on record', challans: ', from the challans', kind: ', by the kind of part', 'default': ', at the client’s default' }[w.how] || '')]);
     if (e.rackSize) kv.push(['Rack', e.rackSize + (e.racks ? ' × ' + e.racks : '')]);
@@ -1156,7 +1157,7 @@ function prodSaveReview() {
     }
     var e = { id: prodUid('PE'), kind: it.kind, date: it.date, time: it.time, to: it.to, slot: it.slot || (it.kind === 'plated' ? 'general' : null),
       line: it.kind === 'plated' ? (r.line || it.line || null) : null, clientId: r.clientId != null ? r.clientId : null, client: it.client, part: it.part, gauge: it.gauge,
-      qty: it.qty, unit: it.unit, qty2: it.qty2, unit2: it.unit2, qtySrc: it.qtySrc, rework: it.rework, downtime: it.downtime,
+      qty: it.qty, unit: it.unit, qty2: it.qty2, unit2: it.unit2, qtySrc: it.qtySrc, barrels: it.barrels || undefined, rework: it.rework, downtime: it.downtime,
       basis: it.basis || (it.kind === 'pickled' ? 'pickling' : it.kind === 'arrived' ? 'floor-in' : 'relay'), src: 'paste', raw: it.raw, n: it.n,
       pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
     if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;

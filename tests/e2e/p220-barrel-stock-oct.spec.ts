@@ -125,6 +125,43 @@ Unlod time 10:00am
     expect(old[0].notes.length).toBeGreaterThan(0);
   });
 
+  test('a part code before the barrel count is the group client\'s; what follows the count is another client\'s lot', async ({ page }) => {
+    await load(page);
+    const d = when(-1);
+    const m = await read(page, `${d.dmy}, 6:02 pm - Supervisor: ${d.dmy}/ BERRAL PRODUCTION
+------------------------------------
+DURGA 7314-110 KG 10:20 AM UNLOAD
+------------------------------------
+0777-2 BERRAL+ KESTREL 50 KG
+UNLOAD TIMING 2:40 PM
+------------------------------------
+KESTREL 150 KG 4:10 PM UNLOAD
+------------------------------------
+NOVA 2 BERRAL 48 KG 5:30 PM UNLOAD
+------------------------------------`);
+    const it = m[0].items;
+    // Read as one item, the second line had been DURGA's 50 kg under the part "0777-2 BERRAL+ KESTREL", its two barrels
+    // counted for nothing and KESTREL's lot taken from them. Now: two barrels of DURGA's 0777 with no figure, asked, and
+    // KESTREL's 50 kg, both out at 2:40; a bare figure after a count is those barrels' own weight.
+    expect(it.map((x: any) => [x.clientId, x.part, x.qty, x.unit, x.to])).toEqual([
+      [12, '7314', 110, 'KG', '10:20'],
+      [12, '0777', null, null, '14:40'], [13, '', 50, 'KG', '14:40'],
+      [13, '', 150, 'KG', '16:10'],
+      [11, '', 48, 'KG', '17:30']]);
+    expect(it[1].codes).toContain('amber:barrels');
+    expect(it[2].codes).not.toContain('amber:barrels');
+    expect(it[4].codes).not.toContain('amber:barrels');
+    const raw = await page.evaluate((t) => {
+      const ev = (0, eval);
+      return ev('parseProdPaste')(t, ev('prodCtx()'))[0].read.items.map((x: any) => x.barrels || null);
+    }, `${d.dmy}, 6:02 pm - Supervisor: ${d.dmy}/ BERRAL PRODUCTION
+------------------------------------
+0777-2 BERRAL+ KESTREL 50 KG
+UNLOAD TIMING 2:40 PM
+------------------------------------`);
+    expect(raw).toEqual([2, null]);
+  });
+
   test('stock lines: a use by bath with its total, by time of day, a minus typed for "=", a name before two figures', async ({ page }) => {
     await load(page);
     expect(await line(page, '106 70 KG USE V A 1 30 KG +V A 2 20 KG= 50 KG 70-50=20 KG AVAILABLE'))

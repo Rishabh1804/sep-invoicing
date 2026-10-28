@@ -35,7 +35,8 @@ split/
 ├── im.js                 ← Incoming Material list + selection
 ├── autocomplete.js       ← Part autocomplete + shared suggestion keyboard cursor
 ├── print.js              ← formatInvoiceData + print preview/print
-├── remoteprint.js        ← the office printer: a preview sent as a job over GitHub sync, printed by the print station
+├── remoteprint.js        ← the office printer: a preview sent as a job over GitHub sync, printed by the print station; its check-in
+├── prtlight.js           ← the print station's light on Home: its check-in and the queue read, the state worked out, the dialog
 ├── quality-cert.js       ← Test Certificate (ZN Plating): TML-approved format, per-line certs
 ├── credit-note.js        ← Credit notes: batch discount, own CN series, CDNR export
 ├── charts.js             ← Reusable SVG charts: line, bar, pie, ranked bars

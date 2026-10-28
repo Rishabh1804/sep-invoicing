@@ -913,6 +913,9 @@ var APP_BUILD = (function() {
 var UPDATE_CHECK_GAP_MS = 5 * 60 * 1000;
 var _updateCheckedAt = 0;
 var _updateDismissed = null;
+// The build published, as version.json last said (the print station's light judges the station's build against it, and the station
+// reloads itself to it: remoteprint.js, prtlight.js). Empty until it has been read.
+var _liveBuild = '';
 
 // Resolves to 'newer' (banner shown), 'current', or 'unknown' (offline, or an
 // unbuilt copy that carries no stamp). The three are kept apart so a manual
@@ -927,11 +930,22 @@ function checkForUpdate(force) {
     .then(function(v) {
       var build = v && typeof v.build === 'string' ? v.build : '';
       if (!build) return 'unknown';
+      _liveBuild = build;
       if (build === APP_BUILD) return 'current';
       if (force || build !== _updateDismissed) showUpdateBanner(build);
       return 'newer';
     })
     .catch(function() { return 'unknown'; });
+}
+
+/* The build published, read again with no banner: the print station's light reads it with each look (prtlight.js), so a station that
+   has reloaded to a build this device has not yet heard of is never called old. */
+function liveBuildRead() {
+  if (APP_BUILD === 'dev') return Promise.resolve(_liveBuild);
+  return fetch('version.json', { cache: 'no-store' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(v) { if (v && typeof v.build === 'string' && v.build) _liveBuild = v.build; return _liveBuild; })
+    .catch(function() { return _liveBuild; });
 }
 
 function showUpdateBanner(build) {
@@ -941,9 +955,13 @@ function showUpdateBanner(build) {
   bar.className = 'inv-update-bar';
   bar.setAttribute('role', 'status');
   bar.dataset.build = build;
+  // The print station reloads itself once nothing is typed, saving or printing (owner, 28 Oct 2026: "if someone is updating on the
+  // kiosk then auto-reload should not happen without the work being saved"; remoteprint.js prtReloadMaybe): its banner says so.
+  var station = typeof prtIsStation === 'function' && prtIsStation();
   bar.innerHTML =
-    '<span class="inv-update-text">A newer version is available. Reload to update &mdash; ' +
-    'finish anything half-typed first.</span>' +
+    '<span class="inv-update-text">' + (station
+      ? 'A newer version is available. This print station reloads itself once nothing is typed, saving or printing and it has been left alone for 5 minutes.'
+      : 'A newer version is available. Reload to update &mdash; finish anything half-typed first.') + '</span>' +
     '<span class="inv-update-actions">' +
     '<button class="inv-btn inv-btn-ghost inv-update-btn" data-action="invDismissUpdate">Later</button>' +
     '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invReloadForUpdate">Reload</button>' +

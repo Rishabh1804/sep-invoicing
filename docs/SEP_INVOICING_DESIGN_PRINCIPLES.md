@@ -301,7 +301,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 - Scrim: `--scrim: rgb(0 0 0 / 0.45)` (one token; v1.0 had four raw values).
 - Hairlines (§5.2): `--hair: 1px` every divider, control edge and tile gap · `--rule: 2px` an accent rule, a chevron's stroke.
 - Motion: `--dur-1: 120ms` (hover, press, toggle) · `--dur-2: 200ms` (panels, dialogs, tab switch, a two-faced dialog
-  turning) · `--perspective: 75rem` (the turn's depth) ·
+  turning) · `--perspective: 75rem` (the turn's depth) · `--dur-blink: 1s` (a lamp's blink, once a second, under WCAG's three
+  flashes a second: the print station's light, red, until it is opened; `inv-blink`, §6.36) ·
   `--ease: cubic-bezier(.2,.7,.2,1)`. All motion sits inside `@media (prefers-reduced-motion: no-preference)`.
   Tab changes may use the View Transitions API as a progressive enhancement; nothing depends on it.
 - z-index tokens: `--z-bar 20 · --z-dropdown 50 · --z-scrim 100 · --z-dialog 200 ·
@@ -1355,13 +1356,21 @@ Home's verdict, drawn flat on the page under the top bar: never a card and never
 data-tone>`, its parts in one order (P239):
 - **the date** (`inv-mast-date`): *Good afternoon, <name> · Saturday, 17 October*, 12 px semibold `--text-2`;
 - **the sentence** (`inv-mast-say`): its lamp and **one lead, the first thing to do** (`homeMastLead`; owner, 21 Oct 2026: *"Lead
-  with the first move"*; UI pass 3 §25e): money in danger (overdrawn, or cash below zero within 14 days); else the red move worth most
-  across the questions, its words a button that opens the move's dialog (`inv-mast-lead`, read as the sentence); else the things that
-  need you now, counted; else the amber move worth most; else a fact of the day; else *Nothing needs you now*. A *to know* move never
-  leads. 22 px semibold (19 on the phone), at most 60 characters; it wraps under its own first word beside its lamp, never leaving the
+  with the first move"*; UI pass 3 §25e): money in danger (overdrawn, or cash below zero within 14 days); else **the print station red
+  with a job waiting** (owner, 28 Oct 2026; its words a button that opens the station's dialog, `data-home-lead="station"`, its own
+  button *See the job* or *See the 3 jobs*); else the red move worth most across the questions, its words a button that opens the
+  move's dialog (`inv-mast-lead`, read as the sentence); else the things that need you now, counted; else the amber move worth most;
+  else a fact of the day (a line half down, or the print station amber or red); else *Nothing needs you now*. A *to know* move never
+  leads, and neither does the print station on or off: it is a fact, not news. 22 px semibold (19 on the phone), at most 60 characters; it wraps under its own first word beside its lamp, never leaving the
   lamp alone on a line. The masthead's tone is its lead's;
-- **the facts** (`inv-mast-facts`): a line half down where it is not the lead, then the weather now where it is known (the place
-  typed, the Office QR's, or the company's address placed on the map), each led by its lamp or icon; none, and the list is left out;
+- **the facts** (`inv-mast-facts`): a line half down where it is not the lead (two at most), then **the print station's light** where
+  it is not the lead (prtlight.js: the owner's and the office's, while the office printer is on; *Print station on · seen 4:22 PM*,
+  *Print station not seen since 11:50 AM*, *Print station off since 5:10 PM*, *Print station on · 2 jobs waiting, the oldest 12 min*,
+  *Print station: can’t check offline*; its words a bare button, `inv-mast-fact`, read as the fact, that opens the station's dialog),
+  then the weather now where it is known (the place typed, the Office QR's, or the company's address placed on the map), each led by
+  its lamp or icon; none, and the list is left out. **Only red moves** (`inv-blink`): the lamp's dot, never its words, once a second
+  (`--dur-blink`), until the station's dialog is opened and again when it gets worse (a job more, another hour unseen); never for
+  reduced motion (WCAG 2.2.2: a blink over five seconds needs a stop, and opening it is the stop);
 - **the Act** (`inv-mast-act`): the lead's own one button, tinted (*Open Money*, the move's own action with `data-home-lead="move"`, or
   **Open Needs you**, `data-home-needs`); on the desktop, beside a lead that is not the count, *N things need you now* as a link to
   Needs you; on the phone the board's tools (Customise as an icon, then More), flat ghost buttons at the row's end, in place of the

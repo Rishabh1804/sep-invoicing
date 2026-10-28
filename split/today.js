@@ -540,6 +540,9 @@ function homeDayFacts() {
       } catch (e) { /* the plant register says what went wrong */ }
     });
   }
+  // The print station's light (prtlight.js; owner, 28 Oct 2026): the owner's and the office's, while the office printer is on.
+  var prt = typeof prtLightFact === 'function' ? prtLightFact() : null;
+  if (prt) out.push(prt);
   return out;
 }
 /* The one thing the masthead leads with: money in danger first (it opens Money); else the red move worth most across every
@@ -554,6 +557,11 @@ function homeMastLead() {
     return { tone: 'danger', text: money.text, html: escHtml(money.text), facts: rest, red: red,
       act: '<button type="button" class="inv-btn inv-btn-tint" data-action="invSwitchTab" data-tab="pageFinance" data-home-lead="money">' + escHtml(money.label) + '</button>' };
   }
+  // The print station red with a job waiting (prtlight.js; owner, 28 Oct 2026: after money in danger, before the red move): a
+  // dispatch can wait on that paper within minutes. Its words open the station's dialog, and so does its button; the count beside it
+  // leaves out its own task. It blinks until it is opened.
+  var prt = rest.filter(function(f) { return f.station && f.lead; })[0];
+  if (prt) return homeMastPrtLead(prt, rest.filter(function(f) { return f !== prt; }), red, 'danger');
   // The moves across the questions, worth most first (tdyFirstMoves); the masthead takes the first that asks for something today,
   // red before amber, whatever a "to know" move is worth: a backup reminder never leads over a stock line out.
   var moves = tdySeesMoney() ? tdyFirstMoves(tdyQuestions(), 99).map(function(x) { return x.mv; }) : [];
@@ -569,16 +577,31 @@ function homeMastLead() {
   if (red) return { tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now', html: escHtml(todoPlural(red, 'thing needs', 'things need') + ' you now'), facts: rest, red: 0, act: needs('Open Needs you') };
   var a = first('amber');
   if (a) return lead(a);
-  // Nothing to do: a fact of the day (a line half down) is the sentence, else the day is clear.
-  if (rest.length) return { tone: rest[0].tone, text: rest[0].text, html: escHtml(rest[0].text), facts: rest.slice(1), red: 0, act: '' };
-  return { tone: 'ok', text: 'Nothing needs you now', html: escHtml('Nothing needs you now'), facts: [], red: 0, act: '' };
+  // Nothing to do: a fact of the day (a line half down, the print station amber or red) is the sentence, else the day is clear. The
+  // station on or off never leads: it is a fact, not news.
+  var day = rest.filter(function(f) { return !f.station || f.tone === 'warning' || f.tone === 'danger'; })[0];
+  if (day && day.station) return homeMastPrtLead(day, rest.filter(function(f) { return f !== day; }), 0, day.tone);
+  if (day) return { tone: day.tone, text: day.text, html: escHtml(day.text), facts: rest.filter(function(f) { return f !== day; }), red: 0, act: '' };
+  // The print station on or off is still said among the facts (prtlight.js): nothing else is left here to say.
+  return { tone: 'ok', text: 'Nothing needs you now', html: escHtml('Nothing needs you now'), facts: rest, red: 0, act: '' };
+}
+/* The print station leading the masthead (prtlight.js): its words a button opening its dialog, its own button the jobs' (red, a job
+   waiting), the count beside it without its own task. */
+function homeMastPrtLead(f, facts, red, tone) {
+  var mine = tdyTasks().some(function(r) { return r.tone === 'red' && r.app && r.app.rule === 'prtStation'; });
+  return { tone: tone, text: f.text, facts: facts, red: Math.max(0, red - (mine ? 1 : 0)), blink: f.blink, station: true,
+    html: '<button type="button" class="inv-mast-lead" data-action="invPrtLight" data-home-lead="station" title="Open the print station">' + escHtml(f.text) + '</button>',
+    act: f.jobs ? '<button type="button" class="inv-btn inv-btn-tint" data-action="invPrtLight" data-home-lead="station">' + escHtml(f.jobs === 1 ? 'See the job' : 'See the ' + f.jobs + ' jobs') + '</button>' : '' };
 }
 var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
 function homeMastHtml() {
   var now = new Date(), lead = homeMastLead(), wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
-  // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span).
-  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + '">' + (/^<button/.test(lead.html) ? lead.html : '<span>' + lead.html + '</span>') + '</p>';
-  var items = lead.facts.slice(0, 2).map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
+  // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span). The print station
+  // leading it red blinks its lamp until it is opened (prtlight.js).
+  var say = '<p class="inv-mast-say inv-dot inv-dot-' + uiTone(lead.tone) + (lead.blink ? ' inv-blink' : '') + '">' + (/^<button/.test(lead.html) ? lead.html : '<span>' + lead.html + '</span>') + '</p>';
+  // The plant's facts (two at most), then the print station's light, then the weather.
+  var items = lead.facts.filter(function(f) { return !f.station; }).slice(0, 2).map(function(f) { return '<li class="inv-dot inv-dot-' + uiTone(f.tone) + '">' + escHtml(f.text) + '</li>'; });
+  lead.facts.filter(function(f) { return f.station; }).forEach(function(f) { items.push(prtLightFactHtml(f)); });
   if (wx) items.push('<li data-home-wx>' + wx + '</li>');
   // How many things need you now (the red ones, the Needs you tab's badge), a link to them; said once, so never beside a lead that
   // is that count. On the phone the board's tools take its place at the act row's end (owner, 21 Oct 2026: "move the layout option
@@ -632,11 +655,14 @@ function homeClockStart() {
   if (!homeClockShown()) return;
   homeClockTick();
   homeFeedsAsk();
+  if (typeof prtLightAsk === 'function') prtLightAsk();
   var wait = 60000 - (Date.now() % 60000);
   _homeClockT = setTimeout(function next() {
     homeClockTick();
     if (_homeClockT === null) return;   // Home went out of view: the tick stopped the clock, and nothing is asked
     homeFeedsAsk();
+    // The print station's light reads again every 2 minutes while Home shows (prtlight.js).
+    if (typeof prtLightAsk === 'function') prtLightAsk();
     _homeClockT = setTimeout(next, 60000 - (Date.now() % 60000));
   }, wait);
 }

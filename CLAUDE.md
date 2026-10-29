@@ -295,8 +295,11 @@ recorder waits on a snapshot the page never takes, so the navigation's answer co
 renderer (Chromium 141) shows its main thread laying out text in a web font that is still loading and waiting on the Linux font service
 (`FontServiceThread::FontRenderStyleForStrike`). That request needs one of the renderer's three thread-pool workers, and all three are
 parked in V8's `CollectionBarrier`, waiting for the main thread to collect garbage. Web fonts make Blink build font data during boot
-while V8 compiles the app's script in the background, which is why it began with Geist under test. It has not shown on CI (Chromium
-147), and Android and Windows have no Linux font service. Run that one test again before reading the failure as yours.
+while V8 compiles the app's script in the background, which is why it began with Geist under test. **It showed on CI once**, 29 Oct
+2026 (Chromium 147 on a Linux runner): P73 on the phone, in half 2 of `979573c`. That half's `playwright-traces-2` artifact held its
+trace: the navigation's own call ended, the test's never did, the last frame was the shell with no board, and closing reported the same
+unbound response. The test passed on the next commit. Android and Windows have no Linux font service. Run that one test again before
+reading the failure as yours.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never

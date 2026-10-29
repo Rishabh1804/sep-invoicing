@@ -966,13 +966,14 @@ wdgDefine({ id: 'floornow', title: 'The floor now', short: 'Floor now', q: 'Who 
     // The day in lanes once anything is recorded: before that it is an empty clock.
     var strip = d.none ? '' : wcDayLanesHtml(d.day);
     if (size !== 'l') return strip + rows;
-    // The units not working on each line (the plant register, as found on the day), and the EXTRA booked: the day's whole, by line.
-    var nUnits = 0, nDown = 0, half = false, words = [];
-    d.F.lines.forEach(function(x) {
-      var cap = pltCapacity(x.ln.id, d.day);
+    // The units not working on each line and on pickling (the plant register, as found on the day), and the EXTRA booked: the
+    // day's whole, by line. Pickling has no row here, so its tanks are counted from the lines' list (Vulcanus L-5, 29 Oct 2026:
+    // they had been left out, the register's station being pick).
+    var nUnits = 0, nDown = 0, half = d.F.lines.some(function(x) { return x.j.ef && x.j.ef.halfDown; }), words = [];
+    FLR_LINES.forEach(function(ln) {
+      var cap = pltCapacity(pltLineStation(ln.id), d.day);
       if (!cap.n) return;
       nUnits += cap.n; nDown += cap.down.length;
-      if (x.j.ef && x.j.ef.halfDown) half = true;
       if (cap.down.length) words.push(pltDownWords(cap.down, d.day));
     });
     var att = d.F.att, byLine = d.F.lines.filter(function(x) { return x.extra > 0.0005; }).map(function(x) { return flrLineName(x.ln.id) + ' ' + wcHours(x.extra) + ' h'; });

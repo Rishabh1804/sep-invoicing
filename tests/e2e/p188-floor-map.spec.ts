@@ -202,7 +202,11 @@ test.describe('P188: Floor’s map', () => {
   });
 
   test('Production: Lines and Entries lead with their verdicts and Paste; Entries shows thirty with qualifying badges; In plant its exceptions first; Equipment adds a unit', async ({ page }) => {
-    await loadAppWithState(page, longBook());
+    // The long book's one unit is a rectifier at VAT A1's station. It supports the line, so it is a row under Supporting equipment
+    // (T-IO, pltPlates), never one of the line's units; a tank is added, so the line's units are drawn as its deck cards (TM4c).
+    const s: any = longBook();
+    s.plant.units.push({ id: 'U-T1', name: 'Tank 1', station: 'vat-a1', kind: 'tank', kgRound: 20, status: 'run', since: s.plant.units[0].since, reason: '', condition: 'fair' });
+    await loadAppWithState(page, s);
     await switchTab(page, 'pageProduction');
     const lead = async () => (await kids(page, '#productionContent')).filter(k => k !== 'inv-viewtabs');
     expect((await lead())[0]).toBe('prodLinesVerdict');
@@ -222,7 +226,9 @@ test.describe('P188: Floor’s map', () => {
     if (plant.indexOf('prodPlantNeeds') >= 0) expect(plant.indexOf('prodPlantNeeds')).toBeLessThan(plant.indexOf('prodPlantList'));
     await tabs(page, 'pageProduction').filter({ hasText: 'Equipment' }).click();
     await expect(page.locator('#productionContent .inv-btn-primary')).toHaveText(['Add a unit']);
-    await expect(page.locator('#productionContent .inv-deck-item[data-plt-unit]').first()).toBeVisible();
+    await expect(page.locator('#productionContent [data-plt-station="vat-a1"] .inv-deck-item[data-plt-unit="U-T1"]')).toBeVisible();
+    await expect(page.locator('#productionContent [data-plt-station="support"] .inv-row[data-plt-unit="U-R1"]')).toBeVisible();
+    await expect(page.locator('#productionContent .inv-deck-item[data-plt-unit="U-R1"]')).toHaveCount(0);
   });
 
   test('Stock: one screen, its verdict, one toolbar row on the phone, and Spend and prices folded at the foot', async ({ page }) => {

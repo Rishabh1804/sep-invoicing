@@ -304,18 +304,26 @@ function advUnitsMoves(ctx) {
   var units = pltUnits(), by = {};
   tasks.forEach(function(t) {
     var id = String(t.key || '').replace(/^plantDown:/, ''), u = units.find(function(x) { return x.id === id; });
-    if (u) (by[u.station] = by[u.station] || []).push({ u: u, t: t });
+    // A move a place: a unit that plates on its line, one that supports a line on the line it serves (pltPlaceOf), so a rectifier
+    // at Other, for VAT A2, asks to get VAT A2 running (Vulcanus M-1, 29 Oct 2026: it had read "Other: No unit recorded").
+    if (u) { var pl = pltPlaceOf(u); (by[pl] = by[pl] || []).push({ u: u, t: t }); }
   });
   return Object.keys(by).map(function(st) {
-    var list = by[st], cap = pltCapacity(st), name = pltStationName(st), red = list.some(function(x) { return x.t.tone === 'red'; });
+    var list = by[st], line = pltIsLine(st), cap = line ? pltCapacity(st) : null, sup = pltSupportCap(st), name = pltStationName(st), red = list.some(function(x) { return x.t.tone === 'red'; });
     var oldest = list.reduce(function(a, x) { return !a || (x.u.since || '') < (a.u.since || '') ? x : a; }, null), days = pltDaysIn(oldest.u) || 0;
-    var kind = list.every(function(x) { return x.u.kind === 'barrel'; }) ? 'barrel' : 'unit', since = oldest.u.since ? (days <= 6 ? attDayName(oldest.u.since) : formatDate(oldest.u.since)) : '';
+    var since = oldest.u.since ? (days <= 6 ? attDayName(oldest.u.since) : formatDate(oldest.u.since)) : '';
     var status = pltStatus(oldest.u.status)[1];
-    var what = name + ': ' + list.length + (cap.n ? ' of ' + cap.n : '') + ' ' + (list.length === 1 && !cap.n ? kind : kind + 's') + ' down';
+    // The line's own units down, "1 of 4" against its tanks or barrels; the units that support it apart, by name when one.
+    var own = list.filter(function(x) { return pltPlates(x.u); }), help = list.filter(function(x) { return !pltPlates(x.u); });
+    var kind = own.length && own.every(function(x) { return x.u.kind === 'barrel'; }) ? 'barrel' : 'unit', parts = [];
+    if (own.length) parts.push(own.length + (cap && cap.n ? ' of ' + cap.n + ' ' + kind + 's' : ' ' + (own.length === 1 ? kind : kind + 's')) + ' down');
+    if (help.length) parts.push(help.length === 1 ? help[0].u.name + ' down' : help.length + ' supporting units down');
+    var what = name + ': ' + parts.join(' and ');
+    var basis = [cap && cap.n ? pltCapWords(cap) : '', help.length ? pltSupportName(st) + ': ' + pltSupportWords(sup) : ''].filter(Boolean).join(' · ') || pltSupportWords(sup);
     return { key: 'plant:' + st, tone: red ? 'red' : 'amber', soon: 1, cat: 2, what: what,
       row: { title: what, meta: status + (since ? ' since ' + since : '') + (oldest.u.reason ? ' · ' + oldest.u.reason : ''), value: todoPlural(days, 'day') },
-      say: 'Get ' + name + ' running again: ' + list.length + ' ' + (list.length === 1 ? kind : kind + 's') + ' down, the longest ' + todoPlural(days, 'day'),
-      worth: null, basis: pltCapWords(cap), go: { kind: 'production', tab: 'equipment' }, goLabel: 'Equipment', task: 'Get ' + name + ' running again' };
+      say: 'Get ' + name + ' running again: ' + parts.join(' and ') + ', the longest ' + todoPlural(days, 'day'),
+      worth: null, basis: basis, go: { kind: 'production', tab: 'equipment' }, goLabel: 'Equipment', task: 'Get ' + name + ' running again' };
   });
 }
 function advBackupMoves(ctx) {

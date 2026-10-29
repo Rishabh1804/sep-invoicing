@@ -106,7 +106,7 @@ test.describe('P245 the planner’s options and the units down', () => {
       var P = plnPlanned();
       return { line: fix.line, share: Math.round(fix.share * 100), barrel: P.months[0].lines.barrel.kgRound - B.lines.barrel.kgRound,
         a1: P.months[0].lines['vat-a1'].kgRound - B.lines['vat-a1'].kgRound,
-        lines: ['PU-6', 'PU-9'].map(function (id) { return plnUnitLine(pltUnitById(id)); }),
+        lines: ['PU-6', 'PU-9'].map(function (id) { return pltLineOf(pltUnitById(id)); }),
         shares: [plnUnitShareOf({ id: 'PU-6', line: 'barrel' }), plnUnitShareOf({ id: 'PU-9', line: 'vat-a2' })] };
     })()`);
     expect(r.line).toBe('barrel');
@@ -141,11 +141,11 @@ test.describe('P245 the planner’s options and the units down', () => {
   test('the spent acid’s leg saves nothing until the share recovered is set', async ({ page }) => {
     await loadAppWithState(page, book(false));
     const r: any = await g(page, `(function () {
-      var p = plnData(); p.cfg.fx = { pickAcid: { hclL: 1000, acidRs: 2, dispKL: 4, dispRs: 500, dispShare: 25 } };
+      var p = plnData(); p.cfg.fx = { pickAcid: { hclL: 1000, acidRs: 2, dispKL: 4, dispLessRs: 500, dispShare: 25 } };
       var sc = plnScenarioEnsure(); sc.plan = { pickAcid: 0 };
       _plnBase = null; _plnPlanned = null;
-      var P = plnPlanned();
-      return { m: Math.round(P.months[0].margin - P.base[0].margin), save: plnFx('pickAcid').acidSave, say: plnSay('pickAcid') };
+      var P = plnPlanned(), fx = plnFx('pickAcid');
+      return { m: Math.round(P.months[0].margin - P.base[0].margin), save: fx.chemSave + fx.effSave, say: plnSay('pickAcid') };
     })()`);
     expect(r.m).toBe(0);
     expect(r.save).toBe(0);
@@ -181,16 +181,34 @@ test.describe('P245 the planner’s options and the units down', () => {
       var sc = plnScenarioEnsure(); sc.plan = { pickAcid: 0 };
       _plnPlanned = null;
       var a = plnPlanned(), m0 = a.months[0].margin - a.base[0].margin, say0 = plnSay('pickAcid');
-      var p = plnData(); p.cfg.fx = { pickAcid: { hclL: 1000, share: 50, acidRs: 2, dispKL: 4, dispRs: 500, dispShare: 25, runMo: 300 } };
+      var p = plnData(); p.cfg.fx = { pickAcid: { hclL: 1000, share: 50, acidRs: 2, dispKL: 4, dispLessRs: 500, dispShare: 25, runMo: 300 } };
       _plnBase = null; _plnPlanned = null;
-      var b = plnPlanned();
-      return { m0: Math.round(m0), say0: say0, m1: Math.round(b.months[0].margin - b.base[0].margin), say1: plnSay('pickAcid') };
+      var b = plnPlanned(), m1 = Math.round(b.months[0].margin - b.base[0].margin), say1 = plnSay('pickAcid');
+      // Each leg comes off its own Ledger row: the acid off chemicals, the spent acid (and the running cost) off the effluent row.
+      var rows = { chem: Math.round(b.months[0].cost.chem - b.base[0].cost.chem), other: Math.round(b.months[0].cost.other - b.base[0].cost.other) };
+      // A bill that is the same whatever is sent: a KL less sent away saves nothing.
+      p.cfg.fx.pickAcid.dispLessRs = 0; _plnBase = null; _plnPlanned = null;
+      var c = plnPlanned(), say2 = plnSay('pickAcid');
+      // A figure typed under the KL's old key and words is not read: the leg is not set.
+      p.cfg.fx.pickAcid = { hclL: 1000, share: 50, acidRs: 2, dispKL: 4, dispRs: 500, dispShare: 25, runMo: 300 }; _plnBase = null; _plnPlanned = null;
+      var d = plnPlanned();
+      return { m0: Math.round(m0), say0: say0, m1: m1, say1: say1, rows: rows, m2: Math.round(c.months[0].margin - c.base[0].margin), say2: say2,
+        m3: Math.round(d.months[0].margin - d.base[0].margin), say3: plnSay('pickAcid'), src3: plnInputVals('pickAcid')._src.dispLessRs,
+        label: PLN_STATIONS[0].levels.find(function (l) { return l.id === 'pickAcid'; }).inputs.find(function (i) { return i.key === 'dispLessRs'; }).label };
     })()`);
     expect(r.m0).toBe(0);
     expect(r.say0).toMatch(/not worked out/);
-    // Half of 1,000 L at ₹2, and a quarter of 4 KL less sent away at ₹500 a KL, less ₹300 to run it.
+    // Half of 1,000 L at ₹2, and a quarter of 4 KL less sent away at ₹500 saved a KL, less ₹300 to run it.
     expect(r.m1).toBe(1000 + 500 - 300);
-    expect(r.say1).toMatch(/500 L of acid a month recovered, 1\.0 KL less sent away/);
+    expect(r.say1).toBe('500 L of acid a month recovered, 1.0 KL less sent away: ' + await g(page, 'formatInrShort(1500)') + ' a month');
+    expect(r.rows).toEqual({ chem: -1000, other: -500 + 300 });
+    // The spent acid still goes less, and saves nothing; the sentence says so.
+    expect(r.m2).toBe(1000 - 300);
+    expect(r.say2).toMatch(/500 L of acid a month recovered, 1\.0 KL less sent away \(saving nothing at the figure set\)/);
+    expect(r.m3).toBe(1000 - 300);
+    expect(r.say3).toMatch(/1\.0 KL less sent away \(what that saves is not set\)/);
+    expect(r.src3).toBe('unset');
+    expect(r.label).toBe('What each KL less sent away saves, before GST (nothing while the bill is the same whatever is sent)');
   });
 
   test('the approved load’s saving is the penalty the bills carry, nothing once it is billed', async ({ page }) => {
@@ -247,5 +265,30 @@ test.describe('P245 the planner’s options and the units down', () => {
     await expect(page.locator('[data-pl-level="pickAcid"]')).toContainText('recovered');
     const stored = await readStoredState(page);
     expect(stored.planner.cfg.fx.pickAcid.share).toBe(40);
+  });
+
+  test('a 0 typed in Set figures is the owner’s figure: the spent acid’s leg saves nothing and the acid recovered still does', async ({ page }) => {
+    await loadAppWithState(page, book(false));
+    await switchTab(page, 'pagePlanner');
+    await page.locator('#pagePlanner [data-action="invPlnView"][data-v="moves"]').click();
+    await page.locator('#pagePlanner [data-action="invPlnMoves"][data-k="plant"]').click();
+    const acid = page.locator('[data-pl-level="pickAcid"]');
+    await acid.locator(':scope > summary').click();
+    await acid.locator('[data-action="invPlnFig"]').click();
+    const keys = await g(page, `PLN_STATIONS[0].levels.find(function (l) { return l.id === 'pickAcid'; }).inputs.map(function (i) { return i.key; })`) as string[];
+    const typed: Record<string, string> = { hclL: '1000', share: '50', acidRs: '2', dispKL: '4', dispLessRs: '0', dispShare: '25', runMo: '300' };
+    expect(keys.slice().sort()).toEqual(Object.keys(typed).sort());
+    for (let i = 0; i < keys.length; i++) await page.locator('#plnFig_' + i).fill(typed[keys[i]]);
+    await page.locator('[data-action="invPlnFigSave"]').click();
+    expect((await readStoredState(page)).planner.cfg.fx.pickAcid.dispLessRs).toBe(0);
+    const r: any = await g(page, `(function () {
+      var sc = plnScenarioEnsure(); sc.plan = { pickAcid: 0 }; _plnPlanned = null;
+      var v = plnInputVals('pickAcid'), P = plnPlanned();
+      return { src: v._src.dispLessRs, m: Math.round(P.months[0].margin - P.base[0].margin), say: plnSay('pickAcid') };
+    })()`);
+    expect(r.src).toBe('set');
+    // Half of 1,000 L at ₹2 recovered, less ₹300 to run it: the spent acid's leg adds nothing at the 0 typed.
+    expect(r.m).toBe(1000 - 300);
+    expect(r.say).toMatch(/1\.0 KL less sent away \(saving nothing at the figure set\)/);
   });
 });

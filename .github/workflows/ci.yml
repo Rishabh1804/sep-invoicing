@@ -37,18 +37,29 @@ jobs:
             exit 1
           fi
 
-  e2e:
-    name: Playwright e2e
+  # The suite in two halves, each on its own runner (owner, 29 Oct 2026: "Let's
+  # split the tests into 2 jobs"). Whole, it had grown to 40-42 min (2,135
+  # tests, 28 Oct 2026) against the job's 45, and a red run takes longer than
+  # a green one, so it could be cut off before it reported. With fullyParallel
+  # on, Playwright shares the tests out one by one: 1,074 and 1,074 of 2,148
+  # (29 Oct 2026).
+  e2e-shard:
+    name: Playwright e2e (${{ matrix.shard }} of 2)
     # Pinned: ubuntu-latest became 26.04 on 26 Oct 2026, and Playwright 1.59.1
     # cannot install Chromium there ("does not support chromium on
     # ubuntu26.04-x64"). 24.04 keeps the browser CI has measured against.
     runs-on: ubuntu-24.04
     # A hang backstop, not a budget: without it a wedged browser would burn the
-    # 6h job default. The suite itself takes ~27 min on two workers (1,734 tests,
-    # 10 Oct 2026: 26.6 min on the run for the entry faces' F4) and the apt step
-    # behind Chromium's install has taken 5 min on its own, so 30 would cut the
-    # next runs off mid-suite, as 15 once did.
+    # 6h job default. Each half has its own setup, and the apt step behind
+    # Chromium's install has taken 5 min on its own, so a half keeps the 45
+    # the whole suite had.
     timeout-minutes: 45
+    strategy:
+      # Each half runs to its end, so a red half never hides what the other
+      # one found.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
 
@@ -69,17 +80,36 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run e2e suite
-        run: pnpm exec playwright test
+      - name: Run half ${{ matrix.shard }} of the e2e suite
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/2
 
       - name: Upload traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  # The check a branch rule can name, as it named the one job before the split:
+  # green only when both halves are. It runs when a half failed or timed out,
+  # so a red half reads red here and never as a check that was skipped.
+  e2e:
+    name: Playwright e2e
+    needs: e2e-shard
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Both halves passed
+        env:
+          RESULT: ${{ needs.e2e-shard.result }}
+        run: |
+          if [ "$RESULT" != "success" ]; then
+            echo "::error::The e2e suite's halves ended '$RESULT'. The red half's own job lists the tests that failed."
+            exit 1
+          fi
 
   feeds:
     name: Feeds Worker tests

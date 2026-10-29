@@ -30,7 +30,8 @@ var PLN_GOALS = [
 var PLN_STATIONS = [
   // Pickling's options stand alone (`alone`): none needs the one listed before it. Acid recovery's worth is the acid it saves and
   // the spent acid not sent away, from figures the owner sets, never a flat saving (owner, 28 Oct 2026); the fume extraction is a
-  // prerequisite of ISO 9001 and CQI-11.
+  // prerequisite of ISO 9001 and CQI-11. Each price is what a unit less saves, never what a unit costs: a bill that is the same
+  // whatever is sent saves nothing for each KL less, and one paid for each trip saves a trip's bill over the KL it takes.
   { id: 'pick', name: 'Pickling', levels: [{ t: 'As it runs' },
     { id: 'pickHood', t: 'Fume extraction and scrubber', cost: null, alone: true, gate: ['iso', 'cqi'],
       req: 'A hood over the HCl tanks, a duct to a wet scrubber outside the room and a blower on its own supply; the scrubber’s water goes to the effluent plant. The pollution board’s consent to operate would name it.',
@@ -39,19 +40,25 @@ var PLN_STATIONS = [
     { id: 'pickAcid', t: 'Acid recovery', cost: null, alone: true,
       req: 'A recovery unit beside the pickling tanks (membrane or retardation), a pump and a holding tank, power and water, and a hand to run it each shift; it treats the spent acid before what is left goes where spent acid goes now.',
       inputs: [{ key: 'hclL', label: 'HCl used a month', unit: 'L', def: 'stock' }, { key: 'share', label: 'Share of it recovered', unit: '%', def: null },
-        { key: 'acidRs', label: 'What a litre of HCl costs, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
-        { key: 'dispRs', label: 'What sending a KL away costs', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
+        { key: 'acidRs', label: 'What each litre of HCl less bought saves, before GST, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
+        { key: 'dispLessRs', label: 'What each KL less sent away saves, before GST (nothing while the bill is the same whatever is sent)', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
         { key: 'runMo', label: 'Running cost a month (its power, water, the hand’s time)', unit: '₹', def: null }],
       // The acid recovered and the spent acid no longer sent away are two shares, and what is left still goes where it goes now.
       // Nothing is saved until the share recovered is set, the spent acid's leg included: the option says it is not worked out.
+      // The acid less bought comes off the Ledger's chemicals (`chemSave`), the spent acid less sent away off its effluent row
+      // (`effSave`). The KL's figure was `dispRs` until 29 Oct 2026, when its words changed from what a KL costs to send to what a
+      // KL less saves: a figure typed under the old words is not read.
       fxOf: function(v) {
         var sh = v.share > 0 ? Math.min(100, v.share) / 100 : 0, ds = sh && v.dispShare > 0 ? Math.min(100, v.dispShare) / 100 : 0;
-        return { acidSave: sh * (v.hclL || 0) * (v.acidRs || 0) + ds * (v.dispKL || 0) * (v.dispRs || 0), runMo: v.runMo || 0, acidL: sh * (v.hclL || 0), acidKL: ds * (v.dispKL || 0) };
+        return { chemSave: sh * (v.hclL || 0) * (v.acidRs || 0), effSave: ds * (v.dispKL || 0) * (v.dispLessRs || 0), runMo: v.runMo || 0, acidL: sh * (v.hclL || 0), acidKL: ds * (v.dispKL || 0) };
       },
       sayOf: function(v, fx) {
         if (!(v.share > 0)) return 'not worked out: set the share recovered';
         if (v.hclL == null) return 'HCl used a month not recorded: set it, or keep an HCl line in Stock';
-        return formatNum(fx.acidL, 0) + ' L of acid a month recovered' + (fx.acidKL ? ', ' + formatNum(fx.acidKL, 1) + ' KL less sent away' : '') + ': ' + (fx.acidSave ? formatInrShort(fx.acidSave) + ' a month' : 'no saving at the figures set');
+        var save = fx.chemSave + fx.effSave;
+        // A KL less sent away that saves nothing says so, so a leg at 0 is not read as a leg left out.
+        var kl = !fx.acidKL ? '' : ', ' + formatNum(fx.acidKL, 1) + ' KL less sent away' + (v.dispLessRs == null ? ' (what that saves is not set)' : !(v.dispLessRs > 0) ? ' (saving nothing at the figure set)' : '');
+        return formatNum(fx.acidL, 0) + ' L of acid a month recovered' + kl + ': ' + (save ? formatInrShort(save) + ' a month' : 'no saving at the figures set');
       } },
     { id: 'pick4', t: 'Another tank', cost: 150000, alone: true, fx: { pickKgH: 140 },
       req: 'Floor space in the pickling room, a hoist that reaches it, and a hand to load it at the busiest hours.',
@@ -237,20 +244,18 @@ function plnCostToSet(lv) { var c = plnCfg().costs[lv.id]; return lv.cost == nul
    of work is a Repair move that brings its share of the line back and ends its risk; one marked not coming back is a Sale. A
    running unit in need of work or ageing, with no risk typed on it, may fail in the trials (PLN_RISK_DEFAULT, an estimate). */
 var PLN_RISK_DEFAULT = { needs: { p: 0.05, days: 3 }, ageing: { p: 0.02, days: 2 } };
-/* A tank or barrel at a line's station plates on that line, as the plant register groups a line's units (pltCapacity); the
-   unit's "Line it stops when it fails" (pltLineOf) is read only for a supporting unit, a rectifier or another kind (Vulcanus,
-   28 Oct 2026: two barrels whose field named VAT A1 had each brought back two thirds of VAT A1's round). */
-function plnUnitPlates(u) { return !!u && (!u.kind || u.kind === 'tank' || u.kind === 'barrel') && !!(PLT_LINE_STATIONS[u.station] || u.station === 'pick'); }
-function plnUnitLine(u) { return !u ? '' : plnUnitPlates(u) ? u.station : pltLineOf(u) || (u.station === 'pick' ? 'pick' : ''); }
+/* A tank or barrel at a line's station plates on that line (pltPlates, the plant register's own rule since T-IO), and stops its
+   own line; the unit's "Line it serves" is read only for a supporting unit, a rectifier or another kind (pltLineOf;
+   Vulcanus, 28 Oct 2026: two barrels whose field named VAT A1 had each brought back two thirds of VAT A1's round). */
 function plnUnitMoves() {
   if (typeof pltUnits !== 'function') return [];
   var out = [];
   // A line's units are the tanks and barrels that plate on it (a rectifier is not a share of the round).
-  var plating = function(u, line) { return plnUnitPlates(u) && u.station === line; };
+  var plating = function(u, line) { return pltPlates(u) && u.station === line; };
   pltUnits().forEach(function(u) {
     var down = !pltAvailable(u.status || 'run'), needs = u.condition === 'needs';
     if (!down && !needs) return;
-    var line = plnUnitLine(u), share = 0, basis = '';
+    var line = pltLineOf(u), share = 0, basis = '';
     if (down && line && !u.gone && plating(u, line)) {
       var all = pltUnits().filter(function(x) { return plating(x, line); }), work = all.filter(function(x) { return pltAvailable(x.status || 'run'); });
       var byKg = all.length && all.every(function(x) { return +x.kgRound > 0; }), kg = function(l) { return l.reduce(function(t, x) { return t + (+x.kgRound || 0); }, 0); };
@@ -260,7 +265,7 @@ function plnUnitMoves() {
     }
     var kind = u.gone && down ? 'sell' : 'fix';
     out.push({ id: kind + ':' + u.id, kind: kind, unit: u, down: down, line: line, share: share, basis: basis,
-      same: PLN_STATIONS.reduce(function(r, st) { st.levels.forEach(function(lv) { if (lv.fixes && lv.fixes === u.station) r = st.name + ': ' + lv.t; }); return r; }, ''),
+      same: !pltPlates(u) ? '' : PLN_STATIONS.reduce(function(r, st) { st.levels.forEach(function(lv) { if (lv.fixes && lv.fixes === u.station) r = st.name + ': ' + lv.t; }); return r; }, ''),
       t: (kind === 'sell' ? 'Sell ' : down ? 'Bring back ' : 'Overhaul ') + u.name,
       req: kind === 'sell' ? 'A buyer, and the unit taken out of the line.' : (u.needs ? 'It needs: ' + u.needs + '.' : 'What it needs is not written on the unit (Production → Equipment).') + (u.reason ? ' Down: ' + u.reason + '.' : '') });
   });
@@ -270,8 +275,8 @@ function plnUnitMoves() {
    2026). A rectifier or a unit of another kind stops the whole line it feeds. */
 function plnUnitShareOf(x) {
   var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
-  if (!u || !x.line || !plnUnitPlates(u)) return 1;
-  var all = pltUnits().filter(function(y) { return plnUnitPlates(y) && y.station === x.line && pltAvailable(y.status || 'run'); });
+  if (!u || !x.line || !pltPlates(u)) return 1;
+  var all = pltUnits().filter(function(y) { return pltPlates(y) && y.station === x.line && pltAvailable(y.status || 'run'); });
   if (!all.length) return 1;
   var byKg = all.every(function(y) { return +y.kgRound > 0; }), tot = all.reduce(function(t, y) { return t + (+y.kgRound || 0); }, 0);
   return byKg && tot > 0 ? (+u.kgRound || 0) / tot : 1 / all.length;
@@ -594,7 +599,7 @@ function plnMonth(m, L, ready, opts) {
   opts = opts || {};
   var live = function(mv) { var r = ready[mv.key]; return r != null && m >= r && !(opts.drop && opts.drop[mv.key]); };
   var w = function(mv) { return !opts.expected ? 1 : opts.weights && opts.weights[mv.key] != null ? opts.weights[mv.key] : mv.p != null ? mv.p : 1; };
-  var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, acidSave: 0, runMo: 0 };
+  var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, effSave: 0, runMo: 0 };
   PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0 }; });
   L.forEach(function(mv) {
     if (!live(mv)) return;
@@ -606,7 +611,7 @@ function plnMonth(m, L, ready, opts) {
     if (f.unitLine === 'pick' && B.pick) fx.pickKgH += B.pick.kgH * (f.unitShare || 0) * s;
     if (f.cutCover) fx.cutCover = Math.max(fx.cutCover, f.cutCover * s);
     if (f.night && s >= 0.5) fx.night = true;
-    ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo', 'acidSave', 'runMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
+    ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo', 'effSave', 'runMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
   });
   // Demand by part, at its rate after any ask.
   var rows = [], uw = {}, uwDelta = 0;
@@ -635,6 +640,9 @@ function plnMonth(m, L, ready, opts) {
     rows.push({ client: mv.vol.client, part: { id: mv.key, name: mv.label }, line: lines[mv.vol.line] ? mv.vol.line : 'vat-a2', kgDay: mv.vol.kg * ramp * w(mv) / B.wd, perKg: mv.vol.rate, base: mv.vol.rate, extra: mv.key });
   });
   if (opts.down) Object.keys(opts.down).forEach(function(k) { if (lines[k]) lines[k].down = opts.down[k]; });
+  // A pickling tank's failure takes its share of pickling's kilos an hour for the days it is down, as a line's takes its share of
+  // the line's days (Vulcanus L-6, 29 Oct 2026: pickling's down days had been dropped, while Bring back added its share).
+  if (opts.down && opts.down.pick > 0 && B.wd) fx.pickKgH *= Math.max(0, 1 - opts.down.pick / B.wd);
   rows.forEach(function(r) { lines[r.line].demand += r.kgDay; });
   // Each line: the hours needed against the hours it can run, the cuts taken out.
   var cutMin = opts.cutMin != null ? opts.cutMin : B.cutMin;
@@ -682,7 +690,7 @@ function plnMonth(m, L, ready, opts) {
     labourFixed: C.labourFixed, labourPool: C.labourPool,
     labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther,
     hires: hires, zinc: plated * C.zincKg, chem: plated * (C.chemKg + fx.chemKg) - fx.chemSave,
-    power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.acidSave + fx.runMo
+    power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.effSave + fx.runMo
   };
   var costTot = 0; Object.keys(cost).forEach(function(k) { costTot += cost[k]; });
   var capex = 0, loanIn = 0, interest = 0, principal = 0;
@@ -756,17 +764,18 @@ function plnTrials() {
   var sc = plnScenario(), B = plnBase(), L = plnMoves(sc), r = plnRng(20261006), all = [], g = plnGoal(sc);
   // A running unit in need of work or ageing, with no risk typed on it, may fail at the catalogue's chance (an estimate); a
   // unit on standby fails only at a risk the owner typed on it. A unit not working cannot fail; a unit sold is gone. A tank or
-  // barrel stops a share of its own station's line (plnUnitLine), never the line its "stops when it fails" field names.
+  // barrel stops a share of its own station's line (pltLineOf), never the line its "Line it serves" field names. An upgrade that
+  // fixes a station ends the risk of the tanks and barrels there, never a supporting unit's (Vulcanus L-3, 29 Oct 2026).
   var machines = plnLive('machines').filter(function(x) { return (x.status || 'run') === 'run' || x.status === 'standby'; }).map(function(x) {
     var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
-    if (u) x = Object.assign({}, x, { line: plnUnitLine(u) || null });
+    if (u) x = Object.assign({}, x, { line: pltLineOf(u) || null, plates: pltPlates(u) });
     if (x.risk && +x.risk.p > 0) return x;
     var d = (x.status || 'run') === 'run' ? PLN_RISK_DEFAULT[x.state] : null;
     return d ? Object.assign({}, x, { risk: { p: d.p, cost: 0, days: d.days, say: x.needs || 'breaks down', assumed: true } }) : x;
   }).filter(function(x) { return x.risk && +x.risk.p > 0; });
   var fixAt = function(ready, station, id) {
     var hit = id && ready['fix:' + id] != null ? ready['fix:' + id] : null;
-    PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.fixes === station && ready[lv.id] != null) hit = hit == null ? ready[lv.id] : Math.min(hit, ready[lv.id]); }); });
+    if (station) PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.fixes === station && ready[lv.id] != null) hit = hit == null ? ready[lv.id] : Math.min(hit, ready[lv.id]); }); });
     return hit;
   };
   for (var t = 0; t < PLN_TRIALS; t++) {
@@ -778,7 +787,7 @@ function plnTrials() {
     for (var m = 0; m < PLN_N; m++) {
       var down = {}, hit = 0;
       machines.forEach(function(x) {
-        var f = fixAt(ready, x.station, x.id);
+        var f = fixAt(ready, x.plates === false ? null : x.station, x.id);
         if ((f == null || m < f) && r() < +x.risk.p) { hit += +x.risk.cost || 0; if (x.line && x.risk.days) down[x.line] = (down[x.line] || 0) + (+x.risk.days) * plnUnitShareOf(x); if (events.length < 16) events.push([m, x.item + ': ' + (x.risk.say || 'broke down') + (x.risk.cost ? ', ' + formatInrShort(x.risk.cost) : ''), 'danger']); }
       });
       var mo = plnMonth(m, L, ready, { down: down, refused: refused, cutMin: B.cutMin * (0.6 + r() * 0.9) });

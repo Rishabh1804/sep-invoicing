@@ -269,16 +269,21 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,096 tests, both layouts
+pnpm exec playwright test          # 2,148 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else. The suite takes about 27 minutes on
-a CI runner's two workers (26.6 on 10 Oct 2026, 1,734 tests; the job allows 45, since the apt step behind Chromium's
-install has taken 5 on its own) — don't read a slow run as a hang. ⚠ It has grown: 38.0 minutes on 16 Oct 2026 at 2,030
-tests (a run with 37 failing, some at their timeouts), and 27 on 20 Oct at 2,030 with one failing, so the 45 is close on a red
-run; split the job or raise it before it cuts a run off.
+`playwright.config.ts` reads; unset everywhere else.
+
+**CI runs the suite in two halves, each on its own runner** (owner, 29 Oct 2026: *"Let's split the tests into 2 jobs"*): the jobs
+*Playwright e2e (1 of 2)* and *(2 of 2)* run `--shard=1/2` and `--shard=2/2`, and the check **Playwright e2e** is green only when
+both are, so a branch rule naming it still holds. With `fullyParallel` on, Playwright shares the tests out one by one, 1,074 and
+1,074 of 2,148 (29 Oct 2026); on their first green run the halves' tests took 16.7 and 21.2 minutes. Each half allows 45 minutes, as the whole suite did, since each has its own setup and the apt step behind Chromium's
+install has taken 5 on its own. Whole, the suite had grown from about 27 minutes on two workers (26.6 on 10 Oct 2026, 1,734 tests) to
+40–42 (2,135 tests, 28 Oct 2026), and a red run takes longer (38.0 on 16 Oct at 2,030 with 37 failing, some at their timeouts), so
+the 45 was close. Don't read a slow half as a hang. To run one half here: `pnpm exec playwright test --shard=1/2`; a failing test is
+listed in the job of the half that ran it.
 
 **CI's browser draws text about 0.5% wider than this sandbox's** (Chromium 147 against 141; U2R, 20 Oct 2026): a fit that passes
 here by a hair can wrap there (two labels on Performance did). Before pushing a change near a measured limit, measure it again with
@@ -290,8 +295,11 @@ recorder waits on a snapshot the page never takes, so the navigation's answer co
 renderer (Chromium 141) shows its main thread laying out text in a web font that is still loading and waiting on the Linux font service
 (`FontServiceThread::FontRenderStyleForStrike`). That request needs one of the renderer's three thread-pool workers, and all three are
 parked in V8's `CollectionBarrier`, waiting for the main thread to collect garbage. Web fonts make Blink build font data during boot
-while V8 compiles the app's script in the background, which is why it began with Geist under test. It has not shown on CI (Chromium
-147), and Android and Windows have no Linux font service. Run that one test again before reading the failure as yours.
+while V8 compiles the app's script in the background, which is why it began with Geist under test. **It has shown on CI twice**, both
+on 29 Oct 2026 (Chromium 147 on a Linux runner), each in half 2 and on the phone: P73 on `979573c` and P21 on `cb4c12d`, a commit
+whose app and tests were those of `f04cb9f`, where both passed. Each half's `playwright-traces-2` artifact held the trace: the
+navigation's own call ended, the test's never did, the last frame was the shell with no board, and closing reported the same unbound
+response. Android and Windows have no Linux font service. Run that one test again before reading the failure as yours.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
@@ -2645,6 +2653,20 @@ workers and every personal detail are the book's; the owner's private files (`se
   **Equipment**, a deck card a unit, two across on the phone (the tab map, TM4c; a strip per line until then), the status changes folded
   under them, Floor → Overview's line cards (*1 of 4 down*). The planner's machines are
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
+  **What counts toward a line is one rule** (`pltPlates`; T-IO, 29 Oct 2026): a tank or a barrel at a line's station is one of its
+  units, and stops its own line's share when it fails. Every other unit supports a line: a rectifier, or anything at a station that
+  is not a line. It is listed under *Supporting equipment* with the line it serves (`pltLineOf`: the line set on it, else the line it
+  stands at, else none), never counted in a line's units (`pltCapacity`, the tanks a round of `prodTankLoad`, Floor's cards, the
+  planner). **Where a unit is, is one place** (`pltPlaceOf`, named one way by `pltPlaceWords`: *Other, for VAT A2*): a power cut tied
+  to it lands there (the cut's words, the place the cut dialog stores, Power → Causes' places, the line's panel note); its task and
+  its move ask to get that line running and judge it with the line's supporting equipment (`pltSupportCap`), never by a station
+  that is no line (the task had read *Other: No unit recorded*); the Equipment card judges it there too, and the planner's
+  machines name it so. An upgrade that fixes a station ends the risk of the tanks and barrels there, never a rectifier's. **The
+  unit's form follows its station** until a kind or a line is picked (the app's `_auto` rule): a barrel at the Barrel station, a tank
+  at another line's, *Other* elsewhere; **Line it serves**, beside Kind, the station's where that is a line, else none, and a unit
+  that plates is offered none (it had opened at VAT A1 with kind Tank and line VAT A1, and a station changed moved neither). A
+  `sep-plant` import keeps a unit's line and *Not coming back*, and gives a unit with no kind its station's. A pickling tank's
+  failure in the planner's trials takes its share of pickling's kilos an hour, as Bring back adds it. P248.
   **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the
   first day of a unit's first line) stood before it, whatever its *since*, which is the day it was recorded; only a unit written in
   later counts from its own day (`pltRecordedOn`). The running units' *since* had read as the day they came, and every day before
@@ -2724,9 +2746,10 @@ prototypes). P162.
     (**set** in `cfg.fx[id]`, **measured**, **estimate**, **not set**; `plnInputVals`), its cost (blank where no estimate is honest:
     *cost to set*) and what it adds to the month on show; **Set figures** and **Cost**, behind Settings' permission. A move's effect
     is read from its figures (`plnFx`).
-  - **Acid recovery** (`acidSave`) is the share recovered × (HCl used a month × a litre's price with carriage) + a second share
-    (the spent acid less sent away) × the spent acid sent away × what a KL costs, less its running cost; nothing until the share
-    recovered is set, the second leg included; the flat ₹6,000 "less acid bought" had nothing behind it. HCl used a month is read
+  - **Acid recovery** is the share recovered × HCl used a month × what each litre less bought saves (carriage included), off the
+    Ledger's chemicals (`chemSave`), + a second share (the spent acid less sent away) × the spent acid sent away × what each KL
+    less sent away saves, off its effluent row (`effSave`: nothing while the bill is the same whatever is sent, a trip's bill over
+    its KL where each trip is paid for), less its running cost; nothing until the share recovered is set, the second leg included; the flat ₹6,000 "less acid bought" had nothing behind it. HCl used a month is read
     as the stock line's page reads it (`plnHclMonth`: `stockRate` × 26), never from a window a bill opens; with no use recorded,
     what came in, an estimate. **Fume extraction
     and scrubber** is its own option with a running cost (an estimate until set), and ISO 9001 and CQI-11 need it. Pickling's
@@ -2738,11 +2761,14 @@ prototypes). P162.
     (its share of the round, its risk ended), overhaul it, or, marked *Not coming back* on the unit (`u.gone`), sell it (cash in
     at the price set). A running unit in need of work or ageing with no risk typed may fail at an estimated chance
     (`PLN_RISK_DEFAULT`) until its repair lands, stopping its share of the line; a unit on standby fails only at a risk typed on
-    it. A unit's share counts tanks and barrels only, each on its own station's line (`plnUnitLine`): the unit's *Line it stops
-    when it fails* is read only for a rectifier or another supporting unit.
+    it. A unit's share counts tanks and barrels only, each on its own station's line (`pltPlates`, `pltLineOf`): the unit's *Line it
+    serves* is read only for a rectifier or another supporting unit, whose row under *Repairs and sales* names the line it serves
+    and moves no figure (in the trials its failure stops that line whole).
     *Another barrel* adds one barrel's share. A move with no cost set is said on the verdict. Plans saved before gain the fume
     extraction once (`_plnHood1`).
-  - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge).
+  - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge). Acid
+    recovery's KL figure is `dispLessRs` since 29 Oct 2026, when its words changed from what sending a KL away costs to what a KL
+    less saves; a figure typed under the old key (`dispRs`) is not read.
 - **The ledger adds up** (`plnAttribution`): today's margin, then each move in the order it takes effect, each the plan up to it
   against the plan before it, ending in the plan. If every move lands, or weighted by each chance.
 - **The trials** (600, seeded): each chance, CQI-11 up to three months late, the promotion's pass, each machine's risk until the

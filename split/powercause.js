@@ -254,8 +254,9 @@ function pcsCutOf(entryId) {
 /* Where a cut hit, in words. */
 function pcsWhereWord(where, unitId) {
   var u = unitId && typeof pltUnitById === 'function' ? pltUnitById(unitId) : null;
-  // A unit and its line are one fact (the tab map, TM6e): "Rectifier 1 (VAT A1)", never a middle dot inside a row's two.
-  if (u) return u.name + ' (' + pltStationName(u.station) + ')';
+  // A unit and its line are one fact (the tab map, TM6e): "Rectifier 1 (VAT A1)", never a middle dot inside a row's two. The
+  // line is the one it stops (pltPlaceOf): a rectifier at Other, for VAT A2, reads VAT A2 (Vulcanus V-5, 28 Oct 2026).
+  if (u) return u.name + ' (' + pltStationName(pltPlaceOf(u)) + ')';
   if (!where) return '';
   return where === 'all' ? 'the whole plant' : pltStationName(where);
 }
@@ -388,7 +389,7 @@ function pcsWhereFieldHtml() {
   PLT_STATIONS.forEach(function(s) {
     var mine = units.filter(function(u) { return u.station === s[0]; });
     h += opt(s[0], s[1] + (s[0] === 'power' ? ' (the panel and supply equipment)' : ''));
-    if (mine.length) h += '<optgroup label="' + escHtml(s[1] + ': a unit') + '">' + mine.map(function(u) { return opt('u:' + u.id, u.name + ' · ' + s[1]); }).join('') + '</optgroup>';
+    if (mine.length) h += '<optgroup label="' + escHtml(s[1] + ': a unit') + '">' + mine.map(function(u) { return opt('u:' + u.id, u.name + ' · ' + pltPlaceWords(u)); }).join('') + '</optgroup>';
   });
   return h + '</select></div>';
 }
@@ -472,7 +473,8 @@ async function pcsSave() {
   var fid = x ? (x.id ? pcsLearn('fix', x.text, { id: x.id }) : pcsLearn('fix', x.text, { keepNew: true })) : null;
   var unitId = whereNow.indexOf('u:') === 0 ? whereNow.slice(2) : null;
   var u = unitId && typeof pltUnitById === 'function' ? pltUnitById(unitId) : null;
-  var where = u ? u.station : whereNow || null;
+  // A cut tied to a unit hit the line it serves (pltPlaceOf): a rectifier at Other, for VAT A2, is VAT A2's (Vulcanus L-1).
+  var where = u ? pltPlaceOf(u) : whereNow || null;
   var idx = prodIndex(), n = 0;
   f.ids.forEach(function(id) {
     var e = idx.byId[id];
@@ -532,7 +534,7 @@ function pcsAnalysis(a) {
     }
     var pk = c.where || (c.unitId ? 'unit' : null);
     if (pk) {
-      var st = c.unitId && typeof pltUnitById === 'function' && pltUnitById(c.unitId) ? pltUnitById(c.unitId).station : c.where;
+      var st = c.unitId && typeof pltUnitById === 'function' && pltUnitById(c.unitId) ? pltPlaceOf(pltUnitById(c.unitId)) : c.where;
       var p = places[st] || (places[st] = { key: st, n: 0, n30: 0, plant30: 0, dmg: 0, min: 0, units: {} });
       p.n++; p.dmg += dmg; p.min += c.min || 0;
       if (in30) { p.n30++; if (r && r.scope !== 'grid') p.plant30++; }
@@ -746,8 +748,13 @@ function pcsUnitHtml(u) {
     '<span class="inv-row-meta inv-row-wrap" title="' + escHtml(powerHours(s.min) + ' dark') + '">' + escHtml([s.reasons.length ? s.reasons.slice(0, 2).join(', ') : 'no reason given', 'last ' + formatDate(s.last)].join(' · ')) + '</span></span>' +
     '<span class="inv-row-end">' + uiDot(s.n >= PCS_RECUR ? 'danger' : 'warning', s.n >= PCS_RECUR ? 'Keeps cutting' : 'Cut') + '</span></div>';
 }
+/* The cuts that hit a line, on its panel: those placed on it, and those tied to a unit that stops it (pltPlaceOf). A cut tied to a
+   unit keeps the unit's station as its place too, so the unit decides: a rectifier at Other, for VAT A2, is VAT A2's alone. */
 function pcsStationNote(station) {
-  var s = pcsTiedTo(function(c) { return c.where === station || (c.unitId && typeof pltUnitById === 'function' && pltUnitById(c.unitId) && pltUnitById(c.unitId).station === station); });
+  var s = pcsTiedTo(function(c) {
+    var u = c.unitId && typeof pltUnitById === 'function' ? pltUnitById(c.unitId) : null;
+    return (u ? pltPlaceOf(u) : c.where) === station;
+  });
   if (!s.n) return '';
   return '<div class="inv-panel-body inv-note" data-pcs-station="' + station + '">' + escHtml(todoPlural(s.n, 'power cut') + ' hit ' + pltStationName(station) + ' in 90 days' +
     (s.reasons.length ? ': ' + s.reasons.slice(0, 2).join(', ') : '') + '.') +

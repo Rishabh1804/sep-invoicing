@@ -105,7 +105,7 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 - **A stall in this sandbox, a deadlock inside Chromium** (CLAUDE.md, *Tests*): about one test in 1,500 to 2,000 times out because
   the page hung just after it loaded (*Object with guid response@… was not bound in the connection* when it closes). Its renderer
   waits on the Linux font service while every thread-pool worker waits on V8's garbage collection. It began with web fonts under test
-  (Geist) and has not shown on CI.
+  (Geist) and has not shown on CI. *(It did twice on 29 Oct 2026, on P73 and P21: CLAUDE.md, Tests.)*
 - **CI draws text about 0.5% wider than this sandbox** (Chromium 147 against 141): two labels on Performance that fitted by a hair
   here wrapped on CI and were shortened. A measure that passes here within 1% of its limit can fail there; P195 and Performance were
   checked with text drawn 0.5% wider. The e2e job took 27 minutes on CI on 20 Oct (2,030 tests, step 1); the suite is 2,063 now.

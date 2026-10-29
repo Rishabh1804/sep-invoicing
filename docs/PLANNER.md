@@ -78,13 +78,14 @@ and the day is the month divided by its working days.
    needs (`req`, and the moves it needs in the plan), each figure it rests on (`inputs`, read by `plnInputVals`: **set** by the
    owner in `cfg.fx[id]`, **measured**, an **estimate**, or **not set**), what it costs (blank until a quote where no estimate is
    honest) and what it adds to the month on show. A move's effect is read from its figures (`plnFx`), never a figure in the code
-   alone. **Acid recovery** (`acidSave`): the share recovered × (HCl used a month × a litre's price, carriage included) + its own
-   second share (the spent acid less sent away) × the spent acid sent away a month × what each KL less sent away saves (nothing
-   where the contractor is paid for a fixed quantity, whatever is sent: owner, 29 Oct 2026, *"Fixed"*), less its running
-   cost; with no share recovered set it adds nothing, the spent acid's leg included, and says so (the old flat ₹6,000 had
+   alone. **Acid recovery**: the share recovered × HCl used a month × what each litre less bought saves (carriage included), off
+   the Ledger's chemicals (`chemSave`), + its own second share (the spent acid less sent away) × the spent acid sent away a month
+   × what each KL less sent away saves, off its effluent row (`effSave`: nothing while the bill is the same whatever is sent, a
+   trip's bill over its KL where each trip is paid for), less its running cost; with no share recovered set it adds nothing, the spent acid's leg included, and says so (the old flat ₹6,000 had
    nothing behind it). HCl used a month is read as the stock line's own page reads it (`plnHclMonth`: its use a day, `stockRate`,
-   × 26), never from a window a bill or a count opens; with no use recorded, what came in over the 90 days, an estimate. The
-   acid's price, where the spent acid goes and what that costs, and both shares are the owner's to set. **Fume extraction and scrubber** is its own option, a running cost a month (`runMo`, an estimate until
+   × 26), never from a window a bill or a count opens; with no use recorded, what came in over the 90 days, an estimate. What
+   a litre less bought and a KL less sent away save, and both shares, are the owner's to set (the KL's figure is `dispLessRs`
+   since 29 Oct 2026; one typed under its old key and words, `dispRs`, is not read). **Fume extraction and scrubber** is its own option, a running cost a month (`runMo`, an estimate until
    set), and ISO 9001 and CQI-11 need it: the owner's condition for the audits, not a line of CQI-11's own checklist, so no
    checklist row is added for it (owner, 28 Oct 2026: *"Only if that is an actual requirement"*). **The approved load on the
    bill** saves the excess-load penalty the bills on Power → Load & bills state (`plnPenaltyMonth`: the median of the last six

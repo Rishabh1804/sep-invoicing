@@ -30,8 +30,8 @@ var PLN_GOALS = [
 var PLN_STATIONS = [
   // Pickling's options stand alone (`alone`): none needs the one listed before it. Acid recovery's worth is the acid it saves and
   // the spent acid not sent away, from figures the owner sets, never a flat saving (owner, 28 Oct 2026); the fume extraction is a
-  // prerequisite of ISO 9001 and CQI-11. The spent acid's leg is what each KL less sent away saves, never what a KL costs to send:
-  // a contractor paid for a fixed quantity costs the same whatever is sent (owner, 29 Oct 2026: "Fixed").
+  // prerequisite of ISO 9001 and CQI-11. Each price is what a unit less saves, never what a unit costs: a bill that is the same
+  // whatever is sent saves nothing for each KL less, and one paid for each trip saves a trip's bill over the KL it takes.
   { id: 'pick', name: 'Pickling', levels: [{ t: 'As it runs' },
     { id: 'pickHood', t: 'Fume extraction and scrubber', cost: null, alone: true, gate: ['iso', 'cqi'],
       req: 'A hood over the HCl tanks, a duct to a wet scrubber outside the room and a blower on its own supply; the scrubber’s water goes to the effluent plant. The pollution board’s consent to operate would name it.',
@@ -40,19 +40,25 @@ var PLN_STATIONS = [
     { id: 'pickAcid', t: 'Acid recovery', cost: null, alone: true,
       req: 'A recovery unit beside the pickling tanks (membrane or retardation), a pump and a holding tank, power and water, and a hand to run it each shift; it treats the spent acid before what is left goes where spent acid goes now.',
       inputs: [{ key: 'hclL', label: 'HCl used a month', unit: 'L', def: 'stock' }, { key: 'share', label: 'Share of it recovered', unit: '%', def: null },
-        { key: 'acidRs', label: 'What a litre of HCl costs, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
-        { key: 'dispRs', label: 'What each KL less sent away saves (nothing where the contract is for a fixed quantity)', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
+        { key: 'acidRs', label: 'What each litre of HCl less bought saves, before GST, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
+        { key: 'dispLessRs', label: 'What each KL less sent away saves, before GST (nothing while the bill is the same whatever is sent)', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
         { key: 'runMo', label: 'Running cost a month (its power, water, the hand’s time)', unit: '₹', def: null }],
       // The acid recovered and the spent acid no longer sent away are two shares, and what is left still goes where it goes now.
       // Nothing is saved until the share recovered is set, the spent acid's leg included: the option says it is not worked out.
+      // The acid less bought comes off the Ledger's chemicals (`chemSave`), the spent acid less sent away off its effluent row
+      // (`effSave`). The KL's figure was `dispRs` until 29 Oct 2026, when its words changed from what a KL costs to send to what a
+      // KL less saves: a figure typed under the old words is not read.
       fxOf: function(v) {
         var sh = v.share > 0 ? Math.min(100, v.share) / 100 : 0, ds = sh && v.dispShare > 0 ? Math.min(100, v.dispShare) / 100 : 0;
-        return { acidSave: sh * (v.hclL || 0) * (v.acidRs || 0) + ds * (v.dispKL || 0) * (v.dispRs || 0), runMo: v.runMo || 0, acidL: sh * (v.hclL || 0), acidKL: ds * (v.dispKL || 0) };
+        return { chemSave: sh * (v.hclL || 0) * (v.acidRs || 0), effSave: ds * (v.dispKL || 0) * (v.dispLessRs || 0), runMo: v.runMo || 0, acidL: sh * (v.hclL || 0), acidKL: ds * (v.dispKL || 0) };
       },
       sayOf: function(v, fx) {
         if (!(v.share > 0)) return 'not worked out: set the share recovered';
         if (v.hclL == null) return 'HCl used a month not recorded: set it, or keep an HCl line in Stock';
-        return formatNum(fx.acidL, 0) + ' L of acid a month recovered' + (fx.acidKL ? ', ' + formatNum(fx.acidKL, 1) + ' KL less sent away' : '') + ': ' + (fx.acidSave ? formatInrShort(fx.acidSave) + ' a month' : 'no saving at the figures set');
+        var save = fx.chemSave + fx.effSave;
+        // A KL less sent away that saves nothing says so, so a leg at 0 is not read as a leg left out.
+        var kl = !fx.acidKL ? '' : ', ' + formatNum(fx.acidKL, 1) + ' KL less sent away' + (v.dispLessRs == null ? ' (what that saves is not set)' : !(v.dispLessRs > 0) ? ' (saving nothing at the figure set)' : '');
+        return formatNum(fx.acidL, 0) + ' L of acid a month recovered' + kl + ': ' + (save ? formatInrShort(save) + ' a month' : 'no saving at the figures set');
       } },
     { id: 'pick4', t: 'Another tank', cost: 150000, alone: true, fx: { pickKgH: 140 },
       req: 'Floor space in the pickling room, a hoist that reaches it, and a hand to load it at the busiest hours.',
@@ -593,7 +599,7 @@ function plnMonth(m, L, ready, opts) {
   opts = opts || {};
   var live = function(mv) { var r = ready[mv.key]; return r != null && m >= r && !(opts.drop && opts.drop[mv.key]); };
   var w = function(mv) { return !opts.expected ? 1 : opts.weights && opts.weights[mv.key] != null ? opts.weights[mv.key] : mv.p != null ? mv.p : 1; };
-  var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, acidSave: 0, runMo: 0 };
+  var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, effSave: 0, runMo: 0 };
   PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0 }; });
   L.forEach(function(mv) {
     if (!live(mv)) return;
@@ -605,7 +611,7 @@ function plnMonth(m, L, ready, opts) {
     if (f.unitLine === 'pick' && B.pick) fx.pickKgH += B.pick.kgH * (f.unitShare || 0) * s;
     if (f.cutCover) fx.cutCover = Math.max(fx.cutCover, f.cutCover * s);
     if (f.night && s >= 0.5) fx.night = true;
-    ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo', 'acidSave', 'runMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
+    ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo', 'effSave', 'runMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
   });
   // Demand by part, at its rate after any ask.
   var rows = [], uw = {}, uwDelta = 0;
@@ -681,7 +687,7 @@ function plnMonth(m, L, ready, opts) {
     labourFixed: C.labourFixed, labourPool: C.labourPool,
     labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther,
     hires: hires, zinc: plated * C.zincKg, chem: plated * (C.chemKg + fx.chemKg) - fx.chemSave,
-    power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.acidSave + fx.runMo
+    power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.effSave + fx.runMo
   };
   var costTot = 0; Object.keys(cost).forEach(function(k) { costTot += cost[k]; });
   var capex = 0, loanIn = 0, interest = 0, principal = 0;

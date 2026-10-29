@@ -2738,10 +2738,10 @@ prototypes). P162.
     (**set** in `cfg.fx[id]`, **measured**, **estimate**, **not set**; `plnInputVals`), its cost (blank where no estimate is honest:
     *cost to set*) and what it adds to the month on show; **Set figures** and **Cost**, behind Settings' permission. A move's effect
     is read from its figures (`plnFx`).
-  - **Acid recovery** (`acidSave`) is the share recovered × (HCl used a month × a litre's price with carriage) + a second share
-    (the spent acid less sent away) × the spent acid sent away × what each KL less sent away saves (nothing where the contractor
-    is paid for a fixed quantity, whatever is sent; owner, 29 Oct 2026: *"Fixed"*), less its running cost; nothing until the share
-    recovered is set, the second leg included; the flat ₹6,000 "less acid bought" had nothing behind it. HCl used a month is read
+  - **Acid recovery** is the share recovered × HCl used a month × what each litre less bought saves (carriage included), off the
+    Ledger's chemicals (`chemSave`), + a second share (the spent acid less sent away) × the spent acid sent away × what each KL
+    less sent away saves, off its effluent row (`effSave`: nothing while the bill is the same whatever is sent, a trip's bill over
+    its KL where each trip is paid for), less its running cost; nothing until the share recovered is set, the second leg included; the flat ₹6,000 "less acid bought" had nothing behind it. HCl used a month is read
     as the stock line's page reads it (`plnHclMonth`: `stockRate` × 26), never from a window a bill opens; with no use recorded,
     what came in, an estimate. **Fume extraction
     and scrubber** is its own option with a running cost (an estimate until set), and ISO 9001 and CQI-11 need it. Pickling's
@@ -2758,7 +2758,9 @@ prototypes). P162.
     line it serves and moves no figure.
     *Another barrel* adds one barrel's share. A move with no cost set is said on the verdict. Plans saved before gain the fume
     extraction once (`_plnHood1`).
-  - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge).
+  - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge). Acid
+    recovery's KL figure is `dispLessRs` since 29 Oct 2026, when its words changed from what sending a KL away costs to what a KL
+    less saves; a figure typed under the old key (`dispRs`) is not read.
 - **The ledger adds up** (`plnAttribution`): today's margin, then each move in the order it takes effect, each the plan up to it
   against the plan before it, ending in the plan. If every move lands, or weighted by each chance.
 - **The trials** (600, seeded): each chance, CQI-11 up to three months late, the promotion's pass, each machine's risk until the

@@ -158,9 +158,18 @@ function extraAreas(x) {
    pickling hands and books less. Nothing here measures per-area output, so that
    reduction cannot be derived — which is exactly why booking under the
    prediction is never reported as an error. */
-function blockNorm(row, blockRows) {
+function blockNorm(row, blockRows, iso) {
   // The number entered for this block wins over everything below: it is what the shift actually needed.
   if (row && typeof row.need === 'number' && row.need >= 0) return row.need;
+  // A line's scheduled night (shifts.js) needs the crew its schedule names: the row's areas' share of it (a row over the line and
+  // its pickling, the whole crew; a row of one, its own), the spare left out, since a spare books no shortfall.
+  var night = iso && typeof shiftBlockNight === 'function' ? shiftBlockNight(row, iso) : null;
+  if (night && night.need) {
+    var ra = extraAreas(row), n = 0, hit = false;
+    ra.forEach(function(id) { if (night.crew[id] != null) { n += night.crew[id]; hit = true; } });
+    if (hit) return n;
+    if (!ra.length) return night.need;
+  }
   var areas = extraAreas(row);
   var rows = blockRows || [row];
 
@@ -387,7 +396,8 @@ function areaStats(fromIso, toIso) {
       var areaId = m.area || w.area || 'flex';
       var a = byId[areaId];
       if (!a) return;
-      headsToday[areaId] = (headsToday[areaId] || 0) + 1;
+      // The general shift's heads: a hand in for the night (shifts.js) stands the night, which its own block reconciles.
+      if (!attMarkOnNight(m)) headsToday[areaId] = (headsToday[areaId] || 0) + 1;
       a.headDays++;
       // Overtime is placed where it was worked, the labour card's own split (attHoursSplit, staff.js): a monthly or daily
       // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's.
@@ -471,7 +481,7 @@ function areaStats(fromIso, toIso) {
       rows.forEach(function(x) {
         if (!(x.hours > 0)) return;   // supplies its area to the fold, books nothing
         var hrs = blockLength(x);
-        var norm = blockNorm(x, rows);
+        var norm = blockNorm(x, rows, iso);
         // An empty crew means two different things, and the record itself
         // tells them apart. A crew-less row BESIDE named sibling rows is the
         // relay stating nobody stood that line — W32 Thu-6's pickling rows
@@ -505,6 +515,14 @@ function areaStats(fromIso, toIso) {
         if (hrs == null || norm == null || heads == null) {
           blocks.push({ iso: iso, key: k, label: label, booked: booked,
             hours: hrs, norm: norm, heads: heads, expected: null, incomplete: true });
+          return;
+        }
+        // The barrel's running windows (shifts.js): a block in one books its loading or unloading, so many hours for the barrels
+        // handled in it (owner, 29 Oct 2026), not a missing hand's length.
+        var bw = typeof shiftBarrelWindowExpect === 'function' ? shiftBarrelWindowExpect(iso, x) : null;
+        if (bw) {
+          blocks.push({ iso: iso, key: k, label: label, booked: booked, hours: hrs, norm: norm, heads: heads,
+            expected: bw.hours, short: 0, barrels: bw.barrels, incomplete: false });
           return;
         }
         var short = Math.max(0, norm - heads);

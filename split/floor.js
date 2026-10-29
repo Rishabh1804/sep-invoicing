@@ -271,6 +271,13 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   }
   // What the line earned, against what its kilos cost and its usual day (one row; a role without money: the kilos against it).
   if (last && ln.id !== 'pickling') h += flrEarnedRowHtml(day, isToday, ln.id);
+  // The line's night on its schedule (shifts.js): its hours and its crew against what it needs.
+  var nt = ln.id !== 'pickling' && typeof lineNightOn === 'function' ? lineNightOn(ln.id, day) : null;
+  if (nt) {
+    var nc = shiftNightCrew(day, ln.id);
+    h += uiFactRowHtml({ label: 'Night', value: nc && nc.recorded ? nc.heads + (nt.need ? '/' + nt.need : '') : '', tone: nc && nc.heads && nt.need ? areaNeedTone(nc.heads, nt.need) : null,
+      sub: relayClockLabel(nt.start) + ' – ' + relayClockLabel(nt.end % 1440) + ' · plating ' + formatNum(nt.plateMin / 60, 2).replace(/\.?0+$/, '') + ' h after the break', attrs: ' data-flr-night="' + ln.id + '"' });
+  }
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
   if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.

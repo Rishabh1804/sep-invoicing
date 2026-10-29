@@ -344,7 +344,8 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart,
+    night: typeof lineNightOn === 'function' ? lineNightOn : null };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -944,7 +945,8 @@ function prodStaffedLines(day) {
   if (!day || !day.marks) return staffed;
   Object.keys(day.marks).forEach(function(id) {
     var mk = day.marks[id];
-    if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H')) return;
+    // A hand in for the night (shifts.js) is no head of the general shift: the line's night is its own.
+    if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H') || (typeof attMarkOnNight === 'function' && attMarkOnNight(mk))) return;
     var a = mk.area || '';
     if (a === 'vat-a1' || a === 'vat-a2' || a === 'barrel') staffed[a] = true;
   });
@@ -1096,7 +1098,7 @@ function prodDayPicture(date) {
   pic.weighedShare = pic.pieces ? (pic.pieces - pic.unweighed) / pic.pieces : 1;
   pic.cuts = typeof powerCuts === 'function' ? powerCuts(date, date) : [];
   pic.loads = prodDayLoads(date).length;
-  pic.capacity = STATS_CAPACITY_KG_DAY;
+  pic.capacity = Math.max(STATS_CAPACITY_KG_DAY, typeof statsCapacityKg === "function" ? statsCapacityKg(date, date) : 0);
   pic.usual = prodUsualDay(date);
   // Each line's units on the day (the plant register) and its heads against the day's number (Floor → Day's own reading).
   var byArea = {};
@@ -1418,8 +1420,16 @@ function prodLineEfficiency(date, line) {
   var wins = [];
   if (staffed || r.entries.some(function(e) { return e.slot !== 'ot' && e.slot !== 'day'; })) wins.push([RELAY_GENERAL, RELAY_GENERAL_OUT]);
   var on = function(m) { return m < PROD_DAY_START ? m + 1440 : m; };
+  // A line's scheduled night (shifts.js; owner, 29 Oct 2026): a night it ran is judged against the night's plating time, its start
+  // to when the crew stops, less the break, whatever the runs' own times; the barrel against its whole running day, the mornings
+  // and evenings running with no crew.
+  var night = typeof lineNightOn === 'function' ? lineNightOn(line, date) : null, run = line === 'barrel' && typeof barrelRunOn === 'function' ? barrelRunOn(date) : null;
+  var inNight = function(e) { var t = relayParseHhmm(e.time); return night && t != null && on(t) >= night.start - 60; };
+  var ranNight = !!night && (r.entries.some(function(e) { return e.slot === 'ot' && inNight(e); }) || ((typeof shiftNightCrew === 'function' ? shiftNightCrew(date, line) : null) || {}).heads > 0);
+  if (ranNight) { wins.push([night.start, night.stop]); o.night = { start: night.start, stop: night.stop, end: night.end, breakMin: night.breakMin, plateMin: night.plateMin }; }
+  if (run && r.entries.length) { wins = [[run.from, run.to]]; o.run = { from: run.from, to: run.to }; }
   r.entries.forEach(function(e) {
-    if (e.slot !== 'ot') return;
+    if (e.slot !== 'ot' || (ranNight && inNight(e)) || o.run) return;
     var a = relayParseHhmm(e.time), b = relayParseHhmm(e.to);
     if (a == null) { o.noEnd++; return; }
     a = on(a);
@@ -1438,7 +1448,7 @@ function prodLineEfficiency(date, line) {
     merged.forEach(function(w) { o.cutMin += Math.max(0, Math.min(b, w[1]) - Math.max(a, w[0])); });
   });
   o.windows = merged;
-  o.minutes = Math.max(0, span - o.cutMin);
+  o.minutes = Math.max(0, span - o.cutMin - (o.night ? o.night.breakMin : 0));
   // Judged only with every input: a record, the units' kg a round, a pace and some time.
   var missing = staffed && !(prodGeneralLines()[date] || {})[line];
   if (!o.ran && !staffed) { o.word = 'Did not run'; return o; }

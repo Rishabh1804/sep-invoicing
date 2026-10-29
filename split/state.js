@@ -38,6 +38,7 @@ function getDefaultState() {
     changeLog: [],
     mergeHeld: [],
     prospects: [],
+    lineShifts: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.

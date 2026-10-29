@@ -157,6 +157,7 @@ function onDocClick(e) {
     case 'invCloseSettings': closeSettings(); break;
     case 'invZincDeriveUplift': zincDeriveUplift(); break;
     case 'invCostDeriveBank': costDeriveFromBank(btn.dataset.which); break;
+    case 'invShiftReread': shiftRereadFrom(); break;
     case 'invCostUseDerived': costUseDerived(btn.dataset.field, btn.dataset.val); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;

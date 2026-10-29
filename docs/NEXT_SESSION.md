@@ -7,6 +7,23 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 29 Oct 2026: the night shift on a line's schedule (read this first)
+
+- **Shifts by line** (owner, 29 Oct 2026: a night shift on VAT A1, *"Build it as a schedule per line with a start date"*; `shifts.js`,
+  P249): Settings → Labour → Shifts by line holds each line's night from a day (its times, when plating stops, the break, the crew
+  on the line and on pickling, a spare) and the barrel's running hours with the EXTRA its loading books a window. The roll's night
+  heading starts at the schedule's start, and a hand only on the night is in at it; a hand in from 4 PM is no head of the general
+  shift; a night block's norm is the schedule's crew; the To-do flags a short night and a hand on two shifts back to back;
+  efficiency judges the night against its plating time less the break; a night page's times run on past midnight; a cut in the
+  night is in working hours; capacity and the planner count the night. Pay needed nothing: 6 PM to 6 AM is 12 hours by the roll's
+  own rule, with the night snack. **Read the rolls again from …** on the section reads the days since the first schedule again.
+- **Nothing about the shop is in the build**: the owner types the schedules (this week 5 PM to 8:30 AM, from Monday 6 PM to 6 AM).
+- **A data flow changed**: `S.lineShifts` travels with the book (backups, GitHub, the merge, the change log). soma-internal reads
+  attendance and production, whose nights now carry their 6 PM ins and past-midnight times on the day the night starts.
+- **Not built, waiting on the owner**: who keeps VAT A1's register at night and who sends the night's roll (the night roll is read
+  as an out-time roll's night heading); the barrel EXTRA's payee (pooled, as every EXTRA, until ruled); the pickling cross-check,
+  which will read the night (a load pickled before 6 PM may go into VAT A1's night).
+
 ## Built 28 Oct 2026, the second: the print station's light (read this first)
 
 - **A light on Home for the print station** (owner, 28 Oct 2026: *"a blinking light (notification) on the home screen hero card, to show if

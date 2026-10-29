@@ -20,6 +20,7 @@ var PROD_QTY_TOKEN_RE = /(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*)\s*(nos|no|mos
 var PROD_LINES = ['vat-a1', 'vat-a2', 'barrel'];
 var PROD_LINE_LABEL = { 'vat-a1': 'VAT A1', 'vat-a2': 'VAT A2', barrel: 'Barrel' };
 
+var PROD_REG_DAY_START = 360;   // a night page's clock starts at 6 AM, the shop's day (production.js PROD_DAY_START)
 function prodHhmm(min) { return min == null ? null : relayHhmm(min); }
 /* A stored "HH:MM" in minutes is the relay's own reading (relayParseHhmm): one parser for a time the app wrote. */
 
@@ -1119,6 +1120,30 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     out.rows.push(row);
   });
+  // A page of a line's scheduled night (shifts.js, ctx.night): its times run on past midnight, so each is read on the night's
+  // clock, the earliest reading not before the row above it (half an hour's slack for a row written out of turn): "2:00" after
+  // "11:40 PM" is 2 AM, not 2 PM, and "12:20 AM" is past midnight, not noon.
+  var night = ctx.night && out.line ? ctx.night(out.line, out.date) : null;
+  if (night) {
+    var prev = null;
+    out.rows.forEach(function(row) {
+      var t = /(\d{1,2})\s*(?:[:.;]\s*(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(String(row.time || ''));
+      if (!t || (t[2] == null && !t[3])) return;
+      var h = +t[1], mm = t[2] != null ? +t[2] : 0, ap = (t[3] || '').toLowerCase();
+      if (h > 23 || mm > 59) return;
+      var cands = /p/.test(ap) ? [(h % 12 + 12) * 60 + mm] : /a/.test(ap) ? [(h % 12) * 60 + mm] : h >= 13 || h === 0 ? [h * 60 + mm] : [(h % 12) * 60 + mm, (h % 12 + 12) * 60 + mm];
+      cands = cands.map(function(c) { return c < PROD_REG_DAY_START ? c + 1440 : c; }).sort(function(a, b) { return a - b; });
+      // The first row keeps the day's reading (a page that holds the general shift begins in the morning).
+      var pick = prev == null ? (row.min != null ? (row.min < PROD_REG_DAY_START ? row.min + 1440 : row.min) : cands[0]) : cands.find(function(c) { return c >= prev - 30; });
+      if (pick == null) pick = cands[cands.length - 1];
+      if (pick !== row.min) {
+        row.issues = row.issues.filter(function(x) { return x.code !== 'meridiem'; });
+        if (row.min != null && (row.min % 1440) !== (pick % 1440)) row.issues.push({ tone: 'info', code: 'night', text: row.time + ' read as ' + relayClockLabel(pick) + ': the page is ' + (shiftLineName ? '' : '') + 'the night’s, which runs past midnight.' });
+        row.min = pick;
+      }
+      prev = pick;
+    });
+  }
   if (out.style === 'rounds') {
     // START counts as a batch of the next round's figure.
     out.rows.forEach(function(row, k) {

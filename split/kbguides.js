@@ -182,6 +182,12 @@ var KB_APP_GUIDES = [
     '- This compares the hands in each area on the general shift with the number that the shift needed. The box starts at the usual number of the area (People → Areas).\n' +
     '- Type the number for the day. Type **0** if the line needed nobody. Clear the box to use the usual number. The app calculates the shortfall and the extra against this number.\n' +
     '- An OT block or a night block has its own number on its row under Extra hours.\n\n' +
+    '# The night shift\n' +
+    '- A line with a night on its schedule (Settings → Labour → **Shifts by line**) has its own card on the board: the hands on the night against the crew that the night needs.\n' +
+    '- A hand who comes in at 4 PM or later is on the night, not on the general shift. The general shift does not count that hand.\n' +
+    '- The night roll names the crew under a night heading. The heading starts at the time of the schedule. A hand who is only on the night is in at its start.\n' +
+    '- The night is the day it starts on. A night from 6 PM to 6 AM is 12 hours: 4 of them are the overtime of a monthly hand. An hourly hand gets all 12 at the hour rate, with the night snack.\n' +
+    '- If the night is short of its crew, the EXTRA is the length of the night for each missing hand. The To-do tells you about a short night, and about a hand on 2 shifts back to back.\n\n' +
     '# Week\n' +
     '- The card compares the attendance of the week with the rest-day gate (90% and 80%). It also shows the days that nobody recorded, and the payout until now.\n' +
     '- Tap a cell of the grid to change it. Each tap sets the next state: present, half day, absent, then not marked.\n' +
@@ -200,8 +206,8 @@ var KB_APP_GUIDES = [
     '- **The extra** is hours that the sheet books to an area, not to a person. They are real paid hours with no name on them. In the bill, they are 1 pooled line. The bill counts them once and never in the wage of a person. The crew present in the short area receive the extra pro-rata. The supervisor pays it out, and People → Areas shows the split.',
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
-    // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 5 }),
+    // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
+    { version: 6 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +

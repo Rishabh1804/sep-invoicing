@@ -131,8 +131,17 @@ function powerWindows(date) {
   var sunday = new Date(date + 'T00:00:00').getDay() === 0;
   var marked = rec && rec.marks && Object.keys(rec.marks).some(function(k) { var m = rec.marks[k]; return m && (m.st === 'P' || m.st === 'H'); });
   if (!sunday || marked) out.push({ from: RELAY_GENERAL, to: RELAY_GENERAL_OUT, kind: 'general' });
+  // A line's scheduled night that ran (shifts.js) is a shift of its own, not overtime: its start to its end, and the night of the
+  // day before up to its end this morning (a 2 AM cut is the night that began yesterday).
+  var nightOf = function(d, shift) {
+    if (typeof nightLinesOn !== 'function') return;
+    nightLinesOn(d).forEach(function(n) { var c = shiftNightCrew(d, n.line); if (c && c.heads) out.push({ from: n.start - shift, to: n.end - shift, kind: 'night', line: n.line }); });
+  };
+  nightOf(date, 0);
+  nightOf(isoAddDays(date, -1), 1440);
   ((rec && rec.extra) || []).forEach(function(x) {
     if (x.kind !== 'block') return;
+    if (typeof shiftBlockNight === 'function' && shiftBlockNight(x, date) && out.some(function(w) { return w.kind === 'night'; })) return;
     var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
     if (a == null || b == null) return;
     if (b <= a) b += 1440;

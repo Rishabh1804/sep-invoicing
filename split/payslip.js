@@ -199,6 +199,8 @@ function psShow(rows) {
   body.innerHTML = psSheetsHtml(rows);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  // A slip says which payments came by bank only to an ID that sees money (paySeesBank): another ID needs it too (Iuno L-2 on #162).
+  printNeed({ pages: ['pageStaff'], wages: true, money: paySeesBank() });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

@@ -232,6 +232,7 @@ function soaPrint() {
   body.innerHTML = soaDocHtml(s);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pageFinance'], money: true });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

@@ -1172,6 +1172,7 @@ function plnReportOpen() {
   body.innerHTML = plnReportHtml();
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pagePlanner'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
@@ -1181,7 +1182,7 @@ function plnReportOpen() {
 /* A report open in the print view follows the plan as it changes. */
 function plnReportRedraw() {
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-pl-report]')) { body.innerHTML = plnReportHtml(); printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-pl-report]')) { body.innerHTML = plnReportHtml(); printFit(); }
 }
 
 /* ---------- The To-do: the checklist and the machines are records, and they ask ---------- */

@@ -604,7 +604,7 @@ function renderReports() {
   paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
 }
 
 window.addEventListener('resize', function() { var s = document.getElementById('rptSheet'); if (s && s.offsetParent) paperFit(s); });
@@ -616,6 +616,11 @@ function rptPrint() {
   body.innerHTML = rptHtml(p.kind, p.from);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  // A report of the current period lists the sender's own open tasks (rptOpenHtml reads todoRanked as this ID sees it, each task by
+  // its own need: money, wages, the floor, the roster, its page), which no flag on the job can carry whole: only the owner opens
+  // it from the office's queue (Iuno M-2, L-5; Castor M-1, L-3 on #162). A past period's lists none: its page's gate.
+  var today = localDateStr(), current = p.from <= today && p.to >= today;
+  printNeed({ pages: ['pageReports'], owner: current });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

@@ -318,6 +318,7 @@ function ckPrint() {
   document.getElementById('invPrintBody').innerHTML = ckSheetHtml(cfg);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ owner: true });   // the owner's to print (ckOwnerOk), and its QR carries the check-in key
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

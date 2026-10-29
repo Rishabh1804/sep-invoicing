@@ -282,6 +282,7 @@ function showSalesRegisterPreview() {
   body.innerHTML = banner + buildSalesRegisterHtml(scope);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ pages: ['pageRegister'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

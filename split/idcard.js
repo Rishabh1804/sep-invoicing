@@ -288,6 +288,7 @@ function idcPreview() {
   document.getElementById('invPrintBody').innerHTML = idcSheetsHtml(cards, backs);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
+  printNeed({ owner: true });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

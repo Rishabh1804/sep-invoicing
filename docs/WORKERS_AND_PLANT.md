@@ -25,11 +25,14 @@ Their answers to the four questions put to them, the same day:
 
 `plant.js`, `S.plant = { units, log }`.
 
-- **A unit** (`S.plant.units`): `id`, `name` (*Tank 3*, *Barrel 2*), `station` (`vat-a1` · `vat-a2` · `barrel` · `pickling`, and the
+- **A unit** (`S.plant.units`): `id`, `name` (*Tank 3*, *Barrel 2*), `station` (`vat-a1` · `vat-a2` · `barrel` · `pick`, and the
   supporting stations `lab` · `oven` · `power` · `etp` · `other`), `kind` (tank · barrel · rectifier · other), `kgRound` (its capacity,
   for a unit that plates or pickles), `status` (`run` · `standby` · `down` · `repair`), `since` (the day the status began), `reason`,
   `condition` (good · fair · needs work), `needs`, `age`, `risk` (`{p, cost, days, say}`, the planner's), `note`, `retiredAt` /
-  `retireReason`.
+  `retireReason`; since 28 Oct 2026 `gone` (*Not coming back*, a sale in the planner) and `line` (the line a supporting unit
+  serves, `''` for none; a unit that plates keeps none).
+- **What counts toward a line** (T-IO, 29 Oct 2026): a tank or a barrel at a line's station (`pltPlates`). A rectifier, or any unit
+  at a station that is no line, supports the line it serves (`pltLineOf`, `pltPlaceOf`) and is never one of its units.
 - **The status log** (`S.plant.log`): every status change, `{unitId, date, from, to, reason, at, by}`. Days down are measured off it.
 - **A line's capacity** (`pltStation`): the units side by side, so **available** = the kg a round of the units running or on
   standby over the kg a round of all of them (*3 of 4 tanks · 75% available*). With no kg a round typed it is by count, and says so.

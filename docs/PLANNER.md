@@ -96,8 +96,8 @@ and the day is the month divided by its working days.
    many), so each unit down, under repair or in need of work is a move under **Repairs
    and sales** (`plnUnitMoves`): **Bring back** adds its share of the line's round (its kg a round over the kg working, else one
    over the units working, counting only tanks and barrels, each on its own station's line, `pltPlates` and `pltLineOf`: a unit's
-   *Line it stops when it fails* is read only for a rectifier or another supporting unit, whose row names the line it serves and
-   moves no figure; with none working, its share of the whole line)
+   *Line it serves* is read only for a rectifier or another supporting unit, whose row names the line it serves and moves no
+   figure, and whose failure in the trials stops that line whole; with none working, its share of the whole line)
    and ends its risk;
    **Another barrel** adds one barrel's share on the same basis; **Overhaul** a running unit in need of work ends its risk, and a unit marked *Not
    coming back* on the register is a **Sale**, cash in at the price set. A running unit in need of work or ageing with no risk

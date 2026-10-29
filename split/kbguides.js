@@ -310,12 +310,16 @@ var KB_APP_GUIDES = [
     '- Its badges show where it came from (*register*, *relay*, *hand*, *message*, *import*). They show how the app weighed its pieces (*written*, *record*, *challans*, *kind*, *default*, *not weighed*). They also show what it did not match (*no challan*, *no client*, *gauge unknown*).\n' +
     '- **Filter** (on a phone) shows 1 kind, or the entries that a flag names, for all dates.\n\n' +
     '# Equipment\n' +
-    '- Each tank, barrel and machine has a card in the colour of its status: running, standby, under repair or down. The card shows its kg a round and how long it has had that status. The app calculates the capacity of a line from its units. The app keeps each change of status with its day.',
+    '- Each tank and barrel of a line has a card in the colour of its status: running, standby, under repair or down. The card shows its kg a round and how long it has had that status. The app calculates the capacity of a line from its tanks or barrels.\n' +
+    '- A rectifier is in **Supporting equipment**, and so is each unit at a station that is not a line. Its row shows where it stands and the line it serves, for example *Other, for VAT A2*. It is not part of the capacity of the line.\n' +
+    '- When you add a unit, the kind and **Line it serves** follow the station until you pick them. For a rectifier, set **Line it serves**.\n' +
+    '- The app keeps each change of status with its day.',
     // Version 4: Print sheets (the entry faces' F5, 10 Oct 2026). Version 3: what a line earned, and the day and the week against
     // the line's usual (owner, 10 Oct 2026). Version 5: the register photo came out (owner, 13 Oct 2026).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    // Version 7: the unbilled figure is a widget on Home (UI pass 3, 16 Oct 2026).
-    { version: 7 }),
+    // Version 7: the unbilled figure is a widget on Home (UI pass 3, 16 Oct 2026). Version 8: a line's units are its tanks and
+    // barrels; a rectifier is supporting equipment, with the line it serves (T-IO, 29 Oct 2026).
+    { version: 8 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -466,7 +470,7 @@ var KB_APP_GUIDES = [
     '- Upgrade costs are estimates until a quote replaces them. Tap a level to see what it needs, each figure it rests on (**set**, **measured**, **estimate** or **not set**) and what it adds to the month. Set the cost with **Cost** and the other figures with **Set figures**.\n' +
     '- **Acid recovery** adds nothing until you set the share it recovers. Its saving is the acid it saves and the spent acid not sent away. For **What each KL less sent away saves**, set what the bill falls by for each KL less. If the bill is the same whatever is sent, set 0. If you pay for each trip that takes it away, set a trip’s bill divided by the KL it takes. **Fume extraction and scrubber** has its own row: ISO 9001 and CQI-11 need it.\n' +
     '- **The approved load on the bill** saves the excess-load penalty that the bills on Power → Load & bills state. The planner takes the middle of the last six. Enter the penalty on each bill to keep it right.\n' +
-    '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead. A tank or barrel counts on the line of its own station. The field **Line it stops when it fails** is for a rectifier or another machine.\n' +
+    '- A unit that is down or needs work on the plant register (Production → Equipment) is a move under **Repairs and sales**. A line plates with the units that work today. **Bring back** a unit to add its share of the line and end its risk. Mark a unit **Not coming back** on the register to sell it instead. A tank or barrel counts on the line of its own station. The field **Line it serves** is for a rectifier or another machine. In the trials, its failure stops that line.\n' +
     '- **Make the report** prints the plan for a lender or a meeting.',
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
     // card and More (TM2d).

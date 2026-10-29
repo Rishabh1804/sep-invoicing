@@ -389,7 +389,7 @@ function pcsWhereFieldHtml() {
   PLT_STATIONS.forEach(function(s) {
     var mine = units.filter(function(u) { return u.station === s[0]; });
     h += opt(s[0], s[1] + (s[0] === 'power' ? ' (the panel and supply equipment)' : ''));
-    if (mine.length) h += '<optgroup label="' + escHtml(s[1] + ': a unit') + '">' + mine.map(function(u) { return opt('u:' + u.id, u.name + ' · ' + s[1]); }).join('') + '</optgroup>';
+    if (mine.length) h += '<optgroup label="' + escHtml(s[1] + ': a unit') + '">' + mine.map(function(u) { return opt('u:' + u.id, u.name + ' · ' + pltPlaceWords(u)); }).join('') + '</optgroup>';
   });
   return h + '</select></div>';
 }
@@ -473,7 +473,8 @@ async function pcsSave() {
   var fid = x ? (x.id ? pcsLearn('fix', x.text, { id: x.id }) : pcsLearn('fix', x.text, { keepNew: true })) : null;
   var unitId = whereNow.indexOf('u:') === 0 ? whereNow.slice(2) : null;
   var u = unitId && typeof pltUnitById === 'function' ? pltUnitById(unitId) : null;
-  var where = u ? u.station : whereNow || null;
+  // A cut tied to a unit hit the line it serves (pltPlaceOf): a rectifier at Other, for VAT A2, is VAT A2's (Vulcanus L-1).
+  var where = u ? pltPlaceOf(u) : whereNow || null;
   var idx = prodIndex(), n = 0;
   f.ids.forEach(function(id) {
     var e = idx.byId[id];

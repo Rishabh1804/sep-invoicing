@@ -2652,13 +2652,18 @@ workers and every personal detail are the book's; the owner's private files (`se
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
   **What counts toward a line is one rule** (`pltPlates`; T-IO, 29 Oct 2026): a tank or a barrel at a line's station is one of its
   units, and stops its own line's share when it fails. Every other unit supports a line: a rectifier, or anything at a station that
-  is not a line. It is listed under *Supporting equipment* with the line it stops (`pltLineOf`: the line set on it, else the line it
+  is not a line. It is listed under *Supporting equipment* with the line it serves (`pltLineOf`: the line set on it, else the line it
   stands at, else none), never counted in a line's units (`pltCapacity`, the tanks a round of `prodTankLoad`, Floor's cards, the
-  planner). A power cut tied to a unit lands on that line (`pltPlaceOf`: the cut's words, Power → Causes' places, the line's panel
-  note), so a rectifier at Other, for VAT A2, is VAT A2's. **The unit's form follows its station** until a kind or a line is picked
-  (the app's `_auto` rule): a barrel at the Barrel station, a tank at another line's, *Other* elsewhere; the line, the station's where
-  that is a line, else none, and a unit that plates is offered no line (it had opened at VAT A1 with kind Tank and line VAT A1, and a
-  station changed moved neither). P248.
+  planner). **Where a unit is, is one place** (`pltPlaceOf`, named one way by `pltPlaceWords`: *Other, for VAT A2*): a power cut tied
+  to it lands there (the cut's words, the place the cut dialog stores, Power → Causes' places, the line's panel note); its task and
+  its move ask to get that line running and judge it with the line's supporting equipment (`pltSupportCap`), never by a station
+  that is no line (the task had read *Other: No unit recorded*); the Equipment card judges it there too, and the planner's
+  machines name it so. An upgrade that fixes a station ends the risk of the tanks and barrels there, never a rectifier's. **The
+  unit's form follows its station** until a kind or a line is picked (the app's `_auto` rule): a barrel at the Barrel station, a tank
+  at another line's, *Other* elsewhere; **Line it serves**, beside Kind, the station's where that is a line, else none, and a unit
+  that plates is offered none (it had opened at VAT A1 with kind Tank and line VAT A1, and a station changed moved neither). A
+  `sep-plant` import keeps a unit's line and *Not coming back*, and gives a unit with no kind its station's. A pickling tank's
+  failure in the planner's trials takes its share of pickling's kilos an hour, as Bring back adds it. P248.
   **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the
   first day of a unit's first line) stood before it, whatever its *since*, which is the day it was recorded; only a unit written in
   later counts from its own day (`pltRecordedOn`). The running units' *since* had read as the day they came, and every day before
@@ -2754,8 +2759,8 @@ prototypes). P162.
     at the price set). A running unit in need of work or ageing with no risk typed may fail at an estimated chance
     (`PLN_RISK_DEFAULT`) until its repair lands, stopping its share of the line; a unit on standby fails only at a risk typed on
     it. A unit's share counts tanks and barrels only, each on its own station's line (`pltPlates`, `pltLineOf`): the unit's *Line it
-    stops when it fails* is read only for a rectifier or another supporting unit, whose row under *Repairs and sales* names the
-    line it serves and moves no figure.
+    serves* is read only for a rectifier or another supporting unit, whose row under *Repairs and sales* names the line it serves
+    and moves no figure (in the trials its failure stops that line whole).
     *Another barrel* adds one barrel's share. A move with no cost set is said on the verdict. Plans saved before gain the fume
     extraction once (`_plnHood1`).
   - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge). Acid

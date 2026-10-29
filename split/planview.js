@@ -188,9 +188,9 @@ function plnMachinesHtml() {
   return '<div class="inv-panel inv-panel-flush" id="plnMachines"><div class="inv-panel-head"><span class="inv-panel-title">Machines and infrastructure <span class="inv-panel-count">' + list.length + '</span></span>' +
     (pltCanEdit() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit">Add</button>' : '') + '</div>' +
     (list.length ? list.map(function(x) {
-      var s = st(x.state), stn = PLN_STATIONS.find(function(y) { return y.id === x.station; }), run = pltStatus(x.status);
+      var s = st(x.state), stn = PLN_STATIONS.find(function(y) { return y.id === x.station; }), run = pltStatus(x.status), xu = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
       return plnRowHtml({ key: 'pl-machine-' + x.id, attrs: ' data-pl-machine="' + escHtml(x.id) + '"', title: x.item,
-        facts: [stn ? stn.name : pltStationName(x.station), run[0] !== 'run' ? run[1] : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''],
+        facts: [xu ? pltPlaceWords(xu) : stn ? stn.name : pltStationName(x.station), run[0] !== 'run' ? run[1] : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''],
         end: '<span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPltEdit" data-id="' + escHtml(x.id) + '">Edit</button>'] });
     }).join('') : '<div class="inv-empty">No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.</div>') + '</div>';
 }
@@ -865,7 +865,7 @@ function plnRepairsHtml(P) {
         : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more ' + (x.line === 'pick' ? 'pickling an hour' : 'on ' + lineWord + ' a round') + ', and its risk ends'
         : x.down && x.line ? 'back working for ' + lineWord : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
       var rows = plnReqRows(x.req);
-      if (x.down && x.line && !plates && x.kind === 'fix') rows.push({ label: 'The line it serves', value: lineWord, sub: 'a supporting unit is no share of the line’s round, so the month’s figures do not move', wrap: true });
+      if (x.down && x.line && !plates && x.kind === 'fix') rows.push({ label: 'The line it serves', value: lineWord, sub: 'no share of the line’s round, so the month does not move; in the trials its failure stops the line whole', wrap: true });
       if (x.kind === 'sell') rows.push({ label: 'What it sells for', value: price ? formatCurrency(price) : '', src: price ? PLN_SRC.set : PLN_SRC.unset });
       else rows.push({ label: 'What it costs, once', value: cost ? formatCurrency(cost) : '', src: cost ? PLN_SRC.set : PLN_SRC.unset });
       if (x.down && x.line && plates && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',

@@ -245,7 +245,7 @@ function plnCostToSet(lv) { var c = plnCfg().costs[lv.id]; return lv.cost == nul
    running unit in need of work or ageing, with no risk typed on it, may fail in the trials (PLN_RISK_DEFAULT, an estimate). */
 var PLN_RISK_DEFAULT = { needs: { p: 0.05, days: 3 }, ageing: { p: 0.02, days: 2 } };
 /* A tank or barrel at a line's station plates on that line (pltPlates, the plant register's own rule since T-IO), and stops its
-   own line; the unit's "Line it stops when it fails" is read only for a supporting unit, a rectifier or another kind (pltLineOf;
+   own line; the unit's "Line it serves" is read only for a supporting unit, a rectifier or another kind (pltLineOf;
    Vulcanus, 28 Oct 2026: two barrels whose field named VAT A1 had each brought back two thirds of VAT A1's round). */
 function plnUnitMoves() {
   if (typeof pltUnits !== 'function') return [];
@@ -265,7 +265,7 @@ function plnUnitMoves() {
     }
     var kind = u.gone && down ? 'sell' : 'fix';
     out.push({ id: kind + ':' + u.id, kind: kind, unit: u, down: down, line: line, share: share, basis: basis,
-      same: PLN_STATIONS.reduce(function(r, st) { st.levels.forEach(function(lv) { if (lv.fixes && lv.fixes === u.station) r = st.name + ': ' + lv.t; }); return r; }, ''),
+      same: !pltPlates(u) ? '' : PLN_STATIONS.reduce(function(r, st) { st.levels.forEach(function(lv) { if (lv.fixes && lv.fixes === u.station) r = st.name + ': ' + lv.t; }); return r; }, ''),
       t: (kind === 'sell' ? 'Sell ' : down ? 'Bring back ' : 'Overhaul ') + u.name,
       req: kind === 'sell' ? 'A buyer, and the unit taken out of the line.' : (u.needs ? 'It needs: ' + u.needs + '.' : 'What it needs is not written on the unit (Production → Equipment).') + (u.reason ? ' Down: ' + u.reason + '.' : '') });
   });
@@ -640,6 +640,9 @@ function plnMonth(m, L, ready, opts) {
     rows.push({ client: mv.vol.client, part: { id: mv.key, name: mv.label }, line: lines[mv.vol.line] ? mv.vol.line : 'vat-a2', kgDay: mv.vol.kg * ramp * w(mv) / B.wd, perKg: mv.vol.rate, base: mv.vol.rate, extra: mv.key });
   });
   if (opts.down) Object.keys(opts.down).forEach(function(k) { if (lines[k]) lines[k].down = opts.down[k]; });
+  // A pickling tank's failure takes its share of pickling's kilos an hour for the days it is down, as a line's takes its share of
+  // the line's days (Vulcanus L-6, 29 Oct 2026: pickling's down days had been dropped, while Bring back added its share).
+  if (opts.down && opts.down.pick > 0 && B.wd) fx.pickKgH *= Math.max(0, 1 - opts.down.pick / B.wd);
   rows.forEach(function(r) { lines[r.line].demand += r.kgDay; });
   // Each line: the hours needed against the hours it can run, the cuts taken out.
   var cutMin = opts.cutMin != null ? opts.cutMin : B.cutMin;
@@ -761,17 +764,18 @@ function plnTrials() {
   var sc = plnScenario(), B = plnBase(), L = plnMoves(sc), r = plnRng(20261006), all = [], g = plnGoal(sc);
   // A running unit in need of work or ageing, with no risk typed on it, may fail at the catalogue's chance (an estimate); a
   // unit on standby fails only at a risk the owner typed on it. A unit not working cannot fail; a unit sold is gone. A tank or
-  // barrel stops a share of its own station's line (pltLineOf), never the line its "stops when it fails" field names.
+  // barrel stops a share of its own station's line (pltLineOf), never the line its "Line it serves" field names. An upgrade that
+  // fixes a station ends the risk of the tanks and barrels there, never a supporting unit's (Vulcanus L-3, 29 Oct 2026).
   var machines = plnLive('machines').filter(function(x) { return (x.status || 'run') === 'run' || x.status === 'standby'; }).map(function(x) {
     var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
-    if (u) x = Object.assign({}, x, { line: pltLineOf(u) || null });
+    if (u) x = Object.assign({}, x, { line: pltLineOf(u) || null, plates: pltPlates(u) });
     if (x.risk && +x.risk.p > 0) return x;
     var d = (x.status || 'run') === 'run' ? PLN_RISK_DEFAULT[x.state] : null;
     return d ? Object.assign({}, x, { risk: { p: d.p, cost: 0, days: d.days, say: x.needs || 'breaks down', assumed: true } }) : x;
   }).filter(function(x) { return x.risk && +x.risk.p > 0; });
   var fixAt = function(ready, station, id) {
     var hit = id && ready['fix:' + id] != null ? ready['fix:' + id] : null;
-    PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.fixes === station && ready[lv.id] != null) hit = hit == null ? ready[lv.id] : Math.min(hit, ready[lv.id]); }); });
+    if (station) PLN_STATIONS.forEach(function(st) { st.levels.forEach(function(lv) { if (lv.fixes === station && ready[lv.id] != null) hit = hit == null ? ready[lv.id] : Math.min(hit, ready[lv.id]); }); });
     return hit;
   };
   for (var t = 0; t < PLN_TRIALS; t++) {
@@ -783,7 +787,7 @@ function plnTrials() {
     for (var m = 0; m < PLN_N; m++) {
       var down = {}, hit = 0;
       machines.forEach(function(x) {
-        var f = fixAt(ready, x.station, x.id);
+        var f = fixAt(ready, x.plates === false ? null : x.station, x.id);
         if ((f == null || m < f) && r() < +x.risk.p) { hit += +x.risk.cost || 0; if (x.line && x.risk.days) down[x.line] = (down[x.line] || 0) + (+x.risk.days) * plnUnitShareOf(x); if (events.length < 16) events.push([m, x.item + ': ' + (x.risk.say || 'broke down') + (x.risk.cost ? ', ' + formatInrShort(x.risk.cost) : ''), 'danger']); }
       });
       var mo = plnMonth(m, L, ready, { down: down, refused: refused, cutMin: B.cutMin * (0.6 + r() * 0.9) });

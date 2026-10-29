@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openHome, readStoredState, switchTab, todayIso, withWidgets, type SepState } from './fixtures';
 
 // P248 (T-IO, 29 Oct 2026; Vulcanus V-2, V-4, V-5, V-6 of 28 Oct): what counts toward a line is one rule, a tank or a barrel at
 // the line's station (pltPlates). A rectifier or any other unit supports a line: it is never one of the line's units, it names
 // the line it stops when it fails (pltLineOf), and a power cut tied to it lands on that line (pltPlaceOf). The unit's form
-// follows its station until a kind or a line is picked, and offers no line to a unit that plates. Made-up units.
+// follows its station until a kind or a line is picked, and offers no line to a unit that plates. Vulcanus's read of the first
+// build (29 Oct 2026): a supporting unit is named and judged with the line it serves wherever it is drawn (M-1, M-2, L-1, N-1),
+// Line it serves stands beside Kind (L-2), a station's upgrade ends only its tanks' and barrels' risk (L-3), an import keeps the
+// line (L-4), and pickling's units count on Home and in the trials (L-5, L-6). Made-up units.
 
 const g = (page: Page, e: string) => page.evaluate(x => (0, eval)(x), e);
 const day = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -79,13 +82,17 @@ test.describe('P248 a line’s units, and the units that support it', () => {
     expect(u).toMatchObject({ station: 'other', kind: 'rectifier', line: 'vat-a1' });
   });
 
-  test('a rectifier added at Other, its fold never opened, stops no line; a line never picked is not stored', async ({ page }) => {
+  test('a rectifier added at Other, its line never picked, stops no line; Line it serves stands beside Kind, out of the fold', async ({ page }) => {
     await loadAppWithState(page, book());
     await openEquipment(page);
     await page.locator('[data-prod-toolbar="equipment"] [data-action="invPltEdit"]').click();
     await dlg(page).locator('#pltName').fill('Rectifier 9');
     await dlg(page).locator('#pltStation').selectOption('other');
     await dlg(page).locator('#pltKind').selectOption('rectifier');
+    // The line it serves is its place, so it is seen without opening the trials' fold (it had been shut in it).
+    await expect(lineField(page)).toBeVisible();
+    await expect(dlg(page).locator('details [data-plt-linefield]')).toHaveCount(0);
+    await expect(lineField(page).locator('label')).toHaveText('Line it serves');
     await dlg(page).locator('[data-action="invPltSave"]').click();
     await expect(dlg(page)).toHaveCount(0);
     const u = (await stored(page)).plant.units.find((x: any) => x.name === 'Rectifier 9');
@@ -161,6 +168,95 @@ test.describe('P248 a line’s units, and the units that support it', () => {
     await expect(page.locator('[data-pl-unit="fix:P2"]')).not.toContainText('on pick');
     const detail: any = await g(page, `(function () { var el = document.querySelector('[data-pl-detail="fix:R6"]'); return el ? el.textContent : ''; })()`);
     expect(detail).toContain('The line it serves');
+    expect(detail).toContain('in the trials its failure stops the line whole');
     expect(detail).not.toContain('Its share of the line');
+    // The planner's machines name it by its place.
+    await expect(page.locator('[data-pl-machine="R6"]')).toContainText('Other, for VAT A2');
+  });
+
+  test('a supporting unit down is a task and a move for the line it serves, judged with that line’s supporting equipment', async ({ page }) => {
+    await loadAppWithState(page, book([unit('R6', 'Rectifier 6', 'other', 'rectifier', { line: 'vat-a2', status: 'down', since: day(-5), reason: 'card failed' }),
+      unit('T3', 'Tank 3', 'vat-a2', 'tank')]));
+    const r: any = await g(page, `(function () { var t = TODO_RULE_FNS.plantDown()[0], m = advUnitsMoves({ rule: function (k) { return TODO_RULE_FNS[k](); } })[0];
+      return { title: t.title, judged: t.facts[2], key: m.key, what: m.what, say: m.say, basis: m.basis }; })()`);
+    // It had read "Rectifier 6 (Other)", judged as "Other: No unit recorded", and the move "Other: 1 unit down".
+    expect(r.title).toBe('Rectifier 6 (Other, for VAT A2) down 5 days');
+    expect(r.judged).toEqual(['VAT A2’s supporting equipment', '0 of 1 working']);
+    expect(r.key).toBe('plant:vat-a2');
+    expect(r.what).toBe('VAT A2: Rectifier 6 down');
+    expect(r.say).toBe('Get VAT A2 running again: Rectifier 6 down, the longest 5 days');
+    expect(r.basis).toContain('VAT A2’s supporting equipment: 0 of 1 working');
+    expect(r.basis).not.toContain('No unit recorded');
+    // The Equipment card judges it with VAT A2's supporting equipment, not with what stands at Other.
+    await openEquipment(page);
+    await expect(page.locator('#pltVerdict .inv-hero-title')).toHaveText('1 of 1 unit down on VAT A2’s supporting equipment');
+  });
+
+  test('the cut dialog names a supporting unit by its place, and a cut tied to it is stored as hitting the line it serves', async ({ page }) => {
+    const cut = { id: 'C9', kind: 'downtime', date: day(-1), time: '10:00', to: '10:20', basis: 'relay', src: 'paste', at: 1, downtime: { cause: 'power' } };
+    await loadAppWithState(page, book([unit('R6', 'Rectifier 6', 'other', 'rectifier', { line: 'vat-a2' }), unit('T3', 'Tank 3', 'vat-a2', 'tank')], [cut]));
+    await g(page, `pcsOpen('C9')`);
+    const pc = page.locator('[data-pcs-dialog], .inv-dialog').filter({ has: page.locator('#pcsWhere') });
+    await expect(pc.locator('#pcsWhere option[value="u:R6"]')).toHaveText('Rectifier 6 · Other, for VAT A2');
+    await pc.locator('#pcsWhere').selectOption('u:R6');
+    await pc.locator('[data-action="invPcsSave"]').click();
+    await expect(page.locator('#pcsWhere')).toHaveCount(0);
+    const e = (await stored(page)).production.entries.find((x: any) => x.id === 'C9');
+    // It had been stored as hitting Other, the station the rectifier stands at.
+    expect(e.downtime).toMatchObject({ unitId: 'R6', where: 'vat-a2' });
+  });
+
+  test('an upgrade that fixes a station ends its tanks’ risk, never a rectifier’s standing there', async ({ page }) => {
+    await loadAppWithState(page, withInvoices(book([unit('R7', 'Rectifier 7', 'vat-a2', 'rectifier', { condition: 'needs', needs: 'a new card', risk: { p: 0.5, days: 1, cost: 0, say: 'its card fails' } }),
+      unit('T3', 'Tank 3', 'vat-a2', 'tank'), unit('T4', 'Tank 4', 'vat-a2', 'tank')])));
+    const r: any = await g(page, `(function () {
+      var sc = plnScenarioEnsure(); sc.plan = { a2Reline: 0 }; _plnBase = null; _plnPlanned = null;
+      var T = plnTrials(), n = T.all.reduce(function (k, x) { return k + x.events.filter(function (e) { return /its card fails/.test(e[1]); }).length; }, 0);
+      return { same: plnUnitMoveOf('fix:R7').same, fails: n };
+    })()`);
+    // The tank's reline had been offered as the rectifier's repair too, and had ended its risk.
+    expect(r.same).toBe('');
+    expect(r.fails).toBeGreaterThan(0);
+  });
+
+  test('a sep-plant import keeps the line a unit serves and a unit not coming back, and gives a unit with no kind its station’s', async ({ page }) => {
+    await loadAppWithState(page, book());
+    const r: any = await g(page, `(function () {
+      var res = pltMergeImport({ format: 'sep-plant', version: 1, units: [{ name: 'Rectifier 7', station: 'other', line: 'vat-a2' },
+        { name: 'Tank 9', station: 'vat-a1', status: 'down', reason: 'leak', gone: true, line: 'barrel' }, { name: 'Oven 1', station: 'oven' }] });
+      var f = function (n) { var u = S.plant.units.find(function (x) { return x.name === n; }); return { kind: u.kind, line: 'line' in u ? u.line : '-', gone: !!u.gone }; };
+      return { added: res.added, r7: f('Rectifier 7'), t9: f('Tank 9'), o1: f('Oven 1'), r7line: pltLineOf(S.plant.units.find(function (x) { return x.name === 'Rectifier 7'; })) };
+    })()`);
+    expect(r.added).toBe(3);
+    // The rectifier had come in as a tank serving no line; the oven as a tank.
+    expect(r.r7).toEqual({ kind: 'other', line: 'vat-a2', gone: false });
+    expect(r.r7line).toBe('vat-a2');
+    expect(r.t9).toEqual({ kind: 'tank', line: '-', gone: true });
+    expect(r.o1).toEqual({ kind: 'other', line: '-', gone: false });
+  });
+
+  test('Home’s floor counts pickling’s tanks with the lines’ units', async ({ page }) => {
+    await withWidgets(page, [['floornow', 'l']]);
+    const s: any = book([unit('T1', 'Tank 1', 'vat-a1', 'tank'), unit('P1', 'Pickling 1', 'pick', 'tank'),
+      unit('P2', 'Pickling 2', 'pick', 'tank', { status: 'down', since: day(-1), reason: 'leak' })]);
+    // A crew on the roster, so the floor is drawn (with none it is the widget's blank state).
+    s.staff = [{ id: 1, name: 'Arun', comp: 'monthly', area: 'vat-a1', dayRate: 500, active: true, onFloor: true }];
+    await loadAppWithState(page, s);
+    await openHome(page);
+    // Pickling's line is named pickling and its station pick: its tanks had been left out ("0 of 1 down").
+    await expect(page.locator('#homeBoard [data-w="floornow"] [data-wc-units]')).toContainText('1 of 3 down');
+  });
+
+  test('a pickling tank down in the trials takes its share of pickling, as Bring back adds it', async ({ page }) => {
+    await loadAppWithState(page, withInvoices(book([unit('T3', 'Tank 3', 'vat-a2', 'tank'), unit('P1', 'Pickling 1', 'pick', 'tank'), unit('P2', 'Pickling 2', 'pick', 'tank')])));
+    const r: any = await g(page, `(function () {
+      var B = plnBase(), L = plnMoves(plnScenarioEnsure()), ready = plnReady(L, null);
+      var a = plnMonth(0, L, ready, {}), half = plnMonth(0, L, ready, { down: { pick: B.wd / 2 } }), all = plnMonth(0, L, ready, { down: { pick: B.wd } });
+      return { a: Math.round(a.plated), aCap: a.pickCap, halfCap: half.pickCap, all: Math.round(all.plated) };
+    })()`);
+    // Its down days had been dropped: pickling read the same, and so did what was plated.
+    expect(r.a).toBeGreaterThan(0);
+    expect(r.halfCap).toBeLessThan(r.aCap);
+    expect(r.all).toBe(0);
   });
 });

@@ -41,7 +41,8 @@ jobs:
   # split the tests into 2 jobs"). Whole, it had grown to 40-42 min (2,135
   # tests, 28 Oct 2026) against the job's 45, and a red run takes longer than
   # a green one, so it could be cut off before it reported. With fullyParallel
-  # on, Playwright shares the tests out one by one: 1,068 and 1,067.
+  # on, Playwright shares the tests out one by one: 1,071 and 1,071 of 2,142
+  # (29 Oct 2026).
   e2e-shard:
     name: Playwright e2e (${{ matrix.shard }} of 2)
     # Pinned: ubuntu-latest became 26.04 on 26 Oct 2026, and Playwright 1.59.1

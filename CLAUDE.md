@@ -269,7 +269,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,135 tests, both layouts
+pnpm exec playwright test          # 2,142 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -278,8 +278,8 @@ the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, whi
 
 **CI runs the suite in two halves, each on its own runner** (owner, 29 Oct 2026: *"Let's split the tests into 2 jobs"*): the jobs
 *Playwright e2e (1 of 2)* and *(2 of 2)* run `--shard=1/2` and `--shard=2/2`, and the check **Playwright e2e** is green only when
-both are, so a branch rule naming it still holds. With `fullyParallel` on, Playwright shares the tests out one by one, 1,068 and
-1,067 of 2,135. Each half allows 45 minutes, as the whole suite did, since each has its own setup and the apt step behind Chromium's
+both are, so a branch rule naming it still holds. With `fullyParallel` on, Playwright shares the tests out one by one, 1,071 and
+1,071 of 2,142 (29 Oct 2026). Each half allows 45 minutes, as the whole suite did, since each has its own setup and the apt step behind Chromium's
 install has taken 5 on its own. Whole, the suite had grown from about 27 minutes on two workers (26.6 on 10 Oct 2026, 1,734 tests) to
 40–42 (2,135 tests, 28 Oct 2026), and a red run takes longer (38.0 on 16 Oct at 2,030 with 37 failing, some at their timeouts), so
 the 45 was close. Don't read a slow half as a hang. To run one half here: `pnpm exec playwright test --shard=1/2`; a failing test is

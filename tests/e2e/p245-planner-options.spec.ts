@@ -106,7 +106,7 @@ test.describe('P245 the planner’s options and the units down', () => {
       var P = plnPlanned();
       return { line: fix.line, share: Math.round(fix.share * 100), barrel: P.months[0].lines.barrel.kgRound - B.lines.barrel.kgRound,
         a1: P.months[0].lines['vat-a1'].kgRound - B.lines['vat-a1'].kgRound,
-        lines: ['PU-6', 'PU-9'].map(function (id) { return plnUnitLine(pltUnitById(id)); }),
+        lines: ['PU-6', 'PU-9'].map(function (id) { return pltLineOf(pltUnitById(id)); }),
         shares: [plnUnitShareOf({ id: 'PU-6', line: 'barrel' }), plnUnitShareOf({ id: 'PU-9', line: 'vat-a2' })] };
     })()`);
     expect(r.line).toBe('barrel');
@@ -183,14 +183,22 @@ test.describe('P245 the planner’s options and the units down', () => {
       var a = plnPlanned(), m0 = a.months[0].margin - a.base[0].margin, say0 = plnSay('pickAcid');
       var p = plnData(); p.cfg.fx = { pickAcid: { hclL: 1000, share: 50, acidRs: 2, dispKL: 4, dispRs: 500, dispShare: 25, runMo: 300 } };
       _plnBase = null; _plnPlanned = null;
-      var b = plnPlanned();
-      return { m0: Math.round(m0), say0: say0, m1: Math.round(b.months[0].margin - b.base[0].margin), say1: plnSay('pickAcid') };
+      var b = plnPlanned(), m1 = Math.round(b.months[0].margin - b.base[0].margin), say1 = plnSay('pickAcid');
+      // A contractor paid for a fixed quantity: a KL less sent away saves nothing (owner, 29 Oct 2026: "Fixed").
+      p.cfg.fx.pickAcid.dispRs = 0; _plnBase = null; _plnPlanned = null;
+      var c = plnPlanned();
+      return { m0: Math.round(m0), say0: say0, m1: m1, say1: say1, m2: Math.round(c.months[0].margin - c.base[0].margin), say2: plnSay('pickAcid'),
+        label: PLN_STATIONS[0].levels.find(function (l) { return l.id === 'pickAcid'; }).inputs.find(function (i) { return i.key === 'dispRs'; }).label };
     })()`);
     expect(r.m0).toBe(0);
     expect(r.say0).toMatch(/not worked out/);
-    // Half of 1,000 L at ₹2, and a quarter of 4 KL less sent away at ₹500 a KL, less ₹300 to run it.
+    // Half of 1,000 L at ₹2, and a quarter of 4 KL less sent away at ₹500 saved a KL, less ₹300 to run it.
     expect(r.m1).toBe(1000 + 500 - 300);
     expect(r.say1).toMatch(/500 L of acid a month recovered, 1\.0 KL less sent away/);
+    // The spent acid still goes less, and saves nothing; the figure says what it is.
+    expect(r.m2).toBe(1000 - 300);
+    expect(r.say2).toMatch(/500 L of acid a month recovered, 1\.0 KL less sent away/);
+    expect(r.label).toBe('What each KL less sent away saves (nothing where the contract is for a fixed quantity)');
   });
 
   test('the approved load’s saving is the penalty the bills carry, nothing once it is billed', async ({ page }) => {

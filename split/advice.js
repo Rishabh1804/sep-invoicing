@@ -311,7 +311,9 @@ function advUnitsMoves(ctx) {
     var oldest = list.reduce(function(a, x) { return !a || (x.u.since || '') < (a.u.since || '') ? x : a; }, null), days = pltDaysIn(oldest.u) || 0;
     var kind = list.every(function(x) { return x.u.kind === 'barrel'; }) ? 'barrel' : 'unit', since = oldest.u.since ? (days <= 6 ? attDayName(oldest.u.since) : formatDate(oldest.u.since)) : '';
     var status = pltStatus(oldest.u.status)[1];
-    var what = name + ': ' + list.length + (cap.n ? ' of ' + cap.n : '') + ' ' + (list.length === 1 && !cap.n ? kind : kind + 's') + ' down';
+    // "1 of 4" only where the units down are the line's own: a rectifier standing there is not one of its tanks (pltPlates).
+    var own = cap.n && list.every(function(x) { return pltPlates(x.u); });
+    var what = name + ': ' + list.length + (own ? ' of ' + cap.n : '') + ' ' + (list.length === 1 && !own ? kind : kind + 's') + ' down';
     return { key: 'plant:' + st, tone: red ? 'red' : 'amber', soon: 1, cat: 2, what: what,
       row: { title: what, meta: status + (since ? ' since ' + since : '') + (oldest.u.reason ? ' · ' + oldest.u.reason : ''), value: todoPlural(days, 'day') },
       say: 'Get ' + name + ' running again: ' + list.length + ' ' + (list.length === 1 ? kind : kind + 's') + ' down, the longest ' + todoPlural(days, 'day'),

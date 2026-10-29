@@ -30,7 +30,8 @@ var PLN_GOALS = [
 var PLN_STATIONS = [
   // Pickling's options stand alone (`alone`): none needs the one listed before it. Acid recovery's worth is the acid it saves and
   // the spent acid not sent away, from figures the owner sets, never a flat saving (owner, 28 Oct 2026); the fume extraction is a
-  // prerequisite of ISO 9001 and CQI-11.
+  // prerequisite of ISO 9001 and CQI-11. The spent acid's leg is what each KL less sent away saves, never what a KL costs to send:
+  // a contractor paid for a fixed quantity costs the same whatever is sent (owner, 29 Oct 2026: "Fixed").
   { id: 'pick', name: 'Pickling', levels: [{ t: 'As it runs' },
     { id: 'pickHood', t: 'Fume extraction and scrubber', cost: null, alone: true, gate: ['iso', 'cqi'],
       req: 'A hood over the HCl tanks, a duct to a wet scrubber outside the room and a blower on its own supply; the scrubber’s water goes to the effluent plant. The pollution board’s consent to operate would name it.',
@@ -40,7 +41,7 @@ var PLN_STATIONS = [
       req: 'A recovery unit beside the pickling tanks (membrane or retardation), a pump and a holding tank, power and water, and a hand to run it each shift; it treats the spent acid before what is left goes where spent acid goes now.',
       inputs: [{ key: 'hclL', label: 'HCl used a month', unit: 'L', def: 'stock' }, { key: 'share', label: 'Share of it recovered', unit: '%', def: null },
         { key: 'acidRs', label: 'What a litre of HCl costs, carriage included', unit: '₹', def: null }, { key: 'dispKL', label: 'Spent acid sent away a month', unit: 'KL', def: null },
-        { key: 'dispRs', label: 'What sending a KL away costs', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
+        { key: 'dispRs', label: 'What each KL less sent away saves (nothing where the contract is for a fixed quantity)', unit: '₹', def: null }, { key: 'dispShare', label: 'Share less sent away', unit: '%', def: null },
         { key: 'runMo', label: 'Running cost a month (its power, water, the hand’s time)', unit: '₹', def: null }],
       // The acid recovered and the spent acid no longer sent away are two shares, and what is left still goes where it goes now.
       // Nothing is saved until the share recovered is set, the spent acid's leg included: the option says it is not worked out.
@@ -237,20 +238,18 @@ function plnCostToSet(lv) { var c = plnCfg().costs[lv.id]; return lv.cost == nul
    of work is a Repair move that brings its share of the line back and ends its risk; one marked not coming back is a Sale. A
    running unit in need of work or ageing, with no risk typed on it, may fail in the trials (PLN_RISK_DEFAULT, an estimate). */
 var PLN_RISK_DEFAULT = { needs: { p: 0.05, days: 3 }, ageing: { p: 0.02, days: 2 } };
-/* A tank or barrel at a line's station plates on that line, as the plant register groups a line's units (pltCapacity); the
-   unit's "Line it stops when it fails" (pltLineOf) is read only for a supporting unit, a rectifier or another kind (Vulcanus,
-   28 Oct 2026: two barrels whose field named VAT A1 had each brought back two thirds of VAT A1's round). */
-function plnUnitPlates(u) { return !!u && (!u.kind || u.kind === 'tank' || u.kind === 'barrel') && !!(PLT_LINE_STATIONS[u.station] || u.station === 'pick'); }
-function plnUnitLine(u) { return !u ? '' : plnUnitPlates(u) ? u.station : pltLineOf(u) || (u.station === 'pick' ? 'pick' : ''); }
+/* A tank or barrel at a line's station plates on that line (pltPlates, the plant register's own rule since T-IO), and stops its
+   own line; the unit's "Line it stops when it fails" is read only for a supporting unit, a rectifier or another kind (pltLineOf;
+   Vulcanus, 28 Oct 2026: two barrels whose field named VAT A1 had each brought back two thirds of VAT A1's round). */
 function plnUnitMoves() {
   if (typeof pltUnits !== 'function') return [];
   var out = [];
   // A line's units are the tanks and barrels that plate on it (a rectifier is not a share of the round).
-  var plating = function(u, line) { return plnUnitPlates(u) && u.station === line; };
+  var plating = function(u, line) { return pltPlates(u) && u.station === line; };
   pltUnits().forEach(function(u) {
     var down = !pltAvailable(u.status || 'run'), needs = u.condition === 'needs';
     if (!down && !needs) return;
-    var line = plnUnitLine(u), share = 0, basis = '';
+    var line = pltLineOf(u), share = 0, basis = '';
     if (down && line && !u.gone && plating(u, line)) {
       var all = pltUnits().filter(function(x) { return plating(x, line); }), work = all.filter(function(x) { return pltAvailable(x.status || 'run'); });
       var byKg = all.length && all.every(function(x) { return +x.kgRound > 0; }), kg = function(l) { return l.reduce(function(t, x) { return t + (+x.kgRound || 0); }, 0); };
@@ -270,8 +269,8 @@ function plnUnitMoves() {
    2026). A rectifier or a unit of another kind stops the whole line it feeds. */
 function plnUnitShareOf(x) {
   var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
-  if (!u || !x.line || !plnUnitPlates(u)) return 1;
-  var all = pltUnits().filter(function(y) { return plnUnitPlates(y) && y.station === x.line && pltAvailable(y.status || 'run'); });
+  if (!u || !x.line || !pltPlates(u)) return 1;
+  var all = pltUnits().filter(function(y) { return pltPlates(y) && y.station === x.line && pltAvailable(y.status || 'run'); });
   if (!all.length) return 1;
   var byKg = all.every(function(y) { return +y.kgRound > 0; }), tot = all.reduce(function(t, y) { return t + (+y.kgRound || 0); }, 0);
   return byKg && tot > 0 ? (+u.kgRound || 0) / tot : 1 / all.length;
@@ -756,10 +755,10 @@ function plnTrials() {
   var sc = plnScenario(), B = plnBase(), L = plnMoves(sc), r = plnRng(20261006), all = [], g = plnGoal(sc);
   // A running unit in need of work or ageing, with no risk typed on it, may fail at the catalogue's chance (an estimate); a
   // unit on standby fails only at a risk the owner typed on it. A unit not working cannot fail; a unit sold is gone. A tank or
-  // barrel stops a share of its own station's line (plnUnitLine), never the line its "stops when it fails" field names.
+  // barrel stops a share of its own station's line (pltLineOf), never the line its "stops when it fails" field names.
   var machines = plnLive('machines').filter(function(x) { return (x.status || 'run') === 'run' || x.status === 'standby'; }).map(function(x) {
     var u = typeof pltUnitById === 'function' ? pltUnitById(x.id) : null;
-    if (u) x = Object.assign({}, x, { line: plnUnitLine(u) || null });
+    if (u) x = Object.assign({}, x, { line: pltLineOf(u) || null });
     if (x.risk && +x.risk.p > 0) return x;
     var d = (x.status || 'run') === 'run' ? PLN_RISK_DEFAULT[x.state] : null;
     return d ? Object.assign({}, x, { risk: { p: d.p, cost: 0, days: d.days, say: x.needs || 'breaks down', assumed: true } }) : x;

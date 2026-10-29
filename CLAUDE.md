@@ -269,16 +269,21 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,096 tests, both layouts
+pnpm exec playwright test          # 2,135 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else. The suite takes about 27 minutes on
-a CI runner's two workers (26.6 on 10 Oct 2026, 1,734 tests; the job allows 45, since the apt step behind Chromium's
-install has taken 5 on its own) — don't read a slow run as a hang. ⚠ It has grown: 38.0 minutes on 16 Oct 2026 at 2,030
-tests (a run with 37 failing, some at their timeouts), and 27 on 20 Oct at 2,030 with one failing, so the 45 is close on a red
-run; split the job or raise it before it cuts a run off.
+`playwright.config.ts` reads; unset everywhere else.
+
+**CI runs the suite in two halves, each on its own runner** (owner, 29 Oct 2026: *"Let's split the tests into 2 jobs"*): the jobs
+*Playwright e2e (1 of 2)* and *(2 of 2)* run `--shard=1/2` and `--shard=2/2`, and the check **Playwright e2e** is green only when
+both are, so a branch rule naming it still holds. With `fullyParallel` on, Playwright shares the tests out one by one, 1,068 and
+1,067 of 2,135. Each half allows 45 minutes, as the whole suite did, since each has its own setup and the apt step behind Chromium's
+install has taken 5 on its own. Whole, the suite had grown from about 27 minutes on two workers (26.6 on 10 Oct 2026, 1,734 tests) to
+40–42 (2,135 tests, 28 Oct 2026), and a red run takes longer (38.0 on 16 Oct at 2,030 with 37 failing, some at their timeouts), so
+the 45 was close. Don't read a slow half as a hang. To run one half here: `pnpm exec playwright test --shard=1/2`; a failing test is
+listed in the job of the half that ran it.
 
 **CI's browser draws text about 0.5% wider than this sandbox's** (Chromium 147 against 141; U2R, 20 Oct 2026): a fit that passes
 here by a hair can wrap there (two labels on Performance did). Before pushing a change near a measured limit, measure it again with
@@ -2645,6 +2650,15 @@ workers and every personal detail are the book's; the owner's private files (`se
   **Equipment**, a deck card a unit, two across on the phone (the tab map, TM4c; a strip per line until then), the status changes folded
   under them, Floor → Overview's line cards (*1 of 4 down*). The planner's machines are
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
+  **What counts toward a line is one rule** (`pltPlates`; T-IO, 29 Oct 2026): a tank or a barrel at a line's station is one of its
+  units, and stops its own line's share when it fails. Every other unit supports a line: a rectifier, or anything at a station that
+  is not a line. It is listed under *Supporting equipment* with the line it stops (`pltLineOf`: the line set on it, else the line it
+  stands at, else none), never counted in a line's units (`pltCapacity`, the tanks a round of `prodTankLoad`, Floor's cards, the
+  planner). A power cut tied to a unit lands on that line (`pltPlaceOf`: the cut's words, Power → Causes' places, the line's panel
+  note), so a rectifier at Other, for VAT A2, is VAT A2's. **The unit's form follows its station** until a kind or a line is picked
+  (the app's `_auto` rule): a barrel at the Barrel station, a tank at another line's, *Other* elsewhere; the line, the station's where
+  that is a line, else none, and a unit that plates is offered no line (it had opened at VAT A1 with kind Tank and line VAT A1, and a
+  station changed moved neither). P248.
   **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the
   first day of a unit's first line) stood before it, whatever its *since*, which is the day it was recorded; only a unit written in
   later counts from its own day (`pltRecordedOn`). The running units' *since* had read as the day they came, and every day before
@@ -2725,7 +2739,8 @@ prototypes). P162.
     *cost to set*) and what it adds to the month on show; **Set figures** and **Cost**, behind Settings' permission. A move's effect
     is read from its figures (`plnFx`).
   - **Acid recovery** (`acidSave`) is the share recovered × (HCl used a month × a litre's price with carriage) + a second share
-    (the spent acid less sent away) × the spent acid sent away × what a KL costs, less its running cost; nothing until the share
+    (the spent acid less sent away) × the spent acid sent away × what each KL less sent away saves (nothing where the contractor
+    is paid for a fixed quantity, whatever is sent; owner, 29 Oct 2026: *"Fixed"*), less its running cost; nothing until the share
     recovered is set, the second leg included; the flat ₹6,000 "less acid bought" had nothing behind it. HCl used a month is read
     as the stock line's page reads it (`plnHclMonth`: `stockRate` × 26), never from a window a bill opens; with no use recorded,
     what came in, an estimate. **Fume extraction
@@ -2738,8 +2753,9 @@ prototypes). P162.
     (its share of the round, its risk ended), overhaul it, or, marked *Not coming back* on the unit (`u.gone`), sell it (cash in
     at the price set). A running unit in need of work or ageing with no risk typed may fail at an estimated chance
     (`PLN_RISK_DEFAULT`) until its repair lands, stopping its share of the line; a unit on standby fails only at a risk typed on
-    it. A unit's share counts tanks and barrels only, each on its own station's line (`plnUnitLine`): the unit's *Line it stops
-    when it fails* is read only for a rectifier or another supporting unit.
+    it. A unit's share counts tanks and barrels only, each on its own station's line (`pltPlates`, `pltLineOf`): the unit's *Line it
+    stops when it fails* is read only for a rectifier or another supporting unit, whose row under *Repairs and sales* names the
+    line it serves and moves no figure.
     *Another barrel* adds one barrel's share. A move with no cost set is said on the verdict. Plans saved before gain the fume
     extraction once (`_plnHood1`).
   - **A data flow changed**: `S.planner.cfg.fx` and a unit's `gone` travel with the book (backups, GitHub, the merge).

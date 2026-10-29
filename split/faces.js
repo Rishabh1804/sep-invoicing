@@ -1281,7 +1281,7 @@ function faceRollEdit(fn) {
 /* ---------- A barrel batch ---------- */
 /* Its form is the load's (the client, the part, the figure), with the barrel it went into and when it went in and came out. */
 function faceBarrelHtml(f) {
-  var parts = faceClientParts(f.clientId), units = pltUnits('barrel');
+  var parts = faceClientParts(f.clientId), units = pltUnits('barrel').filter(pltPlates);
   var h = faceBackBar(f.replaces ? 'Correct a batch' : FACE_FORM_TITLE.barrel);
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This batch takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   var barrel = units.length ? '<select id="faceBarrel" class="inv-select" data-face-f="barrel"><option value="">Pick the barrel</option>' +

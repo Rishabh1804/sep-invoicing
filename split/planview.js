@@ -858,11 +858,17 @@ function plnRepairsHtml(P) {
       var inPlan = plan[x.id] != null, end = plnMoveCtlHtml(x.id, inPlan, 1), u = x.unit;
       var price = +(((plnRead().cfg || {}).fx || {})[x.id] || {}).price || 0, cost = plnUpgradeCost({ id: x.id, cost: null });
       var gain = x.kind === 'sell' ? (price ? formatCurrency(price) + ' in' : 'price to set') : (cost ? formatCurrency(cost) : 'cost to set');
-      var does = x.kind === 'sell' ? 'cash in; its capacity is gone for good' : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more on ' + plnLineName(x.line) + ' a round' + (x.line === 'pick' ? '' : '') + ', and its risk ends' : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
+      // A supporting unit (a rectifier) names the line it stops, and is no share of that line's round (pltPlates; Vulcanus V-6,
+      // 28 Oct 2026: the row had said a down rectifier named no line). Pickling is a share of its kilos an hour, not of a round.
+      var lineWord = x.line === 'pick' ? 'Pickling' : plnLineName(x.line), plates = pltPlates(u);
+      var does = x.kind === 'sell' ? 'cash in; ' + (plates ? 'its capacity is gone for good' : 'it is gone for good')
+        : x.down && x.share > 0 ? Math.round(x.share * 100) + '% more ' + (x.line === 'pick' ? 'pickling an hour' : 'on ' + lineWord + ' a round') + ', and its risk ends'
+        : x.down && x.line ? 'back working for ' + lineWord : x.down ? 'back working; no line named on the unit' : 'its risk of failing ends';
       var rows = plnReqRows(x.req);
+      if (x.down && x.line && !plates && x.kind === 'fix') rows.push({ label: 'The line it serves', value: lineWord, sub: 'a supporting unit is no share of the line’s round, so the month’s figures do not move', wrap: true });
       if (x.kind === 'sell') rows.push({ label: 'What it sells for', value: price ? formatCurrency(price) : '', src: price ? PLN_SRC.set : PLN_SRC.unset });
       else rows.push({ label: 'What it costs, once', value: cost ? formatCurrency(cost) : '', src: cost ? PLN_SRC.set : PLN_SRC.unset });
-      if (x.down && x.line && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',
+      if (x.down && x.line && plates && x.kind === 'fix') rows.push({ label: 'Its share of the line', value: Math.round(x.share * 100) + '%',
         sub: (/^kg/.test(x.basis) ? formatNum(+u.kgRound, 0) + ' kg a round' : 'by count') + (/all$/.test(x.basis) ? ' of the whole line: no unit works' : ' against the units working') + (B && B.lines[x.line] && B.lines[x.line].src === 'set' ? '; your figure for the line is read as today’s, on the units working' : ''),
         src: /^kg/.test(x.basis) ? PLN_SRC.measured : PLN_SRC.estimate });
       if (x.same) rows.push({ label: 'The same work', sub: x.same + ' covers this station too: plan one, not both', wrap: true });

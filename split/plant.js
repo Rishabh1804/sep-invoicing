@@ -47,6 +47,11 @@ function pltRetiredDay(u) { var r = u.retiredAt; return !r ? '' : typeof r === '
 function pltUnitById(id) { return pltRead().units.find(function(u) { return u && u.id === id; }) || null; }
 function pltStationName(id) { var s = PLT_STATIONS.find(function(x) { return x[0] === id; }); return s ? s[1] : id || 'Other'; }
 function pltIsLine(id) { var s = PLT_STATIONS.find(function(x) { return x[0] === id; }); return !!(s && s[2]); }
+/* A unit that plates is a tank or a barrel at a line's station: one of that line's units side by side (pltCapacity), stopping its
+   share of the line when it fails. Every other unit supports a line: a rectifier, or any unit at a station that is not a line.
+   One rule for the register, Floor and the planner (T-IO, 29 Oct 2026: pltCapacity had counted a rectifier at a line's station
+   as one of its tanks, where the planner did not). */
+function pltPlates(u) { return !!u && (!u.kind || u.kind === 'tank' || u.kind === 'barrel') && pltIsLine(u.station); }
 function pltStatus(s) { return PLT_STATUS.find(function(x) { return x[0] === s; }) || PLT_STATUS[0]; }
 function pltAvailable(status) { return status === 'run' || status === 'standby'; }
 function pltWho() { return typeof grdUser === 'function' && grdUser() ? grdUser().name : ''; }
@@ -87,14 +92,14 @@ function pltRecordedOn(u) {
 function pltSetUpDay() {
   return pltRead().units.reduce(function(m, u) { var d = u ? pltRecordedOn(u) : ''; return d && (!m || d < m) ? d : m; }, '');
 }
-/* What a line can do on a day: its units side by side.
+/* What a line can do on a day: its units side by side, the tanks and barrels that plate on it (pltPlates).
    {units, n, nAvail, down: [units], byKg, kgTotal, kgAvail, pct, note, used: {kgRound, pct, why}}. `bare` leaves out what the
    line uses (prodTankLoad reads the units working each day, and is what pltUsed reads). */
 function pltCapacity(station, iso, bare) {
   var day = iso || localDateStr();
   var setUp = iso ? pltSetUpDay() : '';
   var units = (iso ? pltRead().units.filter(function(u) { return u && u.station === station && (!u.retiredAt || pltRetiredDay(u) > day); }).sort(pltNameCmp) : pltUnits(station))
-    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day || (setUp && pltRecordedOn(u) === setUp); });
+    .filter(function(u) { return pltPlates(u) && (!iso || !u.addedOn || u.addedOn <= day || (setUp && pltRecordedOn(u) === setUp)); });
   var st = function(u) { return iso ? pltStatusOn(u, day) : u.status || 'run'; };
   var avail = units.filter(function(u) { return pltAvailable(st(u)); });
   var withKg = units.filter(function(u) { return +u.kgRound > 0; });
@@ -170,9 +175,11 @@ function pltStationHtml(station) {
   var cap = pltCapacity(station), name = pltStationName(station);
   var h = '<div class="inv-panel inv-panel-flush" data-plt-station="' + station + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(name) +
     ' <span class="inv-panel-count">' + (cap.n ? cap.nAvail + ' of ' + cap.n : 'none') + '</span></span>' + pltCapDot(cap) + '</div>';
-  // A line with no unit is one row with its move (an empty panel took a phone's third of a screen for one sentence).
-  if (!cap.n) return h + '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">No unit recorded for ' + escHtml(name) + '</span></span>' +
-    (pltCanEdit() ? '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button></span>' : '') + '</div></div>';
+  // A line with no unit is one row with its move (an empty panel took a phone's third of a screen for one sentence). A rectifier
+  // standing there is no tank of it (pltPlates; it is under Supporting equipment), and the cuts that hit the line are still said.
+  if (!cap.n) return h + '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">No ' + (station === 'barrel' ? 'barrel' : 'tank') + ' recorded for ' + escHtml(name) + '</span></span>' +
+    (pltCanEdit() ? '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button></span>' : '') + '</div>' +
+    (typeof pcsStationNote === 'function' ? pcsStationNote(station) : '') + '</div>';
   h += '<div class="inv-panel-body"><div class="inv-unit-cap" data-plt-cap><span class="inv-unit-cap-words">' + escHtml(pltCapWords(cap)) + '</span>' + pltBarHtml(cap) +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '')) +
     // What it plates a round, and where that comes from as a badge (§6.27); how it was measured is the line's working on Floor.
@@ -185,14 +192,17 @@ function pltStationHtml(station) {
   if (typeof pcsStationNote === 'function') h += pcsStationNote(station);
   return h + '</div>';
 }
-/* The supporting stations (lab, oven, power, effluent, other): rows, since they are not side by side. */
+/* The units that support a line (a rectifier, anything at the lab, oven, power, effluent or other stations): rows, since they are
+   not side by side. A rectifier standing at a line's station is one of them, never one of the line's tanks. */
 function pltSupportHtml() {
-  var units = pltUnits().filter(function(u) { return !pltIsLine(u.station); });
+  var units = pltUnits().filter(function(u) { return !pltPlates(u); });
   if (!units.length) return '';
   return '<div class="inv-panel inv-panel-flush" data-plt-station="support"><div class="inv-panel-head"><span class="inv-panel-title">Supporting equipment <span class="inv-panel-count">' + units.length + '</span></span></div>' +
     units.map(function(u) {
       var s = pltStatus(u.status), cond = typeof PLN_MACHINE_STATES !== 'undefined' ? PLN_MACHINE_STATES.find(function(x) { return x[0] === u.condition; }) : null;
-      var meta = [pltStationName(u.station), cond ? cond[1] : '', u.needs || '', u.reason && u.status !== 'run' ? u.reason : ''].filter(Boolean).join(' · ');
+      // Where it stands and the line it stops when it fails are one fact: "Other, for VAT A2".
+      var line = pltLineOf(u), where = pltStationName(u.station) + (line && line !== u.station ? ', for ' + pltStationName(line) : '');
+      var meta = [where, cond ? cond[1] : '', u.needs || '', u.reason && u.status !== 'run' ? u.reason : ''].filter(Boolean).join(' · ');
       return '<div class="inv-row inv-row-2" data-plt-unit="' + escHtml(u.id) + '"><button class="inv-row-main" data-action="invPltEdit" data-id="' + escHtml(u.id) + '"><span class="inv-row-title">' + escHtml(u.name) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + uiDot(s[2], s[1]) + '</span></div>';
     }).join('') + '</div>';
@@ -218,8 +228,15 @@ function pltLogHtml() {
 function pltEquipmentHtml() {
   var phone = !_isDesktop, lines = PLT_STATIONS.filter(function(s) { return s[2]; });
   // Every station judges the card, the supporting ones (lab, oven, power, effluent) too: with one of those down it read "Every
-  // unit working". The worst names it (its tone, then its units down; a line first among equals); the lines are its factors.
-  var all = PLT_STATIONS.map(function(s) { return { s: s, cap: pltCapacity(s[0]) }; }), caps = all.filter(function(x) { return x.s[2]; });
+  // unit working". The worst names it (its tone, then its units down; a line first among equals); the lines are its factors. A
+  // unit that supports a line is judged with its station's others, and one standing at a line's station apart from the line's
+  // own units (pltPlates): a rectifier is never one of its tanks.
+  var supCap = function(station) {
+    var us = pltUnits(station).filter(function(u) { return !pltPlates(u); }), dn = us.filter(function(u) { return !pltAvailable(u.status || 'run'); });
+    return { units: us, n: us.length, nAvail: us.length - dn.length, down: dn, pct: us.length ? (us.length - dn.length) / us.length : null };
+  };
+  var all = PLT_STATIONS.map(function(s) { return { s: s, cap: s[2] ? pltCapacity(s[0]) : supCap(s[0]) }; }), caps = all.filter(function(x) { return x.s[2]; });
+  all = all.concat(lines.map(function(s) { return { s: [s[0], s[1] + '’s supporting equipment', false], cap: supCap(s[0]) }; }));
   var rank = { neutral: 0, ok: 1, warning: 2, danger: 3 }, worst = null;
   all.forEach(function(x) { if (x.cap.n && (!worst || rank[pltCapTone(x.cap)] > rank[pltCapTone(worst.cap)] || (pltCapTone(x.cap) === pltCapTone(worst.cap) && x.cap.down.length > worst.cap.down.length))) worst = x; });
   var units = pltUnits(), down = all.reduce(function(n, x) { return n + x.cap.down.length; }, 0);
@@ -281,16 +298,27 @@ function _pltOpts(list, v) { return list.map(function(o) { return '<option value
 function _pltField(id, label, v, type, extra) {
   return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><input class="inv-input" id="' + id + '" type="' + (type || 'text') + '" value="' + escHtml(v == null ? '' : String(v)) + '"' + (extra || '') + '></div>';
 }
-function _pltSelect(id, label, list, v) {
-  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><select class="inv-input" id="' + id + '">' + _pltOpts(list, v) + '</select></div>';
+function _pltSelect(id, label, list, v, attrs) {
+  return '<div class="inv-field"' + (attrs || '') + '><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><select class="inv-input" id="' + id + '">' + _pltOpts(list, v) + '</select></div>';
 }
+/* What a unit's kind and line read from its station until they are picked in the form (the app's _auto rule): a barrel at the
+   Barrel station, a tank at another line's, any other unit elsewhere; the line it stops, the station's where that is a line, else
+   none. A unit that plates stops its own line, so it is offered none (T-IO, 29 Oct 2026: Add a unit opened at VAT A1, kind Tank,
+   line VAT A1, changing the station moved neither, and two barrels kept VAT A1 as the line they stop). */
+function pltKindFor(station) { return station === 'barrel' ? 'barrel' : pltIsLine(station) ? 'tank' : 'other'; }
+function pltLineOwnText(kind, station) { return 'Its own, ' + pltStationName(station) + ': a ' + (kind === 'barrel' ? 'barrel' : 'tank') + ' stops its share of the line, not the whole line.'; }
 function pltEdit(id, station) {
   if (!pltOwnerOk(function() { pltEdit(id, station); })) return;
-  var u = id ? pltUnitById(id) : null, v = u || { station: station || 'vat-a1', kind: station === 'barrel' ? 'barrel' : 'tank', status: 'run', since: localDateStr(), condition: 'fair' };
+  var st0 = station || 'vat-a1';
+  var u = id ? pltUnitById(id) : null, v = u || { station: st0, kind: pltKindFor(st0), status: 'run', since: localDateStr(), condition: 'fair' };
   var risk = v.risk || {};
+  // A new unit's kind follows its station until picked; a unit's line follows it until picked, and a line stored on a unit that
+  // plates was the old form's default, never a choice.
+  var kindAuto = !u, lineAuto = !u || u.line == null || pltPlates(u), plates = pltPlates(v);
+  var lineV = lineAuto ? (pltIsLine(v.station) ? v.station : '') : u.line || '';
   var f = _pltField('pltName', 'Name', v.name, 'text', ' placeholder="Tank 3, Barrel 2"') +
     _pltSelect('pltStation', 'Line or station', PLT_STATIONS.map(function(s) { return [s[0], s[1]]; }), v.station) +
-    _pltSelect('pltKind', 'Kind', PLT_KINDS, v.kind || 'tank') +
+    _pltSelect('pltKind', 'Kind', PLT_KINDS, v.kind || 'tank', ' data-plt-kindfield' + (kindAuto ? ' data-plt-auto' : '')) +
     _pltField('pltKg', 'Kg a round', v.kgRound, 'number', ' min="0" step="any" inputmode="decimal"') +
     _pltSelect('pltStatus', 'Status', PLT_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'run') +
     _pltField('pltSince', 'Since', v.since || localDateStr(), 'date') +
@@ -302,7 +330,9 @@ function pltEdit(id, station) {
     _pltField('pltRiskP', 'Chance it fails in a month, %', risk.p != null ? Math.round(risk.p * 1000) / 10 : '', 'number', ' min="0" max="100" step="any"') +
     _pltField('pltRiskCost', 'What a failure costs, ₹', risk.cost, 'number', ' min="0" step="any"') +
     _pltField('pltRiskDays', 'Days the line is down', risk.days, 'number', ' min="0" step="any"') +
-    _pltSelect('pltLine', 'Line it stops when it fails', [['', 'None']].concat(PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) { return [s[0], s[1]]; })), pltLineOf(v)) +
+    _pltSelect('pltLine', 'Line it stops when it fails', [['', 'None']].concat(PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) { return [s[0], s[1]]; })), lineV,
+      ' data-plt-linefield' + (lineAuto ? ' data-plt-auto' : '') + (plates ? ' hidden' : '')) +
+    '<div class="inv-field" data-plt-lineown' + (plates ? '' : ' hidden') + '><span class="inv-field-label">Line it stops when it fails</span><div class="inv-field-hint">' + escHtml(pltLineOwnText(v.kind, v.station)) + '</div></div>' +
     _pltField('pltRiskSay', 'What failing means', risk.say) + '</div></div></details>';
   dialogOpen('<div class="inv-dialog" data-plt-dialog="' + escHtml(u ? u.id : '') + '">' + dialogHeadHtml(u ? escHtml(u.name) + ' · ' + escHtml(pltStationName(u.station)) : 'Add a unit') +
     '<div class="inv-fields">' + f + '</div>' + (u ? pltUnitHistoryHtml(u) : '') +
@@ -328,10 +358,12 @@ function pltSave(id) {
   var status = _pltVal('pltStatus') || 'run', since = _pltVal('pltSince') || localDateStr(), reason = _pltVal('pltReason');
   if (since > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The status begins on a day up to today.' });
   var p = pltData(), u = id ? p.units.find(function(x) { return x.id === id; }) : null, now = Date.now(), who = pltWho();
-  var pr = _pltNum('pltRiskP');
+  var pr = _pltNum('pltRiskP'), lf = document.querySelector('[data-plt-linefield]');
   var rec = { name: name, station: _pltVal('pltStation') || 'other', kind: _pltVal('pltKind') || 'tank', kgRound: _pltNum('pltKg'), condition: _pltVal('pltCond') || 'fair',
-    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'), gone: _pltVal('pltGone') === 'gone' && _pltVal('pltStatus') !== 'run' && _pltVal('pltStatus') !== 'standby',
+    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), gone: _pltVal('pltGone') === 'gone' && _pltVal('pltStatus') !== 'run' && _pltVal('pltStatus') !== 'standby',
     risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _pltNum('pltRiskCost') || 0, days: _pltNum('pltRiskDays') || 0, say: _pltVal('pltRiskSay') } : null };
+  // The line is kept only where it was picked, on a unit that supports a line; else it follows the station (pltLineOf).
+  if (!pltPlates(rec) && lf && !lf.hasAttribute('data-plt-auto')) rec.line = _pltVal('pltLine');
   if (!u) {
     u = Object.assign({ id: pltId('PU'), status: status, since: since, reason: status === 'run' ? '' : reason, addedOn: since }, rec, { at: now, by: who });
     p.units.push(u);
@@ -349,6 +381,7 @@ function pltSave(id) {
       if (mine) mine.date = since;
     }
     Object.assign(u, rec, { status: status, since: since || u.since, reason: status === 'run' ? '' : reason, at: now, by: who });
+    if (!('line' in rec)) delete u.line;
   }
   closeOverlay();
   saveState();
@@ -377,12 +410,29 @@ function pltRedraw() {
   else if (page === 'pagePlanner' && typeof renderPlanner === 'function') renderPlanner();
   else if (page === 'pageFloor' && typeof renderFloor === 'function') renderFloor();
 }
-/* A status changed in the form: the day it began is today, unless typed. */
+/* The form follows its station: a kind or a line not yet picked takes the station's, and the line is offered only to a unit that
+   supports a line (pltPlates). */
+function pltFormFollow(dlg) {
+  var st = dlg.querySelector('#pltStation'), kind = dlg.querySelector('#pltKind'), line = dlg.querySelector('#pltLine');
+  if (!st || !kind || !line) return;
+  if (dlg.querySelector('[data-plt-kindfield][data-plt-auto]')) kind.value = pltKindFor(st.value);
+  if (dlg.querySelector('[data-plt-linefield][data-plt-auto]')) line.value = pltIsLine(st.value) ? st.value : '';
+  var plates = pltPlates({ kind: kind.value, station: st.value }), lf = dlg.querySelector('[data-plt-linefield]'), own = dlg.querySelector('[data-plt-lineown]');
+  if (lf) lf.hidden = plates;
+  if (own) { own.hidden = !plates; var hint = own.querySelector('.inv-field-hint'); if (hint) hint.textContent = pltLineOwnText(kind.value, st.value); }
+}
+/* A status changed in the form: the day it began is today, unless typed. A kind or a line picked is the owner's for good; a
+   station or a kind changed moves what follows them. */
 document.addEventListener('change', function(e) {
-  var t = e.target;
-  if (!t || t.id !== 'pltStatus') return;
-  var dlg = t.closest('[data-plt-dialog]'), u = dlg && dlg.dataset.pltDialog ? pltUnitById(dlg.dataset.pltDialog) : null, since = document.getElementById('pltSince');
-  if (u && since && t.value !== u.status) since.value = localDateStr();
+  var t = e.target, dlg = t && t.closest ? t.closest('[data-plt-dialog]') : null;
+  if (!dlg) return;
+  if (t.id === 'pltStatus') {
+    var u = dlg.dataset.pltDialog ? pltUnitById(dlg.dataset.pltDialog) : null, since = document.getElementById('pltSince');
+    if (u && since && t.value !== u.status) since.value = localDateStr();
+    return;
+  }
+  if (t.id === 'pltKind' || t.id === 'pltLine') { var fld = t.closest('.inv-field'); if (fld) fld.removeAttribute('data-plt-auto'); }
+  if (t.id === 'pltStation' || t.id === 'pltKind') pltFormFollow(dlg);
 });
 
 function pltAction(action, btn) {
@@ -403,8 +453,17 @@ function pltAction(action, btn) {
 }
 
 /* ---------- One register with the planner ---------- */
-/* The line a unit stops when it fails: as set, else its own line for a unit on one, else none. */
-function pltLineOf(u) { return u.line !== undefined && u.line !== null ? u.line || '' : PLT_LINE_STATIONS[u.station] ? u.station : ''; }
+/* The line a unit stops when it fails: a unit that plates, its own (a share of it); a supporting unit, the line set on it, else the
+   line it stands at, else none. A line never set follows the station (pltEdit), so a rectifier moved from VAT A1 to Other names
+   none until one is set. */
+function pltLineOf(u) {
+  if (!u) return '';
+  if (pltPlates(u)) return u.station;
+  return u.line !== undefined && u.line !== null ? u.line || '' : pltIsLine(u.station) ? u.station : '';
+}
+/* Where what hits a unit lands (a power cut tied to it: its words, Power → Causes' places, a line's panel note): the line it stops,
+   else the station it stands at: a rectifier at Other, for VAT A2, is VAT A2's (Vulcanus V-5, 28 Oct 2026). */
+function pltPlaceOf(u) { return !u ? '' : pltLineOf(u) || u.station || 'other'; }
 /* The planner's machines, read from the units (its trials draw a unit's risk until the upgrade that fixes its station). */
 function pltMachines() {
   return pltUnits().map(function(u) {

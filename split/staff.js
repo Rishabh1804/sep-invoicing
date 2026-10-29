@@ -599,7 +599,7 @@ function _attDayView() {
     var m = rec ? rec.marks[w.id] : null;
     if (m && m.st === 'A') absentees.push(w);
     // A hand in for the night stands on their line's night card, not the general shift's (shifts.js).
-    var nl = attMarkOnNight(m) ? nights.find(function(n) { return Object.keys(n.crew).concat(n.line).indexOf(m.area) >= 0; }) : null;
+    var nl = attMarkOnNight(m, iso) ? nights.find(function(n) { return Object.keys(n.crew).concat(n.line).indexOf(m.area) >= 0; }) : null;
     if (nl) { (byNight[nl.line] = byNight[nl.line] || []).push(w); return; }
     // An absent hand stays on their own area's card, so marking A never moves the line from under the tap.
     var a = m && m.st !== 'A' && m.area ? m.area : (w.area || 'flex');
@@ -673,7 +673,7 @@ function _attDayShort(iso, rec) {
   var heads = {};
   attDayRoster(rec).forEach(function(w) {
     var m = rec && rec.marks[w.id];
-    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m)) return;
+    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m, iso)) return;
     var a = m.area || w.area || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
@@ -933,7 +933,7 @@ function _attNeedCard(iso, rec) {
   var heads = {};
   Object.keys(rec ? rec.marks : {}).forEach(function(id) {
     var m = rec.marks[id], w = staffById(id);
-    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m)) return;
+    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m, iso)) return;
     var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });

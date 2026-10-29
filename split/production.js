@@ -66,10 +66,15 @@ function prodCrew(e) {
       if (tt == null || (tt >= a && tt <= b)) x.crew.forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); });
     });
     src = 'block';
+    // A line's scheduled night (shifts.js): its hands, from their marks and its blocks, when the run is in it (the night needs no
+    // EXTRA tag to have a crew).
+    var nt = e.line && typeof lineNightOn === 'function' ? lineNightOn(e.line, e.date) : null;
+    var tn = t != null && t < 360 ? t + 1440 : t;
+    if (nt && tn != null && tn >= nt.start - 60) { var nc = shiftNightCrew(e.date, e.line); if (nc) nc.ids.forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); }); src = 'night'; }
   } else {
     Object.keys(rec.marks).forEach(function(id) {
       var m = rec.marks[id], w = staffById(id);
-      if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+      if (!m || (m.st !== 'P' && m.st !== 'H') || (typeof attMarkOnNight === 'function' && attMarkOnNight(m, e.date))) return;
       if (areas.indexOf(m.area || (w && w.area) || 'flex') >= 0) ids.push(String(id));
     });
   }
@@ -1312,9 +1317,14 @@ function prodLinePace(line) {
     if (e.kind !== 'plated' || e.line !== line || e.basis !== 'register' || !Array.isArray(e.rounds) || e.date < from || e.date > iso) return;
     var a = relayParseHhmm(e.time), b = relayParseHhmm(e.to);
     if (a == null || b == null) return;
+    // On the shop's day: a time before 6 AM (before a scheduled night's end) is that night's, past midnight.
+    var nt = typeof lineNightOn === 'function' ? lineNightOn(line, e.date) : null, edge = nt ? Math.max(PROD_DAY_START, nt.end - 1440) : PROD_DAY_START;
+    if (a < edge) a += 1440; if (b < edge) b += 1440;
     if (b < a) b += 1440;
-    // A block of overtime is its own span: the hour between the shift's last round and the evening's first is no round.
-    var k = e.date + '|' + (e.slot === 'ot' ? 'ot' : 'general'), d = days[k] || (days[k] = { date: e.date, a: a, b: b, n: 0, batch: false, seen: {} });
+    // A block of overtime is its own span: the hour between the shift's last round and the evening's first is no round. A scheduled
+    // night is a shift of its own, apart from the morning's and the evening's overtime, its break off its span.
+    var sl = nt && a >= nt.start - 60 ? 'night' : e.slot === 'ot' ? 'ot' : 'general';
+    var k = e.date + '|' + sl, d = days[k] || (days[k] = { date: e.date, a: a, b: b, n: 0, batch: false, seen: {}, brk: sl === 'night' ? nt.breakMin : 0 });
     // A round two runs share is written in each at the same time: one round of the line.
     e.rounds.forEach(function(x) {
       if (x.struck) return;
@@ -1336,7 +1346,7 @@ function prodLinePace(line) {
       if (cb < ca) cb += 1440;
       cut += Math.max(0, Math.min(cb, d.b) - Math.max(ca, d.a));
     });
-    var span = d.b - d.a - cut;
+    var span = d.b - d.a - cut - (d.brk || 0);
     if (span > 0) list.push(span / iv);
   });
   var o = { line: line, shifts: list.length, every: list.length ? numMedian(list) : null };
@@ -1419,13 +1429,17 @@ function prodLineEfficiency(date, line) {
   var att = (S.attendance || {})[date], staffed = !!prodStaffedLines(att)[line];
   var wins = [];
   if (staffed || r.entries.some(function(e) { return e.slot !== 'ot' && e.slot !== 'day'; })) wins.push([RELAY_GENERAL, RELAY_GENERAL_OUT]);
-  var on = function(m) { return m < PROD_DAY_START ? m + 1440 : m; };
+  var night0 = typeof lineNightOn === 'function' ? lineNightOn(line, date) : null, dayEdge = night0 ? Math.max(PROD_DAY_START, night0.end - 1440) : PROD_DAY_START;
+  var on = function(m) { return m < dayEdge ? m + 1440 : m; };
   // A line's scheduled night (shifts.js; owner, 29 Oct 2026): a night it ran is judged against the night's plating time, its start
   // to when the crew stops, less the break, whatever the runs' own times; the barrel against its whole running day, the mornings
   // and evenings running with no crew.
-  var night = typeof lineNightOn === 'function' ? lineNightOn(line, date) : null, run = line === 'barrel' && typeof barrelRunOn === 'function' ? barrelRunOn(date) : null;
+  var night = night0, run = line === 'barrel' && typeof barrelRunOn === 'function' ? barrelRunOn(date) : null;
   var inNight = function(e) { var t = relayParseHhmm(e.time); return night && t != null && on(t) >= night.start - 60; };
-  var ranNight = !!night && (r.entries.some(function(e) { return e.slot === 'ot' && inNight(e); }) || ((typeof shiftNightCrew === 'function' ? shiftNightCrew(date, line) : null) || {}).heads > 0);
+  // A night with a record is judged against its plating time; one with heads and no record is said so, its time kept out of what
+  // the line could have plated until there is a record.
+  var ranNight = !!night && r.entries.some(function(e) { return e.slot === 'ot' && inNight(e); });
+  if (night && !ranNight && (((typeof shiftNightCrew === 'function' ? shiftNightCrew(date, line) : null) || {}).heads > 0)) o.nightMissing = true;
   if (ranNight) { wins.push([night.start, night.stop]); o.night = { start: night.start, stop: night.stop, end: night.end, breakMin: night.breakMin, plateMin: night.plateMin }; }
   if (run && r.entries.length) { wins = [[run.from, run.to]]; o.run = { from: run.from, to: run.to }; }
   r.entries.forEach(function(e) {
@@ -1448,12 +1462,20 @@ function prodLineEfficiency(date, line) {
     merged.forEach(function(w) { o.cutMin += Math.max(0, Math.min(b, w[1]) - Math.max(a, w[0])); });
   });
   o.windows = merged;
-  o.minutes = Math.max(0, span - o.cutMin - (o.night ? o.night.breakMin : 0));
+  // The break is taken at no fixed time, so a cut inside the night is where it went first: only what is left of it is taken off.
+  var nightCut = 0;
+  if (o.night) (typeof powerCuts === 'function' ? powerCuts(date, date) : []).forEach(function(c) {
+    if (c.from == null) return;
+    var a = on(c.from), b = c.to == null ? a : c.to + (c.from < dayEdge ? 1440 : 0);
+    if (b < a) b += 1440;
+    nightCut += Math.max(0, Math.min(b, o.night.stop) - Math.max(a, o.night.start));
+  });
+  o.minutes = Math.max(0, span - o.cutMin - (o.night ? Math.max(0, o.night.breakMin - nightCut) : 0));
   // Judged only with every input: a record, the units' kg a round, a pace and some time.
   var missing = staffed && !(prodGeneralLines()[date] || {})[line];
-  if (!o.ran && !staffed) { o.word = 'Did not run'; return o; }
+  if (!o.ran && !staffed && !o.nightMissing) { o.word = 'Did not run'; return o; }
   // `missing` is what Lines' verdict and Floor's head read to say so: without it, heads and no record read "Did not run".
-  if (missing && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = 'heads on the general shift, nothing recorded'; o.missing = true; return o; }
+  if ((missing || o.nightMissing) && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = missing ? 'heads on the general shift, nothing recorded' : 'heads on the night, nothing recorded'; o.missing = true; return o; }
   if (!o.kgSrc && !o.n) o.why = 'no unit on the plant register';
   else if (!o.kgSrc) o.why = 'set the kg a round of every unit';
   else if (!o.every) o.why = 'no pace for the line';
@@ -1493,6 +1515,7 @@ function prodLineEfficiency(date, line) {
   } else o.word = 'Not judged';
   if (o.avail != null && o.avail <= 0.5) { worst('danger'); o.halfDown = true; }
   if (missing) { worst('warning'); o.missing = true; }
+  if (o.nightMissing) { worst('warning'); o.why = o.why || 'heads on the night, nothing recorded for it'; }
   return o;
 }
 

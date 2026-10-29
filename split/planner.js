@@ -418,15 +418,13 @@ function plnBase() {
     };
     // A night on the line's schedule today (shifts.js; owner, 29 Oct 2026): its plating time is the line's on top of the general
     // shift, in place of the morning and evening blocks, and its crew is paid on top of what the months behind the plan recorded.
-    var nt = typeof lineNightOn === 'function' ? lineNightOn(l, localDateStr()) : null;
+    // The schedule in force, whatever today is (a Sunday or a shut day has no night, but the plan is a month's).
+    var nt = typeof lineShiftOn === 'function' ? shiftNightOf(lineShiftOn(l, localDateStr()), localDateStr()) : null;
     if (nt) lines[l].night = { h: nt.plateMin / 60, paidH: nt.paidMin / 60, need: nt.need, from: nt.entry.from };
   });
-  // The night crew's wages a month, where the schedule began after the months the plan is built on (an estimate: the crew at the
-  // average hour of the roster's hourly hands, else the EXTRA rate, for the paid hours, every working day).
-  var hourly = (S.staff || []).filter(function(w) { return w.active !== false && w.comp === 'hourly' && Number(w.hourRate) > 0; });
-  var hourRs = hourly.length ? hourly.reduce(function(t, w) { return t + Number(w.hourRate); }, 0) / hourly.length : (labourCfg().extraRate || 0);
+  // The night crew's wages are the book's once paid; the plan's month stays the book's own (Vulcanus M-6: a crew charged into
+  // "as it runs" with no more work plated read the book's month as a loss).
   var nightRun = 0;
-  PLN_LINE_IDS.forEach(function(l) { var n = lines[l].night; if (n && n.from > per.to) nightRun += n.need * n.paidH * hourRs * wd; });
   // Costs: the live cost's own lines, per kilo or per month; labour by its own parts.
   var lc = liveCost(per.from, per.to, tw.kg), row = function(k) { var r = (lc.rows || []).find(function(x) { return x.key === k; }); return r || { amount: 0, source: 'model' }; };
   var lab = labourForRange(per.from, per.to);

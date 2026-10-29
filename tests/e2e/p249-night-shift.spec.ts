@@ -89,6 +89,30 @@ test.describe('P249: the night shift on a line\'s schedule', () => {
     expect(snacks.night).toBe(4);
     const twice = await ev(page, `shiftBackToBack('${DAY}').map(function(x) { return x.id + ':' + x.kind; })`);
     expect(twice).toEqual(['1:same']);
+    // The roll's own heading names one area or two, never all the night's: the block is judged against the whole crew of 6
+    // (Castor B-1). Four named, two short: 24 hours expected.
+    const a = await ev(page, `(function() { var b = areaStats('${DAY}', '${DAY}').blocks.find(function(x) { return x.iso === '${DAY}'; }); return b && [b.norm, b.heads, b.expected]; })()`);
+    expect(a).toEqual([6, 4, 24]);
+    // An in-time roll pasted after, listing a night hand absent, does not take the night back (Castor M-1).
+    await pasteAndSave(page, `${dmy(DAY)}/ in time
+----8:30 AM---
+---VAT A 1----
+1) ALFA
+---absent---
+2) BRAVO`);
+    expect((await readStoredState(page)).attendance[DAY].marks[2]).toMatchObject({ st: 'P', inMin: 1080, outMin: 1800, hours: 12 });
+  });
+
+  test('an evening block is no night; a day hand on an untagged night is on it, and flagged back to back', async ({ page }) => {
+    const m = (area: string, a: number, b: number) => ({ st: 'P', area, inMin: a, outMin: b, hours: Math.floor((b - a) / 60), ot: 0, src: 'relay' });
+    await loadAppWithState(page, book({ attendance: {
+      [DAY]: { marks: { 1: m('vat-a1', 510, 1800), 4: m('vat-a1', 510, 1200), 2: m('vat-a1', 1080, 1800), 5: m('barrel', 510, 1200) },
+        extra: [{ kind: 'block', area: 'vat-a1', areas: ['vat-a1'], from: '17:00', to: '20:00', hours: 3, crew: [4], src: 'relay' },
+          { kind: 'block', area: 'barrel', areas: ['barrel'], from: '17:00', to: '20:00', hours: 2, crew: [5], src: 'relay' }], note: '' } } }));
+    const r = await ev(page, `(function() { var c = shiftNightCrew('${DAY}', 'vat-a1');
+      return { ids: c.ids.slice().sort(), twice: shiftBackToBack('${DAY}').map(function(x) { return x.id + ':' + x.kind; }) }; })()`);
+    expect(r.ids).toEqual(['1', '2']);
+    expect(r.twice).toEqual(['1:same']);
   });
 
   test('a hand in for the night is no head of the general shift; the night block\'s norm is the schedule\'s crew; a short night asks', async ({ page }) => {
@@ -129,15 +153,29 @@ test.describe('P249: the night shift on a line\'s schedule', () => {
         { time: '11:40 PM', customer: '', part: '', qtyText: '60', ditto: true },
         { time: '12:20 AM', customer: '', part: '', qtyText: '60', ditto: true },
         { time: '2:00', customer: '', part: '', qtyText: '60', ditto: true }] }, prodCtx(), '${DAY}', { date: '${DAY}', line: 'vat-a1' });
-      return { night: o.night, minutes: o.minutes, mins: page.rows.map(function(x) { return x.min; }), noon: page.rows.some(function(x) { return x.issues.some(function(i) { return i.code === 'meridiem'; }); }) };
+      // A general-shift page on the same day keeps the day's reading (Vulcanus H-1): the noon fix, a row out of turn, the afternoon.
+      var day = prodFromRegisterRead({ date: '${dmy(DAY)}', line: 'VAT A1', rows: [
+        { time: '9:00', customer: 'DELTA AUTO', part: 'CLAMP', qtyText: '60' },
+        { time: '11:30', customer: '', part: '', qtyText: '60', ditto: true },
+        { time: '11:20', customer: '', part: '', qtyText: '60', ditto: true },
+        { time: '12:45 AM', customer: '', part: '', qtyText: '60', ditto: true },
+        { time: '1:05', customer: '', part: '', qtyText: '60', ditto: true }] }, prodCtx(), '${DAY}', { date: '${DAY}', line: 'vat-a1' });
+      // A night page opening on a bare 7:00 is the evening.
+      var bare = prodFromRegisterRead({ date: '${dmy(DAY)}', line: 'VAT A1', rows: [
+        { time: '7:00', customer: 'DELTA AUTO', part: 'CLAMP', qtyText: '60' },
+        { time: '7:20', customer: '', part: '', qtyText: '60', ditto: true }] }, prodCtx(), '${DAY}', { date: '${DAY}', line: 'vat-a1' });
+      return { night: o.night, minutes: o.minutes, mins: page.rows.map(function(x) { return x.min; }), noon: page.rows.some(function(x) { return x.issues.some(function(i) { return i.code === 'meridiem'; }); }),
+        day: day.rows.map(function(x) { return x.min; }), bare: bare.rows.map(function(x) { return x.min; }) };
     })()`);
     expect(r.night).toMatchObject({ start: 1080, stop: 1740, breakMin: 45, plateMin: 615 });
     expect(r.minutes).toBe(615);
     expect(r.mins).toEqual([1110, 1420, 1460, 1560]);
     expect(r.noon).toBe(false);
+    expect(r.day).toEqual([540, 690, 680, 765, 785]);
+    expect(r.bare).toEqual([1140, 1160]);
   });
 
-  test('a cut in the night is in working hours, the night before\'s up to its end; capacity counts the night', async ({ page }) => {
+  test('a cut in the night is in working hours, the night before\'s up to its end; capacity is the two shifts', async ({ page }) => {
     const m = (area: string) => ({ st: 'P', area, inMin: 1080, outMin: 1800, hours: 12, ot: 0, src: 'relay' });
     await loadAppWithState(page, book({ attendance: { [DAY]: { marks: { 2: m('vat-a1') }, extra: [], note: '' } } }));
     const r = await ev(page, `(function() {
@@ -145,9 +183,10 @@ test.describe('P249: the night shift on a line\'s schedule', () => {
       return { today: w.map(function(x) { return [x.from, x.to]; }), next: w2.map(function(x) { return [x.from, x.to]; }),
         cap: statsCapacityKg('${DAY}', '${DAY}'), plain: STATS_CAPACITY_KG_DAY };
     })()`);
-    expect(r.today).toEqual([[1080, 1800]]);
+    expect(r.today).toEqual([[1080, 1800], [-360, 360]]);
     expect(r.next).toEqual([[-360, 360]]);
-    expect(r.cap).toBeGreaterThan(r.plain);
+    // The model's two shifts already hold the second (Vulcanus H-3): the night adds nothing until the owner rules.
+    expect(r.cap).toBe(r.plain);
   });
 
   test('Settings → Labour → Shifts by line saves a schedule, and the planner\'s line runs the general shift and its night', async ({ page }) => {

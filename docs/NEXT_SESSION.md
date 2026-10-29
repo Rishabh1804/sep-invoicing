@@ -15,7 +15,8 @@ carries **this repo's side** of it: the work queued here, and what this app prod
   heading starts at the schedule's start, and a hand only on the night is in at it; a hand in from 4 PM is no head of the general
   shift; a night block's norm is the schedule's crew; the To-do flags a short night and a hand on two shifts back to back;
   efficiency judges the night against its plating time less the break; a night page's times run on past midnight; a cut in the
-  night is in working hours; capacity and the planner count the night. Pay needed nothing: 6 PM to 6 AM is 12 hours by the roll's
+  night is in working hours; the planner runs the night. Capacity stays the model's two shifts until the owner says
+  whether the night is the second shift or a third. Pay needed nothing: 6 PM to 6 AM is 12 hours by the roll's
   own rule, with the night snack. **Read the rolls again from …** on the section reads the days since the first schedule again.
 - **Nothing about the shop is in the build**: the owner types the schedules (this week 5 PM to 8:30 AM, from Monday 6 PM to 6 AM).
 - **A data flow changed**: `S.lineShifts` travels with the book (backups, GitHub, the merge, the change log). soma-internal reads

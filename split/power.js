@@ -139,6 +139,8 @@ function powerWindows(date) {
   };
   nightOf(date, 0);
   nightOf(isoAddDays(date, -1), 1440);
+  // A cut before 6 AM kept under the night's own day (Production's day runs 6 AM to 6 AM, the face's power log so) is that night's.
+  nightOf(date, 1440);
   ((rec && rec.extra) || []).forEach(function(x) {
     if (x.kind !== 'block') return;
     if (typeof shiftBlockNight === 'function' && shiftBlockNight(x, date) && out.some(function(w) { return w.kind === 'night'; })) return;

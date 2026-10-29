@@ -165,10 +165,14 @@ function blockNorm(row, blockRows, iso) {
   // its pickling, the whole crew; a row of one, its own), the spare left out, since a spare books no shortfall.
   var night = iso && typeof shiftBlockNight === 'function' ? shiftBlockNight(row, iso) : null;
   if (night && night.need) {
-    var ra = extraAreas(row), n = 0, hit = false;
-    ra.forEach(function(id) { if (night.crew[id] != null) { n += night.crew[id]; hit = true; } });
-    if (hit) return n;
-    if (!ra.length) return night.need;
+    // One row for the night (the shop's heading names one area or two, never all the night's): the whole crew. Split over sibling
+    // rows, each its own areas' share (Castor B-1).
+    var nAreas = Object.keys(night.crew), ra = extraAreas(row);
+    var sibs = (blockRows || []).filter(function(r) { return r !== row && extraAreas(r).some(function(a) { return nAreas.indexOf(a) >= 0 && ra.indexOf(a) < 0; }); });
+    if (!sibs.length) return night.need;
+    var n = 0;
+    ra.forEach(function(id) { if (night.crew[id] != null) n += night.crew[id]; });
+    return n;
   }
   var areas = extraAreas(row);
   var rows = blockRows || [row];
@@ -397,7 +401,7 @@ function areaStats(fromIso, toIso) {
       var a = byId[areaId];
       if (!a) return;
       // The general shift's heads: a hand in for the night (shifts.js) stands the night, which its own block reconciles.
-      if (!attMarkOnNight(m)) headsToday[areaId] = (headsToday[areaId] || 0) + 1;
+      if (!attMarkOnNight(m, iso)) headsToday[areaId] = (headsToday[areaId] || 0) + 1;
       a.headDays++;
       // Overtime is placed where it was worked, the labour card's own split (attHoursSplit, staff.js): a monthly or daily
       // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's.

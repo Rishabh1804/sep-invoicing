@@ -602,7 +602,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
-          var pmSlot = !kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
+          var pmSlot = !kindH.night && !sched && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
           if (pmSlot && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
             sStart -= 720;
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
@@ -960,6 +960,9 @@ function relayPlan(rv) {
     Object.keys(t.people).forEach(function(id) {
       var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
       if (prev && prev.src !== 'relay') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
+      // A night hand's mark the rolls wrote (in from 4 PM) is not taken back by an in-time roll pasted after it listing them absent:
+      // they were absent from the 8:30 shift, not from the night (Castor M-1).
+      if (prev && prev.src === 'relay' && prev.st === 'P' && Number(prev.inMin) >= 960 && p.st === 'A') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
       var q = JSON.parse(JSON.stringify(p));
       if (prev && prev.st === 'P' && q.st === 'P') {
         if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);

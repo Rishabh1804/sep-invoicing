@@ -275,7 +275,10 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   var nt = ln.id !== 'pickling' && typeof lineNightOn === 'function' ? lineNightOn(ln.id, day) : null;
   if (nt) {
     var nc = shiftNightCrew(day, ln.id);
-    h += uiFactRowHtml({ label: 'Night', value: nc && nc.recorded ? nc.heads + (nt.need ? '/' + nt.need : '') : '', tone: nc && nc.heads && nt.need ? areaNeedTone(nc.heads, nt.need) : null,
+    // Nobody on a recorded night once it has begun is danger (Vulcanus L-5).
+    var begun = day < localDateStr() || (day === localDateStr() && new Date().getHours() * 60 + new Date().getMinutes() >= nt.start);
+    h += uiFactRowHtml({ label: 'Night', value: nc && nc.recorded ? nc.heads + (nt.need ? '/' + nt.need : '') : '',
+      tone: nc && nc.recorded && !nc.heads && begun ? 'danger' : nc && nc.heads && nt.need ? areaNeedTone(nc.heads, nt.need) : null,
       sub: relayClockLabel(nt.start) + ' – ' + relayClockLabel(nt.end % 1440) + ' · plating ' + formatNum(nt.plateMin / 60, 2).replace(/\.?0+$/, '') + ' h after the break', attrs: ' data-flr-night="' + ln.id + '"' });
   }
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.

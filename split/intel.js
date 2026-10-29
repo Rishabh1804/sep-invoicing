@@ -62,13 +62,12 @@ function statsWorkingDayList(from, to) {
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
-/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day, and a line's scheduled night on top of it
-   (shifts.js: owner, 29 Oct 2026), a third of the plant's shift rate for the night's plating time, an estimate the capacity tile
-   says. */
+/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. The model's two shifts already hold a second
+   shift, so a line's scheduled night (shifts.js) adds nothing until the owner says whether it is that second shift or a third
+   (Vulcanus H-3, 29 Oct 2026: a third of the shift's rate on top counted VAT A1's second shift twice, ~22 t a month of spare that
+   is not there). One place to change it. */
 function statsCapacityKg(from, to) {
-  var days = statsWorkingDayList(from, to), kg = STATS_CAPACITY_KG_DAY * days.length;
-  if (typeof nightLinesOn === 'function') days.forEach(function(d) { nightLinesOn(d).forEach(function(n) { kg += STATS_CAPACITY_KG_DAY / 2 / 3 * n.plateMin / 480; }); });
-  return kg;
+  return STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to);
 }
 /* The monthly crew's share of the live cost, for the power case (powerMargin), which counts the pool's idle wages
    apart: fixed is the monthly crew's days and rest days, the rest of the cost the other part. Stats' contribution

@@ -1109,6 +1109,8 @@ function attDaySummary(day) {
     if (!m || !m.st) { out.unmarked++; return; }
     if (m.st === 'A') { out.absent.push(w.name); return; }
     if (m.st === 'H') out.half++; else out.p++;
+    // A hand in for the night (shifts.js) is on site but no head of the general shift: their line's night counts them.
+    if (attMarkOnNight(m, iso)) { out.night = (out.night || 0) + 1; return; }
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
     var ar = m.area || w.area || 'flex';
     out.byArea[ar] = (out.byArea[ar] || 0) + 1;

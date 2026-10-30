@@ -62,6 +62,13 @@ function statsWorkingDayList(from, to) {
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
+/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. The model's two shifts already hold a second
+   shift, so a line's scheduled night (shifts.js) adds nothing until the owner says whether it is that second shift or a third
+   (Vulcanus H-3, 29 Oct 2026: a third of the shift's rate on top counted VAT A1's second shift twice, ~22 t a month of spare that
+   is not there). One place to change it. */
+function statsCapacityKg(from, to) {
+  return STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to);
+}
 /* The monthly crew's share of the live cost, for the power case (powerMargin), which counts the pool's idle wages
    apart: fixed is the monthly crew's days and rest days, the rest of the cost the other part. Stats' contribution
    no longer reads it: labour is fixed whole (owner, 13 Oct 2026; statsClientMargins). The labour row says what
@@ -90,7 +97,7 @@ function statsOverviewOpts(period, filtered, tonnage) {
   var c = liveCost(r.from, r.to, kg);
   var real = kg > 0 ? tonnage.revKnown / kg : null;
   var contrib = real != null && c.perKg != null ? real - c.perKg : null;
-  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to);
+  var cap = statsCapacityKg(r.from, r.to);
   var capPct = cap > 0 ? kg / cap : null;
   var perKg = '<span class="inv-tile-of">/kg</span>';
   var tone = contrib == null ? 'neutral' : figToneAgainst(real, c.perKg, 5) || 'neutral';
@@ -259,7 +266,7 @@ function statsMonthRows(n) {
     var inv = active.filter(function(i) { return i.date >= from && i.date <= to; });
     var w = weighLines(inv), c = w.kg > 0 ? liveCost(from, to, w.kg) : null;
     rows.push({ month: from.slice(0, 7), label: insMonthLabel(from), kg: w.kg, real: w.kg > 0 ? w.revKnown / w.kg : null, cost: c ? c.perKg : null,
-      cap: STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to), rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0) });
+      cap: statsCapacityKg(from, to), rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0) });
   }
   return rows;
 }
@@ -384,7 +391,7 @@ function statsStoryCards(a, ctx) {
 
   // 3. Is the plant full?
   var c3 = { key: 'plant', q: 'Is the plant full?' };
-  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  var cap = statsCapacityKg(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
   // The spare a month over the last 90 days (prsSpare), Prospects' own figure, beside the period's (the tab map, TM5g).
   var sp90 = typeof prsSpare === 'function' ? prsSpare() : null;
   body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),

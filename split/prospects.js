@@ -57,7 +57,7 @@ function prsSpare(today) {
   today = today || localDateStr();
   var from = isoAddDays(today, -89);
   var rows = statsInvoices().filter(function(r) { return r.date >= from && r.date <= today; });
-  var kg = weighLines(rows).kg, cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(from, today);
+  var kg = weighLines(rows).kg, cap = statsCapacityKg(from, today);
   if (!(cap > 0)) return null;
   return { capMonth: cap / 3, kgMonth: kg / 3, spareMonth: Math.max(0, (cap - kg) / 3) };
 }

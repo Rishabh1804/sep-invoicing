@@ -416,7 +416,15 @@ function plnBase() {
       src: set.kgRound > 0 || set.every > 0 ? 'set' : c ? 'register' : 'assumed',
       register: c || null, kgDay: kgDay
     };
+    // A night on the line's schedule today (shifts.js; owner, 29 Oct 2026): its plating time is the line's on top of the general
+    // shift, in place of the morning and evening blocks, and its crew is paid on top of what the months behind the plan recorded.
+    // The schedule in force, whatever today is (a Sunday or a shut day has no night, but the plan is a month's).
+    var nt = typeof lineShiftOn === 'function' ? shiftNightOf(lineShiftOn(l, localDateStr()), localDateStr()) : null;
+    if (nt) lines[l].night = { h: nt.plateMin / 60, paidH: nt.paidMin / 60, need: nt.need, from: nt.entry.from };
   });
+  // The night crew's wages are the book's once paid; the plan's month stays the book's own (Vulcanus M-6: a crew charged into
+  // "as it runs" with no more work plated read the book's month as a loss).
+  var nightRun = 0;
   // Costs: the live cost's own lines, per kilo or per month; labour by its own parts.
   var lc = liveCost(per.from, per.to, tw.kg), row = function(k) { var r = (lc.rows || []).find(function(x) { return x.key === k; }); return r || { amount: 0, source: 'model' }; };
   var lab = labourForRange(per.from, per.to);
@@ -454,7 +462,7 @@ function plnBase() {
   if (!cash) cash = { v: 0, src: 'none' };
   _plnBase = {
     key: key, S: S, period: per, wd: wd, clients: clients, kg: kgMo, unweighed: tw.revUnknown / mo, revenue: (tw.revKnown + tw.revUnknown) / mo,
-    lines: lines, cutMin: cutMin, cash: cash, coverage: tw.coverage,
+    lines: lines, nightRun: nightRun, cutMin: cutMin, cash: cash, coverage: tw.coverage,
     cost: {
       labourFixed: labFixed, labourPool: labPool, labourOt: labOt, labourOther: labOther,
       zincKg: tw.kg ? row('zinc').amount / tw.kg : 0, chemKg: tw.kg ? row('chem').amount / tw.kg : 0, otherKg: tw.kg ? row('other').amount / tw.kg : 0,
@@ -600,7 +608,7 @@ function plnMonth(m, L, ready, opts) {
   var live = function(mv) { var r = ready[mv.key]; return r != null && m >= r && !(opts.drop && opts.drop[mv.key]); };
   var w = function(mv) { return !opts.expected ? 1 : opts.weights && opts.weights[mv.key] != null ? opts.weights[mv.key] : mv.p != null ? mv.p : 1; };
   var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, effSave: 0, runMo: 0 };
-  PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0 }; });
+  PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0, night: B.lines[k].night || null }; });
   L.forEach(function(mv) {
     if (!live(mv)) return;
     var f = mv.fx || {}, s = w(mv);
@@ -650,14 +658,17 @@ function plnMonth(m, L, ready, opts) {
   var plated0 = 0;
   PLN_LINE_IDS.forEach(function(k) {
     var l = lines[k]; l.kgH = l.kgRound * 60 / l.every;
+    // A line on a scheduled night runs the general shift and the night, the blocks around them off by plan.
+    l.avail = l.night ? PLN_SHIFT.general + Math.max(l.night.h, fx.night ? PLN_SHIFT.night : 0) : avail;
     l.need = l.demand > 0 ? l.demand / l.kgH + cutH : 0;
-    l.hours = Math.min(l.need, avail);
-    l.cap = l.kgH * Math.max(0, avail - cutH);
+    l.hours = Math.min(l.need, l.avail);
+    l.cap = l.kgH * Math.max(0, l.avail - cutH);
     l.plated = Math.min(l.demand, l.kgH * Math.max(0, l.hours - cutH));
     plated0 += l.plated;
   });
   // Pickling runs as long as the lines need it (at least the hours the busiest line runs), within the day's window.
-  var pickH = Math.max(0, Math.min(avail - cutH, Math.max(Math.max.apply(null, PLN_LINE_IDS.map(function(k) { return lines[k].hours; })) - cutH, fx.pickKgH > 0 ? plated0 / fx.pickKgH : 0)));
+  var pickWin = Math.max.apply(null, [avail].concat(PLN_LINE_IDS.map(function(k) { return lines[k].avail; })));
+  var pickH = Math.max(0, Math.min(pickWin - cutH, Math.max(Math.max.apply(null, PLN_LINE_IDS.map(function(k) { return lines[k].hours; })) - cutH, fx.pickKgH > 0 ? plated0 / fx.pickKgH : 0)));
   var pickCap = fx.pickKgH * pickH, pickShare = plated0 > pickCap && plated0 > 0 ? pickCap / plated0 : 1;
   var otH = 0, nightH = 0;
   PLN_LINE_IDS.forEach(function(k) {
@@ -665,8 +676,8 @@ function plnMonth(m, L, ready, opts) {
     l.share = l.demand > 0 ? l.plated * pickShare / l.demand : 0;
     l.plated *= pickShare;
     l.waitH = pickShare < 1 ? Math.max(0, l.hours - cutH) * (1 - pickShare) : 0;
-    l.ot = Math.max(0, Math.min(l.hours, PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening) - PLN_SHIFT.general);
-    l.nightH = Math.max(0, l.hours - PLN_SHIFT.general - PLN_SHIFT.morning - PLN_SHIFT.evening);
+    l.ot = l.night ? 0 : Math.max(0, Math.min(l.hours, PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening) - PLN_SHIFT.general);
+    l.nightH = l.night ? Math.max(0, l.hours - PLN_SHIFT.general) : Math.max(0, l.hours - PLN_SHIFT.general - PLN_SHIFT.morning - PLN_SHIFT.evening);
     otH += l.ot; nightH += l.nightH;
   });
   var plated = 0, rev = B.unweighed + uwDelta, byClient = {}, lost = 0;
@@ -688,7 +699,7 @@ function plnMonth(m, L, ready, opts) {
   var C = B.cost, otBase = B.otBase != null ? B.otBase : otH;
   var cost = {
     labourFixed: C.labourFixed, labourPool: C.labourPool,
-    labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther,
+    labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther + (B.nightRun || 0),
     hires: hires, zinc: plated * C.zincKg, chem: plated * (C.chemKg + fx.chemKg) - fx.chemSave,
     power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.effSave + fx.runMo
   };

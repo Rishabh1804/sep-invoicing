@@ -573,6 +573,13 @@ function parseRelayRoll(text, roster, sentOn, opts) {
 
     if (!hit && !numbered && isHeaderish) {
       var kindH = isHeaderish;
+      // A line's night on the schedule (shifts.js): a night heading that writes no time is the schedule's night, and one that
+      // writes one keeps the schedule's other end, where 8 PM to 6 AM was the night hold's.
+      // A heading that writes an evening start running past midnight ("6 PM TO 6 AM VAT A 1") is the night too.
+      var nightish = kindH.night || (kindH.start != null && kindH.start >= 960 && kindH.end != null && kindH.end > 1440);
+      var sched = kindH.slot && nightish && opts && typeof opts.night === 'function' && st.iso ? opts.night(st.iso, kindH.areas) : null;
+      var nightA = sched ? sched.start : RELAY_NIGHT, nightB = sched ? sched.end : 1440 + RELAY_MORNING;
+      if (sched && kindH.nightDefault) { kindH.start = nightA; kindH.end = nightB; }
       if (kindH.slot) {
         // A heading that writes both ends ("night hold-8 pm to 6 am") gives its block both: the start is no longer
         // taken to be 5 PM. A single time is only when the crew under it went home.
@@ -580,22 +587,22 @@ function parseRelayRoll(text, roster, sentOn, opts) {
           // A night heading that writes one time keeps the night hold's other end (8 PM to 6 AM): "night hold 6 am" still
           // starts at 8 PM, and "night hold 8 pm" still runs to 6 AM. It started at 5 PM, or ended at 8 PM.
           if (kindH.night && kindH.end == null && kindH.single != null) {
-            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
-            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+            if (kindH.single >= 1440) { kindH.start = nightA; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = nightB; }
           }
           st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
-            rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
+            rangeStart: kindH.end != null || kindH.night ? kindH.start : null, sched: !!sched };
         } else {
           // The night hold is the night shift, 8 PM to 6 AM (owner, 30 Sep 2026: "night hold is night shift"), on an
           // in-time roll as on an out-time one: a heading with one time keeps the other end, and is never the morning.
           if (kindH.night && kindH.end == null && kindH.single != null) {
-            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
-            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+            if (kindH.single >= 1440) { kindH.start = nightA; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = nightB; }
           }
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
-          var pmSlot = !kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
+          var pmSlot = !kindH.night && !sched && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
           if (pmSlot && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
             sStart -= 720;
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
@@ -607,7 +614,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" holds the day\'s lines and the absent lists, and the roll has no 8:30 heading, so it is read as the 8:30 shift.' });
           }
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
-          st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night };
+          st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night, sched: !!sched };
           kindH.start = sStart;
         }
         // Which slot this is, as the roll wrote it: taken before a learnt time moves it, so a heading's lesson keeps
@@ -719,6 +726,9 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
         else if (tms.length === 1) p.outExp = relayOutMin(tms[0]);
         else if (st.slot && st.slot.end != null) p.outSlot = st.slot.end;
+        // A hand under a line's scheduled night came in for it: with no in-time of their own on the day (no 8:30 shift, no
+        // mark), they are in at the night's start, never at 8:30 (21 hours to 6 AM).
+        if (st.slot && st.slot.sched && st.slot.rangeStart != null) p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
       } else {
         var slotIn = st.slot && st.slot.start != null ? st.slot.start : null;
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
@@ -773,7 +783,7 @@ function relaySlotOrArea(bare) {
   if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
   if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
   // The night hold runs 8 PM to 6 AM (owner, 29 Sep 2026); times written on the heading win over this.
-  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_NIGHT, end: 1440 + RELAY_MORNING, areas: areas, night: true };
+  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_NIGHT, end: 1440 + RELAY_MORNING, areas: areas, night: true, nightDefault: true };
   if (absent) return { absent: true, areas: [] };
   if (/\b(MONTHLY|WEEKLY)\b/.test(up) && words.length <= 2) return { areas: [] };
   if (areas.length) return { areas: areas };
@@ -812,7 +822,7 @@ function relayPersonMark(p, w, restOut) {
     if (p.outExp != null) outMin = p.outExp; else { outMin = RELAY_GATE[1]; said = false; }
   } else {
     inMin = relayMin(p.inExp, p.inSlot);
-    if (inMin == null) inMin = RELAY_GENERAL;
+    if (inMin == null) inMin = p.nightIn != null ? p.nightIn : RELAY_GENERAL;
     if (p.outExp != null) outMin = p.outExp;
     else if (p.outSlot != null) outMin = p.outSlot;
     else { outMin = restOut != null ? restOut : RELAY_GENERAL_OUT; said = false; }
@@ -908,7 +918,7 @@ function relayPlan(rv) {
   roster.forEach(function(w) { byId[w.id] = w; });
   var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn, m.exact ? { exact: true } : null), h = relayHash(m.text);
+    var r = parseRelayRoll(m.text, roster, m.sentOn, { exact: !!m.exact, night: typeof shiftNightFor === 'function' ? shiftNightFor : null }), h = relayHash(m.text);
     m.parsed = r;
     // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
     m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;
@@ -932,7 +942,7 @@ function relayPlan(rv) {
         var p = d.people[id], e = t.people[id];
         if (!e) { t.people[id] = JSON.parse(JSON.stringify(p)); return; }
         if (p.st === 'P') e.st = 'P';
-        ['inExp', 'inSlot'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
+        ['inExp', 'inSlot', 'nightIn'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
         ['outExp', 'outSlot'].forEach(function(k) { if (p[k] != null) e[k] = p[k]; });
         if (p.generalArea) e.generalArea = p.generalArea;
         if (!e.areas && p.areas) e.areas = p.areas;
@@ -950,6 +960,9 @@ function relayPlan(rv) {
     Object.keys(t.people).forEach(function(id) {
       var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
       if (prev && prev.src !== 'relay') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
+      // A night hand's mark the rolls wrote (in from 4 PM) is not taken back by an in-time roll pasted after it listing them absent:
+      // they were absent from the 8:30 shift, not from the night (Castor M-1).
+      if (prev && prev.src === 'relay' && prev.st === 'P' && Number(prev.inMin) >= 960 && p.st === 'A') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
       var q = JSON.parse(JSON.stringify(p));
       if (prev && prev.st === 'P' && q.st === 'P') {
         if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);
@@ -1447,6 +1460,20 @@ function relayRereadBase(iso, why) {
   return rec;
 }
 
+/* A day's saved rolls read again with nothing asked (the schedule's Read the rolls again, shifts.js): what was entered or corrected
+   by hand is kept and the day as it was goes to the log, as on the day's own Read the rolls again. A day whose reading asks a red
+   question (a name the reader cannot place) is left as it is: → 'asks', so it is read again on the day, where the question is. */
+function relayRereadDay(iso, why) {
+  var rolls = relayRollsFor(iso);
+  if (!rolls.length) return false;
+  var rv = { reread: iso, rereadWhy: why, choices: {}, text: rolls.map(function(p) { return p.text; }).join('\n\n'),
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face }; }) };
+  var plan = relayPlan(rv);
+  if (!plan.days.length) return false;
+  if (plan.issues.some(function(x) { return x.tone === 'red'; })) return 'asks';
+  relayApplyPlan(rv, plan);
+  return true;
+}
 function relayAction(action, btn) {
   switch (action) {
     case 'invRelayRead': relayRead(); break;

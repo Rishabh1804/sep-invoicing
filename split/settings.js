@@ -16,7 +16,7 @@ var SETTINGS_GROUPS = [
   { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn', 'quotes'] },
   { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
-  { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
+  { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'shifts', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'sync'] },
   // The guard (guard.js): users and roles; builder D's Devices joins this group.
   { key: 'access', label: 'Access', secs: ['users'] },
@@ -410,6 +410,13 @@ var SETTINGS_SECS = {
       if (r != null) S.labour.extraRate = r;
       if (h != null) S.labour.extraHoursPerHead = h;
     }
+  },
+  shifts: {
+    title: 'Shifts by line',
+    summary: function() { return shiftSummary(); },
+    body: function() { return shiftSettingsBody(); },
+    why: 'A line’s night from a day (owner, 29 Oct 2026: a night shift on VAT A1): when it starts and ends, when plating stops, the break taken in it, the crew it needs on the line and on pickling, and a spare who covers an absence and books no shortfall. A night is the day it starts on. The roll’s night heading starts at its start, a hand in from 4 PM is the night’s and not the general shift’s, a night short of its crew books its EXTRA at the night’s length a missing hand, and its efficiency is judged against the plating time less the break. The barrel takes its running hours (the mornings before 8:30 and the evenings after 5 PM running with no crew) and the EXTRA its loading or unloading books a window. Pay reads the hands’ own times: 6 PM to 6 AM is 12 hours, 4 of them a monthly hand’s overtime, all of them an hourly hand’s at the hour’s rate, with the night snack.',
+    save: function() { return shiftSettingsSave(); }
   },
   labModel: {
     title: 'Modelled labour',

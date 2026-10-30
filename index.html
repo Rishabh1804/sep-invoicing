@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="c05f0479">
+<meta name="app-build" content="abf7fdf6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3945,6 +3945,7 @@ function getDefaultState() {
     changeLog: [],
     mergeHeld: [],
     prospects: [],
+    lineShifts: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -6980,6 +6981,7 @@ var CHG_TRACK = [
   { path: 'quotations', kind: 'arr', noun: 'quotation',
     label: function(r) { return chgJoin(r.displayNumber ? r.displayNumber + (r.rev ? ' Rev ' + r.rev : '') : 'draft', r.to && r.to.name); } },
   { path: 'prospects', kind: 'arr', noun: 'prospect', label: function(r) { return r.name; } },
+  { path: 'lineShifts', kind: 'arr', noun: 'shift schedule', label: function(r) { return chgJoin(typeof shiftLineName === 'function' ? shiftLineName(r.line) : r.line, r.from ? 'from ' + chgDay(r.from) : ''); } },
   { path: 'voidedNumbers', kind: 'arr', noun: 'deleted number', key: function(r) { return 'V:' + (r.displayNumber || r.invoiceNumber || '') + '@' + (r.voidedAt || ''); },
     label: function(r) { return chgJoin(r.displayNumber || r.invoiceNumber, r.reason); } },
   { path: 'extraExceptions', kind: 'arr', noun: 'explained exception', key: function(r) { return 'X:' + [r.iso, r.scope, r.key, r.at].join('|'); },
@@ -13193,7 +13195,7 @@ var SETTINGS_GROUPS = [
   { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn', 'quotes'] },
   { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
-  { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
+  { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'shifts', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'sync'] },
   // The guard (guard.js): users and roles; builder D's Devices joins this group.
   { key: 'access', label: 'Access', secs: ['users'] },
@@ -13587,6 +13589,13 @@ var SETTINGS_SECS = {
       if (r != null) S.labour.extraRate = r;
       if (h != null) S.labour.extraHoursPerHead = h;
     }
+  },
+  shifts: {
+    title: 'Shifts by line',
+    summary: function() { return shiftSummary(); },
+    body: function() { return shiftSettingsBody(); },
+    why: 'A line’s night from a day (owner, 29 Oct 2026: a night shift on VAT A1): when it starts and ends, when plating stops, the break taken in it, the crew it needs on the line and on pickling, and a spare who covers an absence and books no shortfall. A night is the day it starts on. The roll’s night heading starts at its start, a hand in from 4 PM is the night’s and not the general shift’s, a night short of its crew books its EXTRA at the night’s length a missing hand, and its efficiency is judged against the plating time less the break. The barrel takes its running hours (the mornings before 8:30 and the evenings after 5 PM running with no crew) and the EXTRA its loading or unloading books a window. Pay reads the hands’ own times: 6 PM to 6 AM is 12 hours, 4 of them a monthly hand’s overtime, all of them an hourly hand’s at the hour’s rate, with the night snack.',
+    save: function() { return shiftSettingsSave(); }
   },
   labModel: {
     title: 'Modelled labour',
@@ -24137,10 +24146,14 @@ function _attDayView() {
     html += _attDayCostCard(iso);
     return html;
   }
-  var byArea = {}, absentees = [];
+  var byArea = {}, absentees = [], byNight = {};
+  var nights = nightLinesOn(iso);
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
     if (m && m.st === 'A') absentees.push(w);
+    // A hand in for the night stands on their line's night card, not the general shift's (shifts.js).
+    var nl = attMarkOnNight(m, iso) ? nights.find(function(n) { return Object.keys(n.crew).concat(n.line).indexOf(m.area) >= 0; }) : null;
+    if (nl) { (byNight[nl.line] = byNight[nl.line] || []).push(w); return; }
     // An absent hand stays on their own area's card, so marking A never moves the line from under the tap.
     var a = m && m.st !== 'A' && m.area ? m.area : (w.area || 'flex');
     (byArea[a] = byArea[a] || []).push(w);
@@ -24155,6 +24168,19 @@ function _attDayView() {
     html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
       ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
       (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+  });
+  // A line's night (shifts.js): its hands in for the night, against the crew the schedule needs; a short night is a warning,
+  // with the EXTRA it books a missing hand.
+  nights.forEach(function(n) {
+    var c = shiftNightCrew(iso, n.line), list = byNight[n.line] || [];
+    if (!c) return;
+    var head = shiftLineName(n.line) + ' · night ' + relayClockLabel(n.start) + ' – ' + relayClockLabel(n.end % 1440);
+    var dot = n.need ? uiDot(areaNeedTone(c.heads, n.need), areaNeedWord(c.heads, n.need)) : '';
+    html += '<div class="inv-panel inv-panel-flush" data-att-night-card="' + n.line + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(head) +
+      ' <span class="inv-panel-count">' + c.heads + (n.need ? '/' + n.need : '') + '</span></span>' + dot + '</div>' +
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '') +
+      (c.heads > list.length ? '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-meta">' + (c.heads - list.length) + ' more on the night block, by the roll</span></span></div>' : '') +
+      (!c.heads ? '<div class="inv-empty">Nobody on the night yet: the night’s roll names them.</div>' : '') + '</div>';
   });
   // An area no longer on the list (a mark from an older build) still shows its hands.
   Object.keys(byArea).forEach(function(k) {
@@ -24200,7 +24226,7 @@ function _attDayShort(iso, rec) {
   var heads = {};
   attDayRoster(rec).forEach(function(w) {
     var m = rec && rec.marks[w.id];
-    if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m, iso)) return;
     var a = m.area || w.area || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
@@ -24386,7 +24412,7 @@ function _attBlockFields(x, i, siblings) {
     // What this block needed: its own number, else the complement of the areas it covers (the fold included).
     '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkNeed-' + i + '">Needed</label>' +
     '<input type="number" class="inv-input inv-input-num" id="blkNeed-' + i + '" data-att-block-need data-idx="' + i + '" step="1" min="0"' +
-    ' placeholder="' + (function() { var c = {}; for (var k in x) c[k] = x[k]; delete c.need; var n = blockNorm(c, [c].concat(siblings || [])); return n != null ? formatNum(n, 1).replace(/\.0$/, '') : '—'; })() +
+    ' placeholder="' + (function() { var c = {}; for (var k in x) c[k] = x[k]; delete c.need; var n = blockNorm(c, [c].concat(siblings || []), _attDate); return n != null ? formatNum(n, 1).replace(/\.0$/, '') : '—'; })() +
     '" value="' + (typeof x.need === 'number' ? x.need : '') + '" aria-label="Heads the block needed"></div>' +
     '<span class="inv-num inv-toolbar-end" data-block-len>' + (hrs == null ? '&mdash;'
       : (span != null && span !== hrs
@@ -24424,7 +24450,7 @@ function _attBlockFields(x, i, siblings) {
   // The prediction, in place, so the operator sees the check as they type it
   // rather than having to leave for the Areas view to find out.
   // The block itself, so its own Needed wins over the complement the way it does on the Areas card.
-  var norm = blockNorm(x, [x].concat(siblings || []));
+  var norm = blockNorm(x, [x].concat(siblings || []), _attDate);
   // The preview must refuse on exactly the conditions `areaStats` refuses on,
   // or the two surfaces disagree about the same row. A crew nobody named is not
   // a crew of zero: zero heads is a real reading only where a sibling row of the
@@ -24460,7 +24486,7 @@ function _attNeedCard(iso, rec) {
   var heads = {};
   Object.keys(rec ? rec.marks : {}).forEach(function(id) {
     var m = rec.marks[id], w = staffById(id);
-    if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m, iso)) return;
     var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
@@ -26960,9 +26986,22 @@ function extraAreas(x) {
    pickling hands and books less. Nothing here measures per-area output, so that
    reduction cannot be derived — which is exactly why booking under the
    prediction is never reported as an error. */
-function blockNorm(row, blockRows) {
+function blockNorm(row, blockRows, iso) {
   // The number entered for this block wins over everything below: it is what the shift actually needed.
   if (row && typeof row.need === 'number' && row.need >= 0) return row.need;
+  // A line's scheduled night (shifts.js) needs the crew its schedule names: the row's areas' share of it (a row over the line and
+  // its pickling, the whole crew; a row of one, its own), the spare left out, since a spare books no shortfall.
+  var night = iso && typeof shiftBlockNight === 'function' ? shiftBlockNight(row, iso) : null;
+  if (night && night.need) {
+    // One row for the night (the shop's heading names one area or two, never all the night's): the whole crew. Split over sibling
+    // rows, each its own areas' share (Castor B-1).
+    var nAreas = Object.keys(night.crew), ra = extraAreas(row);
+    var sibs = (blockRows || []).filter(function(r) { return r !== row && extraAreas(r).some(function(a) { return nAreas.indexOf(a) >= 0 && ra.indexOf(a) < 0; }); });
+    if (!sibs.length) return night.need;
+    var n = 0;
+    ra.forEach(function(id) { if (night.crew[id] != null) n += night.crew[id]; });
+    return n;
+  }
   var areas = extraAreas(row);
   var rows = blockRows || [row];
 
@@ -27189,7 +27228,8 @@ function areaStats(fromIso, toIso) {
       var areaId = m.area || w.area || 'flex';
       var a = byId[areaId];
       if (!a) return;
-      headsToday[areaId] = (headsToday[areaId] || 0) + 1;
+      // The general shift's heads: a hand in for the night (shifts.js) stands the night, which its own block reconciles.
+      if (!attMarkOnNight(m, iso)) headsToday[areaId] = (headsToday[areaId] || 0) + 1;
       a.headDays++;
       // Overtime is placed where it was worked, the labour card's own split (attHoursSplit, staff.js): a monthly or daily
       // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's.
@@ -27273,7 +27313,7 @@ function areaStats(fromIso, toIso) {
       rows.forEach(function(x) {
         if (!(x.hours > 0)) return;   // supplies its area to the fold, books nothing
         var hrs = blockLength(x);
-        var norm = blockNorm(x, rows);
+        var norm = blockNorm(x, rows, iso);
         // An empty crew means two different things, and the record itself
         // tells them apart. A crew-less row BESIDE named sibling rows is the
         // relay stating nobody stood that line — W32 Thu-6's pickling rows
@@ -27307,6 +27347,14 @@ function areaStats(fromIso, toIso) {
         if (hrs == null || norm == null || heads == null) {
           blocks.push({ iso: iso, key: k, label: label, booked: booked,
             hours: hrs, norm: norm, heads: heads, expected: null, incomplete: true });
+          return;
+        }
+        // The barrel's running windows (shifts.js): a block in one books its loading or unloading, so many hours for the barrels
+        // handled in it (owner, 29 Oct 2026), not a missing hand's length.
+        var bw = typeof shiftBarrelWindowExpect === 'function' ? shiftBarrelWindowExpect(iso, x) : null;
+        if (bw) {
+          blocks.push({ iso: iso, key: k, label: label, booked: booked, hours: hrs, norm: norm, heads: heads,
+            expected: bw.hours, short: 0, barrels: bw.barrels, incomplete: false });
           return;
         }
         var short = Math.max(0, norm - heads);
@@ -28995,6 +29043,8 @@ function attDaySummary(day) {
     if (!m || !m.st) { out.unmarked++; return; }
     if (m.st === 'A') { out.absent.push(w.name); return; }
     if (m.st === 'H') out.half++; else out.p++;
+    // A hand in for the night (shifts.js) is on site but no head of the general shift: their line's night counts them.
+    if (attMarkOnNight(m, iso)) { out.night = (out.night || 0) + 1; return; }
     if (w.onFloor !== false && _areaIsFloor(m.area || w.area)) out.floorHeads++;
     var ar = m.area || w.area || 'flex';
     out.byArea[ar] = (out.byArea[ar] || 0) + 1;
@@ -38649,7 +38699,7 @@ function prsSpare(today) {
   today = today || localDateStr();
   var from = isoAddDays(today, -89);
   var rows = statsInvoices().filter(function(r) { return r.date >= from && r.date <= today; });
-  var kg = weighLines(rows).kg, cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(from, today);
+  var kg = weighLines(rows).kg, cap = statsCapacityKg(from, today);
   if (!(cap > 0)) return null;
   return { capMonth: cap / 3, kgMonth: kg / 3, spareMonth: Math.max(0, (cap - kg) / 3) };
 }
@@ -39467,6 +39517,13 @@ function parseRelayRoll(text, roster, sentOn, opts) {
 
     if (!hit && !numbered && isHeaderish) {
       var kindH = isHeaderish;
+      // A line's night on the schedule (shifts.js): a night heading that writes no time is the schedule's night, and one that
+      // writes one keeps the schedule's other end, where 8 PM to 6 AM was the night hold's.
+      // A heading that writes an evening start running past midnight ("6 PM TO 6 AM VAT A 1") is the night too.
+      var nightish = kindH.night || (kindH.start != null && kindH.start >= 960 && kindH.end != null && kindH.end > 1440);
+      var sched = kindH.slot && nightish && opts && typeof opts.night === 'function' && st.iso ? opts.night(st.iso, kindH.areas) : null;
+      var nightA = sched ? sched.start : RELAY_NIGHT, nightB = sched ? sched.end : 1440 + RELAY_MORNING;
+      if (sched && kindH.nightDefault) { kindH.start = nightA; kindH.end = nightB; }
       if (kindH.slot) {
         // A heading that writes both ends ("night hold-8 pm to 6 am") gives its block both: the start is no longer
         // taken to be 5 PM. A single time is only when the crew under it went home.
@@ -39474,22 +39531,22 @@ function parseRelayRoll(text, roster, sentOn, opts) {
           // A night heading that writes one time keeps the night hold's other end (8 PM to 6 AM): "night hold 6 am" still
           // starts at 8 PM, and "night hold 8 pm" still runs to 6 AM. It started at 5 PM, or ended at 8 PM.
           if (kindH.night && kindH.end == null && kindH.single != null) {
-            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
-            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+            if (kindH.single >= 1440) { kindH.start = nightA; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = nightB; }
           }
           st.slot = { start: null, end: kindH.end != null ? kindH.end : (kindH.single != null ? kindH.single : null), label: bare,
-            rangeStart: kindH.end != null || kindH.night ? kindH.start : null };
+            rangeStart: kindH.end != null || kindH.night ? kindH.start : null, sched: !!sched };
         } else {
           // The night hold is the night shift, 8 PM to 6 AM (owner, 30 Sep 2026: "night hold is night shift"), on an
           // in-time roll as on an out-time one: a heading with one time keeps the other end, and is never the morning.
           if (kindH.night && kindH.end == null && kindH.single != null) {
-            if (kindH.single >= 1440) { kindH.start = RELAY_NIGHT; kindH.end = kindH.single; }
-            else { kindH.start = kindH.single; kindH.end = 1440 + RELAY_MORNING; }
+            if (kindH.single >= 1440) { kindH.start = nightA; kindH.end = kindH.single; }
+            else { kindH.start = kindH.single; kindH.end = nightB; }
           }
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
-          var pmSlot = !kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
+          var pmSlot = !kindH.night && !sched && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
           if (pmSlot && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
             sStart -= 720;
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
@@ -39501,7 +39558,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" holds the day\'s lines and the absent lists, and the roll has no 8:30 heading, so it is read as the 8:30 shift.' });
           }
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
-          st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night };
+          st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night, sched: !!sched };
           kindH.start = sStart;
         }
         // Which slot this is, as the roll wrote it: taken before a learnt time moves it, so a heading's lesson keeps
@@ -39613,6 +39670,9 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
         else if (tms.length === 1) p.outExp = relayOutMin(tms[0]);
         else if (st.slot && st.slot.end != null) p.outSlot = st.slot.end;
+        // A hand under a line's scheduled night came in for it: with no in-time of their own on the day (no 8:30 shift, no
+        // mark), they are in at the night's start, never at 8:30 (21 hours to 6 AM).
+        if (st.slot && st.slot.sched && st.slot.rangeStart != null) p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
       } else {
         var slotIn = st.slot && st.slot.start != null ? st.slot.start : null;
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
@@ -39667,7 +39727,7 @@ function relaySlotOrArea(bare) {
   if (/MORNING/.test(up)) return { slot: true, start: RELAY_MORNING, end: RELAY_GENERAL, areas: areas };
   if (/G[AE]N[AE]?RAL/.test(up)) return { slot: true, start: RELAY_GENERAL, end: RELAY_GENERAL_OUT, areas: areas };
   // The night hold runs 8 PM to 6 AM (owner, 29 Sep 2026); times written on the heading win over this.
-  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_NIGHT, end: 1440 + RELAY_MORNING, areas: areas, night: true };
+  if (/NIGHT/.test(up)) return { slot: true, start: RELAY_NIGHT, end: 1440 + RELAY_MORNING, areas: areas, night: true, nightDefault: true };
   if (absent) return { absent: true, areas: [] };
   if (/\b(MONTHLY|WEEKLY)\b/.test(up) && words.length <= 2) return { areas: [] };
   if (areas.length) return { areas: areas };
@@ -39706,7 +39766,7 @@ function relayPersonMark(p, w, restOut) {
     if (p.outExp != null) outMin = p.outExp; else { outMin = RELAY_GATE[1]; said = false; }
   } else {
     inMin = relayMin(p.inExp, p.inSlot);
-    if (inMin == null) inMin = RELAY_GENERAL;
+    if (inMin == null) inMin = p.nightIn != null ? p.nightIn : RELAY_GENERAL;
     if (p.outExp != null) outMin = p.outExp;
     else if (p.outSlot != null) outMin = p.outSlot;
     else { outMin = restOut != null ? restOut : RELAY_GENERAL_OUT; said = false; }
@@ -39802,7 +39862,7 @@ function relayPlan(rv) {
   roster.forEach(function(w) { byId[w.id] = w; });
   var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn, m.exact ? { exact: true } : null), h = relayHash(m.text);
+    var r = parseRelayRoll(m.text, roster, m.sentOn, { exact: !!m.exact, night: typeof shiftNightFor === 'function' ? shiftNightFor : null }), h = relayHash(m.text);
     m.parsed = r;
     // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
     m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;
@@ -39826,7 +39886,7 @@ function relayPlan(rv) {
         var p = d.people[id], e = t.people[id];
         if (!e) { t.people[id] = JSON.parse(JSON.stringify(p)); return; }
         if (p.st === 'P') e.st = 'P';
-        ['inExp', 'inSlot'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
+        ['inExp', 'inSlot', 'nightIn'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
         ['outExp', 'outSlot'].forEach(function(k) { if (p[k] != null) e[k] = p[k]; });
         if (p.generalArea) e.generalArea = p.generalArea;
         if (!e.areas && p.areas) e.areas = p.areas;
@@ -39844,6 +39904,9 @@ function relayPlan(rv) {
     Object.keys(t.people).forEach(function(id) {
       var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
       if (prev && prev.src !== 'relay') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
+      // A night hand's mark the rolls wrote (in from 4 PM) is not taken back by an in-time roll pasted after it listing them absent:
+      // they were absent from the 8:30 shift, not from the night (Castor M-1).
+      if (prev && prev.src === 'relay' && prev.st === 'P' && Number(prev.inMin) >= 960 && p.st === 'A') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
       var q = JSON.parse(JSON.stringify(p));
       if (prev && prev.st === 'P' && q.st === 'P') {
         if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);
@@ -40341,6 +40404,20 @@ function relayRereadBase(iso, why) {
   return rec;
 }
 
+/* A day's saved rolls read again with nothing asked (the schedule's Read the rolls again, shifts.js): what was entered or corrected
+   by hand is kept and the day as it was goes to the log, as on the day's own Read the rolls again. A day whose reading asks a red
+   question (a name the reader cannot place) is left as it is: → 'asks', so it is read again on the day, where the question is. */
+function relayRereadDay(iso, why) {
+  var rolls = relayRollsFor(iso);
+  if (!rolls.length) return false;
+  var rv = { reread: iso, rereadWhy: why, choices: {}, text: rolls.map(function(p) { return p.text; }).join('\n\n'),
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face }; }) };
+  var plan = relayPlan(rv);
+  if (!plan.days.length) return false;
+  if (plan.issues.some(function(x) { return x.tone === 'red'; })) return 'asks';
+  relayApplyPlan(rv, plan);
+  return true;
+}
 function relayAction(action, btn) {
   switch (action) {
     case 'invRelayRead': relayRead(); break;
@@ -41866,6 +41943,7 @@ var PROD_QTY_TOKEN_RE = /(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*)\s*(nos|no|mos
 var PROD_LINES = ['vat-a1', 'vat-a2', 'barrel'];
 var PROD_LINE_LABEL = { 'vat-a1': 'VAT A1', 'vat-a2': 'VAT A2', barrel: 'Barrel' };
 
+var PROD_REG_DAY_START = 360;   // a night page's clock starts at 6 AM, the shop's day (production.js PROD_DAY_START)
 function prodHhmm(min) { return min == null ? null : relayHhmm(min); }
 /* A stored "HH:MM" in minutes is the relay's own reading (relayParseHhmm): one parser for a time the app wrote. */
 
@@ -42965,6 +43043,45 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     out.rows.push(row);
   });
+  // A page of a line's scheduled night (shifts.js, ctx.night): once the page has passed 5 PM (a row written PM, or read at 5 PM or
+  // later), its times run on past midnight, each read on the night's clock, the earliest reading not before the row above it (half
+  // an hour's slack for a row written out of turn): "2:00" after "11:40 PM" is 2 AM, not 2 PM, and "12:20 AM" is past midnight, not
+  // noon. Before that the page is the day's and keeps the day's reading (the noon fix included), except a bare time read nearer the
+  // night than the day ("7:00" opening a night page is 7 PM). A time before the night's end (8:30 AM on a night to 8:30) is the
+  // night's tail, past midnight.
+  var night = ctx.night && out.line ? ctx.night(out.line, out.date) : null;
+  if (night) {
+    var edge = Math.max(PROD_REG_DAY_START, night.end - 1440), prev = null, passed = false;
+    var dist = function(c) {
+      var w = [[RELAY_GENERAL, RELAY_GENERAL_OUT], [night.start - 60, night.end]], best = Infinity;
+      w.forEach(function(x) { best = Math.min(best, c < x[0] ? x[0] - c : c > x[1] ? c - x[1] : 0); });
+      return best;
+    };
+    out.rows.forEach(function(row) {
+      var t = /(\d{1,2})\s*(?:[:.;]\s*(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(String(row.time || ''));
+      if (!t || (t[2] == null && !t[3])) return;
+      var h = +t[1], mm = t[2] != null ? +t[2] : 0, ap = (t[3] || '').toLowerCase();
+      if (h > 23 || mm > 59) return;
+      var bare = !ap && h >= 1 && h <= 12;
+      var cands = /p/.test(ap) ? [(h % 12 + 12) * 60 + mm] : /a/.test(ap) ? [(h % 12) * 60 + mm] : bare ? [(h % 12) * 60 + mm, (h % 12 + 12) * 60 + mm] : [h * 60 + mm];
+      cands = cands.map(function(c) { return c < edge ? c + 1440 : c; }).sort(function(a, b) { return a - b; });
+      var old = row.min == null ? null : row.min < edge ? row.min + 1440 : row.min, pick;
+      if (!passed) {
+        pick = old != null ? old : cands[0];
+        if (bare) { var near = cands.slice().sort(function(a, b) { return dist(a) - dist(b); })[0]; if (dist(near) < dist(pick)) pick = near; }
+        if (/p/.test(ap) || pick >= RELAY_GENERAL_OUT) passed = true;
+      } else {
+        pick = cands.find(function(c) { return c >= prev - 30; });
+        if (pick == null) pick = cands[cands.length - 1];
+      }
+      if (pick !== row.min) {
+        if (passed) row.issues = row.issues.filter(function(x) { return x.code !== 'meridiem'; });
+        if (row.min != null && (row.min % 1440) !== (pick % 1440)) row.issues.push({ tone: 'info', code: 'night', text: row.time + ' read as ' + relayClockLabel(pick) + ': the page is the night’s, which runs past midnight.' });
+        row.min = pick;
+      }
+      prev = pick;
+    });
+  }
   if (out.style === 'rounds') {
     // START counts as a batch of the next round's figure.
     out.rows.forEach(function(row, k) {
@@ -44873,6 +44990,13 @@ function statsWorkingDayList(from, to) {
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
+/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. The model's two shifts already hold a second
+   shift, so a line's scheduled night (shifts.js) adds nothing until the owner says whether it is that second shift or a third
+   (Vulcanus H-3, 29 Oct 2026: a third of the shift's rate on top counted VAT A1's second shift twice, ~22 t a month of spare that
+   is not there). One place to change it. */
+function statsCapacityKg(from, to) {
+  return STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to);
+}
 /* The monthly crew's share of the live cost, for the power case (powerMargin), which counts the pool's idle wages
    apart: fixed is the monthly crew's days and rest days, the rest of the cost the other part. Stats' contribution
    no longer reads it: labour is fixed whole (owner, 13 Oct 2026; statsClientMargins). The labour row says what
@@ -44901,7 +45025,7 @@ function statsOverviewOpts(period, filtered, tonnage) {
   var c = liveCost(r.from, r.to, kg);
   var real = kg > 0 ? tonnage.revKnown / kg : null;
   var contrib = real != null && c.perKg != null ? real - c.perKg : null;
-  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to);
+  var cap = statsCapacityKg(r.from, r.to);
   var capPct = cap > 0 ? kg / cap : null;
   var perKg = '<span class="inv-tile-of">/kg</span>';
   var tone = contrib == null ? 'neutral' : figToneAgainst(real, c.perKg, 5) || 'neutral';
@@ -45070,7 +45194,7 @@ function statsMonthRows(n) {
     var inv = active.filter(function(i) { return i.date >= from && i.date <= to; });
     var w = weighLines(inv), c = w.kg > 0 ? liveCost(from, to, w.kg) : null;
     rows.push({ month: from.slice(0, 7), label: insMonthLabel(from), kg: w.kg, real: w.kg > 0 ? w.revKnown / w.kg : null, cost: c ? c.perKg : null,
-      cap: STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to), rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0) });
+      cap: statsCapacityKg(from, to), rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0) });
   }
   return rows;
 }
@@ -45195,7 +45319,7 @@ function statsStoryCards(a, ctx) {
 
   // 3. Is the plant full?
   var c3 = { key: 'plant', q: 'Is the plant full?' };
-  var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  var cap = statsCapacityKg(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
   // The spare a month over the last 90 days (prsSpare), Prospects' own figure, beside the period's (the tab map, TM5g).
   var sp90 = typeof prsSpare === 'function' ? prsSpare() : null;
   body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),
@@ -46493,6 +46617,354 @@ TODO_RULE_FNS.runway = function() {
     clears: 'Clears itself when the forecast stays above zero for 45 days.' + (only ? ' Placing receipts on their clients lets it count money in.' : ''),
     go: go, goLabel: 'Open the forecast', sig: (only ? 'out|' : '') + fc.cross }];
 };
+/* ===== Shifts by line =====
+   Owner, 29 Oct 2026: a night shift on VAT A1 from that day, "Build it as a schedule per line with a start date, read by
+   attendance, pay, EXTRA, production, efficiency, power, capacity and the planner". Nothing about the shop is in the build:
+   every schedule is the book's (S.lineShifts), typed by the owner in Settings → Labour → Shifts by line.
+
+   A schedule is one line's from a day: the night (its start and end on the clock, past midnight; when the crew stops plating;
+   the break inside it, minutes, taken at no fixed time), the crew it needs by area (the line's own hands and the pickling
+   hands it pulls), and a spare who covers an absence and books no shortfall. The schedule in force on a day is the latest
+   whose first day is on or before it (and whose last day, where set, is on or after it). A night is the day it starts on.
+
+   The barrel's schedule is its running hours instead (owner: "Barrel: on 06:00–20:00; 06:00–08:30 and 17:00–20:00 count as
+   running time with no crew"), with the EXTRA booked for loading or unloading in those windows: hours for one barrel, for
+   two to four, and for five or six.
+
+   What reads it: Staff's roll reader (a night heading starts at the schedule's start; a hand on the night with no other
+   mark is in at it), the general shift's heads (a mark in from 4 PM is the night's, never the general shift's), the Areas
+   card (a night block's norm is the schedule's crew), the To-do (a night short of its crew, a hand on two shifts back to
+   back), Production's efficiency (the night judged against its plating time less the break; the barrel's whole running
+   day), the register reader (a night page's times read on the night's clock), Power (a cut in the night is in working
+   hours), Stats' capacity and the planner. Pay needs nothing of it: 6 PM to 6 AM is 12 hours by the roll's own rule, a
+   monthly hand's 4 of them overtime, an hourly hand's all at the hour's rate, the night snack for a night past midnight. */
+
+var SHIFT_NIGHT_IN = 960;   // 4 PM: a hand in from here came for the night, not the general shift
+var SHIFT_LINES = [['vat-a1', 'VAT A1'], ['vat-a2', 'VAT A2'], ['barrel', 'Barrel']];
+
+function lineShifts() { return Array.isArray(S && S.lineShifts) ? S.lineShifts.filter(function(x) { return x && x.line && x.from && !x.voidedAt; }) : []; }
+function shiftLineName(line) { var l = SHIFT_LINES.find(function(x) { return x[0] === line; }); return l ? l[1] : line; }
+/* The schedule a line works to on a day, or null. */
+/* A night or a running day is not worked on a Sunday (owner, 29 Oct 2026: the night shift does not run Sunday night) unless its
+   schedule says so, nor on a day the plant is shut (Home's Plant shut…, flowCfg.holidays). */
+function _shiftDayOff(x, iso) {
+  if (new Date(iso + 'T00:00:00').getDay() === 0 && !x.sunday) return true;
+  var h = S && S.flowCfg && Array.isArray(S.flowCfg.holidays) ? S.flowCfg.holidays : [];
+  return h.indexOf(iso) >= 0 || h.indexOf(iso.slice(5)) >= 0;
+}
+function lineShiftOn(line, iso) {
+  var best = null;
+  lineShifts().forEach(function(x) {
+    if (x.line !== line || x.from > iso || (x.to && x.to < iso)) return;
+    if (!best || x.from > best.from) best = x;
+  });
+  return best;
+}
+/* A line's night on a day, on the day's clock (minutes from midnight; the end past 1440), or null where the line has none. */
+function lineNightOn(line, iso) {
+  var x = lineShiftOn(line, iso);
+  if (!x || x.line === 'barrel' || _shiftDayOff(x, iso)) return null;
+  return shiftNightOf(x, iso);
+}
+/* A schedule's night on the clock, whatever the day (the planner reads the schedule in force, Sundays and shut days aside). */
+function shiftNightOf(x, iso) {
+  if (!x || x.line === 'barrel') return null;
+  var line = x.line;
+  var a = relayParseHhmm(x.start), b = relayParseHhmm(x.end);
+  if (a == null || b == null) return null;
+  if (b <= a) b += 1440;
+  var stop = relayParseHhmm(x.stop);
+  if (stop == null) stop = b; else if (stop <= a) stop += 1440;
+  if (stop > b) stop = b;
+  var brk = Math.max(0, Number(x.breakMin) || 0), crew = {}, need = 0;
+  Object.keys(x.crew || {}).forEach(function(k) { var n = Math.max(0, Math.round(Number(x.crew[k]) || 0)); if (n) { crew[k] = n; need += n; } });
+  return { line: line, iso: iso, entry: x, start: a, end: b, stop: stop, breakMin: brk, plateMin: Math.max(0, stop - a - brk),
+    paidMin: b - a, crew: crew, need: need, spare: Math.max(0, Math.round(Number(x.spare) || 0)) };
+}
+/* The lines with a night on a day. */
+function nightLinesOn(iso) { return SHIFT_LINES.map(function(l) { return lineNightOn(l[0], iso); }).filter(Boolean); }
+/* Where a night heading on a roll starts and ends, for the lines it names (any line with a night where it names none):
+   the earliest of their nights, or null where no line has one that day. */
+function shiftNightFor(iso, areas) {
+  // A heading naming only the barrel's side is never a VAT line's night (Castor H-1, L-1).
+  if ((areas || []).length && (areas || []).every(function(a) { return a === 'barrel' || a === 'pickling-barrel'; })) return null;
+  var lines = (areas || []).map(function(a) { return a === 'pickling-vat' ? 'vat-a1' : a; }).filter(function(a) { return a === 'vat-a1' || a === 'vat-a2'; });
+  var n = nightLinesOn(iso).filter(function(o) { return !lines.length || lines.indexOf(o.line) >= 0; });
+  if (!n.length) return null;
+  n.sort(function(p, q) { return p.start - q.start; });
+  return n[0];
+}
+/* The barrel's running day on a day: { from, to, windows: [[a, b], …] with no crew, extra: {one, few, many} } or null. */
+function barrelRunOn(iso) {
+  var x = lineShiftOn('barrel', iso);
+  if (!x || _shiftDayOff(x, iso)) return null;
+  var a = relayParseHhmm(x.runFrom), b = relayParseHhmm(x.runTo);
+  if (a == null || b == null || b <= a) return null;
+  var wins = [];
+  if (a < RELAY_GENERAL) wins.push([a, RELAY_GENERAL]);
+  if (b > RELAY_GENERAL_OUT) wins.push([RELAY_GENERAL_OUT, b]);
+  var num = function(v, d) { var n = Number(v); return v === '' || v == null || !isFinite(n) || n < 0 ? d : n; };
+  return { entry: x, from: a, to: b, windows: wins, extra: { one: num(x.extraOne, null), few: num(x.extraFew, null), many: num(x.extraMany, null) } };
+}
+/* The EXTRA a barrel window's loading or unloading books, for the barrels handled in it: null where not set. */
+function barrelWindowExtra(run, barrels) {
+  if (!run || !(barrels > 0)) return null;
+  var e = run.extra;
+  return barrels === 1 ? e.one : barrels <= 4 ? e.few : (e.many != null ? e.many : e.few);
+}
+
+/* A mark of a hand who came in for the night, not the general shift: in from 4 PM, on a day a line has a night whose areas hold the
+   mark's (with no day given, while any schedule is set). Before any night was scheduled an evening hand stays a general-shift head,
+   as the Areas card has always counted (Castor L-2). */
+function attMarkOnNight(m, iso) {
+  if (!(m && (m.st === 'P' || m.st === 'H') && m.inMin != null && Number(m.inMin) >= SHIFT_NIGHT_IN)) return false;
+  if (!iso) return lineShifts().some(function(x) { return x.line !== 'barrel'; });
+  return nightLinesOn(iso).some(function(n) { return Object.keys(n.crew).concat(n.line, 'pickling-vat').indexOf(m.area) >= 0; });
+}
+/* Whether a block is a line's scheduled night on its day: a night slot (attBlockSlot) on a line with a night, or one naming
+   no line on a day one line has. */
+function shiftBlockNight(x, iso) {
+  if (!x || x.kind !== 'block' || attBlockSlot(x) == null) return null;
+  var a = relayParseHhmm(x.from);
+  if (a == null || (a < SHIFT_NIGHT_IN && a >= 240)) return null;
+  var n = shiftNightFor(iso, _attBlockAreas(x));
+  // From an hour before the night's start, or past midnight: an evening block that ends before the night begins is the
+  // evening's overtime, not the night.
+  if (!n || (a >= 240 && a < n.start - 60)) return null;
+  // It reaches past midnight, or covers most of the night: an evening block of 5 to 8 PM is the evening's overtime (Castor H-1).
+  var b = relayParseHhmm(x.to);
+  if (a >= 240 && b != null && b > a) { var A = a, B = b; if (B - A < (n.end - n.start) / 2) return null; }
+  return n;
+}
+
+/* Who stood the night on a line: the hands whose mark is the night's on the line or its pickling, and the crew of the night's
+   blocks on it, each once. → { night, heads, byArea: {area: n}, ids: [...], short, over } or null with no night that day. */
+function shiftNightCrew(iso, line) {
+  var night = lineNightOn(line, iso);
+  if (!night) return null;
+  var rec = (S.attendance || {})[iso], seen = {}, byArea = {};
+  var put = function(id, area) { id = String(id); if (seen[id]) return; seen[id] = true; byArea[area] = (byArea[area] || 0) + 1; };
+  var mine = Object.keys(night.crew);
+  if (!mine.length) mine = [line, line === 'vat-a1' || line === 'vat-a2' ? 'pickling-vat' : 'pickling-barrel'];
+  if (rec) {
+    Object.keys(rec.marks || {}).forEach(function(id) {
+      var m = rec.marks[id];
+      if (!m || mine.indexOf(m.area) < 0) return;
+      // In for the night, or a day hand whose out runs past midnight on the night's areas (an untagged night books no block row).
+      if (attMarkOnNight(m, iso) || ((m.st === 'P' || m.st === 'H') && Number(m.outMin) > 1440)) put(id, m.area);
+    });
+    (rec.extra || []).forEach(function(x) {
+      var n = shiftBlockNight(x, iso);
+      if (!n || n.line !== line || !Array.isArray(x.crew)) return;
+      var areas = _attBlockAreas(x);
+      x.crew.forEach(function(c) {
+        var m = rec.marks && rec.marks[c], a = m && mine.indexOf(m.area) >= 0 ? m.area : areas.find(function(z) { return mine.indexOf(z) >= 0; }) || line;
+        put(c, a);
+      });
+    });
+  }
+  var heads = Object.keys(seen).length;
+  return { night: night, recorded: !!rec, heads: heads, byArea: byArea, ids: Object.keys(seen),
+    short: Math.max(0, night.need - heads), over: Math.max(0, heads - night.need - night.spare) };
+}
+/* Hands on two shifts back to back on a day: the general shift of the day after the night before, or the general shift and
+   the night of the same day. → [{ id, name, kind: 'after' | 'same' }]. */
+function shiftBackToBack(iso) {
+  var out = [], rec = (S.attendance || {})[iso], prevIso = isoAddDays(iso, -1), prev = (S.attendance || {})[prevIso];
+  var onNight = function(day, d) {
+    var ids = {};
+    nightLinesOn(d).forEach(function(n) { var c = shiftNightCrew(d, n.line); if (c) c.ids.forEach(function(id) { ids[id] = true; }); });
+    return ids;
+  };
+  var general = function(m) { return m && (m.st === 'P' || m.st === 'H') && !attMarkOnNight(m, iso) && (m.inMin == null || Number(m.inMin) < 720); };
+  if (!rec) return out;
+  var lastNight = prev ? onNight(prev, prevIso) : {}, tonight = onNight(rec, iso);
+  Object.keys(rec.marks || {}).forEach(function(id) {
+    var m = rec.marks[id];
+    if (!general(m)) return;
+    var w = staffById(id), name = w ? w.name : id;
+    if (lastNight[String(id)]) out.push({ id: id, name: name, kind: 'after' });
+    else if (tonight[String(id)] && !(Number(m.outMin) > 0 && Number(m.outMin) <= SHIFT_NIGHT_IN)) out.push({ id: id, name: name, kind: 'same' });
+  });
+  return out;
+}
+
+/* ===== Settings → Labour → Shifts by line ===== */
+function _shiftRowHtml(x, i) {
+  x = x || {};
+  var lineSel = '<select class="inv-input" id="setShLine' + i + '"><option value="">—</option>' + SHIFT_LINES.map(function(l) {
+    return '<option value="' + l[0] + '"' + (x.line === l[0] ? ' selected' : '') + '>' + l[1] + '</option>';
+  }).join('') + '</select>';
+  var t = function(id, v) { return '<input type="time" class="inv-input inv-id" id="' + id + i + '" value="' + escHtml(v || '') + '">'; };
+  var n = function(id, v) { return _sNum(id + i, v == null ? '' : v, 1, 0); };
+  var crew = x.crew || {};
+  return '<div class="inv-callout inv-callout-neutral inv-mt-8" data-shift-row="' + i + '"><div class="inv-field-label">' + (x.from ? escHtml(shiftLineName(x.line) + ' from ' + formatDate(x.from)) : 'Add a schedule') + '</div>' +
+    _sRow(_sfg('Line', 'setShLine' + i, lineSel), _sfg('From', 'setShFrom' + i, '<input type="date" class="inv-input inv-id" id="setShFrom' + i + '" value="' + escHtml(x.from || '') + '">', 'blank takes the row off'),
+      _sfg('To (blank: open)', 'setShTo' + i, '<input type="date" class="inv-input inv-id" id="setShTo' + i + '" value="' + escHtml(x.to || '') + '">')) +
+    _sRow(_sfg('Night from', 'setShStart' + i, t('setShStart', x.start)), _sfg('Night to', 'setShEnd' + i, t('setShEnd', x.end)),
+      _sfg('Plating stops', 'setShStop' + i, t('setShStop', x.stop)), _sfg('Break, minutes', 'setShBreak' + i, n('setShBreak', x.breakMin))) +
+    _sRow(_sfg('Crew on the line', 'setShCrewL' + i, n('setShCrewL', x.line ? crew[x.line] : null)), _sfg('Crew on pickling', 'setShCrewP' + i, n('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel'])),
+      _sfg('Spare', 'setShSpare' + i, n('setShSpare', x.spare))) +
+    _sRow(_sfg('Barrel runs from', 'setShRunFrom' + i, t('setShRunFrom', x.runFrom)), _sfg('to', 'setShRunTo' + i, t('setShRunTo', x.runTo)),
+      _sfg('EXTRA a window, 1 barrel (h)', 'setShExOne' + i, n('setShExOne', x.extraOne)), _sfg('2 to 4 (h)', 'setShExFew' + i, n('setShExFew', x.extraFew)),
+      _sfg('5 or 6 (h)', 'setShExMany' + i, n('setShExMany', x.extraMany))) +
+    '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="setShSun' + i + '"' + (x.sunday ? ' checked' : '') + '> Runs on Sundays too</label>' +
+    _sfg('Note', 'setShNote' + i, '<input class="inv-input" id="setShNote' + i + '" value="' + escHtml(x.note || '') + '">', 'the material it runs, the rotation') +
+    '</div>';
+}
+function shiftSummary() {
+  var l = lineShifts();
+  if (!l.length) return escHtml('none set: every line on the general shift');
+  var today = localDateStr();
+  var now = SHIFT_LINES.map(function(z) {
+    var x = lineShiftOn(z[0], today) || l.filter(function(y) { return y.line === z[0] && y.from > today; }).sort(function(a, b) { return a.from.localeCompare(b.from); })[0];
+    if (!x) return '';
+    return z[1] + (x.line === 'barrel' ? ' on ' + (x.runFrom || '?') + '–' + (x.runTo || '?') : ' night ' + (x.start || '?') + '–' + (x.end || '?')) + (x.from > today ? ' from ' + formatDate(x.from) : '');
+  }).filter(Boolean);
+  return escHtml(now.join(' · ') || l.length + ' set, none in force today');
+}
+function shiftSettingsBody() {
+  var l = _shiftRowsShown();
+  var rows = l.map(function(x, i) { return _shiftRowHtml(x, i); }).join('') + _shiftRowHtml(null, l.length);
+  var since = lineShifts().map(function(x) { return x.from; }).sort()[0];
+  return rows + '<div class="inv-field-hint">A night line takes the night’s times, its crew and spare; the barrel takes its running hours and its EXTRA. A later From starts a new schedule; the one before it stands up to that day.</div>' +
+    (since ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invShiftReread">Read the rolls again from ' + escHtml(formatDate(since)) + '</button>' : '');
+}
+function _shiftRowsShown() {
+  return (S.lineShifts || []).filter(function(x) { return x && !x.voidedAt; }).slice().sort(function(a, b) { return String(a.line).localeCompare(String(b.line)) || String(a.from).localeCompare(String(b.from)); });
+}
+function shiftSettingsSave() {
+  // The rows as drawn (Castor L-6: saved against the unsorted list, a row could take another's id).
+  var l = _shiftRowsShown();
+  var next = [], bad = '';
+  for (var i = 0; i <= l.length; i++) {
+    if (!document.getElementById('setShLine' + i)) continue;
+    var line = _sVal('setShLine' + i), from = _sVal('setShFrom' + i);
+    if (!line || !from) continue;
+    var v = function(id) { return String(_sVal(id + i) || '').trim(); };
+    var num = function(id) { var s = v(id); return s === '' ? null : Math.max(0, Number(s)); };
+    var sun = document.getElementById('setShSun' + i);
+    var x = { id: (l[i] && l[i].line === line && l[i].from === from && l[i].id) || ('ls' + Date.now().toString(36) + i), line: line, from: from, to: v('setShTo') || '', note: v('setShNote'), sunday: !!(sun && sun.checked) };
+    if (x.to && x.to < x.from) { bad = shiftLineName(line) + ': its last day is before its first'; break; }
+    if (line === 'barrel') {
+      x.runFrom = v('setShRunFrom'); x.runTo = v('setShRunTo');
+      x.extraOne = num('setShExOne'); x.extraFew = num('setShExFew'); x.extraMany = num('setShExMany');
+      if (!x.runFrom || !x.runTo) { bad = 'Barrel from ' + formatDate(from) + ': set the hours it runs'; break; }
+    } else {
+      x.start = v('setShStart'); x.end = v('setShEnd'); x.stop = v('setShStop'); x.breakMin = num('setShBreak') || 0;
+      if (!x.start || !x.end) { bad = shiftLineName(line) + ' from ' + formatDate(from) + ': set when the night starts and ends'; break; }
+      x.crew = {}; var cl = num('setShCrewL'), cp = num('setShCrewP');
+      if (cl) x.crew[line] = cl;
+      if (cp) x.crew['pickling-vat'] = cp;
+      x.spare = num('setShSpare') || 0;
+    }
+    if (next.some(function(y) { return y.line === x.line && y.from === x.from; })) { bad = shiftLineName(line) + ' has two schedules from ' + formatDate(from); break; }
+    var was = l[i];
+    if (was && was.id === x.id) { x.at = was.at; x.by = was.by; }
+    else { x.at = Date.now(); x.by = typeof grdUser === 'function' && grdUser() ? grdUser().name : ''; }
+    next.push(x);
+  }
+  if (bad) { showToast(bad, 'error'); return false; }
+  S.lineShifts = next;
+}
+
+/* Read the rolls again for every day from the earliest schedule's first day to today: a night heading then starts at the
+   schedule's start, and a hand on the night with no other mark is in at it. What was typed by hand is kept, as on the day's
+   own Read the rolls again. */
+async function shiftRereadFrom() {
+  var since = lineShifts().map(function(x) { return x.from; }).sort()[0];
+  if (!since) return;
+  if (!grdGate('floor', 'read the rolls again', shiftRereadFrom)) return;
+  var today = localDateStr(), days = [];
+  for (var d = since, g = 0; d <= today && g < 60; d = isoAddDays(d, 1), g++) if (relayDayHasRolls(d)) days.push(d);
+  if (!days.length) { showToast('No day from ' + formatDate(since) + ' has rolls to read again', 'info'); return; }
+  var ok = await uiConfirm({ title: 'Read the rolls again?', okLabel: 'Read again',
+    body: 'The rolls of ' + days.map(formatDate).join(', ') + ' are read again as the reader reads them now, with the schedule. The marks and EXTRA rows the rolls wrote are replaced; ' +
+      'what was entered or corrected by hand is kept, and each day as it is now goes to the log. A day whose rolls ask a question is left for you to read again on the day.' });
+  if (!ok) return;
+  var done = [], asks = [];
+  days.forEach(function(d) {
+    var r = relayRereadDay(d, 'read again with the shifts by line (Settings → Labour)');
+    if (r === 'asks') asks.push(d); else if (r) done.push(d);
+  });
+  if (done.length) { saveState(); if (typeof tabRedrawActive === 'function') tabRedrawActive(); }
+  var msg = (done.length ? 'Read again: ' + done.map(formatDate).join(', ') : 'Nothing read again') + (asks.length ? '. Read on the day (a name to place): ' + asks.map(formatDate).join(', ') : '');
+  showToast(msg, asks.length ? 'info' : 'success');
+}
+
+/* ===== The To-do =====
+   A night short of its crew, once the night is recorded: the EXTRA it books is the night's length a missing hand, which the
+   Areas card checks against what was booked. And a hand on two shifts back to back (owner: "Flag a hand on two shifts back to
+   back"): the general shift the day after a night, or the general shift and the night of one day. Both floor tasks. */
+TODO_RULES.push(['nightShort', 'Night shift: a night short of its crew']);
+TODO_CHECK_DEFAULTS.nightShort = true;
+TODO_RULE_NEED.nightShort = 'floor';
+TODO_RULE_FNS.nightShort = function() {
+  var today = localDateStr(), out = [];
+  for (var i = 1; i <= 7; i++) {
+    var d = isoAddDays(today, -i);
+    nightLinesOn(d).forEach(function(n) {
+      var c = shiftNightCrew(d, n.line);
+      if (!c || !c.recorded || !c.heads || !c.short) return;
+      out.push({ d: d, n: n, c: c });
+    });
+  }
+  if (!out.length) return [];
+  var f = out[0];
+  return [{ key: 'nightShort', rule: 'nightShort', tone: 'amber',
+    title: out.length === 1 ? shiftLineName(f.n.line) + '’s night of ' + stockShortDate(f.d) + ' was ' + f.c.short + ' short of its crew' : todoPlural(out.length, 'night') + ' short of their crew',
+    sub: out.slice(0, 3).map(function(o) { return shiftLineName(o.n.line) + ' ' + stockShortDate(o.d) + ' ' + o.c.heads + '/' + o.n.need; }).join(' · '),
+    why: 'Attendance · the night’s crew against its schedule (Settings → Labour → Shifts by line)',
+    facts: out.slice(0, 4).map(function(o) { return [shiftLineName(o.n.line) + ', ' + formatDate(o.d), o.c.heads + ' of ' + o.n.need + ': EXTRA ' + formatNum(o.c.short * Math.ceil(o.n.paidMin / 60), 0) + ' h to book'] ; }),
+    clears: 'Clears itself when the night’s hands are on its roll or its block, or after a week.',
+    go: { kind: 'staffDay', date: f.d }, goLabel: 'Open the day', sig: out.map(function(o) { return o.d + ':' + o.n.line + ':' + o.c.heads; }).join('|') }];
+};
+TODO_RULES.push(['nightTwice', 'Night shift: a hand on two shifts back to back']);
+TODO_CHECK_DEFAULTS.nightTwice = true;
+TODO_RULE_NEED.nightTwice = 'floor';
+TODO_RULE_FNS.nightTwice = function() {
+  if (!lineShifts().length) return [];
+  var today = localDateStr(), out = [];
+  for (var i = 0; i <= 6; i++) { var d = isoAddDays(today, -i); shiftBackToBack(d).forEach(function(x) { out.push(Object.assign({ d: d }, x)); }); }
+  if (!out.length) return [];
+  var say = function(x) { return x.kind === 'after' ? 'the general shift of ' + stockShortDate(x.d) + ' after the night before' : 'the general shift and the night of ' + stockShortDate(x.d); };
+  return [{ key: 'nightTwice', rule: 'nightTwice', tone: 'amber',
+    title: out.length === 1 ? out[0].name + ' worked two shifts back to back' : todoPlural(out.length, 'hand') + ' on two shifts back to back',
+    sub: out.slice(0, 3).map(function(x) { return x.name + ' ' + stockShortDate(x.d); }).join(' · '),
+    why: 'Attendance · the night and the general shift, hand by hand',
+    facts: out.slice(0, 4).map(function(x) { return [x.name, say(x)]; }),
+    clears: 'Clears itself when the day’s marks put the hand on one shift, or after a week.',
+    go: { kind: 'staffDay', date: out[0].d }, goLabel: 'Open the day', sig: out.map(function(x) { return x.d + ':' + x.id + ':' + x.kind; }).join('|') }];
+};
+
+/* A block in the barrel's running windows on a day: the EXTRA its loading or unloading books for the barrels handled in it (the
+   barrel batches loaded or unloaded inside the window, each barrel once), or null where the barrel has no running day, the block
+   is not in a window, the barrels handled are not on record, or the hours are not set. */
+function shiftBarrelWindowExpect(iso, x) {
+  var run = barrelRunOn(iso);
+  if (!run || !x || x.kind !== 'block') return null;
+  var areas = _attBlockAreas(x);
+  if (areas.indexOf('barrel') < 0 && areas.indexOf('pickling-barrel') < 0) return null;
+  var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+  if (a == null || b == null) return null;
+  if (b <= a) b += 1440;
+  var win = run.windows.find(function(w) { return a < w[1] && b > w[0]; });
+  if (!win) return null;
+  // Barrels, not batches: only a batch naming its barrel counts, each barrel once; one naming none leaves the window not checkable.
+  // The morning's unloading is of batches loaded the evening before too.
+  var seen = {}, unnamed = false, prevIso = isoAddDays(iso, -1);
+  (typeof prodIndex === 'function' ? prodIndex().counted : []).forEach(function(e) {
+    if (e.kind !== 'plated' || e.line !== 'barrel' || (e.date !== iso && e.date !== prevIso)) return;
+    var t1 = relayParseHhmm(e.time), t2 = relayParseHhmm(e.to);
+    var inside = function(t) { return t != null && t >= win[0] && t <= win[1]; };
+    var hit = e.date === iso ? inside(t1) || inside(t2) : win[0] < RELAY_GENERAL && t2 != null && t1 != null && t2 < t1 && inside(t2);
+    if (!hit) return;
+    var b = e.unitId || e.barrel;
+    if (b) seen[b] = true; else unnamed = true;
+  });
+  var n = Object.keys(seen).length, h = unnamed ? null : barrelWindowExtra(run, n);
+  return h == null ? null : { hours: h, barrels: n, window: win };
+}
 /* ===== FINANCE, LINKED INTO EVERY SCREEN =====
  * docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 6. Each screen carries the finance fact that belongs to it —
  * what a client owes and how fast it pays, whether an invoice is paid, what a supplier was paid — as a
@@ -49009,10 +49481,15 @@ function prodCrew(e) {
       if (tt == null || (tt >= a && tt <= b)) x.crew.forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); });
     });
     src = 'block';
+    // A line's scheduled night (shifts.js): its hands, from their marks and its blocks, when the run is in it (the night needs no
+    // EXTRA tag to have a crew).
+    var nt = e.line && typeof lineNightOn === 'function' ? lineNightOn(e.line, e.date) : null;
+    var tn = t != null && t < 360 ? t + 1440 : t;
+    if (nt && tn != null && tn >= nt.start - 60) { var nc = shiftNightCrew(e.date, e.line); if (nc) nc.ids.forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); }); src = 'night'; }
   } else {
     Object.keys(rec.marks).forEach(function(id) {
       var m = rec.marks[id], w = staffById(id);
-      if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+      if (!m || (m.st !== 'P' && m.st !== 'H') || (typeof attMarkOnNight === 'function' && attMarkOnNight(m, e.date))) return;
       if (areas.indexOf(m.area || (w && w.area) || 'flex') >= 0) ids.push(String(id));
     });
   }
@@ -49287,7 +49764,8 @@ function prodClientName(id) { var c = (S.clients || []).find(function(x) { retur
 function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(v); }); return c ? c.id : v; }
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
-    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart };
+    partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart,
+    night: typeof lineNightOn === 'function' ? lineNightOn : null };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -49887,7 +50365,8 @@ function prodStaffedLines(day) {
   if (!day || !day.marks) return staffed;
   Object.keys(day.marks).forEach(function(id) {
     var mk = day.marks[id];
-    if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H')) return;
+    // A hand in for the night (shifts.js) is no head of the general shift: the line's night is its own.
+    if (!mk || (mk.st && mk.st !== 'P' && mk.st !== 'H') || (typeof attMarkOnNight === 'function' && attMarkOnNight(mk))) return;
     var a = mk.area || '';
     if (a === 'vat-a1' || a === 'vat-a2' || a === 'barrel') staffed[a] = true;
   });
@@ -50039,7 +50518,7 @@ function prodDayPicture(date) {
   pic.weighedShare = pic.pieces ? (pic.pieces - pic.unweighed) / pic.pieces : 1;
   pic.cuts = typeof powerCuts === 'function' ? powerCuts(date, date) : [];
   pic.loads = prodDayLoads(date).length;
-  pic.capacity = STATS_CAPACITY_KG_DAY;
+  pic.capacity = Math.max(STATS_CAPACITY_KG_DAY, typeof statsCapacityKg === "function" ? statsCapacityKg(date, date) : 0);
   pic.usual = prodUsualDay(date);
   // Each line's units on the day (the plant register) and its heads against the day's number (Floor → Day's own reading).
   var byArea = {};
@@ -50253,9 +50732,14 @@ function prodLinePace(line) {
     if (e.kind !== 'plated' || e.line !== line || e.basis !== 'register' || !Array.isArray(e.rounds) || e.date < from || e.date > iso) return;
     var a = relayParseHhmm(e.time), b = relayParseHhmm(e.to);
     if (a == null || b == null) return;
+    // On the shop's day: a time before 6 AM (before a scheduled night's end) is that night's, past midnight.
+    var nt = typeof lineNightOn === 'function' ? lineNightOn(line, e.date) : null, edge = nt ? Math.max(PROD_DAY_START, nt.end - 1440) : PROD_DAY_START;
+    if (a < edge) a += 1440; if (b < edge) b += 1440;
     if (b < a) b += 1440;
-    // A block of overtime is its own span: the hour between the shift's last round and the evening's first is no round.
-    var k = e.date + '|' + (e.slot === 'ot' ? 'ot' : 'general'), d = days[k] || (days[k] = { date: e.date, a: a, b: b, n: 0, batch: false, seen: {} });
+    // A block of overtime is its own span: the hour between the shift's last round and the evening's first is no round. A scheduled
+    // night is a shift of its own, apart from the morning's and the evening's overtime, its break off its span.
+    var sl = nt && a >= nt.start - 60 ? 'night' : e.slot === 'ot' ? 'ot' : 'general';
+    var k = e.date + '|' + sl, d = days[k] || (days[k] = { date: e.date, a: a, b: b, n: 0, batch: false, seen: {}, brk: sl === 'night' ? nt.breakMin : 0 });
     // A round two runs share is written in each at the same time: one round of the line.
     e.rounds.forEach(function(x) {
       if (x.struck) return;
@@ -50277,7 +50761,7 @@ function prodLinePace(line) {
       if (cb < ca) cb += 1440;
       cut += Math.max(0, Math.min(cb, d.b) - Math.max(ca, d.a));
     });
-    var span = d.b - d.a - cut;
+    var span = d.b - d.a - cut - (d.brk || 0);
     if (span > 0) list.push(span / iv);
   });
   var o = { line: line, shifts: list.length, every: list.length ? numMedian(list) : null };
@@ -50360,9 +50844,21 @@ function prodLineEfficiency(date, line) {
   var att = (S.attendance || {})[date], staffed = !!prodStaffedLines(att)[line];
   var wins = [];
   if (staffed || r.entries.some(function(e) { return e.slot !== 'ot' && e.slot !== 'day'; })) wins.push([RELAY_GENERAL, RELAY_GENERAL_OUT]);
-  var on = function(m) { return m < PROD_DAY_START ? m + 1440 : m; };
+  var night0 = typeof lineNightOn === 'function' ? lineNightOn(line, date) : null, dayEdge = night0 ? Math.max(PROD_DAY_START, night0.end - 1440) : PROD_DAY_START;
+  var on = function(m) { return m < dayEdge ? m + 1440 : m; };
+  // A line's scheduled night (shifts.js; owner, 29 Oct 2026): a night it ran is judged against the night's plating time, its start
+  // to when the crew stops, less the break, whatever the runs' own times; the barrel against its whole running day, the mornings
+  // and evenings running with no crew.
+  var night = night0, run = line === 'barrel' && typeof barrelRunOn === 'function' ? barrelRunOn(date) : null;
+  var inNight = function(e) { var t = relayParseHhmm(e.time); return night && t != null && on(t) >= night.start - 60; };
+  // A night with a record is judged against its plating time; one with heads and no record is said so, its time kept out of what
+  // the line could have plated until there is a record.
+  var ranNight = !!night && r.entries.some(function(e) { return e.slot === 'ot' && inNight(e); });
+  if (night && !ranNight && (((typeof shiftNightCrew === 'function' ? shiftNightCrew(date, line) : null) || {}).heads > 0)) o.nightMissing = true;
+  if (ranNight) { wins.push([night.start, night.stop]); o.night = { start: night.start, stop: night.stop, end: night.end, breakMin: night.breakMin, plateMin: night.plateMin }; }
+  if (run && r.entries.length) { wins = [[run.from, run.to]]; o.run = { from: run.from, to: run.to }; }
   r.entries.forEach(function(e) {
-    if (e.slot !== 'ot') return;
+    if (e.slot !== 'ot' || (ranNight && inNight(e)) || o.run) return;
     var a = relayParseHhmm(e.time), b = relayParseHhmm(e.to);
     if (a == null) { o.noEnd++; return; }
     a = on(a);
@@ -50381,12 +50877,20 @@ function prodLineEfficiency(date, line) {
     merged.forEach(function(w) { o.cutMin += Math.max(0, Math.min(b, w[1]) - Math.max(a, w[0])); });
   });
   o.windows = merged;
-  o.minutes = Math.max(0, span - o.cutMin);
+  // The break is taken at no fixed time, so a cut inside the night is where it went first: only what is left of it is taken off.
+  var nightCut = 0;
+  if (o.night) (typeof powerCuts === 'function' ? powerCuts(date, date) : []).forEach(function(c) {
+    if (c.from == null) return;
+    var a = on(c.from), b = c.to == null ? a : c.to + (c.from < dayEdge ? 1440 : 0);
+    if (b < a) b += 1440;
+    nightCut += Math.max(0, Math.min(b, o.night.stop) - Math.max(a, o.night.start));
+  });
+  o.minutes = Math.max(0, span - o.cutMin - (o.night ? Math.max(0, o.night.breakMin - nightCut) : 0));
   // Judged only with every input: a record, the units' kg a round, a pace and some time.
   var missing = staffed && !(prodGeneralLines()[date] || {})[line];
-  if (!o.ran && !staffed) { o.word = 'Did not run'; return o; }
+  if (!o.ran && !staffed && !o.nightMissing) { o.word = 'Did not run'; return o; }
   // `missing` is what Lines' verdict and Floor's head read to say so: without it, heads and no record read "Did not run".
-  if (missing && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = 'heads on the general shift, nothing recorded'; o.missing = true; return o; }
+  if ((missing || o.nightMissing) && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = missing ? 'heads on the general shift, nothing recorded' : 'heads on the night, nothing recorded'; o.missing = true; return o; }
   if (!o.kgSrc && !o.n) o.why = 'no unit on the plant register';
   else if (!o.kgSrc) o.why = 'set the kg a round of every unit';
   else if (!o.every) o.why = 'no pace for the line';
@@ -50426,6 +50930,7 @@ function prodLineEfficiency(date, line) {
   } else o.word = 'Not judged';
   if (o.avail != null && o.avail <= 0.5) { worst('danger'); o.halfDown = true; }
   if (missing) { worst('warning'); o.missing = true; }
+  if (o.nightMissing) { worst('warning'); o.why = o.why || 'heads on the night, nothing recorded for it'; }
   return o;
 }
 
@@ -54562,6 +55067,16 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   }
   // What the line earned, against what its kilos cost and its usual day (one row; a role without money: the kilos against it).
   if (last && ln.id !== 'pickling') h += flrEarnedRowHtml(day, isToday, ln.id);
+  // The line's night on its schedule (shifts.js): its hours and its crew against what it needs.
+  var nt = ln.id !== 'pickling' && typeof lineNightOn === 'function' ? lineNightOn(ln.id, day) : null;
+  if (nt) {
+    var nc = shiftNightCrew(day, ln.id);
+    // Nobody on a recorded night once it has begun is danger (Vulcanus L-5).
+    var begun = day < localDateStr() || (day === localDateStr() && new Date().getHours() * 60 + new Date().getMinutes() >= nt.start);
+    h += uiFactRowHtml({ label: 'Night', value: nc && nc.recorded ? nc.heads + (nt.need ? '/' + nt.need : '') : '',
+      tone: nc && nc.recorded && !nc.heads && begun ? 'danger' : nc && nc.heads && nt.need ? areaNeedTone(nc.heads, nt.need) : null,
+      sub: relayClockLabel(nt.start) + ' – ' + relayClockLabel(nt.end % 1440) + ' · plating ' + formatNum(nt.plateMin / 60, 2).replace(/\.?0+$/, '') + ' h after the break', attrs: ' data-flr-night="' + ln.id + '"' });
+  }
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
   if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.
@@ -64232,8 +64747,19 @@ function powerWindows(date) {
   var sunday = new Date(date + 'T00:00:00').getDay() === 0;
   var marked = rec && rec.marks && Object.keys(rec.marks).some(function(k) { var m = rec.marks[k]; return m && (m.st === 'P' || m.st === 'H'); });
   if (!sunday || marked) out.push({ from: RELAY_GENERAL, to: RELAY_GENERAL_OUT, kind: 'general' });
+  // A line's scheduled night that ran (shifts.js) is a shift of its own, not overtime: its start to its end, and the night of the
+  // day before up to its end this morning (a 2 AM cut is the night that began yesterday).
+  var nightOf = function(d, shift) {
+    if (typeof nightLinesOn !== 'function') return;
+    nightLinesOn(d).forEach(function(n) { var c = shiftNightCrew(d, n.line); if (c && c.heads) out.push({ from: n.start - shift, to: n.end - shift, kind: 'night', line: n.line }); });
+  };
+  nightOf(date, 0);
+  nightOf(isoAddDays(date, -1), 1440);
+  // A cut before 6 AM kept under the night's own day (Production's day runs 6 AM to 6 AM, the face's power log so) is that night's.
+  nightOf(date, 1440);
   ((rec && rec.extra) || []).forEach(function(x) {
     if (x.kind !== 'block') return;
+    if (typeof shiftBlockNight === 'function' && shiftBlockNight(x, date) && out.some(function(w) { return w.kind === 'night'; })) return;
     var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
     if (a == null || b == null) return;
     if (b <= a) b += 1440;
@@ -67083,7 +67609,15 @@ function plnBase() {
       src: set.kgRound > 0 || set.every > 0 ? 'set' : c ? 'register' : 'assumed',
       register: c || null, kgDay: kgDay
     };
+    // A night on the line's schedule today (shifts.js; owner, 29 Oct 2026): its plating time is the line's on top of the general
+    // shift, in place of the morning and evening blocks, and its crew is paid on top of what the months behind the plan recorded.
+    // The schedule in force, whatever today is (a Sunday or a shut day has no night, but the plan is a month's).
+    var nt = typeof lineShiftOn === 'function' ? shiftNightOf(lineShiftOn(l, localDateStr()), localDateStr()) : null;
+    if (nt) lines[l].night = { h: nt.plateMin / 60, paidH: nt.paidMin / 60, need: nt.need, from: nt.entry.from };
   });
+  // The night crew's wages are the book's once paid; the plan's month stays the book's own (Vulcanus M-6: a crew charged into
+  // "as it runs" with no more work plated read the book's month as a loss).
+  var nightRun = 0;
   // Costs: the live cost's own lines, per kilo or per month; labour by its own parts.
   var lc = liveCost(per.from, per.to, tw.kg), row = function(k) { var r = (lc.rows || []).find(function(x) { return x.key === k; }); return r || { amount: 0, source: 'model' }; };
   var lab = labourForRange(per.from, per.to);
@@ -67121,7 +67655,7 @@ function plnBase() {
   if (!cash) cash = { v: 0, src: 'none' };
   _plnBase = {
     key: key, S: S, period: per, wd: wd, clients: clients, kg: kgMo, unweighed: tw.revUnknown / mo, revenue: (tw.revKnown + tw.revUnknown) / mo,
-    lines: lines, cutMin: cutMin, cash: cash, coverage: tw.coverage,
+    lines: lines, nightRun: nightRun, cutMin: cutMin, cash: cash, coverage: tw.coverage,
     cost: {
       labourFixed: labFixed, labourPool: labPool, labourOt: labOt, labourOther: labOther,
       zincKg: tw.kg ? row('zinc').amount / tw.kg : 0, chemKg: tw.kg ? row('chem').amount / tw.kg : 0, otherKg: tw.kg ? row('other').amount / tw.kg : 0,
@@ -67267,7 +67801,7 @@ function plnMonth(m, L, ready, opts) {
   var live = function(mv) { var r = ready[mv.key]; return r != null && m >= r && !(opts.drop && opts.drop[mv.key]); };
   var w = function(mv) { return !opts.expected ? 1 : opts.weights && opts.weights[mv.key] != null ? opts.weights[mv.key] : mv.p != null ? mv.p : 1; };
   var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0, effSave: 0, runMo: 0 };
-  PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0 }; });
+  PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0, night: B.lines[k].night || null }; });
   L.forEach(function(mv) {
     if (!live(mv)) return;
     var f = mv.fx || {}, s = w(mv);
@@ -67317,14 +67851,17 @@ function plnMonth(m, L, ready, opts) {
   var plated0 = 0;
   PLN_LINE_IDS.forEach(function(k) {
     var l = lines[k]; l.kgH = l.kgRound * 60 / l.every;
+    // A line on a scheduled night runs the general shift and the night, the blocks around them off by plan.
+    l.avail = l.night ? PLN_SHIFT.general + Math.max(l.night.h, fx.night ? PLN_SHIFT.night : 0) : avail;
     l.need = l.demand > 0 ? l.demand / l.kgH + cutH : 0;
-    l.hours = Math.min(l.need, avail);
-    l.cap = l.kgH * Math.max(0, avail - cutH);
+    l.hours = Math.min(l.need, l.avail);
+    l.cap = l.kgH * Math.max(0, l.avail - cutH);
     l.plated = Math.min(l.demand, l.kgH * Math.max(0, l.hours - cutH));
     plated0 += l.plated;
   });
   // Pickling runs as long as the lines need it (at least the hours the busiest line runs), within the day's window.
-  var pickH = Math.max(0, Math.min(avail - cutH, Math.max(Math.max.apply(null, PLN_LINE_IDS.map(function(k) { return lines[k].hours; })) - cutH, fx.pickKgH > 0 ? plated0 / fx.pickKgH : 0)));
+  var pickWin = Math.max.apply(null, [avail].concat(PLN_LINE_IDS.map(function(k) { return lines[k].avail; })));
+  var pickH = Math.max(0, Math.min(pickWin - cutH, Math.max(Math.max.apply(null, PLN_LINE_IDS.map(function(k) { return lines[k].hours; })) - cutH, fx.pickKgH > 0 ? plated0 / fx.pickKgH : 0)));
   var pickCap = fx.pickKgH * pickH, pickShare = plated0 > pickCap && plated0 > 0 ? pickCap / plated0 : 1;
   var otH = 0, nightH = 0;
   PLN_LINE_IDS.forEach(function(k) {
@@ -67332,8 +67869,8 @@ function plnMonth(m, L, ready, opts) {
     l.share = l.demand > 0 ? l.plated * pickShare / l.demand : 0;
     l.plated *= pickShare;
     l.waitH = pickShare < 1 ? Math.max(0, l.hours - cutH) * (1 - pickShare) : 0;
-    l.ot = Math.max(0, Math.min(l.hours, PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening) - PLN_SHIFT.general);
-    l.nightH = Math.max(0, l.hours - PLN_SHIFT.general - PLN_SHIFT.morning - PLN_SHIFT.evening);
+    l.ot = l.night ? 0 : Math.max(0, Math.min(l.hours, PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening) - PLN_SHIFT.general);
+    l.nightH = l.night ? Math.max(0, l.hours - PLN_SHIFT.general) : Math.max(0, l.hours - PLN_SHIFT.general - PLN_SHIFT.morning - PLN_SHIFT.evening);
     otH += l.ot; nightH += l.nightH;
   });
   var plated = 0, rev = B.unweighed + uwDelta, byClient = {}, lost = 0;
@@ -67355,7 +67892,7 @@ function plnMonth(m, L, ready, opts) {
   var C = B.cost, otBase = B.otBase != null ? B.otBase : otH;
   var cost = {
     labourFixed: C.labourFixed, labourPool: C.labourPool,
-    labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther,
+    labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther + (B.nightRun || 0),
     hires: hires, zinc: plated * C.zincKg, chem: plated * (C.chemKg + fx.chemKg) - fx.chemSave,
     power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo - fx.effSave + fx.runMo
   };
@@ -68888,6 +69425,12 @@ var KB_APP_GUIDES = [
     '- This compares the hands in each area on the general shift with the number that the shift needed. The box starts at the usual number of the area (People → Areas).\n' +
     '- Type the number for the day. Type **0** if the line needed nobody. Clear the box to use the usual number. The app calculates the shortfall and the extra against this number.\n' +
     '- An OT block or a night block has its own number on its row under Extra hours.\n\n' +
+    '# The night shift\n' +
+    '- A line with a night on its schedule (Settings → Labour → **Shifts by line**) has its own card on the board: the hands on the night against the crew that the night needs.\n' +
+    '- A hand who comes in at 4 PM or later is on the night, not on the general shift. The general shift does not count that hand.\n' +
+    '- The night roll names the crew under a night heading. The heading starts at the time of the schedule. A hand who is only on the night is in at its start.\n' +
+    '- The night is the day it starts on. A night from 6 PM to 6 AM is 12 hours: 4 of them are the overtime of a monthly hand. An hourly hand gets all 12 at the hour rate, with the night snack.\n' +
+    '- If the night is short of its crew, the EXTRA is the length of the night for each missing hand. The To-do tells you about a short night, and about a hand on 2 shifts back to back.\n\n' +
     '# Week\n' +
     '- The card compares the attendance of the week with the rest-day gate (90% and 80%). It also shows the days that nobody recorded, and the payout until now.\n' +
     '- Tap a cell of the grid to change it. Each tap sets the next state: present, half day, absent, then not marked.\n' +
@@ -68906,8 +69449,8 @@ var KB_APP_GUIDES = [
     '- **The extra** is hours that the sheet books to an area, not to a person. They are real paid hours with no name on them. In the bill, they are 1 pooled line. The bill counts them once and never in the wage of a person. The crew present in the short area receive the extra pro-rata. The supervisor pays it out, and People → Areas shows the split.',
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
-    // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 5 }),
+    // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
+    { version: 6 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +
@@ -74174,6 +74717,7 @@ function onDocClick(e) {
     case 'invCloseSettings': closeSettings(); break;
     case 'invZincDeriveUplift': zincDeriveUplift(); break;
     case 'invCostDeriveBank': costDeriveFromBank(btn.dataset.which); break;
+    case 'invShiftReread': shiftRereadFrom(); break;
     case 'invCostUseDerived': costUseDerived(btn.dataset.field, btn.dataset.val); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;

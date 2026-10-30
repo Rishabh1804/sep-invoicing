@@ -56,6 +56,7 @@ var CHG_TRACK = [
   { path: 'quotations', kind: 'arr', noun: 'quotation',
     label: function(r) { return chgJoin(r.displayNumber ? r.displayNumber + (r.rev ? ' Rev ' + r.rev : '') : 'draft', r.to && r.to.name); } },
   { path: 'prospects', kind: 'arr', noun: 'prospect', label: function(r) { return r.name; } },
+  { path: 'lineShifts', kind: 'arr', noun: 'shift schedule', label: function(r) { return chgJoin(typeof shiftLineName === 'function' ? shiftLineName(r.line) : r.line, r.from ? 'from ' + chgDay(r.from) : ''); } },
   { path: 'voidedNumbers', kind: 'arr', noun: 'deleted number', key: function(r) { return 'V:' + (r.displayNumber || r.invoiceNumber || '') + '@' + (r.voidedAt || ''); },
     label: function(r) { return chgJoin(r.displayNumber || r.invoiceNumber, r.reason); } },
   { path: 'extraExceptions', kind: 'arr', noun: 'explained exception', key: function(r) { return 'X:' + [r.iso, r.scope, r.key, r.at].join('|'); },

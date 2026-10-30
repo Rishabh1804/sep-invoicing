@@ -76,6 +76,7 @@ JS_SOURCES=(
     "$DIR/why.js" \
     "$DIR/insights.js" \
     "$DIR/finintel.js" \
+    "$DIR/shifts.js" \
     "$DIR/finlinks.js" \
     "$DIR/advice.js" \
     "$DIR/learn.js" \

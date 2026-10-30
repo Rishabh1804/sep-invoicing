@@ -593,10 +593,14 @@ function _attDayView() {
     html += _attDayCostCard(iso);
     return html;
   }
-  var byArea = {}, absentees = [];
+  var byArea = {}, absentees = [], byNight = {};
+  var nights = nightLinesOn(iso);
   roster.forEach(function(w) {
     var m = rec ? rec.marks[w.id] : null;
     if (m && m.st === 'A') absentees.push(w);
+    // A hand in for the night stands on their line's night card, not the general shift's (shifts.js).
+    var nl = attMarkOnNight(m, iso) ? nights.find(function(n) { return Object.keys(n.crew).concat(n.line).indexOf(m.area) >= 0; }) : null;
+    if (nl) { (byNight[nl.line] = byNight[nl.line] || []).push(w); return; }
     // An absent hand stays on their own area's card, so marking A never moves the line from under the tap.
     var a = m && m.st !== 'A' && m.area ? m.area : (w.area || 'flex');
     (byArea[a] = byArea[a] || []).push(w);
@@ -611,6 +615,19 @@ function _attDayView() {
     html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
       ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
       (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+  });
+  // A line's night (shifts.js): its hands in for the night, against the crew the schedule needs; a short night is a warning,
+  // with the EXTRA it books a missing hand.
+  nights.forEach(function(n) {
+    var c = shiftNightCrew(iso, n.line), list = byNight[n.line] || [];
+    if (!c) return;
+    var head = shiftLineName(n.line) + ' · night ' + relayClockLabel(n.start) + ' – ' + relayClockLabel(n.end % 1440);
+    var dot = n.need ? uiDot(areaNeedTone(c.heads, n.need), areaNeedWord(c.heads, n.need)) : '';
+    html += '<div class="inv-panel inv-panel-flush" data-att-night-card="' + n.line + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(head) +
+      ' <span class="inv-panel-count">' + c.heads + (n.need ? '/' + n.need : '') + '</span></span>' + dot + '</div>' +
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '') +
+      (c.heads > list.length ? '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-meta">' + (c.heads - list.length) + ' more on the night block, by the roll</span></span></div>' : '') +
+      (!c.heads ? '<div class="inv-empty">Nobody on the night yet: the night’s roll names them.</div>' : '') + '</div>';
   });
   // An area no longer on the list (a mark from an older build) still shows its hands.
   Object.keys(byArea).forEach(function(k) {
@@ -656,7 +673,7 @@ function _attDayShort(iso, rec) {
   var heads = {};
   attDayRoster(rec).forEach(function(w) {
     var m = rec && rec.marks[w.id];
-    if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m, iso)) return;
     var a = m.area || w.area || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });
@@ -842,7 +859,7 @@ function _attBlockFields(x, i, siblings) {
     // What this block needed: its own number, else the complement of the areas it covers (the fold included).
     '<div class="inv-field inv-toolbar-item"><label class="inv-field-label" for="blkNeed-' + i + '">Needed</label>' +
     '<input type="number" class="inv-input inv-input-num" id="blkNeed-' + i + '" data-att-block-need data-idx="' + i + '" step="1" min="0"' +
-    ' placeholder="' + (function() { var c = {}; for (var k in x) c[k] = x[k]; delete c.need; var n = blockNorm(c, [c].concat(siblings || [])); return n != null ? formatNum(n, 1).replace(/\.0$/, '') : '—'; })() +
+    ' placeholder="' + (function() { var c = {}; for (var k in x) c[k] = x[k]; delete c.need; var n = blockNorm(c, [c].concat(siblings || []), _attDate); return n != null ? formatNum(n, 1).replace(/\.0$/, '') : '—'; })() +
     '" value="' + (typeof x.need === 'number' ? x.need : '') + '" aria-label="Heads the block needed"></div>' +
     '<span class="inv-num inv-toolbar-end" data-block-len>' + (hrs == null ? '&mdash;'
       : (span != null && span !== hrs
@@ -880,7 +897,7 @@ function _attBlockFields(x, i, siblings) {
   // The prediction, in place, so the operator sees the check as they type it
   // rather than having to leave for the Areas view to find out.
   // The block itself, so its own Needed wins over the complement the way it does on the Areas card.
-  var norm = blockNorm(x, [x].concat(siblings || []));
+  var norm = blockNorm(x, [x].concat(siblings || []), _attDate);
   // The preview must refuse on exactly the conditions `areaStats` refuses on,
   // or the two surfaces disagree about the same row. A crew nobody named is not
   // a crew of zero: zero heads is a real reading only where a sibling row of the
@@ -916,7 +933,7 @@ function _attNeedCard(iso, rec) {
   var heads = {};
   Object.keys(rec ? rec.marks : {}).forEach(function(id) {
     var m = rec.marks[id], w = staffById(id);
-    if (!m || (m.st !== 'P' && m.st !== 'H')) return;
+    if (!m || (m.st !== 'P' && m.st !== 'H') || attMarkOnNight(m, iso)) return;
     var a = m.area || (w && w.area) || 'flex';
     heads[a] = (heads[a] || 0) + 1;
   });

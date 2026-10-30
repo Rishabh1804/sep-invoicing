@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="abf7fdf6">
+<meta name="app-build" content="3b67f400">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -39342,8 +39342,24 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
   var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
   out.date = dated || sentOn || null;
+  // The night roll is sent the morning after (owner, 30 Oct 2026: "It is sent retrospectively in the morning"): a roll with no
+  // date, sent before noon, whose first heading is a night, is that night's, the day before the one it was sent.
+  var nightAfter = false;
+  if (!dm && sentOn && opts && opts.sentAt != null && opts.sentAt < 720) {
+    var fh = null;
+    lines.slice(0, 6).some(function(l) {
+      var b = String(l || '').replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+      var k = b ? relaySlotOrArea(b) : null;
+      if (k && k.slot) { fh = k; return true; }
+      return false;
+    });
+    if (fh && (fh.night || (fh.start != null && fh.start >= 960 && fh.end != null && fh.end > 1440))) {
+      out.date = isoAddDays(sentOn, -1); nightAfter = true;
+    }
+  }
   if (!out.date) out.issues.push({ tone: 'red', text: (dm ? '"' + dm[0] + '" is not a date, and' : 'The roll carries no date, and') +
     ' the day it was sent is not known: nothing from it can be saved. Paste it with its WhatsApp line, or put the date on its first line.' });
+  else if (nightAfter) out.issues.push({ tone: 'amber', text: 'The roll carries no date and was sent in the morning; its night is read as the night before (' + out.date + ').' });
   else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/?/, ''));
@@ -39862,7 +39878,7 @@ function relayPlan(rv) {
   roster.forEach(function(w) { byId[w.id] = w; });
   var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn, { exact: !!m.exact, night: typeof shiftNightFor === 'function' ? shiftNightFor : null }), h = relayHash(m.text);
+    var r = parseRelayRoll(m.text, roster, m.sentOn, { exact: !!m.exact, sentAt: m.sentAt != null ? m.sentAt : null, night: typeof shiftNightFor === 'function' ? shiftNightFor : null }), h = relayHash(m.text);
     m.parsed = r;
     // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
     m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;
@@ -44990,10 +45006,9 @@ function statsWorkingDayList(from, to) {
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
-/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. The model's two shifts already hold a second
-   shift, so a line's scheduled night (shifts.js) adds nothing until the owner says whether it is that second shift or a third
-   (Vulcanus H-3, 29 Oct 2026: a third of the shift's rate on top counted VAT A1's second shift twice, ~22 t a month of spare that
-   is not there). One place to change it. */
+/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. A line's scheduled night (shifts.js) is that
+   second shift (owner, 30 Oct 2026: "Second shift"), so it adds nothing here (Vulcanus H-3, 29 Oct 2026: counted on top, it read
+   ~22 t a month of spare that is not there). One place to change it. */
 function statsCapacityKg(from, to) {
   return STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to);
 }

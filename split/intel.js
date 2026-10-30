@@ -62,10 +62,9 @@ function statsWorkingDayList(from, to) {
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
-/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. The model's two shifts already hold a second
-   shift, so a line's scheduled night (shifts.js) adds nothing until the owner says whether it is that second shift or a third
-   (Vulcanus H-3, 29 Oct 2026: a third of the shift's rate on top counted VAT A1's second shift twice, ~22 t a month of spare that
-   is not there). One place to change it. */
+/* What the plant can plate over a stretch: ~2 t a shift, two shifts, a working day. A line's scheduled night (shifts.js) is that
+   second shift (owner, 30 Oct 2026: "Second shift"), so it adds nothing here (Vulcanus H-3, 29 Oct 2026: counted on top, it read
+   ~22 t a month of spare that is not there). One place to change it. */
 function statsCapacityKg(from, to) {
   return STATS_CAPACITY_KG_DAY * statsWorkingDays(from, to);
 }

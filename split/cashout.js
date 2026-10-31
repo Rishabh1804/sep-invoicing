@@ -127,6 +127,18 @@ function cashReviewSave() {
   var blank = lines.find(function(ln) { return !ln.what; });
   if (blank) { showToast('Line ' + blank.n + ': say what it was for', 'error'); return; }
   if (!grdGate('payments', 'record cash paid out', cashReviewSave)) return;   // P1 (guard.js): money paid out
+  var total = cashSaveCore(r, lines).total;
+  saveState();
+  var form0 = document.querySelector('[data-cash-review]'), sc = form0 && form0.closest('.inv-scrim-dialog');
+  if (sc) { delete sc.dataset.typed; dialogCloseScrim(sc); }
+  _cashReview = null;
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast('Cash paid out saved: ' + formatCurrency(total) + ', in the payout of Sat ' + stockShortDate(isoAddDays(r.week, 6)));
+}
+/* The review's save without its screen: the message kept whole, a line each in the week it is paid back in. The review and
+   the confirmation screen (msgconfirm.js) write through here. `r` is the review's { text, hash, sentOn, week }; `lines` the
+   lines with an amount, each saying what it was for. → { msgId, total }. */
+function cashSaveCore(r, lines) {
   var by = typeof grdUserId === 'function' ? grdUserId() : null, at = Date.now();
   var msgId = 'CSHM-' + at.toString(36) + Math.random().toString(36).slice(2, 5);
   cashPastes().push({ id: msgId, text: r.text, hash: r.hash, sentOn: r.sentOn, week: r.week, at: at, by: by });
@@ -134,13 +146,7 @@ function cashReviewSave() {
     cashOut().push({ id: 'CSH-' + at.toString(36) + Math.random().toString(36).slice(2, 6), date: ln.date || r.sentOn, what: ln.what, amount: ln.amount,
       cat: ln.cat, week: r.week, msgId: msgId, at: at, by: by });
   });
-  var total = gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0));
-  saveState();
-  var form0 = document.querySelector('[data-cash-review]'), sc = form0 && form0.closest('.inv-scrim-dialog');
-  if (sc) { delete sc.dataset.typed; dialogCloseScrim(sc); }
-  _cashReview = null;
-  if (navPageOf() === 'pageStaff') renderAttendance();
-  showToast('Cash paid out saved: ' + formatCurrency(total) + ', in the payout of Sat ' + stockShortDate(isoAddDays(r.week, 6)));
+  return { msgId: msgId, total: gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0)) };
 }
 async function cashVoid(id) {
   var e = cashOut().find(function(x) { return x.id === id; });

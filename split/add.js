@@ -13,7 +13,8 @@
      never works"*). A photo picked as a file is named as one, and the page is entered by hand.
    - A file: routed by what is in it, never by its name (addFileKind): the bank's Excel 97–2003 statement, or JSON by its
      format (sep-stock, sep-production, sep-power, sep-payroll-paid, sep-att-register), a roster, or a backup, which replaces the whole book
-     and so asks first exactly as Settings → Import does. Anything else is named, never guessed at.
+     and so asks first exactly as Settings → Import does; the group's WhatsApp export, a zip holding its chat or the bare .txt,
+     goes to wazip.js (wzImportBuf). Anything else is named, never guessed at.
    - By hand: each form opened on the job, through the openers the screens already have.
    Leaving the sheet for a route asks first about what was typed in it (the dialog guard) and about unsaved work on the
    screen under it (the leave guard, nav.js). Add is a layer, not a place: it has no address, and back closes it. */
@@ -94,10 +95,10 @@ function addOpen() {
     // 2–3. The clipboard (read only on a tap) and a file. The picker sits first and unseen, so the last row is the
     // panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
     '<div class="inv-panel inv-panel-flush">' +
-    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
+    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,.zip,.txt,application/zip,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
     row('clipboard', 'invAddClip', ADD_ICON.clipboard, 'Check the clipboard', 'What you copied, read only when you tap here') +
     '<div class="inv-panel-body inv-hidden" id="addClipOut" aria-live="polite"></div>' +
-    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
+    row('file', 'invAddFile', ADD_ICON.file, 'File', 'The group’s WhatsApp export (.zip or .txt), a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
     '</div>' +
     // 5. By hand: every form, opened on the job.
     '<div class="inv-panel" data-add-sec="hand"><div class="inv-panel-head"><span class="inv-panel-title">By hand</span></div>' +
@@ -292,7 +293,11 @@ function addFileKind(buf) {
   var at = function(sig, from) { from = from || 0; return u8.length >= from + sig.length && sig.every(function(b, i) { return u8[from + i] === b; }); };
   if (at(ADD_OLE_SIG)) return { kind: 'xls' };
   // A zip is an .xlsx when it holds a workbook: a statement saved from Excel (owner, 8 Oct 2026), read as the .xls is.
-  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf) ? 'xls' : 'zip' };
+  // A zip holding a chat is WhatsApp's export (wazip.js), told by the chat in it, never by the file's name: an .xlsx is a zip too.
+  if (at([0x50, 0x4B, 0x03, 0x04])) {
+    if (typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf)) return { kind: 'xls' };
+    return typeof wzHasChat === 'function' && wzHasChat(buf) ? { kind: 'wazip', buf: buf } : { kind: 'zip' };
+  }
   if (at([0x25, 0x50, 0x44, 0x46])) return { kind: 'pdf' };
   if (at([0xFF, 0xD8, 0xFF]) || at([0x89, 0x50, 0x4E, 0x47]) || at([0x47, 0x49, 0x46, 0x38]) || (at([0x52, 0x49, 0x46, 0x46]) && at([0x57, 0x45, 0x42, 0x50], 8)) ||
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
@@ -307,6 +312,8 @@ function addTextKind(text) {
     try { return { kind: 'json', text: t, obj: JSON.parse(t) }; } catch (e) { return { kind: 'badjson', error: e.message }; }
   }
   if (/^</.test(t)) return { kind: 'html' };
+  // A WhatsApp chat exported as a bare .txt (wazip.js): its lines open on the date, time and sender WhatsApp writes.
+  if (t && typeof wzLooksLikeChat === 'function' && wzLooksLikeChat(t)) return { kind: 'watext', text: t };
   return { kind: t ? 'text' : 'empty' };
 }
 /* Which import a JSON file is for, by its format (the payroll file names it as its kind); a backup is the book itself. */
@@ -346,6 +353,8 @@ var ADD_FILE_GUARD = {
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
   bank: { grp: 'payments', what: 'import cheques received', page: 'pageFinance' },
+  // The group's WhatsApp export carries the floor's rolls, production and stock: the floor's imports' gate (wazip.js).
+  whatsapp: { grp: 'imports', what: 'import a WhatsApp chat' },
   // Knowledge's own Import is the owner's and asks the PIN again whatever the window (knowledge.js kbImport).
   kb: { grp: 'imports', what: 'import knowledge', page: 'pageKnow', owner: true, always: true },
   backup: { grp: 'users', what: 'import a backup' }
@@ -373,12 +382,18 @@ async function addFileRoute(file, buf) {
     addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); });
     return;
   }
-  var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
+  var what = addFileWhat(k);
   if (what && !(await addFileGuardOk(what))) return;
   var go = what && addFileGo(what, k, name);
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
+    '. Add takes the group’s WhatsApp export (.zip or .txt), a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
+}
+/* Which import a file read by its kind is for: a JSON file by its format, WhatsApp's export (a zip or a bare .txt) the chat's. */
+function addFileWhat(k) {
+  if (!k) return '';
+  if (k.kind === 'json') return addJsonWhat(k.obj);
+  return k.kind === 'wazip' || k.kind === 'watext' ? 'whatsapp' : '';
 }
 /* Where each kind of file is imported, opened on the screen and view that import it. */
 function addFileGo(what, k, name) {
@@ -393,6 +408,8 @@ function addFileGo(what, k, name) {
     plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text, name); },
     kb: function() { kbSetTab('library'); switchTab('pageKnow'); kbImportData(k.obj, name); },
     bank: function() { finSetTab('receipts'); switchTab('pageFinance'); bankChequesImport(k.obj, name); },
+    // The guard has answered (addFileGuardOk): the export is read, cut to the new messages and confirmed (wazip.js).
+    whatsapp: function() { wzImportBuf(k.buf || k.text, name, { guarded: true }); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text, name); }
   }[what] || null;
@@ -409,6 +426,7 @@ var ADD_FILE_KINDS = {
   plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
   kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
   bank: { title: 'A bank export', noun: 'this app’s bank export (sep-bank), whose cheques received are taken', page: 'pageFinance', view: 'Receivables' },
+  whatsapp: { title: 'A WhatsApp chat', noun: 'the group’s WhatsApp chat, exported', where: 'Add → File' },
   backup: { title: 'A backup', noun: 'a backup of the whole book', where: 'Settings → Data & device' },
   xls: { noun: 'a bank statement' }
 };
@@ -424,7 +442,7 @@ function addFileWhere(what) {
 function addFileElsewhere(src, name, here) {
   var k = src instanceof ArrayBuffer ? addFileKind(src) : typeof src === 'string' ? addTextKind(src)
     : src && typeof src === 'object' ? { kind: 'json', obj: src, text: JSON.stringify(src) } : null;
-  var what = k && k.kind === 'json' ? addJsonWhat(k.obj) : '', mine = [].concat(here || []);
+  var what = k ? addFileWhat(k) : '', mine = [].concat(here || []);
   if (!what || mine.indexOf(what) >= 0 || !addFileGo(what, k, name)) return false;
   var it = ADD_FILE_KINDS[what] || {}, at = ADD_FILE_KINDS[mine[0]];
   uiConfirm({ title: it.title || 'Another screen’s file',
@@ -443,7 +461,7 @@ function addFileWords(k) {
     return 'a JSON file' + (f ? ' marked ' + f : '') + (keys.length ? ' with keys ' + keys.slice(0, 8).join(', ') + (keys.length > 8 ? ' and ' + (keys.length - 8) + ' more' : '') : ', empty') + ', not one the app imports';
   }
   return {
-    zip: 'a zip file with no Excel workbook in it; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
+    zip: 'a zip file with no Excel workbook in it and no WhatsApp chat; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
     pdf: 'a PDF, which the app does not read; the page is entered by hand',
     html: 'a web page (HTML), not the bank’s Excel 97–2003 statement',
     badjson: 'JSON that could not be read (' + (k.error || 'not valid') + ')',

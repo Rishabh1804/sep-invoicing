@@ -82,6 +82,8 @@ var CHG_TRACK = [
   { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
   { path: 'relayPastes', kind: 'raw', noun: 'roll', label: function(r) { return chgJoin(r.kind === 'in' ? 'in-time' : r.kind === 'out' ? 'out-time' : r.kind, r.date ? chgDay(r.date) : ''); } },
   { path: 'cashPastes', kind: 'raw', noun: 'cash message', label: function(r) { return chgJoin('cash paid out', r.sentOn ? chgDay(r.sentOn) : ''); } },
+  { path: 'messages', kind: 'raw', noun: 'message', label: function(r) { return chgJoin(r.sentBy, msgKindLabel(r.kind), r.sentOn ? chgDay(r.sentOn) : ''); } },
+  { path: 'msgImports', kind: 'raw', noun: 'WhatsApp import', label: function(r) { return chgJoin(r.file, r.added != null ? r.added + ' new' : ''); } },
   { path: 'relayLearn', kind: 'skip' },
   { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
   { path: 'attRegister.names', kind: 'map', noun: 'register column name', label: function(r, k) { return k; } },

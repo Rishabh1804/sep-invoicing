@@ -68,6 +68,11 @@ JS_SOURCES=(
     "$DIR/prospects.js" \
     "$DIR/relay.js" \
     "$DIR/add.js" \
+    "$DIR/msgstore.js" \
+    "$DIR/msgprofile.js" \
+    "$DIR/wazip.js" \
+    "$DIR/msgview.js" \
+    "$DIR/msgconfirm.js" \
     "$DIR/attsheet.js" \
     "$DIR/attreg.js" \
     "$DIR/stocksheet.js" \

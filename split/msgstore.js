@@ -11,7 +11,7 @@
    S.messages: [{
      id: 'MSG-…', key: msgKey(m)                 the message once, however often it arrives
      sentBy, sentOn (iso or null), sentAt (the minute on sentOn as relaySplit and wazip give it, or epoch ms; or null), text, edited
-     src: 'paste' | 'zip', importId (S.msgImports id or null)
+     src: 'paste' | 'zip', importId (S.msgImports id or null), seenIn (the exports that held it again, ids)
      kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
      status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
      saved: [{ store, id }]                        the records it made, where the reader's save says
@@ -125,7 +125,13 @@ function msgIngest(list, src, importId) {
   (list || []).forEach(function(m) {
     if (!m || !String(m.text || '').trim()) return;
     var key = msgKey(m);
-    if (have[key]) { out.seen++; return; }
+    if (have[key]) {
+      out.seen++;
+      // Kept before (a paste), then found in an export: the export's check lists it as in the book already (msgconfirm.js).
+      var h = have[key];
+      if (importId && h.importId !== importId && (h.seenIn || []).indexOf(importId) < 0) (h.seenIn = h.seenIn || []).push(importId);
+      return;
+    }
     var r = { id: 'MSG-' + at.toString(36) + Math.random().toString(36).slice(2, 7), key: key, sentBy: m.sentBy || '', sentAt: m.sentAt != null ? m.sentAt : null,
       sentOn: m.sentOn || null, text: String(m.text), edited: !!m.edited, src: src || 'paste', importId: importId || null,
       status: 'new', saved: [], textWas: [], fix: null, at: at, by: by };

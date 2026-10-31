@@ -179,7 +179,7 @@ function mcReadCash(rec, o) {
 /* ---------- The set on screen ---------- */
 function mcRecords(o) {
   o = o || {};
-  if (o.importId) return msgStore().filter(function(r) { return r.importId === o.importId; });
+  if (o.importId) return msgStore().filter(function(r) { return r.importId === o.importId || (r.seenIn || []).indexOf(o.importId) >= 0; });
   return (o.ids || []).map(msgById).filter(Boolean);
 }
 function mcSortKey(r) {

@@ -1283,6 +1283,8 @@ function relayRead() {
   var text = ta ? ta.value : _relayDraft;
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
+  // Every message pasted is kept (msgview.js: the Messages screen), whatever is read and saved from here.
+  if (typeof mvKeepPaste === 'function') mvKeepPaste(text);
   var msgs = relaySplit(text);
   var rolls = [], stock = [], other = [], checkins = 0;
   msgs.forEach(function(m) {
@@ -1516,6 +1518,8 @@ function relayApplyPlan(rv, plan, o) {
     ids.push(rp.id);
     m.rpId = rp.id;   // the roll's record, for the message it came from (msgconfirm.js marks it saved)
   });
+  // The messages these rolls were (msgview.js): marked saved, whoever saved them (the review, the confirmation screen, a face).
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('relayPastes', relayPastes().filter(function(p) { return ids.indexOf(p.id) >= 0; }));
   return { marks: marks, extras: extras, ids: ids, overrides: overrides };
 }
 function relaySave() {

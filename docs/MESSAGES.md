@@ -104,6 +104,45 @@ last message of each kind the book already holds"*. P254.
 
 ## M4. The Messages screen (msgview.js)
 
+Owner, 31 Oct 2026: *"read the message in the app and make changes and the app can learn what it got wrong"*; *"Both"* to editing a
+message's text and correcting its reading. P255 (both layouts).
+
+- **Every paste is kept.** The one paste box (`relayRead`: Add → Paste, People → Paste message, Home) runs `mvKeepPaste(text)` first:
+  `msgIngest(relaySplit(text), 'paste')` and a save when anything is new, whatever the reader then does. A reader's save marks the
+  messages it saved (`mvSavedFrom(store, records)`, one line in each reader's core, so a review's save and the confirmation screen's
+  batch save mark alike: `relayApplyPlan` → `relayPastes`, `prodSaveCore` → `production.pastes`, `stockCommitPaste` → `stock.pastes`,
+  `cashSaveCore` → `cashPastes`; `msgMarkSaved` keeps one record once); a message is found by its key, else by its words (and its day
+  and sender where both say one). Nothing a reader reads or saves is changed.
+- **The screen** (`pageMessages`, a top-bar tool beside History and Knowledge, in no workspace; the owner's, as the guard stands, since it
+  holds cash paid out among the rest). Its verdict (messages, Not read, a red question, saved; *How sure, by kind* folded under it:
+  the profile's figure where msgprofile.js gives one, `mpKindConf`, else the share of a kind's messages saved with no correction against
+  those corrected), one toolbar row (the search; Filter by kind, sender, status and day; More: *Read every message again*), the list
+  by day (sender and time, the first line, the kind and the status as a dot and a word), the first thirty and the rest one tap away.
+  On the desktop the list sits beside the open message (`mvHost`, History's pattern, `paneScrollKeep`); on the phone a message is a
+  sub-view with its way back. The address names it: `?tab=pageMessages&id=MSG-…`.
+- **One message** (`mvOpen(id)`): when and who (with `mpSenderHtml` where it exists), its kind with the sorter's confidence and why,
+  its status; its reader's questions; each line beside what its reader read it as (`mvRead`: `parseRelayRoll`'s lines and issues,
+  `parseProdPaste`'s items and notes, `parseStockMessage` through `resolveStockParse`, `parseCashMessage`), a line no reading covers said
+  as *Not read*; the records it made, with the way to them; its edits.
+- **Edit the text, then Read again**: the reading before and after set side by side (`mvDiff`: lines matched by their words in order, a
+  line whose reading moved is changed; records by what they are about), shown before anything is saved. Save keeps the old text in
+  `textWas` and sorts the message again. **A message its reader saved is read again only in that reader's own check** (*Read again in
+  People*, `mvHandoff`: `relayOpen` + `relayRead`, `prodOpenPaste`, `relayOpenStock`, `cashReviewOpen`, with WhatsApp's line in front so
+  the reader reads who sent it and when); the paste box keeps the handed text as the message it is, not a new one. The book is never
+  written from here.
+- **Correct the kind** (`fix: {kind, at, by, was}`, which wins over the sorter, M2 reads it) or mark it *Not a report* (`skipped`).
+- **What M2 adds, read where it exists**: a Not read row says the kind it looks like (the sorter's `like`, read off `msgOtherSort` while drawing so the profile writes nothing; kept on the record as
+  `like` when the screen sorts it again), the kind's confidence is `mpKindConf(kind)` (a number or null; null falls back to the share
+  above), and beside the sender a message carries *Sender's card* (`data-action="invMsgProfile" data-sender`), drawn only where
+  msgprofile.js answers it (`mpAction`).
+- **The tool's door**: the top bar's Messages beside History on both layouts (the phone's icon, the desktop's ghost button; the
+  desktop's hidden on the phone as History's is). The owner's while the guard is on: a role is given no page for it (it holds cash paid
+  out among the rest), so its door is hidden from every other role.
+- **What the app has learnt from your corrections** (a fold under the list): each kind set by hand, and the roll reader's heading and
+  slot lessons (`S.relayLearn`), each with Forget.
+- **Read every message again** sorts every message again and lists what moved; the messages' kinds move with it, and no reader's record
+  is written.
+
 ## M5. The confirmation screen (msgconfirm.js)
 
 `mcOpen({ importId } | { ids })` opens the final check over a set of `S.messages` records (P256). The zip reader calls it with its

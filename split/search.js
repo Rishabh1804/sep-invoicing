@@ -177,6 +177,7 @@ function srchScreens() {
     ['planner-finance', 'Planner finance', 'Home › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
     // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
     ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
+    ['messages', 'Messages', 'Top bar', 'whatsapp messages pasted kept read again parser lessons corrections', at('pageMessages')],
     ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
     ['know-lib', 'Library', 'Top bar › Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
     ['know-trouble', 'Troubleshoot', 'Top bar › Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
@@ -1036,6 +1037,8 @@ function srchLocOf(el) {
   // The rail's mark opens Home's dashboard (invGoPulse its old name, UI pass 3); the top bar's History, History.
   if (act === 'invGoHome' || act === 'invGoPulse') return { tab: 'pageHome', v: 'home', id: '' };
   if (act === 'invGoHistory') return { tab: 'pageHistory', v: '', id: '' };
+  if (act === 'invMsgGo') return { tab: 'pageMessages', v: '', id: '' };
+  if (act === 'invMsgOpen') return { tab: 'pageMessages', v: '', id: String(d.id) };
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[3] === String(d.ws || ''); });
     var go = sp ? srchGTarget(sp[0]) : null;

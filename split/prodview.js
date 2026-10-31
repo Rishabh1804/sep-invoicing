@@ -1192,6 +1192,7 @@ function prodSaveCore(rv, res, by) {
       closed++;
     });
   });
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('production.pastes', p.pastes.filter(function(x) { return x.at === at; }));
   return { n: n, closed: closed, learnt: learnt, pasteIds: pasteIds };
 }
 function prodSaveReview() {

@@ -174,6 +174,20 @@ export function sweepState(): SepState {
   // A person with a face (faces.js, the entry faces), every duty on it: no PIN, so the guard stays off; the walks open Mine as the
   // owner looking at it (_faceUid).
   s.users = [{ id: 'U-face', name: 'Face Hand', role: 'floor', faces: ['roll-in', 'pickling', 'incoming', 'stock', 'attsheet', 'barrel', 'vat', 'roll-out'] }];
+  // The WhatsApp messages kept (msgstore.js; the Messages screen, msgview.js): a roll saved, a pickling message, a stock message, a
+  // note no reader takes, one set aside and one whose kind was set by hand. Made up.
+  const dmy = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(2, 4);
+  const msg = (id: string, day: number, at: number, kind: string, text: string, over: any = {}) => ({ id, key: 'k-' + id, sentBy: 'Bravo Munda', sentAt: at,
+    sentOn: dayOff(day), text, edited: false, src: 'paste', importId: null, kind, conf: 0.8, why: 'a test', status: 'new', saved: [], textWas: [], fix: null,
+    at: recentTs(), by: null, ...over });
+  s.messages = [
+    msg('MSG-1', -1, 362, 'in', dmy(dayOff(-1)) + '/ in time 8:30 am\n----VAT A1----\n1 Ramu\n2 Gita', { status: 'saved', saved: [{ store: 'relayPastes', id: 'RP-x' }] }),
+    msg('MSG-2', -1, 545, 'pickling', 'GAMMA PRESS\nCLAMP 120X80 - 300 nos\nPickling time 9:00 AM'),
+    msg('MSG-3', 0, 600, 'stock', dmy(dayOff(0)) + '/ camical stock\n1 Nitric 40 L use 10 = 30 L', { sentBy: 'Alfa Oraon' }),
+    msg('MSG-4', 0, 620, 'other', 'Tea break at 4', { status: 'notread', conf: 0, why: 'no reader takes it' }),
+    msg('MSG-5', 0, 640, 'other', 'Good morning', { status: 'skipped', conf: 0 }),
+    msg('MSG-6', 0, 700, 'power', 'Power cut 10:55 AM', { fix: { kind: 'power', at: recentTs(), by: null, was: 'other' }, conf: 1, why: 'set by hand' }),
+  ];
   return s;
 }
 
@@ -362,7 +376,7 @@ export async function shot(page: Page, name: string) {
 }
 
 export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory',
-  'pageFloor', 'pagePipeline', 'pageKnow', 'pageFace'];
+  'pageFloor', 'pagePipeline', 'pageKnow', 'pageFace', 'pageMessages'];
 /* Mine is a person's (faces.js): with the guard off nobody is signed in, so a walk opens it as the owner looking at the sweep book's
    face (its user, U-face). */
 export async function faceSeen(page: Page, id: string) {

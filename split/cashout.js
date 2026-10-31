@@ -146,6 +146,7 @@ function cashSaveCore(r, lines) {
     cashOut().push({ id: 'CSH-' + at.toString(36) + Math.random().toString(36).slice(2, 6), date: ln.date || r.sentOn, what: ln.what, amount: ln.amount,
       cat: ln.cat, week: r.week, msgId: msgId, at: at, by: by });
   });
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('cashPastes', cashPastes().slice(-1));
   return { msgId: msgId, total: gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0)) };
 }
 async function cashVoid(id) {

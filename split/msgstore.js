@@ -144,7 +144,8 @@ function msgMarkSaved(id, store, recId) {
   var r = msgById(id);
   if (!r) return;
   r.status = 'saved';
-  if (store) r.saved.push({ store: store, id: recId || null });
+  // One record once, whichever part marked it (a reader's own save, msgview.js, and the confirmation screen both mark).
+  if (store && !(r.saved || []).some(function(x) { return x.store === store && x.id === (recId || null); })) (r.saved = r.saved || []).push({ store: store, id: recId || null });
 }
 
 /* Every msg-screen action (invMsg…) comes here from events.js and goes to the module that owns it. */

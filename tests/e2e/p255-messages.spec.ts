@@ -35,7 +35,7 @@ function book(extra?: any): SepState {
 function bookWithMessages(): SepState {
   return book({ messages: [
     rec('MSG-A', 'in', ROLL),
-    rec('MSG-B', 'other', 'Tea at four', { status: 'notread', conf: 0, sentAt: 600, sentBy: 'Lima Tudu' }),
+    rec('MSG-B', 'other', 'Tea at four', { status: 'notread', conf: 0, sentAt: 600, sentBy: 'Lima Tudu', like: 'pickling' }),
     rec('MSG-C', 'other', 'Good morning all', { status: 'skipped', conf: 0, sentOn: shift(DAY, -1) }),
   ] });
 }
@@ -93,6 +93,8 @@ test.describe('P255: the Messages screen (phone)', () => {
     await expect(page.locator('#pageMessages [data-mv-row]')).toHaveCount(3);
     await expect(page.locator('#pageMessages .inv-row-group')).toHaveCount(2);
     await expect(page.locator('[data-mv-row="MSG-B"]')).toContainText('Not read');
+    // A Not read row says the kind it looks like (msgSort's `like`).
+    await expect(page.locator('[data-mv-row="MSG-B"]')).toContainText('Looks like pickling loads');
     await expect(page.locator('[data-mv-row="MSG-C"]')).toContainText('Not a report');
     // Filter by status.
     await setFilter(page, '#mvStatus', 'notread');
@@ -112,8 +114,11 @@ test.describe('P255: the Messages screen (phone)', () => {
   test('a message shows each line beside what its reader read it as, and its kind with why', async ({ page }) => {
     await loadAppWithState(page, bookWithMessages());
     await openMessages(page);
+    // The sender's card is msgprofile.js's: its button stands beside the sender where the profile is loaded.
+    await ev(page, `window.mpAction = window.mpAction || function() { return false; }`);
     await page.locator('[data-mv-row="MSG-A"]').click();
     const msg = page.locator('[data-mv-message="MSG-A"]');
+    await expect(msg.locator('[data-action="invMsgProfile"][data-sender="Kilo Romeo"]')).toBeVisible();
     await expect(msg).toBeVisible();
     await expect(page.locator('[data-mv-kind-now="in"]')).toContainText('In-time roll');
     const lines = page.locator('[data-mv-lines] [data-mv-line]');

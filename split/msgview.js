@@ -276,7 +276,7 @@ function mvConfRowsHtml() {
     if (!n && !c) return null;
     var pct = c ? Math.round(c.conf * 100) : null;
     return { label: k.label, value: pct == null ? '' : pct + '%', tone: pct == null ? '' : pct >= 90 ? 'ok' : pct >= 70 ? 'warning' : 'danger',
-      sub: todoPlural(n, 'message') + (c && c.misses ? ', ' + todoPlural(c.misses, 'correction') : c ? ', none corrected' : ', none decided yet'),
+      sub: todoPlural(n, 'message') + (c && c.from === 'profile' ? ', from how they are sent' : c && c.misses ? ', ' + todoPlural(c.misses, 'correction') : c ? ', none corrected' : ', none decided yet'),
       attrs: ' data-mv-conf="' + k.id + '"' };
   });
   return uiWorkingHtml('mv-conf', facts, 'How sure, by kind', ' data-mv-confs');
@@ -338,12 +338,18 @@ function mvToolbarHtml() {
       { key: 'Status', value: _mvStatus ? MV_STATUS[_mvStatus][1] : '', action: 'invMsgClear', attrs: ' data-clear="status"' },
       { key: 'Day', value: _mvDay ? formatDate(_mvDay) : '', action: 'invMsgClear', attrs: ' data-clear="day"' }]);
 }
+/* The kind a message no reader takes looks like (msgSort's `like`, msgprofile.js), worked out where it was not kept. */
+function mvLike(r) {
+  if (!r || r.kind !== 'other') return '';
+  if (r.like == null) { try { r.like = msgSort(r).like || ''; } catch (e) { r.like = ''; } }
+  return r.like && r.like !== 'other' ? r.like : '';
+}
 function mvRowHtml(r) {
-  var st = mvStatusOf(r);
+  var st = mvStatusOf(r), like = mvLike(r);
   return '<button class="inv-row inv-row-2 inv-row-top" data-action="invMsgOpen" data-id="' + escHtml(r.id) + '" data-mv-row="' + escHtml(r.id) + '"' +
     (_mvOpen === r.id ? ' aria-current="true"' : '') + '>' +
     '<span class="inv-row-main"><span class="inv-row-title">' + escHtml((r.sentBy || 'No sender') + ' · ' + mvTimeText(r)) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(mvFirstLine(r.text)) + '</span></span>' +
+    '<span class="inv-row-meta">' + escHtml((like ? 'Looks like ' + msgKindLabel(like).toLowerCase() + ': ' : '') + mvFirstLine(r.text)) + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-badge inv-badge-neutral">' + escHtml(msgKindLabel(r.kind)) + '</span>' +
     '<span class="inv-dot inv-dot-' + uiTone(st.tone) + '">' + escHtml(st.word) + '</span></span></span></button>';
 }
@@ -421,8 +427,10 @@ function mvMessageHtml(r, phone) {
   var conf = r.conf != null ? Math.round(r.conf * 100) + '%' : '';
   var senderHtml = typeof mpSenderHtml === 'function' && r.sentBy ? (function() { try { return mpSenderHtml(r.sentBy) || ''; } catch (e) { return ''; } })() : '';
   h += '<div class="inv-panel inv-panel-flush" data-mv-message="' + escHtml(r.id) + '">' +
-    uiFactRowHtml({ label: 'Sent', value: mvDayOf(r) ? formatDate(mvDayOf(r)) : '', sub: (r.sentBy || 'no sender') + ', ' + mvTimeText(r) + (r.edited ? ', edited in WhatsApp' : '') }) +
-    uiFactRowHtml({ label: 'Kind', value: msgKindLabel(r.kind), sub: (r.fix ? 'set by hand' : (r.why || 'sorted')) + (conf && !r.fix ? ', ' + conf + ' sure' : ''), attrs: ' data-mv-kind-now="' + escHtml(r.kind) + '"' }) +
+    uiFactRowHtml({ label: 'Sent', value: mvDayOf(r) ? formatDate(mvDayOf(r)) : '', sub: (r.sentBy || 'no sender') + ', ' + mvTimeText(r) + (r.edited ? ', edited in WhatsApp' : ''),
+      // How the sender sends messages (msgprofile.js): their card, where the profile is loaded.
+      actions: r.sentBy && typeof mpAction === 'function' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgProfile" data-sender="' + escHtml(r.sentBy) + '">Sender’s card</button>' : '' }) +
+    uiFactRowHtml({ label: 'Kind', value: msgKindLabel(r.kind), sub: (r.fix ? 'set by hand' : (r.why || 'sorted')) + (conf && !r.fix ? ', ' + conf + ' sure' : '') + (mvLike(r) ? ', looks like ' + msgKindLabel(mvLike(r)).toLowerCase() : ''), attrs: ' data-mv-kind-now="' + escHtml(r.kind) + '"' }) +
     uiFactRowHtml({ label: 'Status', value: st.word, sub: r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
     '</div>' + (senderHtml ? '<div data-mv-sender>' + senderHtml + '</div>' : '');
   // The kind corrected, or the message set aside as no report.
@@ -500,7 +508,7 @@ function mvEditHtml(r) {
 function mvRedraw() { if (navPageOf() === 'pageMessages') keepScroll(renderMessages); }
 function mvResort(r) {
   var s = msgSort(r);
-  r.kind = s.kind; r.conf = s.conf; r.why = s.why;
+  r.kind = s.kind; r.conf = s.conf; r.why = s.why; r.like = s.like || '';
   if (r.status === 'new' || r.status === 'notread') r.status = r.kind === 'other' ? 'notread' : 'new';
 }
 function mvSetKind(id, kind) {
@@ -558,7 +566,7 @@ function mvRereadAll() {
   msgStore().forEach(function(r) {
     var was = r.kind, s = msgSort(r);
     if (s.kind !== was) moved.push({ r: r, was: was, now: s.kind });
-    r.kind = s.kind; r.conf = s.conf; r.why = s.why;
+    r.kind = s.kind; r.conf = s.conf; r.why = s.why; r.like = s.like || '';
     if (r.status === 'new' || r.status === 'notread') r.status = r.kind === 'other' ? 'notread' : 'new';
   });
   _mvReadCache = { s: null, by: {} };

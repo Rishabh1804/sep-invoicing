@@ -45,6 +45,13 @@ message's text and correcting its reading. P255 (both layouts).
   the reader reads who sent it and when); the paste box keeps the handed text as the message it is, not a new one. The book is never
   written from here.
 - **Correct the kind** (`fix: {kind, at, by, was}`, which wins over the sorter, M2 reads it) or mark it *Not a report* (`skipped`).
+- **What M2 adds, read where it exists**: a Not read row says the kind it looks like (msgSort's `like`, kept on the record as
+  `like` when the screen sorts it again), the kind's confidence is `mpKindConf(kind)` (a number or null; null falls back to the share
+  above), and beside the sender a message carries *Sender's card* (`data-action="invMsgProfile" data-sender`), drawn only where
+  msgprofile.js answers it (`mpAction`).
+- **The tool's door**: the top bar's Messages beside History on both layouts (the phone's icon, the desktop's ghost button; the
+  desktop's hidden on the phone as History's is). The owner's while the guard is on: a role is given no page for it (it holds cash paid
+  out among the rest), so its door is hidden from every other role.
 - **What the app has learnt from your corrections** (a fold under the list): each kind set by hand, and the roll reader's heading and
   slot lessons (`S.relayLearn`), each with Forget.
 - **Read every message again** sorts every message again and lists what moved; the messages' kinds move with it, and no reader's record

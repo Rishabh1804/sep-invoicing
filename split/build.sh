@@ -62,6 +62,7 @@ JS_SOURCES=(
     "$DIR/finance.js" \
     "$DIR/statement.js" \
     "$DIR/payslip.js" \
+    "$DIR/cashout.js" \
     "$DIR/todo.js" \
     "$DIR/merge.js" \
     "$DIR/prospects.js" \

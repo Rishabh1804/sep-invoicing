@@ -116,7 +116,11 @@ function payPeriodEnd(w, start) { return payIsWeekly(w) ? isoAddDays(start, 6) :
 /* labourForRange once per range within one drawing: every worker's carry reads the same weeks and months. */
 function payLabMemo() {
   var memo = {};
-  return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
+  // A pay week (Sunday to Saturday) is read with its cut-off (payWeekLab), as the payout is; any other range as it falls.
+  return function(from, to) {
+    var k = from + '|' + to;
+    return memo[k] || (memo[k] = attParseIso(from).getDay() === 0 && to === isoAddDays(from, 6) ? payWeekLab(from) : labourForRange(from, to));
+  };
 }
 /* Where a monthly hand's balance starts (owner's month, `S.labour.payCarryFrom`, 'YYYY-MM'). The bank's legs go back months
    before anything here was set against them (the statement from January, the slips from April), so they never start a balance
@@ -290,10 +294,63 @@ function payGapText(gp) {
   return stockShortDate(gp.date) + ' · on the ' + relayClockLabel(relayParseHhmm(gp.from)) + ' – ' + relayClockLabel(relayParseHhmm(gp.to)) + ' block, ' + gp.why;
 }
 
+/* ---------- The payout's cut-off: Saturday at 5 PM ----------
+   Owner, 31 Oct 2026: the 24th's night shift (three hands from Saturday evening to Sunday morning) was in neither payout, "so it
+   seems payout cutoff time is Sat 17-00 and everything later than that goes to the next week's payout". The weekly hands are paid
+   on Saturday for the work done to 5 PM that day; what they work after it, the EXTRA booked to a block that starts after it, and
+   that evening's snacks are the next week's. Worked out from the Saturday's own marks, never stored: a mark stays on its day. */
+var PAY_CUTOFF = 1020;   // 5 PM on the Saturday
+/* What a Saturday's work after 5 PM comes to: {byWorker: {id: amount}, hours: {id: h}, extra, extraHours, snacks}. The weekly
+   tiers only (the monthly hands are paid by the month): an hourly hand's whole hours after 5 PM at their rate, a daily hand's
+   overtime after it. A block of the evening or the night (from 5 PM, or after midnight) is its EXTRA. */
+function payLate(sat) {
+  var out = { byWorker: {}, hours: {}, extra: 0, extraHours: 0, snacks: 0 };
+  var rec = (S.attendance || {})[sat];
+  if (!rec || attParseIso(sat).getDay() !== 6) return out;
+  var day = labourForRange(sat, sat), cfg = labourCfg();
+  Object.keys(rec.marks || {}).forEach(function(id) {
+    var m = rec.marks[id], w = staffById(id), b = day.byWorker[id];
+    if (!m || !w || !b || !payIsWeekly(w) || (m.st !== 'P' && m.st !== 'H')) return;
+    var o = Number(m.outMin), i = m.inMin != null ? Number(m.inMin) : RELAY_GENERAL;
+    if (!(o > PAY_CUTOFF)) return;
+    var after = Math.max(0, Math.floor((o - Math.max(i, PAY_CUTOFF)) / 60)), amt = 0;
+    if (!after) return;
+    if (w.comp === 'hourly' && b.hours > 0) { after = Math.min(after, b.hours); amt = b.total / b.hours * after; }
+    else if (b.otHours > 0) { after = Math.min(after, b.otHours); amt = b.ot / b.otHours * after; }
+    if (amt > 0) { out.byWorker[id] = gstRound(amt); out.hours[id] = after; }
+  });
+  (rec.extra || []).forEach(function(x) {
+    var h = x.hours || 0, a = x.kind === 'block' ? relayParseHhmm(x.from) : null;
+    if (h > 0 && a != null && (a >= PAY_CUTOFF || a < 240)) { out.extraHours += h; out.extra += h * cfg.extraRate; }
+  });
+  out.extra = gstRound(out.extra);
+  out.snacks = paySnacks(sat, sat).amount;
+  return out;
+}
+/* A pay week's labour as the Saturday's cash pays it: labourForRange over Sunday to Saturday, less the Saturday's work after 5 PM,
+   plus the Saturday before's (payLate). The weekly hands' byWorker, total and extra move; the monthly hands' do not. */
+function payWeekLab(weekStart) {
+  var sat = isoAddDays(weekStart, 6), lab = labourForRange(weekStart, sat);
+  var less = payLate(sat), more = payLate(isoAddDays(weekStart, -1));
+  var move = function(late, sign) {
+    Object.keys(late.byWorker).forEach(function(id) {
+      var w = staffById(id), b = lab.byWorker[id] || (lab.byWorker[id] = { id: w.id, name: w.name, comp: w.comp, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0, restDays: 0, total: 0 });
+      var a = late.byWorker[id] * sign, h = late.hours[id] * sign;
+      b.total = gstRound(b.total + a);
+      if (w.comp === 'hourly') { b.base = gstRound(b.base + a); b.hours += h; } else { b.ot = gstRound(b.ot + a); b.otHours += h; }
+      lab.total = gstRound((lab.total || 0) + a);
+    });
+    lab.extra = gstRound(lab.extra + late.extra * sign); lab.extraHours += late.extraHours * sign;
+  };
+  move(less, -1); move(more, 1);
+  lab.cutoff = { before: more, after: less };
+  return lab;
+}
+
 /* One pay week's payout: the weekly tiers' earnings, the EXTRA pool and the snacks, as the Saturday's cash pays them. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
-  var lab = labourForRange(weekStart, sat);
+  var lab = payWeekLab(weekStart);
   var workers = 0;
   Object.keys(lab.byWorker).forEach(function(id) {
     var b = lab.byWorker[id];
@@ -304,9 +361,13 @@ function payWeek(weekStart) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
     if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
+  // The snacks of the Saturday before's evening are this payout's, this Saturday's evening the next one's (the cut-off, payLate).
   var snacks = paySnacks(weekStart, sat);
-  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks,
-    total: gstRound(workers + lab.extra + snacks.amount), paid: gstRound(paid),
+  snacks.amount = gstRound(snacks.amount - lab.cutoff.after.snacks + lab.cutoff.before.snacks);
+  // The supervisor's cash spent for the plant, paid back with the payout (cashout.js; owner, 31 Oct 2026: "Payout total").
+  var cash = typeof cashWeekTotal === 'function' ? cashWeekTotal(weekStart) : 0;
+  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks, cashOut: cash,
+    total: gstRound(workers + lab.extra + snacks.amount + cash), paid: gstRound(paid),
     recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
@@ -333,6 +394,12 @@ function payForecast(weekStart) {
       Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
       sunPay += one.extra + paySnacks(d, d).amount;
     });
+    // The Saturday before's evening (the cut-off, payLate) is this payout's but no day of this week: it does not repeat either.
+    var bf = wk.lab.cutoff.before;
+    Object.keys(bf.byWorker).forEach(function(id) { sunPay += bf.byWorker[id]; });
+    sunPay += bf.extra + bf.snacks;
+    // Cash paid out is a sum the supervisor sends, not a day's work: it does not repeat either.
+    sunPay += wk.cashOut || 0;
     var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
@@ -359,7 +426,7 @@ function payDue(weekStart) {
   // week of the month it closes. Read off the Saturday, the last week of September showed October's due at nothing and
   // hid September's, which is the one being settled.
   var mFrom = payMonthStart(weekStart), mTo = payMonthEnd(weekStart);
-  var wk = labourForRange(weekStart, sat);
+  var wk = payWeekLab(weekStart);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
   // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
   var pool = staffActive().slice(), poolLab = payLabMemo();
@@ -405,6 +472,7 @@ function _attPayView() {
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
   html += payLabourPanelsHtml();
   html += _payDueCard(ws);
+  if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
@@ -437,6 +505,7 @@ function _payVerdictHtml(ws) {
       uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) +
       uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
         sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
+      (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
       _payGapsHtml(gaps) + '</div>',
     attrs: ' id="payForecast"' });
 }
@@ -1024,7 +1093,7 @@ function payAction(action, btn) {
     case 'invPayCarryFromSave': payCarryFromSave(false); return true;
     case 'invPayCarryFromOff': payCarryFromSave(true); return true;
   }
-  return false;
+  return typeof cashAction === 'function' && cashAction(action, btn);
 }
 
 /* ===== Hours by area =====

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="f6fb23bd">
+<meta name="app-build" content="768ad2b0">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -4022,6 +4022,8 @@ function getDefaultState() {
     peopleCheckins: [],
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
+    cashOut: [],
+    cashPastes: [],
     payCarryClears: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
@@ -4550,7 +4552,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
   'devices', 'market'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
@@ -7005,6 +7007,7 @@ var CHG_TRACK = [
   { path: 'staff', kind: 'arr', noun: 'worker', omit: ['profile'], label: function(r) { return r.name; } },
   { path: 'peopleCheckins', kind: 'arr', noun: 'check-in', omit: ['score', 'note'], label: function(r) { return chgJoin(chgStaffName(r.staffId), r.on ? chgDay(r.on) : ''); } },
   { path: 'staffPayments', kind: 'arr', noun: 'payment', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.kind, chgMoney(r.amount), r.date ? chgDay(r.date) : ''); } },
+  { path: 'cashOut', kind: 'arr', noun: 'cash paid out', label: function(r) { return chgJoin(r.what, chgMoney(r.amount), r.date ? chgDay(r.date) : ''); } },
   { path: 'payCarryClears', kind: 'arr', noun: 'cleared balance', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.through ? 'to ' + chgDay(r.through) : '', r.reason); } },
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
@@ -7019,6 +7022,7 @@ var CHG_TRACK = [
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
   { path: 'relayPastes', kind: 'raw', noun: 'roll', label: function(r) { return chgJoin(r.kind === 'in' ? 'in-time' : r.kind === 'out' ? 'out-time' : r.kind, r.date ? chgDay(r.date) : ''); } },
+  { path: 'cashPastes', kind: 'raw', noun: 'cash message', label: function(r) { return chgJoin('cash paid out', r.sentOn ? chgDay(r.sentOn) : ''); } },
   { path: 'relayLearn', kind: 'skip' },
   { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
   { path: 'attRegister.names', kind: 'map', noun: 'register column name', label: function(r, k) { return k; } },
@@ -28064,7 +28068,11 @@ function payPeriodEnd(w, start) { return payIsWeekly(w) ? isoAddDays(start, 6) :
 /* labourForRange once per range within one drawing: every worker's carry reads the same weeks and months. */
 function payLabMemo() {
   var memo = {};
-  return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
+  // A pay week (Sunday to Saturday) is read with its cut-off (payWeekLab), as the payout is; any other range as it falls.
+  return function(from, to) {
+    var k = from + '|' + to;
+    return memo[k] || (memo[k] = attParseIso(from).getDay() === 0 && to === isoAddDays(from, 6) ? payWeekLab(from) : labourForRange(from, to));
+  };
 }
 /* Where a monthly hand's balance starts (owner's month, `S.labour.payCarryFrom`, 'YYYY-MM'). The bank's legs go back months
    before anything here was set against them (the statement from January, the slips from April), so they never start a balance
@@ -28238,10 +28246,63 @@ function payGapText(gp) {
   return stockShortDate(gp.date) + ' · on the ' + relayClockLabel(relayParseHhmm(gp.from)) + ' – ' + relayClockLabel(relayParseHhmm(gp.to)) + ' block, ' + gp.why;
 }
 
+/* ---------- The payout's cut-off: Saturday at 5 PM ----------
+   Owner, 31 Oct 2026: the 24th's night shift (three hands from Saturday evening to Sunday morning) was in neither payout, "so it
+   seems payout cutoff time is Sat 17-00 and everything later than that goes to the next week's payout". The weekly hands are paid
+   on Saturday for the work done to 5 PM that day; what they work after it, the EXTRA booked to a block that starts after it, and
+   that evening's snacks are the next week's. Worked out from the Saturday's own marks, never stored: a mark stays on its day. */
+var PAY_CUTOFF = 1020;   // 5 PM on the Saturday
+/* What a Saturday's work after 5 PM comes to: {byWorker: {id: amount}, hours: {id: h}, extra, extraHours, snacks}. The weekly
+   tiers only (the monthly hands are paid by the month): an hourly hand's whole hours after 5 PM at their rate, a daily hand's
+   overtime after it. A block of the evening or the night (from 5 PM, or after midnight) is its EXTRA. */
+function payLate(sat) {
+  var out = { byWorker: {}, hours: {}, extra: 0, extraHours: 0, snacks: 0 };
+  var rec = (S.attendance || {})[sat];
+  if (!rec || attParseIso(sat).getDay() !== 6) return out;
+  var day = labourForRange(sat, sat), cfg = labourCfg();
+  Object.keys(rec.marks || {}).forEach(function(id) {
+    var m = rec.marks[id], w = staffById(id), b = day.byWorker[id];
+    if (!m || !w || !b || !payIsWeekly(w) || (m.st !== 'P' && m.st !== 'H')) return;
+    var o = Number(m.outMin), i = m.inMin != null ? Number(m.inMin) : RELAY_GENERAL;
+    if (!(o > PAY_CUTOFF)) return;
+    var after = Math.max(0, Math.floor((o - Math.max(i, PAY_CUTOFF)) / 60)), amt = 0;
+    if (!after) return;
+    if (w.comp === 'hourly' && b.hours > 0) { after = Math.min(after, b.hours); amt = b.total / b.hours * after; }
+    else if (b.otHours > 0) { after = Math.min(after, b.otHours); amt = b.ot / b.otHours * after; }
+    if (amt > 0) { out.byWorker[id] = gstRound(amt); out.hours[id] = after; }
+  });
+  (rec.extra || []).forEach(function(x) {
+    var h = x.hours || 0, a = x.kind === 'block' ? relayParseHhmm(x.from) : null;
+    if (h > 0 && a != null && (a >= PAY_CUTOFF || a < 240)) { out.extraHours += h; out.extra += h * cfg.extraRate; }
+  });
+  out.extra = gstRound(out.extra);
+  out.snacks = paySnacks(sat, sat).amount;
+  return out;
+}
+/* A pay week's labour as the Saturday's cash pays it: labourForRange over Sunday to Saturday, less the Saturday's work after 5 PM,
+   plus the Saturday before's (payLate). The weekly hands' byWorker, total and extra move; the monthly hands' do not. */
+function payWeekLab(weekStart) {
+  var sat = isoAddDays(weekStart, 6), lab = labourForRange(weekStart, sat);
+  var less = payLate(sat), more = payLate(isoAddDays(weekStart, -1));
+  var move = function(late, sign) {
+    Object.keys(late.byWorker).forEach(function(id) {
+      var w = staffById(id), b = lab.byWorker[id] || (lab.byWorker[id] = { id: w.id, name: w.name, comp: w.comp, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0, restDays: 0, total: 0 });
+      var a = late.byWorker[id] * sign, h = late.hours[id] * sign;
+      b.total = gstRound(b.total + a);
+      if (w.comp === 'hourly') { b.base = gstRound(b.base + a); b.hours += h; } else { b.ot = gstRound(b.ot + a); b.otHours += h; }
+      lab.total = gstRound((lab.total || 0) + a);
+    });
+    lab.extra = gstRound(lab.extra + late.extra * sign); lab.extraHours += late.extraHours * sign;
+  };
+  move(less, -1); move(more, 1);
+  lab.cutoff = { before: more, after: less };
+  return lab;
+}
+
 /* One pay week's payout: the weekly tiers' earnings, the EXTRA pool and the snacks, as the Saturday's cash pays them. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
-  var lab = labourForRange(weekStart, sat);
+  var lab = payWeekLab(weekStart);
   var workers = 0;
   Object.keys(lab.byWorker).forEach(function(id) {
     var b = lab.byWorker[id];
@@ -28252,9 +28313,13 @@ function payWeek(weekStart) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
     if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
+  // The snacks of the Saturday before's evening are this payout's, this Saturday's evening the next one's (the cut-off, payLate).
   var snacks = paySnacks(weekStart, sat);
-  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks,
-    total: gstRound(workers + lab.extra + snacks.amount), paid: gstRound(paid),
+  snacks.amount = gstRound(snacks.amount - lab.cutoff.after.snacks + lab.cutoff.before.snacks);
+  // The supervisor's cash spent for the plant, paid back with the payout (cashout.js; owner, 31 Oct 2026: "Payout total").
+  var cash = typeof cashWeekTotal === 'function' ? cashWeekTotal(weekStart) : 0;
+  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks, cashOut: cash,
+    total: gstRound(workers + lab.extra + snacks.amount + cash), paid: gstRound(paid),
     recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
@@ -28281,6 +28346,12 @@ function payForecast(weekStart) {
       Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
       sunPay += one.extra + paySnacks(d, d).amount;
     });
+    // The Saturday before's evening (the cut-off, payLate) is this payout's but no day of this week: it does not repeat either.
+    var bf = wk.lab.cutoff.before;
+    Object.keys(bf.byWorker).forEach(function(id) { sunPay += bf.byWorker[id]; });
+    sunPay += bf.extra + bf.snacks;
+    // Cash paid out is a sum the supervisor sends, not a day's work: it does not repeat either.
+    sunPay += wk.cashOut || 0;
     var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
@@ -28307,7 +28378,7 @@ function payDue(weekStart) {
   // week of the month it closes. Read off the Saturday, the last week of September showed October's due at nothing and
   // hid September's, which is the one being settled.
   var mFrom = payMonthStart(weekStart), mTo = payMonthEnd(weekStart);
-  var wk = labourForRange(weekStart, sat);
+  var wk = payWeekLab(weekStart);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
   // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
   var pool = staffActive().slice(), poolLab = payLabMemo();
@@ -28353,6 +28424,7 @@ function _attPayView() {
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
   html += payLabourPanelsHtml();
   html += _payDueCard(ws);
+  if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
@@ -28385,6 +28457,7 @@ function _payVerdictHtml(ws) {
       uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) +
       uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
         sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
+      (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
       _payGapsHtml(gaps) + '</div>',
     attrs: ' id="payForecast"' });
 }
@@ -28972,7 +29045,7 @@ function payAction(action, btn) {
     case 'invPayCarryFromSave': payCarryFromSave(false); return true;
     case 'invPayCarryFromOff': payCarryFromSave(true); return true;
   }
-  return false;
+  return typeof cashAction === 'function' && cashAction(action, btn);
 }
 
 /* ===== Hours by area =====
@@ -33994,13 +34067,17 @@ function bankCostByMonth(cls) {
     // its cash would read as drawings, so it is not split.
     // A week with only some of its days typed has a payout that reads small, and its cash would read as drawings: it is
     // split only once 90% of its working days are recorded.
-    var known = bankCashWeekKnown(pw), wages = known ? Math.min(c.amount, Math.max(0, pw.total)) : 0;
-    c.wages = wages; c.drawings = known ? c.amount - wages : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
+    // The payout carries the supervisor's cash paid out (cashout.js): that part of the cash is the plant's other costs, not
+    // wages, and past both it is drawings.
+    var known = bankCashWeekKnown(pw), cashOut = known ? (pw.cashOut || 0) : 0;
+    var wages = known ? Math.min(c.amount, Math.max(0, pw.total - cashOut)) : 0, misc = known ? Math.min(c.amount - wages, cashOut) : 0;
+    c.wages = wages; c.misc = misc; c.drawings = known ? c.amount - wages - misc : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
     var seen = {};
     for (var k = 0; k < 7; k++) {
       var d = attParseIso(ws); d.setDate(d.getDate() + k);
       var ym = isoOf(d).slice(0, 7), C = at(ym).labour;
       C.amount += wages / 7; C.cash += wages / 7; C.drawings += c.drawings / 7; C.open += c.open / 7;
+      if (misc) at(ym).other.amount += misc / 7;
       if (!seen[ym]) { seen[ym] = 1; c.rows.forEach(function(v) { C.rows.push(v); }); }
     }
   });
@@ -36996,6 +37073,193 @@ function psAction(action, btn) {
   }
   return false;
 }
+/* ===== Cash paid out =====
+   The supervisor's cash spent for the plant, as he sends it on WhatsApp (owner, 31 Oct 2026: "For Shyam's 1840 - he has
+   given that as a message in whatsapp", then "Payout total"): a line each, a day before some, the amount at the end, a rule
+   and the total under them:
+     14/10/26/ HCL 200
+     27/10/26/ JAR 200
+     SABUN               300
+     24/10/26/          140
+     JAYNTO PAUL  800
+     ----------------------------------
+             ONLY       1840
+   Read here, checked and stored (`S.cashOut`, the message kept whole in `S.cashPastes`), each line in a kind (`CASH_CATS`),
+   and the whole counted in the week's payout total (payWeek), since the Saturday's cash pays it back to him with the wages:
+   his weekly payment message lists it beside the payout and the snacks. On the bank's side the week's cash is then wages up
+   to the payout, these costs up to what they came to, and drawings past both (bank.js, bankCostByMonth). */
+
+var CASH_CATS = [
+  { id: 'carriage', label: 'Carriage', re: /\b(hcl|acid|auto|transport|bhada|bhara|carriage|freight|tempo|thela)\b/i },
+  { id: 'consumables', label: 'Consumables', re: /\b(sabun|soap|surf|jhadu|broom|jar|water|glove|gloves|cloth|kapda|tape|bucket|mug|paper)\b/i },
+  { id: 'repair', label: 'Repairs', re: /\b(electric\w*|wire|rectif\w*|recitif\w*|mistri|mechanic|repair\w*|weld\w*|motor|pump|fitting)\b/i },
+  { id: 'food', label: 'Food and tea', re: /\b(tea|chai|nasta|nashta|snack\w*|food|khana)\b/i },
+  { id: 'service', label: 'Paid to a person' },
+  { id: 'other', label: 'Other' }
+];
+function cashCatLabel(id) { var c = CASH_CATS.find(function(x) { return x.id === id; }); return c ? c.label : 'Other'; }
+/* The kind a line's words read as. A line of two or more words with none the lists know, every one a word of letters, is
+   somebody paid by name (JAYNTO PAUL): the owner says what for. Nothing written is Other. */
+function cashCat(what) {
+  var w = String(what || '').trim();
+  if (!w) return 'other';
+  for (var i = 0; i < CASH_CATS.length; i++) if (CASH_CATS[i].re && CASH_CATS[i].re.test(w)) return CASH_CATS[i].id;
+  var words = w.split(/\s+/);
+  if (words.length >= 2 && words.length <= 4 && words.every(function(x) { return /^[a-z.]+$/i.test(x); })) return 'service';
+  return 'other';
+}
+
+var CASH_TOTAL_RE = /^(?:total|only|tot)\b\W*(?:rs\.?|₹)?\s*([\d,]+(?:\.\d+)?)\s*(?:\/-|only)?$/i;
+var CASH_LINE_RE = /^(?:(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?)?\s*(.*?)\s*(?:rs\.?|₹)?\s*([\d,]+(?:\.\d+)?)\s*(?:\/-)?$/i;
+/* Pure: the message's lines, its total, and what does not add up. `sentOn` is the day WhatsApp sent it, the week it is paid
+   back in (the Saturday on or after it). */
+function parseCashMessage(text, sentOn) {
+  var out = { lines: [], total: null, sum: 0, issues: [], sentOn: sentOn || null };
+  String(text || '').split('\n').forEach(function(raw, i) {
+    var t = raw.replace(/\s+/g, ' ').trim();
+    if (!t || /^[-–—_=*.\s]+$/.test(t)) return;
+    var tm = t.match(CASH_TOTAL_RE);
+    if (tm) { out.total = gstRound(parseFloat(tm[1].replace(/,/g, '')) || 0); return; }
+    var m = t.match(CASH_LINE_RE);
+    if (!m || !m[5]) { out.issues.push({ tone: 'warning', n: i + 1, text: '"' + t + '" has no amount: left out.' }); return; }
+    var date = m[1] ? isoFromDmy(m[1], m[2], m[3]) : null;
+    var what = m[4].replace(/^[\s\-–:]+|[\s\-–:]+$/g, '').trim();
+    var amount = gstRound(parseFloat(m[5].replace(/,/g, '')) || 0);
+    var ln = { n: i + 1, raw: raw.trim(), date: date, what: what, amount: amount, cat: cashCat(what) };
+    if (m[1] && !date) out.issues.push({ tone: 'warning', n: ln.n, text: '"' + m[1] + '/' + m[2] + '/' + m[3] + '" is not a day: the line is dated when the message was sent.' });
+    if (!what) out.issues.push({ tone: 'warning', n: ln.n, text: formatCurrency(amount) + (date ? ' on ' + formatDate(date) : '') + ' says what it was for nowhere: type it in.' });
+    out.lines.push(ln);
+    out.sum = gstRound(out.sum + amount);
+  });
+  if (out.total != null && Math.abs(out.total - out.sum) >= 0.5)
+    out.issues.push({ tone: 'danger', text: 'The lines add up to ' + formatCurrency(out.sum) + '; the message says ' + formatCurrency(out.total) + '.' });
+  return out;
+}
+/* Whether a message is a cash account: two lines with an amount or more and a total that they add up to, and nothing a roll,
+   stock or check-in reader takes. A total that does not add up is a cash account too (the review says so), as long as the
+   lines all end in an amount. */
+function cashLooksLike(text) {
+  var k = typeof relayKind === 'function' ? relayKind(text) : 'other';
+  if (k !== 'other' && k !== 'material') return false;
+  // His weekly payment message (PAYMENT, NASTA, his own cash, TOTAL) sums the payout up; it is not cash spent.
+  if (/\bpayment\b/i.test(text)) return false;
+  var p = parseCashMessage(text);
+  if (p.total == null || p.lines.length < 2) return false;
+  if (p.issues.some(function(x) { return /has no amount/.test(x.text); })) return false;
+  return Math.abs(p.total - p.sum) < 0.5 || p.lines.length >= 3;
+}
+
+function cashOut() { if (!Array.isArray(S.cashOut)) S.cashOut = []; return S.cashOut; }
+function cashPastes() { if (!Array.isArray(S.cashPastes)) S.cashPastes = []; return S.cashPastes; }
+/* A week's cash paid out, the entries the Saturday's payout pays back. */
+function cashForWeek(weekStart) {
+  return cashOut().filter(function(e) { return !e.voidedAt && e.week === weekStart; });
+}
+function cashWeekTotal(weekStart) {
+  return gstRound(cashForWeek(weekStart).reduce(function(s, e) { return s + (Number(e.amount) || 0); }, 0));
+}
+
+/* ---------- The review ---------- */
+var _cashReview = null;
+function cashReviewOpen(text, sentOn) {
+  var sent = sentOn || localDateStr();
+  var p = parseCashMessage(text, sent);
+  var hash = relayHash(text);
+  var seen = cashPastes().find(function(x) { return x.hash === hash && !x.voidedAt; });
+  _cashReview = { text: text, read: p, hash: hash, sentOn: sent, week: attWeekStartOf(sent), seen: seen || null };
+  dialogOpen(cashReviewHtml(), { dismiss: true });
+}
+function cashReviewHtml() {
+  var r = _cashReview, p = r.read, sat = isoAddDays(r.week, 6);
+  var opts = function(sel) { return CASH_CATS.map(function(c) { return '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + escHtml(c.label) + '</option>'; }).join(''); };
+  var rows = p.lines.map(function(ln, i) {
+    return '<div class="inv-row inv-row-2" data-cash-line="' + i + '">' +
+      '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap"><span class="inv-quote">' + escHtml(ln.raw) + '</span></span>' +
+      '<span class="inv-fields">' +
+      '<label class="inv-field"><span class="inv-field-label">For</span><input class="inv-input" data-cash-what="' + i + '" value="' + escHtml(ln.what) + '" autocomplete="off"' + (ln.what ? '' : ' aria-invalid="true"') + '></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" data-cash-cat="' + i + '">' + opts(ln.cat) + '</select></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Day</span><input class="inv-input" type="date" data-cash-date="' + i + '" value="' + escHtml(ln.date || '') + '"></label>' +
+      '<label class="inv-field"><span class="inv-field-label">Amount</span><input class="inv-input inv-input-num" type="number" step="0.01" min="0" inputmode="decimal" data-cash-amount="' + i + '" value="' + ln.amount + '"></label>' +
+      '</span></span></div>';
+  }).join('');
+  var issues = p.issues.map(function(x) { return '<div class="inv-callout inv-callout-' + (x.tone === 'danger' ? 'danger' : 'warning') + '">' + (x.n ? 'Line ' + x.n + ': ' : '') + escHtml(x.text) + '</div>'; }).join('');
+  var seen = r.seen ? '<div class="inv-callout inv-callout-danger" data-cash-seen>This message was saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.</div>' : '';
+  return '<div class="inv-dialog inv-dialog-wide" data-cash-review>' + dialogHeadHtml('Cash paid out') +
+    '<div class="inv-note">Sent ' + formatDate(r.sentOn) + '. Paid back with the payout of Sat ' + stockShortDate(sat) + ' (week ' + attPayWeekNumber(r.week) + ') and counted in its total.</div>' +
+    seen + issues + '<div class="inv-panel inv-panel-flush">' + rows +
+    uiFactRowHtml({ label: 'Total', value: formatCurrency(p.sum), sub: p.total != null ? 'the message says ' + formatCurrency(p.total) : 'no total written', attrs: ' data-cash-sum' }) + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invPayCashSave"' + (r.seen ? ' disabled' : '') + '>Save cash paid out</button></div></div>';
+}
+function cashReviewSave() {
+  var r = _cashReview, form = document.querySelector('[data-cash-review]');
+  if (!r || !form || r.seen) return;
+  var lines = r.read.lines.map(function(ln, i) {
+    var q = function(k) { var el = form.querySelector('[data-cash-' + k + '="' + i + '"]'); return el ? String(el.value).trim() : ''; };
+    return { what: q('what'), cat: q('cat') || ln.cat, date: q('date') || null, amount: gstRound(parseFloat(q('amount')) || 0), n: ln.n };
+  }).filter(function(ln) { return ln.amount > 0; });
+  if (!lines.length) { showToast('Nothing with an amount to save', 'error'); return; }
+  var blank = lines.find(function(ln) { return !ln.what; });
+  if (blank) { showToast('Line ' + blank.n + ': say what it was for', 'error'); return; }
+  if (!grdGate('payments', 'record cash paid out', cashReviewSave)) return;   // P1 (guard.js): money paid out
+  var by = typeof grdUserId === 'function' ? grdUserId() : null, at = Date.now();
+  var msgId = 'CSHM-' + at.toString(36) + Math.random().toString(36).slice(2, 5);
+  cashPastes().push({ id: msgId, text: r.text, hash: r.hash, sentOn: r.sentOn, week: r.week, at: at, by: by });
+  lines.forEach(function(ln) {
+    cashOut().push({ id: 'CSH-' + at.toString(36) + Math.random().toString(36).slice(2, 6), date: ln.date || r.sentOn, what: ln.what, amount: ln.amount,
+      cat: ln.cat, week: r.week, msgId: msgId, at: at, by: by });
+  });
+  var total = gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0));
+  saveState();
+  var form0 = document.querySelector('[data-cash-review]'), sc = form0 && form0.closest('.inv-scrim-dialog');
+  if (sc) { delete sc.dataset.typed; dialogCloseScrim(sc); }
+  _cashReview = null;
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast('Cash paid out saved: ' + formatCurrency(total) + ', in the payout of Sat ' + stockShortDate(isoAddDays(r.week, 6)));
+}
+async function cashVoid(id) {
+  var e = cashOut().find(function(x) { return x.id === id; });
+  if (!e || e.voidedAt) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void cash paid out'))) return;   // P1 (guard.js)
+  var reason = await uiPrompt({ title: 'Void this line', body: 'It is kept on the record, not deleted.', label: 'Why is it void?',
+    okLabel: 'Void it', required: true, requiredText: 'A void needs a reason.' });
+  if (reason == null || e.voidedAt) return;
+  reason = reason.trim();
+  if (!reason) { showToast('A void needs a reason', 'error'); return; }
+  e.voidedAt = Date.now();
+  e.voidReason = reason;
+  // A message whose every line is void can be pasted again.
+  var m = cashPastes().find(function(x) { return x.id === e.msgId; });
+  if (m && !cashOut().some(function(x) { return x.msgId === m.id && !x.voidedAt; })) m.voidedAt = Date.now();
+  saveState();
+  renderAttendance();
+  showToast('Voided');
+}
+
+/* Pay's card: the week's cash paid out, a line each with its kind and day, folded to its total. */
+function cashPayCardHtml(ws) {
+  var list = cashForWeek(ws);
+  if (!list.length) return '';
+  var total = cashWeekTotal(ws), kinds = {};
+  list.forEach(function(e) { kinds[e.cat] = (kinds[e.cat] || 0) + e.amount; });
+  var sub = Object.keys(kinds).map(function(k) { return cashCatLabel(k) + ' ' + formatCurrency(kinds[k]); }).join(' · ');
+  var rows = list.slice().sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); }).map(function(e) {
+    return uiFactRowHtml({ label: escHtml(e.what), sub: cashCatLabel(e.cat) + ' · ' + stockShortDate(e.date), value: formatCurrency(e.amount),
+      attrs: ' data-cash-row="' + escHtml(e.id) + '"',
+      actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayCashVoid" data-id="' + escHtml(e.id) + '">Void</button>' });
+  }).join('');
+  return '<div class="inv-panel inv-panel-flush" data-card="cashout"><div class="inv-panel-head"><span class="inv-panel-title">Cash paid out</span>' +
+    '<span class="inv-panel-meta">' + formatCurrency(total) + '</span></div>' +
+    '<div class="inv-note">Spent by the supervisor and paid back with the payout. ' + escHtml(sub) + '.</div>' + rows + '</div>';
+}
+
+function cashAction(action, btn) {
+  switch (action) {
+    case 'invPayCashSave': cashReviewSave(); return true;
+    case 'invPayCashVoid': cashVoid(btn.dataset.id); return true;
+  }
+  return false;
+}
 /* ===== TO-DO =====
    Home → Needs you (the To-do joined it), and a Windows 11 widget. The owner's own list,
    inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
@@ -39433,6 +39697,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   // A date the calendar lacks (31/09) reads as no date, and with no day it was sent either there is no day to put it
   // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
   var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
+  // A year slipped on the phone ("26/10/28/ IN TIME", sent on 26 Oct 2026; owner, 31 Oct 2026): a day another year names that
+  // falls within 60 days of the day it was sent (else today) in that day's year is read in it, and said. It had read as
+  // 26 Oct 2028, a day not come, and the roll was never saved.
+  var yearSlip = null;
+  if (dated) {
+    var refDay = sentOn || localDateStr(), near = isoFromDmy(dm[1], dm[2], refDay.slice(0, 4));
+    if (near && dated.slice(0, 4) !== refDay.slice(0, 4) && Math.abs(isoDaysBetween(near, refDay)) <= 60) { yearSlip = dated.slice(0, 4); dated = near; }
+  }
   out.date = dated || sentOn || null;
   // The night roll is sent the morning after (owner, 30 Oct 2026: "It is sent retrospectively in the morning"): a roll with no
   // date, sent before noon, whose first heading is a night, is that night's, the day before the one it was sent.
@@ -39454,6 +39726,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   else if (nightAfter) out.issues.push({ tone: 'amber', text: 'The roll carries no date and was sent in the morning; its night is read as the night before (' + out.date + ').' });
   else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
+  else if (yearSlip) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" names ' + yearSlip + '; read as ' + formatDate(dated) + ', the year it was ' + (sentOn ? 'sent' : 'pasted') + ' in.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/?/, ''));
   var st = {
     mode: out.kind,
@@ -39621,6 +39894,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
+    // A heading that is a night or a span ("NIGHT HOLD-8 PM TO 6 AM") is a heading, though its first word is a hand's first name
+    // (the roster's "Night Guard", 31 Oct 2026): read as him, the night hold's crew stayed on the slot above, out at 5 or 8 PM.
+    // Only the whole name written ("NIGHT GUARD") is the person.
+    if (hit && !numbered) {
+      var headK = relaySlotOrArea(bare);
+      if (headK && headK.slot && (headK.night || (headK.start != null && headK.end != null)) &&
+          relayKey(words.slice(0, hit.used).join('')) !== relayKey(hit.w.name)) hit = null;
+    }
     var isHeaderish = !numbered && !hit && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {
@@ -39757,6 +40038,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     }
     var absent = (st.sec && st.sec.absent) || /\babsent\b|^A+\b|\bA$/i.test(rest);
     var tms = relayTimes(rest);
+    // "LAL NIGHT" on an in-time roll (owner's rolls of 29 and 30 Oct 2026, under the absent list or the office): the hand works the
+    // night, not the 8:30 shift. Not absent and not on the shift: their times come from the night on the out-time roll.
+    if (st.mode === 'in' && /\bnight\b/i.test(rest) && !tms.length) {
+      p.st = 'P'; p.nightNote = true;
+      ln.role = 'name'; ln.person = w.id; ln.read = w.name + ': on the night';
+      out.issues.push({ tone: 'info', n: ln.n, text: w.name + ' is on the night, not the 8:30 shift: the out-time roll\'s night gives the times.' });
+      return;
+    }
     if (absent) {
       p.st = 'A';
     } else {
@@ -39780,12 +40069,17 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         else if (st.slot && st.slot.end != null) p.outSlot = st.slot.end;
         // A hand under a line's scheduled night came in for it: with no in-time of their own on the day (no 8:30 shift, no
         // mark), they are in at the night's start, never at 8:30 (21 hours to 6 AM).
-        if (st.slot && st.slot.sched && st.slot.rangeStart != null) p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
+        // So did a hand under a night hold that writes its start ("NIGHT HOLD 6 PM TO 6 AM"), scheduled or not.
+        if (st.slot && st.slot.rangeStart != null && (st.slot.sched || (st.slot.end != null && st.slot.end > 1440 && st.slot.rangeStart >= 960)))
+          p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
       } else {
         var slotIn = st.slot && st.slot.start != null ? st.slot.start : null;
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
         else if (tms.length === 1) {
-          if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
+          // "BIRSA 12 PM OUT" under the 8:30 shift (owner's roll of 27 Oct 2026) is noon: the shop's "12 pm" for midnight is a
+          // night block's. Read as midnight, a hand who left at noon was paid 15 hours.
+          if (tms[0].ap === 'pm' && tms[0].h === 12 && st.slot && st.slot.start === RELAY_GENERAL) p.outExp = 720;
+          else if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
           else p.inExp = relayMin(p.inExp, tms[0].min);
         }
         if (slotIn != null) p.inSlot = relayMin(p.inSlot, slotIn);
@@ -39874,6 +40168,9 @@ function relayPersonMark(p, w, restOut) {
     if (p.outExp != null) outMin = p.outExp; else { outMin = RELAY_GATE[1]; said = false; }
   } else {
     inMin = relayMin(p.inExp, p.inSlot);
+    // On the night (the in-time roll's "NAME NIGHT") with no night read yet: present, no times and no hours until the out-time roll
+    // gives the night's (an in-time kept now would stand against the night's start when that roll is pasted).
+    if (inMin == null && p.nightIn == null && p.nightNote) return { st: 'P', ot: 0, hours: 0, area: area, inMin: null, outMin: null };
     if (inMin == null) inMin = p.nightIn != null ? p.nightIn : RELAY_GENERAL;
     if (p.outExp != null) outMin = p.outExp;
     else if (p.outSlot != null) outMin = p.outSlot;
@@ -39994,6 +40291,7 @@ function relayPlan(rv) {
         var p = d.people[id], e = t.people[id];
         if (!e) { t.people[id] = JSON.parse(JSON.stringify(p)); return; }
         if (p.st === 'P') e.st = 'P';
+        if (p.nightNote) e.nightNote = true;
         ['inExp', 'inSlot', 'nightIn'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
         ['outExp', 'outSlot'].forEach(function(k) { if (p[k] != null) e[k] = p[k]; });
         if (p.generalArea) e.generalArea = p.generalArea;
@@ -40219,6 +40517,9 @@ function relayRead() {
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   // Check-ins from the office QR (checkin.js) have a review of their own; beside rolls, the roll's check offers it.
   if (!rolls.length && checkins) { ckReviewOpen(text, { prod: prod.length, stock: stock.length }); return; }
+  // The supervisor's cash paid out (cashout.js): a message of amounts and the total they add up to, paid back with the payout.
+  var cashMsg = !rolls.length && typeof cashLooksLike === 'function' ? msgs.find(function(m) { return cashLooksLike(m.text); }) : null;
+  if (cashMsg) { cashReviewOpen(cashMsg.text, cashMsg.sentOn); return; }
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
   // A stock message belongs to Stock's own review.
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }
@@ -40795,8 +41096,14 @@ function addDescribe(text) {
     m.read.items.forEach(function(it) { g.counts[it.kind] = (g.counts[it.kind] || 0) + 1; });
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
+  // The supervisor's cash paid out (cashout.js), when no roll came with it: Pay counts it in the week's payout.
+  var cashM = !rolls && typeof cashLooksLike === 'function' ? msgs.filter(function(m) { return cashLooksLike(m.text); }) : [];
+  cashM.forEach(function(m) {
+    var p = parseCashMessage(m.text, m.sentOn);
+    d.items.push({ kind: 'cash', title: 'Cash paid out', meta: todoPlural(p.lines.length, 'line') + ' · ' + formatCurrency(p.sum) });
+  });
   if (cks.length) d.items.push({ kind: 'checkin', title: 'Office QR check-ins', meta: addWhen(cks.map(function(c) { return c.iso; })) + ' · ' + todoPlural(cks.length, 'check-in') });
-  d.where = rolls || cks.length ? 'People' : prod ? 'Production' : stock ? 'Stock' : '';
+  d.where = rolls || cks.length ? 'People' : cashM.length ? 'Pay' : prod ? 'Production' : stock ? 'Stock' : '';
   // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
   // and the stock beside a roll was never read (QA3-10).
   if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);

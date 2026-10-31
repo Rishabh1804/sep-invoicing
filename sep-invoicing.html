@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="f6fb23bd">
+<meta name="app-build" content="7e586681">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -28064,7 +28064,11 @@ function payPeriodEnd(w, start) { return payIsWeekly(w) ? isoAddDays(start, 6) :
 /* labourForRange once per range within one drawing: every worker's carry reads the same weeks and months. */
 function payLabMemo() {
   var memo = {};
-  return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
+  // A pay week (Sunday to Saturday) is read with its cut-off (payWeekLab), as the payout is; any other range as it falls.
+  return function(from, to) {
+    var k = from + '|' + to;
+    return memo[k] || (memo[k] = attParseIso(from).getDay() === 0 && to === isoAddDays(from, 6) ? payWeekLab(from) : labourForRange(from, to));
+  };
 }
 /* Where a monthly hand's balance starts (owner's month, `S.labour.payCarryFrom`, 'YYYY-MM'). The bank's legs go back months
    before anything here was set against them (the statement from January, the slips from April), so they never start a balance
@@ -28238,10 +28242,63 @@ function payGapText(gp) {
   return stockShortDate(gp.date) + ' · on the ' + relayClockLabel(relayParseHhmm(gp.from)) + ' – ' + relayClockLabel(relayParseHhmm(gp.to)) + ' block, ' + gp.why;
 }
 
+/* ---------- The payout's cut-off: Saturday at 5 PM ----------
+   Owner, 31 Oct 2026: the 24th's night shift (three hands from Saturday evening to Sunday morning) was in neither payout, "so it
+   seems payout cutoff time is Sat 17-00 and everything later than that goes to the next week's payout". The weekly hands are paid
+   on Saturday for the work done to 5 PM that day; what they work after it, the EXTRA booked to a block that starts after it, and
+   that evening's snacks are the next week's. Worked out from the Saturday's own marks, never stored: a mark stays on its day. */
+var PAY_CUTOFF = 1020;   // 5 PM on the Saturday
+/* What a Saturday's work after 5 PM comes to: {byWorker: {id: amount}, hours: {id: h}, extra, extraHours, snacks}. The weekly
+   tiers only (the monthly hands are paid by the month): an hourly hand's whole hours after 5 PM at their rate, a daily hand's
+   overtime after it. A block of the evening or the night (from 5 PM, or after midnight) is its EXTRA. */
+function payLate(sat) {
+  var out = { byWorker: {}, hours: {}, extra: 0, extraHours: 0, snacks: 0 };
+  var rec = (S.attendance || {})[sat];
+  if (!rec || attParseIso(sat).getDay() !== 6) return out;
+  var day = labourForRange(sat, sat), cfg = labourCfg();
+  Object.keys(rec.marks || {}).forEach(function(id) {
+    var m = rec.marks[id], w = staffById(id), b = day.byWorker[id];
+    if (!m || !w || !b || !payIsWeekly(w) || (m.st !== 'P' && m.st !== 'H')) return;
+    var o = Number(m.outMin), i = m.inMin != null ? Number(m.inMin) : RELAY_GENERAL;
+    if (!(o > PAY_CUTOFF)) return;
+    var after = Math.max(0, Math.floor((o - Math.max(i, PAY_CUTOFF)) / 60)), amt = 0;
+    if (!after) return;
+    if (w.comp === 'hourly' && b.hours > 0) { after = Math.min(after, b.hours); amt = b.total / b.hours * after; }
+    else if (b.otHours > 0) { after = Math.min(after, b.otHours); amt = b.ot / b.otHours * after; }
+    if (amt > 0) { out.byWorker[id] = gstRound(amt); out.hours[id] = after; }
+  });
+  (rec.extra || []).forEach(function(x) {
+    var h = x.hours || 0, a = x.kind === 'block' ? relayParseHhmm(x.from) : null;
+    if (h > 0 && a != null && (a >= PAY_CUTOFF || a < 240)) { out.extraHours += h; out.extra += h * cfg.extraRate; }
+  });
+  out.extra = gstRound(out.extra);
+  out.snacks = paySnacks(sat, sat).amount;
+  return out;
+}
+/* A pay week's labour as the Saturday's cash pays it: labourForRange over Sunday to Saturday, less the Saturday's work after 5 PM,
+   plus the Saturday before's (payLate). The weekly hands' byWorker, total and extra move; the monthly hands' do not. */
+function payWeekLab(weekStart) {
+  var sat = isoAddDays(weekStart, 6), lab = labourForRange(weekStart, sat);
+  var less = payLate(sat), more = payLate(isoAddDays(weekStart, -1));
+  var move = function(late, sign) {
+    Object.keys(late.byWorker).forEach(function(id) {
+      var w = staffById(id), b = lab.byWorker[id] || (lab.byWorker[id] = { id: w.id, name: w.name, comp: w.comp, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0, restDays: 0, total: 0 });
+      var a = late.byWorker[id] * sign, h = late.hours[id] * sign;
+      b.total = gstRound(b.total + a);
+      if (w.comp === 'hourly') { b.base = gstRound(b.base + a); b.hours += h; } else { b.ot = gstRound(b.ot + a); b.otHours += h; }
+      lab.total = gstRound((lab.total || 0) + a);
+    });
+    lab.extra = gstRound(lab.extra + late.extra * sign); lab.extraHours += late.extraHours * sign;
+  };
+  move(less, -1); move(more, 1);
+  lab.cutoff = { before: more, after: less };
+  return lab;
+}
+
 /* One pay week's payout: the weekly tiers' earnings, the EXTRA pool and the snacks, as the Saturday's cash pays them. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
-  var lab = labourForRange(weekStart, sat);
+  var lab = payWeekLab(weekStart);
   var workers = 0;
   Object.keys(lab.byWorker).forEach(function(id) {
     var b = lab.byWorker[id];
@@ -28252,7 +28309,9 @@ function payWeek(weekStart) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
     if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
+  // The snacks of the Saturday before's evening are this payout's, this Saturday's evening the next one's (the cut-off, payLate).
   var snacks = paySnacks(weekStart, sat);
+  snacks.amount = gstRound(snacks.amount - lab.cutoff.after.snacks + lab.cutoff.before.snacks);
   return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks,
     total: gstRound(workers + lab.extra + snacks.amount), paid: gstRound(paid),
     recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
@@ -28281,6 +28340,10 @@ function payForecast(weekStart) {
       Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
       sunPay += one.extra + paySnacks(d, d).amount;
     });
+    // The Saturday before's evening (the cut-off, payLate) is this payout's but no day of this week: it does not repeat either.
+    var bf = wk.lab.cutoff.before;
+    Object.keys(bf.byWorker).forEach(function(id) { sunPay += bf.byWorker[id]; });
+    sunPay += bf.extra + bf.snacks;
     var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
@@ -28307,7 +28370,7 @@ function payDue(weekStart) {
   // week of the month it closes. Read off the Saturday, the last week of September showed October's due at nothing and
   // hid September's, which is the one being settled.
   var mFrom = payMonthStart(weekStart), mTo = payMonthEnd(weekStart);
-  var wk = labourForRange(weekStart, sat);
+  var wk = payWeekLab(weekStart);
   var mo = labourForRange(mFrom, mTo > today && mFrom <= today ? today : mTo);
   // The active roster, and anyone who has left but earned or was paid in the period: their final week must be payable.
   var pool = staffActive().slice(), poolLab = payLabMemo();
@@ -39433,6 +39496,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   // A date the calendar lacks (31/09) reads as no date, and with no day it was sent either there is no day to put it
   // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
   var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
+  // A year slipped on the phone ("26/10/28/ IN TIME", sent on 26 Oct 2026; owner, 31 Oct 2026): a day another year names that
+  // falls within 60 days of the day it was sent (else today) in that day's year is read in it, and said. It had read as
+  // 26 Oct 2028, a day not come, and the roll was never saved.
+  var yearSlip = null;
+  if (dated) {
+    var refDay = sentOn || localDateStr(), near = isoFromDmy(dm[1], dm[2], refDay.slice(0, 4));
+    if (near && dated.slice(0, 4) !== refDay.slice(0, 4) && Math.abs(isoDaysBetween(near, refDay)) <= 60) { yearSlip = dated.slice(0, 4); dated = near; }
+  }
   out.date = dated || sentOn || null;
   // The night roll is sent the morning after (owner, 30 Oct 2026: "It is sent retrospectively in the morning"): a roll with no
   // date, sent before noon, whose first heading is a night, is that night's, the day before the one it was sent.
@@ -39454,6 +39525,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   else if (nightAfter) out.issues.push({ tone: 'amber', text: 'The roll carries no date and was sent in the morning; its night is read as the night before (' + out.date + ').' });
   else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
+  else if (yearSlip) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" names ' + yearSlip + '; read as ' + formatDate(dated) + ', the year it was ' + (sentOn ? 'sent' : 'pasted') + ' in.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/?/, ''));
   var st = {
     mode: out.kind,
@@ -39621,6 +39693,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
+    // A heading that is a night or a span ("NIGHT HOLD-8 PM TO 6 AM") is a heading, though its first word is a hand's first name
+    // (the roster's "Night Guard", 31 Oct 2026): read as him, the night hold's crew stayed on the slot above, out at 5 or 8 PM.
+    // Only the whole name written ("NIGHT GUARD") is the person.
+    if (hit && !numbered) {
+      var headK = relaySlotOrArea(bare);
+      if (headK && headK.slot && (headK.night || (headK.start != null && headK.end != null)) &&
+          relayKey(words.slice(0, hit.used).join('')) !== relayKey(hit.w.name)) hit = null;
+    }
     var isHeaderish = !numbered && !hit && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {
@@ -39757,6 +39837,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     }
     var absent = (st.sec && st.sec.absent) || /\babsent\b|^A+\b|\bA$/i.test(rest);
     var tms = relayTimes(rest);
+    // "LAL NIGHT" on an in-time roll (owner's rolls of 29 and 30 Oct 2026, under the absent list or the office): the hand works the
+    // night, not the 8:30 shift. Not absent and not on the shift: their times come from the night on the out-time roll.
+    if (st.mode === 'in' && /\bnight\b/i.test(rest) && !tms.length) {
+      p.st = 'P'; p.nightNote = true;
+      ln.role = 'name'; ln.person = w.id; ln.read = w.name + ': on the night';
+      out.issues.push({ tone: 'info', n: ln.n, text: w.name + ' is on the night, not the 8:30 shift: the out-time roll\'s night gives the times.' });
+      return;
+    }
     if (absent) {
       p.st = 'A';
     } else {
@@ -39780,12 +39868,17 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         else if (st.slot && st.slot.end != null) p.outSlot = st.slot.end;
         // A hand under a line's scheduled night came in for it: with no in-time of their own on the day (no 8:30 shift, no
         // mark), they are in at the night's start, never at 8:30 (21 hours to 6 AM).
-        if (st.slot && st.slot.sched && st.slot.rangeStart != null) p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
+        // So did a hand under a night hold that writes its start ("NIGHT HOLD 6 PM TO 6 AM"), scheduled or not.
+        if (st.slot && st.slot.rangeStart != null && (st.slot.sched || (st.slot.end != null && st.slot.end > 1440 && st.slot.rangeStart >= 960)))
+          p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
       } else {
         var slotIn = st.slot && st.slot.start != null ? st.slot.start : null;
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
         else if (tms.length === 1) {
-          if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
+          // "BIRSA 12 PM OUT" under the 8:30 shift (owner's roll of 27 Oct 2026) is noon: the shop's "12 pm" for midnight is a
+          // night block's. Read as midnight, a hand who left at noon was paid 15 hours.
+          if (tms[0].ap === 'pm' && tms[0].h === 12 && st.slot && st.slot.start === RELAY_GENERAL) p.outExp = 720;
+          else if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
           else p.inExp = relayMin(p.inExp, tms[0].min);
         }
         if (slotIn != null) p.inSlot = relayMin(p.inSlot, slotIn);
@@ -39874,6 +39967,9 @@ function relayPersonMark(p, w, restOut) {
     if (p.outExp != null) outMin = p.outExp; else { outMin = RELAY_GATE[1]; said = false; }
   } else {
     inMin = relayMin(p.inExp, p.inSlot);
+    // On the night (the in-time roll's "NAME NIGHT") with no night read yet: present, no times and no hours until the out-time roll
+    // gives the night's (an in-time kept now would stand against the night's start when that roll is pasted).
+    if (inMin == null && p.nightIn == null && p.nightNote) return { st: 'P', ot: 0, hours: 0, area: area, inMin: null, outMin: null };
     if (inMin == null) inMin = p.nightIn != null ? p.nightIn : RELAY_GENERAL;
     if (p.outExp != null) outMin = p.outExp;
     else if (p.outSlot != null) outMin = p.outSlot;
@@ -39994,6 +40090,7 @@ function relayPlan(rv) {
         var p = d.people[id], e = t.people[id];
         if (!e) { t.people[id] = JSON.parse(JSON.stringify(p)); return; }
         if (p.st === 'P') e.st = 'P';
+        if (p.nightNote) e.nightNote = true;
         ['inExp', 'inSlot', 'nightIn'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
         ['outExp', 'outSlot'].forEach(function(k) { if (p[k] != null) e[k] = p[k]; });
         if (p.generalArea) e.generalArea = p.generalArea;

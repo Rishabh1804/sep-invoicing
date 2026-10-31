@@ -397,6 +397,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   // A date the calendar lacks (31/09) reads as no date, and with no day it was sent either there is no day to put it
   // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
   var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
+  // A year slipped on the phone ("26/10/28/ IN TIME", sent on 26 Oct 2026; owner, 31 Oct 2026): a day another year names that
+  // falls within 60 days of the day it was sent (else today) in that day's year is read in it, and said. It had read as
+  // 26 Oct 2028, a day not come, and the roll was never saved.
+  var yearSlip = null;
+  if (dated) {
+    var refDay = sentOn || localDateStr(), near = isoFromDmy(dm[1], dm[2], refDay.slice(0, 4));
+    if (near && dated.slice(0, 4) !== refDay.slice(0, 4) && Math.abs(isoDaysBetween(near, refDay)) <= 60) { yearSlip = dated.slice(0, 4); dated = near; }
+  }
   out.date = dated || sentOn || null;
   // The night roll is sent the morning after (owner, 30 Oct 2026: "It is sent retrospectively in the morning"): a roll with no
   // date, sent before noon, whose first heading is a night, is that night's, the day before the one it was sent.
@@ -418,6 +426,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   else if (nightAfter) out.issues.push({ tone: 'amber', text: 'The roll carries no date and was sent in the morning; its night is read as the night before (' + out.date + ').' });
   else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
+  else if (yearSlip) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" names ' + yearSlip + '; read as ' + formatDate(dated) + ', the year it was ' + (sentOn ? 'sent' : 'pasted') + ' in.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/?/, ''));
   var st = {
     mode: out.kind,
@@ -585,6 +594,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
+    // A heading that is a night or a span ("NIGHT HOLD-8 PM TO 6 AM") is a heading, though its first word is a hand's first name
+    // (the roster's "Night Guard", 31 Oct 2026): read as him, the night hold's crew stayed on the slot above, out at 5 or 8 PM.
+    // Only the whole name written ("NIGHT GUARD") is the person.
+    if (hit && !numbered) {
+      var headK = relaySlotOrArea(bare);
+      if (headK && headK.slot && (headK.night || (headK.start != null && headK.end != null)) &&
+          relayKey(words.slice(0, hit.used).join('')) !== relayKey(hit.w.name)) hit = null;
+    }
     var isHeaderish = !numbered && !hit && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {
@@ -721,6 +738,14 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     }
     var absent = (st.sec && st.sec.absent) || /\babsent\b|^A+\b|\bA$/i.test(rest);
     var tms = relayTimes(rest);
+    // "LAL NIGHT" on an in-time roll (owner's rolls of 29 and 30 Oct 2026, under the absent list or the office): the hand works the
+    // night, not the 8:30 shift. Not absent and not on the shift: their times come from the night on the out-time roll.
+    if (st.mode === 'in' && /\bnight\b/i.test(rest) && !tms.length) {
+      p.st = 'P'; p.nightNote = true;
+      ln.role = 'name'; ln.person = w.id; ln.read = w.name + ': on the night';
+      out.issues.push({ tone: 'info', n: ln.n, text: w.name + ' is on the night, not the 8:30 shift: the out-time roll\'s night gives the times.' });
+      return;
+    }
     if (absent) {
       p.st = 'A';
     } else {
@@ -744,12 +769,17 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         else if (st.slot && st.slot.end != null) p.outSlot = st.slot.end;
         // A hand under a line's scheduled night came in for it: with no in-time of their own on the day (no 8:30 shift, no
         // mark), they are in at the night's start, never at 8:30 (21 hours to 6 AM).
-        if (st.slot && st.slot.sched && st.slot.rangeStart != null) p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
+        // So did a hand under a night hold that writes its start ("NIGHT HOLD 6 PM TO 6 AM"), scheduled or not.
+        if (st.slot && st.slot.rangeStart != null && (st.slot.sched || (st.slot.end != null && st.slot.end > 1440 && st.slot.rangeStart >= 960)))
+          p.nightIn = relayMin(p.nightIn, st.slot.rangeStart);
       } else {
         var slotIn = st.slot && st.slot.start != null ? st.slot.start : null;
         if (tms.length >= 2) { p.inExp = relayMin(p.inExp, tms[0].min); p.outExp = relayOutMin(tms[tms.length - 1]); }
         else if (tms.length === 1) {
-          if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
+          // "BIRSA 12 PM OUT" under the 8:30 shift (owner's roll of 27 Oct 2026) is noon: the shop's "12 pm" for midnight is a
+          // night block's. Read as midnight, a hand who left at noon was paid 15 hours.
+          if (tms[0].ap === 'pm' && tms[0].h === 12 && st.slot && st.slot.start === RELAY_GENERAL) p.outExp = 720;
+          else if (tms[0].ap === 'pm' || tms[0].min >= 720) p.outExp = relayOutMin(tms[0]);
           else p.inExp = relayMin(p.inExp, tms[0].min);
         }
         if (slotIn != null) p.inSlot = relayMin(p.inSlot, slotIn);
@@ -838,6 +868,9 @@ function relayPersonMark(p, w, restOut) {
     if (p.outExp != null) outMin = p.outExp; else { outMin = RELAY_GATE[1]; said = false; }
   } else {
     inMin = relayMin(p.inExp, p.inSlot);
+    // On the night (the in-time roll's "NAME NIGHT") with no night read yet: present, no times and no hours until the out-time roll
+    // gives the night's (an in-time kept now would stand against the night's start when that roll is pasted).
+    if (inMin == null && p.nightIn == null && p.nightNote) return { st: 'P', ot: 0, hours: 0, area: area, inMin: null, outMin: null };
     if (inMin == null) inMin = p.nightIn != null ? p.nightIn : RELAY_GENERAL;
     if (p.outExp != null) outMin = p.outExp;
     else if (p.outSlot != null) outMin = p.outSlot;
@@ -958,6 +991,7 @@ function relayPlan(rv) {
         var p = d.people[id], e = t.people[id];
         if (!e) { t.people[id] = JSON.parse(JSON.stringify(p)); return; }
         if (p.st === 'P') e.st = 'P';
+        if (p.nightNote) e.nightNote = true;
         ['inExp', 'inSlot', 'nightIn'].forEach(function(k) { if (p[k] != null) e[k] = e[k] == null ? p[k] : Math.min(e[k], p[k]); });
         ['outExp', 'outSlot'].forEach(function(k) { if (p[k] != null) e[k] = p[k]; });
         if (p.generalArea) e.generalArea = p.generalArea;

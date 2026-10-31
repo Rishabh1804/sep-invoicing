@@ -4730,6 +4730,26 @@ lists every one with **Forget**. Times are learnt only for a heading with words 
 crew went home, and one day's exception must not move every day's block. The paste review has no area or time controls,
 so corrections are taken where they are made, on the saved day.
 
+### The week the rolls were set against the payout (31 Oct 2026)
+The owner set the book, corrected by hand, against Shyam's Saturday cash for 25–31 Oct (*"We were way off"*; P251). Read from the rolls,
+five things had gone wrong; each is fixed, and the week's payout read from the owner's book now lands ₹79 from the cash paid.
+- **A night-hold heading is a heading** (relay.js): *"NIGHT HOLD-8 PM TO 6 AM"* had been read as the roster's *Night Guard*, whose first
+  name nobody else has, so the hands under it stayed on the slot above, out at 5 or 8 PM (14 h where they worked 24). A line that reads
+  as a night or a span is a person only where the whole name is written.
+- **A hand under a night hold that writes its start is in at it**, scheduled or not (`nightIn`), and **"NAME NIGHT" on an in-time roll**
+  (under the absent list or a post) is on the night, not the 8:30 shift: present with no times until the out-time roll's night gives them
+  (`nightNote`), 6 PM to 6 AM, 12 h (it read 8:30 AM to 6 AM, 21 h, or absent).
+- **A roll whose year slipped on the phone** (*"26/10/28/IN TIME"*, sent in 2026) is read in the year it was sent (else pasted), within 60
+  days, and said: it had read as a day in 2028 and was never saved (T-IS).
+- **"BIRSA 12 PM OUT" on the 8:30 shift is noon**: the shop's *12 pm* for midnight is a night block's. Read as midnight, 3 h paid as 15.
+- **The payout's cut-off is Saturday at 5 PM** (owner: *"it seems payout cutoff time is Sat 17-00 and everything later than that goes to
+  the next week's payout"*; `payLate`, `payWeekLab`, payroll.js): the Saturday's work after 5 PM (an hourly hand's hours past it, a daily
+  hand's overtime past it), the EXTRA of a block starting after it and that evening's snacks are the next week's, read off the Saturday's
+  own marks and never moved off its day. The payout, a weekly hand's due, the slip and the carry read it; the month's labour does not.
+  The 24th's night (three hands, EXTRA 39 h) had been in neither payout.
+- **Found, not the parser's**: the 29th's out-time roll was never pasted (the day typed by hand missed four hands' 8 PM and one hand's
+  night), and the night schedule in the book runs 5:30 PM to 8:30 AM where the rolls and the owner's corrections end the night at 6 AM.
+
 ### Shifts by line: the night shift
 Owner, 29 Oct 2026: a night shift on VAT A1 from that day, *"Build it as a schedule per line with a start date, read by attendance,
 pay, EXTRA, production, efficiency, power, capacity and the planner"*; then, of how it runs: 5 PM to 8:30 AM paid as continuous work

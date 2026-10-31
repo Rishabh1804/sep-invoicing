@@ -172,6 +172,12 @@ function mvRead(r, text, kind) {
         push(ln.raw, rd, ln.what ? '' : 'warning');
         out.records.push({ key: (ln.what || 'no word') + (ln.date ? ' · ' + formatDate(ln.date) : ''), text: formatCurrency(ln.amount) });
       });
+      // The total written under them is read too: it is what the lines are checked against.
+      String(text).split('\n').forEach(function(x) {
+        var t = x.trim();
+        if (t && CASH_TOTAL_RE.test(t.replace(/\s+/g, ' ')) && c.total != null)
+          push(t, 'The total: ' + formatCurrency(c.total) + (Math.abs(c.total - c.sum) < 0.5 ? ', the lines add up to it' : ''), Math.abs(c.total - c.sum) < 0.5 ? '' : 'danger');
+      });
       c.issues.forEach(function(x) { out.issues.push({ tone: mvTone(x.tone) || 'warning', text: (x.n ? 'Line ' + x.n + ': ' : '') + x.text }); });
     }
   } catch (e) {
@@ -183,6 +189,11 @@ function mvRead(r, text, kind) {
     out.lines.forEach(function(l) { l.raw.split('\n').forEach(function(x) { covered[x.trim()] = true; }); });
     var extra = String(text).split('\n').map(function(x) { return x.trim(); }).filter(function(x) { return x && !covered[x]; });
     if (extra.length && out.lines.length) extra.forEach(function(x) { out.lines.push({ raw: x, read: '', tone: '' }); });
+    // In the order the message has them (a line not read sat between two that were).
+    var src = String(text).split('\n').map(function(x) { return x.trim(); });
+    var at = function(l) { var i = src.indexOf(String(l.raw).split('\n')[0].trim()); return i < 0 ? 1e9 : i; };
+    out.lines = out.lines.map(function(l, i) { return { l: l, i: i, at: at(l) }; })
+      .sort(function(a, b) { return a.at - b.at || a.i - b.i; }).map(function(x) { return x.l; });
   }
   if (!out.reader || !out.lines.length) {
     out.lines = String(text).split('\n').map(function(x) { return x.trim(); }).filter(Boolean).map(function(x) { return { raw: x, read: '', tone: '' }; });
@@ -302,7 +313,7 @@ function mvVerdictHtml(list, filtered) {
   var saved = shown.filter(function(r) { return r.status === 'saved'; }).length;
   var asks = shown.filter(mvAsks).length;
   var fresh = shown.filter(function(r) { return r.status === 'new'; }).length;
-  var screen = 'Messages · ' + todoPlural(shown.length, 'kept') + (filtered ? ' · filtered' : '');
+  var screen = 'Messages · ' + shown.length + ' kept' + (filtered ? ' · filtered' : '');
   if (!all.length) return uiVerdictHtml({ screen: 'Messages', tone: 'neutral', verdict: 'No message kept yet', key: 'pageMessages',
     facts: ['every paste is kept from now on'] });
   var tone = asks ? 'danger' : notread ? 'warning' : fresh ? 'info' : 'ok';
@@ -430,23 +441,13 @@ function mvMessageHtml(r, phone) {
       '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>'
     : paneHeadHtml('<span class="inv-panel-title">' + escHtml(title) + '</span>', 'invMsgClose');
   var conf = r.conf != null ? Math.round(r.conf * 100) + '%' : '';
-  var senderHtml = typeof mpSenderHtml === 'function' && r.sentBy ? (function() { try { return mpSenderHtml(r.sentBy) || ''; } catch (e) { return ''; } })() : '';
   h += '<div class="inv-panel inv-panel-flush" data-mv-message="' + escHtml(r.id) + '">' +
-    uiFactRowHtml({ label: 'Sent', value: mvDayOf(r) ? formatDate(mvDayOf(r)) : '', sub: (r.sentBy || 'no sender') + ', ' + mvTimeText(r) + (r.edited ? ', edited in WhatsApp' : ''),
-      // How the sender sends messages (msgprofile.js): their card, where the profile is loaded.
+    uiFactRowHtml({ label: 'Sent', value: (mvDayOf(r) ? formatDate(mvDayOf(r)) + ', ' : '') + mvTimeText(r), sub: (r.sentBy || 'no sender') + (r.edited ? ', edited in WhatsApp' : ''),
+      // How the sender sends messages (msgprofile.js): their card in a dialog, a fact about them and not about this message.
       actions: r.sentBy && typeof mpAction === 'function' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgProfile" data-sender="' + escHtml(r.sentBy) + '">Sender’s card</button>' : '' }) +
     uiFactRowHtml({ label: 'Kind', value: msgKindLabel(r.kind), sub: (r.fix ? 'set by hand' : (r.why || 'sorted')) + (conf && !r.fix ? ', ' + conf + ' sure' : '') + (mvLike(r) ? ', looks like ' + msgKindLabel(mvLike(r)).toLowerCase() : ''), attrs: ' data-mv-kind-now="' + escHtml(r.kind) + '"' }) +
     uiFactRowHtml({ label: 'Status', value: st.word, sub: r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
-    '</div>' + (senderHtml ? '<div data-mv-sender>' + senderHtml + '</div>' : '');
-  // The kind corrected, or the message set aside as no report.
-  h += '<div class="inv-panel" data-mv-correct><div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="mvFixKind">It is</label>' +
-    '<select class="inv-select" id="mvFixKind" data-mv-fix="' + escHtml(r.id) + '">' + MSG_KINDS.map(function(k) {
-      return '<option value="' + k.id + '"' + (k.id === r.kind ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
-    }).join('') + '</select></div></div>' +
-    '<div class="inv-toolbar inv-mt-8">' + (r.status === 'skipped'
-      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgReport" data-id="' + escHtml(r.id) + '">It is a report</button>'
-      : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgSkip" data-id="' + escHtml(r.id) + '">Not a report</button>') +
-    (_mvEdit && _mvEdit.id === r.id ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgEdit" data-id="' + escHtml(r.id) + '">Edit the text</button>') + '</div></div>';
+    '</div>';
   if (_mvEdit && _mvEdit.id === r.id) h += mvEditHtml(r);
   else if (reader && r.status !== 'skipped') {
     h += '<div class="inv-panel" data-mv-handoff><button class="inv-btn inv-btn-primary inv-btn-block" data-action="invMsgHandoff" data-id="' + escHtml(r.id) + '">' +
@@ -459,10 +460,21 @@ function mvMessageHtml(r, phone) {
     uiMoreHtml('mv-q-' + r.id, qs.map(function(x) { return '<div class="inv-row inv-row-auto"><div class="inv-row-main"><div class="inv-callout inv-callout-' + x.tone + '" data-mv-issue="' + x.tone + '">' + escHtml(x.text) + '</div></div></div>'; }), { n: 10, noun: 'questions' }) + '</div>';
   h += '<div class="inv-panel inv-panel-flush" data-mv-lines><div class="inv-panel-head"><span class="inv-panel-title">The message, line by line <span class="inv-panel-count">' + reading.lines.length + '</span></span></div>' +
     uiMoreHtml('mv-l-' + r.id, reading.lines.map(function(l) {
-      var rd = l.read ? (l.tone ? '<span class="inv-dot inv-dot-' + l.tone + '">' + escHtml(l.read) + '</span>' : escHtml(l.read)) : (reader ? 'Not read' : '');
+      // A rule (a line of dashes) says nothing to read, so it is not called unread.
+      var rule = /^[-=_*~.\s]+$/.test(l.raw || '');
+      var rd = l.read ? (l.tone ? '<span class="inv-dot inv-dot-' + l.tone + '">' + escHtml(l.read) + '</span>' : escHtml(l.read)) : (reader && !rule ? 'Not read' : '');
       return '<div class="inv-row inv-row-auto" data-mv-line><div class="inv-row-main"><div class="inv-quote">' + escHtml(l.raw) + '</div>' +
         (rd ? '<div class="inv-row-meta inv-row-wrap inv-mt-4">' + rd + '</div>' : '') + '</div></div>';
     }), { noun: 'lines' }) + '</div>';
+  // The kind corrected, or the message set aside as no report.
+  h += '<div class="inv-panel" data-mv-correct><div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="mvFixKind">It is</label>' +
+    '<select class="inv-select" id="mvFixKind" data-mv-fix="' + escHtml(r.id) + '">' + MSG_KINDS.map(function(k) {
+      return '<option value="' + k.id + '"' + (k.id === r.kind ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
+    }).join('') + '</select></div></div>' +
+    '<div class="inv-toolbar inv-mt-8">' + (r.status === 'skipped'
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgReport" data-id="' + escHtml(r.id) + '">It is a report</button>'
+      : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgSkip" data-id="' + escHtml(r.id) + '">Not a report</button>') +
+    (_mvEdit && _mvEdit.id === r.id ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgEdit" data-id="' + escHtml(r.id) + '">Edit the text</button>') + '</div></div>';
   h += mvMadeHtml(r) + mvEditsHtml(r);
   return h;
 }

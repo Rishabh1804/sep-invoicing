@@ -206,7 +206,10 @@ function mcReadAll() {
 }
 function mcShown() { return _mc.list.filter(function(r) { return !r.dup; }); }
 function mcTicked() { return mcShown().filter(function(r) { return r.tickable && _mc.tick[r.id]; }); }
-function mcToLook() { return mcShown().filter(function(r) { return !r.tickable || (r.red.length && !_mc.tick[r.id]); }); }
+/* A message nothing here saves: one no reader takes, and the weekly payment summary (the payout is worked out from the marks).
+   They are listed apart, folded at the foot, so what can be saved leads. */
+function mcIsRest(r) { return r.kind === 'other' || r.kind === 'payment'; }
+function mcToLook() { return mcShown().filter(function(r) { return !mcIsRest(r) && (!r.tickable || (r.red.length && !_mc.tick[r.id])); }); }
 
 /* The rolls ticked, in the order they are saved: by the day they report, the in-time roll first, then when they were sent. */
 function mcRollMsgs(list) {
@@ -291,6 +294,9 @@ function mcBodyHtml() {
       }).join('') + '</div>' : '') + '</div>';
   }
   h += mcHandHtml();
+  var rest = shown.filter(mcIsRest);
+  shown = shown.filter(function(r) { return !mcIsRest(r); });
+  if (!shown.length) h += uiBlankHtml({ kind: 'empty', title: 'Nothing here to save', body: 'Every new message is one no reader takes or a weekly payment summary, listed below.', small: true });
   // Grouped by day, then by kind in the floor's order.
   var days = [];
   shown.forEach(function(r) { var d = r.day || ''; if (days.indexOf(d) < 0) days.push(d); });
@@ -304,7 +310,24 @@ function mcBodyHtml() {
     });
     h += '</section>';
   });
-  return h;
+  return h + mcRestHtml(rest);
+}
+/* What nothing here saves, one panel shut at the foot: each kind a group, each message with its day. */
+function mcRestHtml(rest) {
+  if (!rest.length) return '';
+  var key = 'rest', open = !!_mc.open[key];
+  var n = { other: rest.filter(function(r) { return r.kind === 'other'; }).length, payment: rest.filter(function(r) { return r.kind === 'payment'; }).length };
+  var sub = [n.other ? todoPlural(n.other, 'not read', 'not read') : '', n.payment ? todoPlural(n.payment, 'weekly payment summary', 'weekly payment summaries') : ''].filter(Boolean).join(' · ');
+  var h = '<section class="inv-panel inv-panel-flush" data-mc-rest><div class="inv-row inv-row-2" data-mc-sum="rest"><button class="inv-row-main" data-action="invMsgMcFold" data-key="' + key + '" data-mc-k="f:' + key + '" aria-expanded="' + open + '">' +
+    '<span class="inv-row-title">Nothing to save <span class="inv-panel-count">' + rest.length + '</span></span><span class="inv-row-meta inv-row-wrap">' + escHtml(sub) + '</span></button></div>';
+  if (open) ['payment', 'other'].forEach(function(kind) {
+    var list = rest.filter(function(r) { return r.kind === kind; });
+    if (!list.length) return;
+    var gk = 'g:rest:' + kind;
+    h += '<div class="inv-mc-group" data-mc-group="' + gk + '" data-kind="' + kind + '"><div class="inv-row-group" data-mc-head="' + gk + '">' + escHtml(msgKindLabel(kind) + ' · ' + list.length) + '</div>' +
+      uiMoreHtml('mc-' + gk, list.map(function(r) { return mcRowHtml(r, true); }), { n: 10, noun: 'messages' }) + '</div>';
+  });
+  return h + '</section>';
 }
 /* A day's messages of one kind. Production is a summary row that opens to its messages, with one tick for them all; the
    messages not read are one row that opens; the rest are listed. */
@@ -330,9 +353,9 @@ function mcGroupHtml(day, kind, list) {
   if (open) h += list.map(mcRowHtml).join('');
   return h + '</div>';
 }
-function mcRowHtml(r) {
+function mcRowHtml(r, withDay) {
   var rec = r.rec, ticked = !!_mc.tick[r.id], min = mcMin(rec), more = !!_mc.open['m:' + r.id];
-  var meta = (rec.sentBy || 'No sender') + (min != null ? ' · ' + relayClockLabel(min) : '') + (rec.sentOn && rec.sentOn !== r.day ? ' · sent ' + stockShortDate(rec.sentOn) : '');
+  var meta = (withDay ? mcDayLabel(r.day || '') + ' · ' : '') + (rec.sentBy || 'No sender') + (min != null ? ' · ' + relayClockLabel(min) : '') + (rec.sentOn && rec.sentOn !== r.day ? ' · sent ' + stockShortDate(rec.sentOn) : '');
   var tone = r.red.length ? 'danger' : r.blocked ? 'neutral' : r.amber ? 'warning' : 'ok';
   var badge = r.kind === 'other' ? ['neutral', 'Not read'] : r.kind === 'payment' ? ['neutral', 'Shown, not saved'] : r.blocked ? ['warning', 'Its review'] :
     r.red.length ? ['danger', 'Needs you'] : ticked ? ['ok', 'Ticked'] : mcIsProd(r.kind) ? ['warning', 'Waits for you'] : ['neutral', 'Not ticked'];

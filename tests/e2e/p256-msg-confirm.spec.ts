@@ -99,7 +99,10 @@ test.describe('P256: the confirmation screen', () => {
     // Two days, in order, each its kinds in the floor's order.
     expect(await page.locator('[data-mc-day]').evaluateAll(els => els.map(e => e.getAttribute('data-mc-day')))).toEqual([D1, D2]);
     expect(await page.locator(`[data-mc-day="${D1}"] [data-mc-group]`).evaluateAll(els => els.map(e => e.getAttribute('data-kind')))).toEqual(['in', 'out', 'pickling', 'stock']);
-    expect(await page.locator(`[data-mc-day="${D2}"] [data-mc-group]`).evaluateAll(els => els.map(e => e.getAttribute('data-kind')))).toEqual(['in', 'pickling', 'cash', 'other']);
+    expect(await page.locator(`[data-mc-day="${D2}"] [data-mc-group]`).evaluateAll(els => els.map(e => e.getAttribute('data-kind')))).toEqual(['in', 'pickling', 'cash']);
+    // What nothing here saves (a message no reader takes, a weekly payment summary) is one panel shut at the foot.
+    await expect(page.locator('[data-mc-rest]')).toContainText('Nothing to save');
+    await expect(page.locator('[data-mc-rest] [data-mc-row]')).toHaveCount(0);
     // Each roll says what it would write.
     await expect(page.locator(`[data-mc-day="${D1}"] [data-mc-row][data-kind="in"] [data-mc-what]`)).toContainText('4 present');
     // The default ticks: a roll, stock or cash message at 90% or more with no red question; production never.
@@ -121,12 +124,13 @@ test.describe('P256: the confirmation screen', () => {
     await sum.locator('button.inv-row-main').click();
     await expect(page.locator(`[data-mc-day="${D1}"] [data-mc-row][data-kind="pickling"]`)).toHaveCount(2);
     // The message nobody's reader takes offers Not a report.
-    await page.locator(`[data-mc-sum="g:${D2}:other"] button.inv-row-main`).click();
+    await page.locator('[data-mc-sum="rest"] button.inv-row-main').click();
     await expect(page.locator('[data-mc-row][data-kind="other"] [data-action="invMsgMcNotReport"]')).toBeVisible();
     // The foot counts.
     const ticked = recs.filter(r => r.tick).length;
     await expect(page.locator('[data-mc-count]')).toContainText(`${ticked} of 8 ticked`);
-    await expect(page.locator('[data-mc-count]')).toContainText('1 to look at');
+    // Nothing there to save is not counted as something to look at.
+    await expect(page.locator('[data-mc-count]')).not.toContainText('to look at');
   });
 
   test('production ticked a day’s group at a time, and every message like one', async ({ page }) => {

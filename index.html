@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="3b67f400">
+<meta name="app-build" content="f6fb23bd">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2551,7 +2551,8 @@ button.inv-side-brand:hover { background: var(--surface-2); }
    its sizes declared once here (HR-6's print exception), ink pinned on paper in dark mode too. */
 .inv-ps-sheet {
   --ps-sheet-w: 210mm; --ps-sheet-h: 297mm; --ps-pad: 10mm 13mm; --ps-slip-h: 132mm; --ps-gap: 2.5mm; --ps-gap-sm: 1.2mm; --ps-cell: 1.2mm 2mm;
-  --ps-fs: 9pt; --ps-fs-sm: 7.8pt; --ps-fs-co: 13pt; --ps-fs-title: 12pt; --ps-rule: 0.5pt; --ps-band: 1.5pt; --ps-sig-gap: 10mm; --ps-cut: 0.6pt;
+  --ps-fs: 9pt; --ps-fs-sm: 7.8pt; --ps-fs-co: 13pt; --ps-fs-title: 12pt; --ps-rule: 0.5pt; --ps-band: 1.5pt; --ps-sig-gap: 10mm; --ps-cut: 0.6pt; --ps-cal-cell: 0.5mm 1mm; --ps-cal-day-h: 3.2mm; --ps-fs-xs: 6.8pt;
+  --ps-cal-head: #e8edf4; --ps-st-a: #f6dada; --ps-st-h: #f7ecd0;
   --ps-ink: #1a1a1a; --ps-paper: #fff; --ps-accent: #1f3a5f; --ps-muted: #444; --ps-cell-rule: #c9d2de; --ps-head-ink: #fff; --ps-track: 1.2pt;
   display: flex; flex-direction: column; justify-content: space-between; width: var(--ps-sheet-w); min-height: var(--ps-sheet-h); padding: var(--ps-pad);
   margin: 0 auto var(--sp-16); background: var(--ps-paper); color: var(--ps-ink); font-family: var(--ff-base); font-size: var(--ps-fs); line-height: 1.3;
@@ -2566,7 +2567,7 @@ button.inv-side-brand:hover { background: var(--surface-2); }
 .inv-ps-title { text-align: right; flex-shrink: 0; }
 .inv-ps-title-t { font-size: var(--ps-fs-title); font-weight: 700; color: var(--ps-accent); letter-spacing: var(--ps-track); }
 .inv-ps-body { display: flex; justify-content: space-between; gap: var(--ps-gap); }
-.inv-ps-kv { display: grid; grid-template-columns: auto 1fr; gap: 0 var(--ps-gap); margin: 0; }
+.inv-ps-kv { display: grid; grid-template-columns: auto 1fr; gap: 0 var(--ps-gap); margin: 0; align-content: start; }
 .inv-ps-kv dt { color: var(--ps-muted); }
 .inv-ps-kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .inv-ps-att { text-align: right; }
@@ -2579,6 +2580,19 @@ button.inv-side-brand:hover { background: var(--surface-2); }
 .inv-ps-n { text-align: right; font-variant-numeric: tabular-nums; }
 .inv-ps-strong td { font-weight: 700; }
 .inv-ps-due td { border-top: var(--ps-band) solid var(--ps-accent); }
+.inv-ps-cal { font-size: var(--ps-fs-sm); }
+.inv-ps-week, .inv-ps-month { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.inv-ps-week th, .inv-ps-month th { background: var(--ps-cal-head); font-weight: 600; text-align: left; padding: var(--ps-cal-cell); border: var(--ps-rule) solid var(--ps-cell-rule); }
+.inv-ps-week td, .inv-ps-month td { border: var(--ps-rule) solid var(--ps-cell-rule); padding: var(--ps-cal-cell); vertical-align: top; overflow-wrap: anywhere; line-height: 1.2; }
+.inv-ps-week thead th:first-child { width: 13%; }
+.inv-ps-week td .inv-ps-sub { font-size: var(--ps-fs-xs); }
+.inv-ps-month td { height: var(--ps-cal-day-h); white-space: nowrap; overflow: hidden; }
+.inv-ps-att-month { flex: 0 1 62%; min-width: 0; }
+.inv-ps-att-month .inv-ps-cal { text-align: left; margin-top: var(--ps-gap-sm); font-size: var(--ps-fs-xs); }
+.inv-ps-dn { font-weight: 700; }
+.inv-ps-out { background: var(--ps-paper); }
+.inv-ps-st-A { background: var(--ps-st-a); font-weight: 600; }
+.inv-ps-st-H { background: var(--ps-st-h); }
 .inv-ps-sign { display: flex; justify-content: space-between; gap: var(--ps-gap); margin-top: auto; }
 .inv-ps-line { border-top: var(--ps-rule) solid var(--ps-ink); padding-top: var(--ps-gap-sm); margin-top: var(--ps-sig-gap); font-size: var(--ps-fs-sm); min-width: 40%; }
 @media print { .inv-ps-sheet { border: none; margin: 0; } }
@@ -36701,6 +36715,8 @@ function soaAction(action, btn) {
      days, overtime hours, or hours × the hour rate), the gross, each payment and advance in the period with its date, the
      balance brought forward, and what is due (or the advance still to work off). The EXTRA pool is not on it: it is one line
      on the week's slip, disbursed on the floor, and a weekly slip says so.
+   - **Its days** (owner, 30 Oct 2026): a weekly slip a column a day, a monthly slip its month on a grid beside the details; each
+     day present, half or absent and where the hand stood (below, psDay).
    - **Two to an A4 page**, with a line to cut along; a reference derived, never counted (`PS/<period>/<card or id>`), so a
      reprint is the same slip and nothing is written when one is printed (the certificate's rule).
    - Wages: only a role that opens Pay reaches it. */
@@ -36751,6 +36767,79 @@ function psLines(r) {
   return out;
 }
 
+/* ---------- The days: where the hand stood each day, and the days away (owner, 30 Oct 2026: "in the print add the week and
+   monthly calendar for every employee, so that they can see which day they were absent and where they worked each day … they
+   don't necessarily have to share the same layout") ----------
+   Read off the day's marks (the general shift's area, the hand's in and out, hours and overtime) and the OT slots the hand stood
+   on (attHandSlotArea), never stored. A day with no mark says why where the app knows: a Sunday, a paid holiday, the plant shut;
+   else nothing was recorded. A weekly slip has room for a column a day; a monthly slip is a month on one small grid of codes. */
+var PS_AREA_CODE = { 'vat-a1': 'A1', 'vat-a2': 'A2', barrel: 'BR', 'pickling-barrel': 'BP', 'pickling-vat': 'PK', flex: 'FX', office: 'OF', gate: 'GT', civil: 'CV' };
+var PS_ST_WORD = { P: 'Present', H: 'Half day', A: 'Absent' };
+function psDay(w, iso) {
+  var rec = (S.attendance || {})[iso], m = rec && rec.marks ? rec.marks[w.id] : null, out = { iso: iso, st: m && PS_ST_WORD[m.st] ? m.st : '' };
+  if (iso > localDateStr()) { out.ahead = true; return out; }
+  if (!out.st) {
+    var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+    out.off = shut ? 'Shut' : typeof labourIsHoliday === 'function' && labourIsHoliday(iso) ? 'Holiday' : new Date(iso + 'T00:00:00').getDay() === 0 ? 'Sunday' : '';
+    return out;
+  }
+  if (out.st === 'A') return out;
+  out.area = m.area || w.area || 'flex';
+  out.slots = ATT_SLOTS.map(function(z) { var a = attHandSlotArea(rec, w.id, z[0]); return a ? { slot: z[0], name: z[1], area: a } : null; }).filter(Boolean);
+  out.inMin = m.inMin; out.outMin = m.outMin; out.hours = Number(m.hours) || 0; out.ot = Number(m.ot) || 0;
+  return out;
+}
+function psAreaShort(id) { return PS_AREA_CODE[id] || areaLabel(id); }
+/* A weekly slip: Sunday to Saturday, a column a day, five lines: the day, present or not, where, in and out, the hours. */
+function psWeekHtml(w, from, to) {
+  var days = attDatesInRange(from, to).map(function(iso) { return psDay(w, iso); });
+  var cell = function(d, part) {
+    if (part === 'st') return d.ahead ? '' : d.st ? escHtml(PS_ST_WORD[d.st]) : escHtml(d.off || 'Not recorded');
+    if (!d.st || d.st === 'A') return '';
+    if (part === 'area') return '<div>' + escHtml(areaLabel(d.area)) + '</div>' + d.slots.map(function(x) { return '<div class="inv-ps-sub">' + escHtml(x.name + ': ' + psAreaShort(x.area)) + '</div>'; }).join('');
+    if (part === 'time') return d.inMin == null && d.outMin == null ? '' : escHtml((d.inMin != null ? relayClockLabel(d.inMin) : 'start') + ' – ' + (d.outMin != null ? relayClockLabel(d.outMin % 1440) : 'end'));
+    return d.hours ? escHtml(formatNum(d.hours, d.hours % 1 ? 1 : 0) + ' h' + (d.ot ? ' · OT ' + formatNum(d.ot, d.ot % 1 ? 1 : 0) : '')) : '';
+  };
+  var row = function(label, part) {
+    return '<tr><th scope="row">' + label + '</th>' + days.map(function(d) {
+      return '<td' + (part === 'st' && (d.st === 'A' || d.st === 'H') ? ' class="inv-ps-st-' + d.st + '"' : '') + (part === 'st' ? ' data-ps-day="' + d.iso + '" data-ps-st="' + (d.st || d.off || '') + '"' : '') + '>' + cell(d, part) + '</td>';
+    }).join('') + '</tr>';
+  };
+  return '<table class="inv-ps-week" data-ps-cal="week"><thead><tr><th></th>' + days.map(function(d) {
+    return '<th>' + escHtml(attDayName(d.iso).slice(0, 3) + ' ' + Number(d.iso.slice(8))) + '</th>';
+  }).join('') + '</tr></thead><tbody>' + row('Day', 'st') + row('Worked at', 'area') + row('In – out', 'time') + row('Hours', 'hours') + '</tbody></table>';
+}
+/* A monthly slip: the month on one grid, a week a row, each day its date and a code: P, H or A, then where (A1, BR …), a +code
+   for an OT slot stood elsewhere; the key under it names only the codes the grid uses. */
+function psMonthHtml(w, month) {
+  var first = month + '-01', last = isoAddDays(payMonthStart(isoAddDays(first, 40)), -1), used = {};
+  var start = attWeekStartOf(first), cells = '', iso = start;
+  while (iso <= last || new Date(iso + 'T00:00:00').getDay() !== 0) {
+    if (new Date(iso + 'T00:00:00').getDay() === 0) cells += (iso === start ? '' : '</tr>') + '<tr>';
+    if (iso.slice(0, 7) !== month) cells += '<td class="inv-ps-out"></td>';
+    else {
+      var d = psDay(w, iso), code = '';
+      if (d.st) {
+        used[d.st] = true; code = d.st;
+        if (d.area) { used[d.area] = true; code += ' ' + psAreaShort(d.area); }
+        (d.slots || []).forEach(function(x) { if (x.area !== d.area) { used[x.area] = true; code += '+' + psAreaShort(x.area); } });
+      } else if (!d.ahead) code = d.off === 'Sunday' ? 'Sun' : d.off === 'Holiday' ? 'Hol' : d.off === 'Shut' ? 'Shut' : '–';
+      cells += '<td' + (d.st === 'A' || d.st === 'H' ? ' class="inv-ps-st-' + d.st + '"' : '') + ' data-ps-day="' + iso + '" data-ps-st="' + (d.st || d.off || '') + '">' +
+        '<span class="inv-ps-dn">' + Number(iso.slice(8)) + '</span> ' + escHtml(code) + '</td>';
+    }
+    iso = isoAddDays(iso, 1);
+  }
+  cells += '</tr>';
+  var key = ['P', 'H', 'A'].filter(function(k) { return used[k]; }).map(function(k) { return k + ' ' + PS_ST_WORD[k].toLowerCase(); })
+    .concat(STAFF_AREAS.filter(function(a) { return used[a.id]; }).map(function(a) { return psAreaShort(a.id) + ' ' + a.label; }));
+  return '<table class="inv-ps-month" data-ps-cal="month"><thead><tr>' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(function(x) { return '<th>' + x + '</th>'; }).join('') +
+    '</tr></thead><tbody>' + cells + '</tbody></table>' +
+    (key.length ? '<div class="inv-ps-sub" data-ps-key>' + escHtml(key.join(' · ') + ' · +code an OT slot worked elsewhere') + '</div>' : '');
+}
+function psCalHtml(r) {
+  return r.weekly ? '<div class="inv-ps-cal">' + psWeekHtml(r.w, r.from, r.to) + '</div>' : '';
+}
+
 function psSlipHtml(r) {
   var co = S.company || {}, w = r.w, p = w.profile || {}, e = r.earned || {};
   var addr = [co.add1, co.add2, co.add3].map(function(x) { return String(x || '').trim(); }).filter(Boolean).join(', ');
@@ -36766,8 +36855,11 @@ function psSlipHtml(r) {
       '<div class="inv-ps-title"><div class="inv-ps-title-t">PAY SLIP</div><div class="inv-ps-sub">' + escHtml(psPeriodLabel(r)) + '</div>' +
       '<div class="inv-ps-sub" data-ps-ref>' + escHtml(psRef(r)) + '</div></div></div>' +
     '<div class="inv-ps-body"><dl class="inv-ps-kv">' + kv.map(function(x) { return '<dt>' + escHtml(x[0]) + '</dt><dd>' + escHtml(x[1]) + '</dd>'; }).join('') + '</dl>' +
-      '<div class="inv-ps-att"><div class="inv-ps-lbl">Attendance</div><div data-ps-att>Present ' + marks.P + ' · Half day ' + marks.H + ' · Absent ' + marks.A + '</div>' +
-        (r.asPaid ? '<div class="inv-ps-sub">Earned as the month\'s payroll says</div>' : '') + '</div></div>' +
+      '<div class="inv-ps-att' + (r.weekly ? '' : ' inv-ps-att-month') + '"><div class="inv-ps-lbl">Attendance</div><div data-ps-att>Present ' + marks.P + ' · Half day ' + marks.H + ' · Absent ' + marks.A + '</div>' +
+        (r.asPaid ? '<div class="inv-ps-sub">Earned as the month\'s payroll says</div>' : '') +
+        // A monthly slip's month sits beside the hand's details, where the room is; a week runs the slip's width under them.
+        (r.weekly ? '' : '<div class="inv-ps-cal">' + psMonthHtml(w, r.from.slice(0, 7)) + '</div>') + '</div></div>' +
+    psCalHtml(r) +
     '<table class="inv-ps-table"><thead><tr><th>Earnings</th><th class="inv-ps-n">Qty</th><th class="inv-ps-n">Rate</th><th class="inv-ps-n">Amount</th></tr></thead><tbody>' +
     lines.map(function(l) {
       return '<tr><td>' + escHtml(l.what) + '</td><td class="inv-ps-n">' + escHtml(formatNum(l.qty, l.qty % 1 ? 1 : 0)) + ' ' + l.unit + '</td>' +

@@ -341,8 +341,13 @@ function mvToolbarHtml() {
 /* The kind a message no reader takes looks like (msgSort's `like`, msgprofile.js), worked out where it was not kept. */
 function mvLike(r) {
   if (!r || r.kind !== 'other') return '';
-  if (r.like == null) { try { r.like = msgSort(r).like || ''; } catch (e) { r.like = ''; } }
-  return r.like && r.like !== 'other' ? r.like : '';
+  // Read off the sorter's own words for what no reader takes (msgOtherSort), never msgSort, whose profile would write the book while
+  // the screen is drawn; kept on the record only by an act (sorted again, a kind set).
+  var like = r.like;
+  if (like == null && typeof msgOtherSort === 'function') {
+    try { like = msgOtherSort(String(r.text || ''), (String(r.text || '').split('\n').find(function(l) { return l.trim(); }) || '').trim()).like || ''; } catch (e) { like = ''; }
+  }
+  return like && like !== 'other' ? like : '';
 }
 function mvRowHtml(r) {
   var st = mvStatusOf(r), like = mvLike(r);
@@ -471,8 +476,8 @@ function mvMadeHtml(r) {
       var rp = relayPastes().find(function(p) { return p.id === s.id; });
       label = 'Attendance' + (rp && rp.days ? ': ' + rp.days.map(formatDate).join(', ') : '');
       if (rp && rp.days && rp.days[0] && (typeof grdSees !== 'function' || grdSees('pageStaff'))) btn = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpDay" data-id="' + escHtml(rp.days[0]) + '">Open the day</button>';
-    } else if (s.store === 'production') { label = 'Production entries'; go = 'production'; }
-    else if (s.store === 'stock') { label = 'Stock entries'; go = 'stock'; }
+    } else if (s.store === 'production' || s.store === 'production.pastes') { label = 'Production entries'; go = 'production'; }
+    else if (s.store === 'stock' || s.store === 'stock.pastes') { label = 'Stock entries'; go = 'stock'; }
     else if (s.store === 'cashPastes') { label = 'Cash paid out'; go = 'pay'; }
     else label = String(s.store || 'A record');
     if (go) btn = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgGoRec" data-go="' + go + '">Open</button>';

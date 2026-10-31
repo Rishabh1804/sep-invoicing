@@ -800,6 +800,7 @@ function stockCommitPaste(parsed, res, meta) {
   if (made) {
     st.pastes.push({ id: pasteId, at: at, by: meta.by || '', sentBy: meta.sentBy || '', from: res.from, to: res.to,
       hash: stockHash(parsed.text || ''), text: parsed.text || '', choices: meta.choices || {} });
+    if (typeof mvSavedFrom === 'function') mvSavedFrom('stock.pastes', st.pastes.slice(-1));
   }
   return { entries: made, lines: lines, skipped: skipped, ids: ids };
 }
@@ -1143,7 +1144,6 @@ function stockSavePaste() {
   var by = stockBy();
   var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by, choices: rv.choices });
   if (!out.entries) { showToast('Nothing to save: pick a line for each unnamed row', 'error'); return; }
-  if (typeof mvSavedFrom === 'function') mvSavedFrom('stock', stockData().pastes.slice(-1));
   saveState();
   _stockReview = null; _stockPasteDraft = '';
   stockSetView('list');

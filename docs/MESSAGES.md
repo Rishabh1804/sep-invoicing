@@ -53,9 +53,9 @@ last message of each kind the book already holds"*. P254.
   goes to the bank) and a bare WhatsApp `.txt` export (`addFileKind` → `wazip`, `addTextKind` → `watext`, `addFileWhat` →
   `whatsapp`); another screen's Import handed one says what it is and offers **Import it there** (`addFileElsewhere`). The
   Messages screen's own Import can be a button `data-action="invMsgZipPick"` (`wzPick`, routed through `msgAction` → `wzAction`).
-- **A contract change in msgstore.js**: `msgKey` keys the day and the minute on it (`sentOn@sentAt`; an epoch ms, should one come,
-  read as its minute), since `sentAt` is relaySplit's minute of the day: divided by 60,000 it was always 0, so the same words from
-  one sender on two days were one message, and a message at midnight had no minute. `msgIngest` keeps `sentAt` 0.
+- **msgKey** (M2's change, made the same in this branch so the two merge cleanly): a minute-of-day `sentAt`, which wazip gives
+  as relaySplit does, is keyed with its day (`sentOn@sentAt`); an epoch ms as its minute. Before it, the minute alone made the
+  same words from one sender on two days one message. `msgIngest` keeps a `sentAt` of 0 (midnight), which it had made null.
 - **Measured on the owner's export** (private, counts only): 324 messages from 3 senders over six weeks, month-first, 101 media
   messages, 4 deleted and 2 WhatsApp lines dropped; against the owner's book, 51 new and 273 older or already held; the same zip
   again, none.

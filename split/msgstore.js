@@ -10,7 +10,7 @@
 
    S.messages: [{
      id: 'MSG-…', key: msgKey(m)                 the message once, however often it arrives
-     sentBy, sentOn (iso or null), sentAt (the minute on sentOn, 0..1439, as relaySplit gives it, or null), text, edited
+     sentBy, sentOn (iso or null), sentAt (the minute on sentOn as relaySplit and wazip give it, or epoch ms; or null), text, edited
      src: 'paste' | 'zip', importId (S.msgImports id or null)
      kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
      status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
@@ -45,10 +45,9 @@ function msgImports() { if (!Array.isArray(S.msgImports)) S.msgImports = []; ret
 /* The message once: its sender, the minute it was sent and its words. A repost later is another message (the readers
    refuse it as already read, as they always have); the same export imported twice is the same messages. */
 function msgKey(m) {
-  // The day and the minute on it: sentAt is relaySplit's minute of the day (an epoch ms, should one come, is read as its
-  // minute). The minute alone made "OK" sent on two days by one sender one message, and a message at midnight had none.
-  var at = m.sentAt == null || m.sentAt === '' ? '' : +m.sentAt > 100000 ? Math.floor(m.sentAt / 60000) : +m.sentAt;
-  var minute = (m.sentOn || '') + '@' + at;
+  // `sentAt` is epoch ms from a zip, or the minute of the day from a paste (relaySplit's reading): a minute of the day is kept
+  // with its day, or the same words sent on two days (the pickling hand's same load) read as one message and the second was lost.
+  var minute = m.sentAt > 1e7 ? Math.floor(m.sentAt / 60000) : (m.sentOn || '') + (m.sentAt != null ? '@' + m.sentAt : '');
   return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + minute + '|' + String(m.text || ''));
 }
 

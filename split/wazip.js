@@ -9,7 +9,7 @@
      for the whole file, and what was dropped (WhatsApp's own lines, media, deleted messages).
    wzImportFile(file) → Promise<record | null>: the guard, the file read, unzipped and parsed, the messages cut to the new
      ones (wzCut), taken in (msgIngest(…, 'zip', id)), the import recorded (S.msgImports) and saved, then the confirmation
-     screen (mcOpen) where it is loaded, else a toast.
+     screen (mcOpen) where it is loaded, after a toast saying what was taken in.
 
    Add → File routes a zip holding a chat here, and a bare WhatsApp .txt export (add.js addFileKind, addTextKind). */
 
@@ -259,8 +259,9 @@ async function wzImportBuf(src, name, opts) {
   msgImports().push(rec);
   var saved = typeof saveState === 'function' ? await saveState() : true;
   if (saved === false) return rec;
+  // What the import took in is said either way; the confirmation screen then opens on the new messages.
+  if (rec.added) showToast(wzSaid(rec));
   if (typeof mcOpen === 'function' && rec.added) mcOpen({ importId: id });
-  else if (rec.added) showToast(wzSaid(rec));
   else uiAlert({ title: 'Nothing new in the export', body: wzSaid(rec) });
   return rec;
 }

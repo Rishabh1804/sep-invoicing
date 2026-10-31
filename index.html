@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="99780526">
+<meta name="app-build" content="54b7bf0b">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -42008,7 +42008,7 @@ function mpAction(action, btn) {
      for the whole file, and what was dropped (WhatsApp's own lines, media, deleted messages).
    wzImportFile(file) → Promise<record | null>: the guard, the file read, unzipped and parsed, the messages cut to the new
      ones (wzCut), taken in (msgIngest(…, 'zip', id)), the import recorded (S.msgImports) and saved, then the confirmation
-     screen (mcOpen) where it is loaded, else a toast.
+     screen (mcOpen) where it is loaded, after a toast saying what was taken in.
 
    Add → File routes a zip holding a chat here, and a bare WhatsApp .txt export (add.js addFileKind, addTextKind). */
 
@@ -42258,8 +42258,9 @@ async function wzImportBuf(src, name, opts) {
   msgImports().push(rec);
   var saved = typeof saveState === 'function' ? await saveState() : true;
   if (saved === false) return rec;
+  // What the import took in is said either way; the confirmation screen then opens on the new messages.
+  if (rec.added) showToast(wzSaid(rec));
   if (typeof mcOpen === 'function' && rec.added) mcOpen({ importId: id });
-  else if (rec.added) showToast(wzSaid(rec));
   else uiAlert({ title: 'Nothing new in the export', body: wzSaid(rec) });
   return rec;
 }

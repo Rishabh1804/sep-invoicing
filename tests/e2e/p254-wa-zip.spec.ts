@@ -80,6 +80,11 @@ function book(): SepState {
   } as unknown as SepState;
 }
 async function addFile(page: Page, file: { name: string; mimeType: string; buffer: Buffer } | string) {
+  // An import opens the confirmation screen (msgconfirm.js) over the page: close it, nothing ticked by hand, before the next.
+  if (await page.locator('[data-mc]').count()) {
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-mc]')).toHaveCount(0);
+  }
   await page.locator('[data-action="invAddOpen"]').first().click();
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invAddFile"]').click()]);
   await chooser.setFiles(file as any);

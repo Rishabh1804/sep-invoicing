@@ -109,12 +109,10 @@ message's text and correcting its reading. P255 (both layouts).
 
 - **Every paste is kept.** The one paste box (`relayRead`: Add → Paste, People → Paste message, Home) runs `mvKeepPaste(text)` first:
   `msgIngest(relaySplit(text), 'paste')` and a save when anything is new, whatever the reader then does. A reader's save marks the
-  messages it saved (`mvSavedFrom(store, records)`, one line before each save: `relaySave` → `relayPastes`, `prodSaveReview` →
-  `production`, `stockSavePaste` → `stock`, `cashReviewSave` → `cashPastes`); a message is found by its key, else by its words (and its
-  day and sender where both say one). Nothing a reader reads or saves is changed.
-- **The key's minute** (`msgMinuteOf`, msgstore.js; a contract change, said in the PR): a paste's `sentAt` is minutes into its day
-  (`relaySplit`), an export's may be ms. Read as ms, every paste fell in the first minute of 1970, so one sender's same words on two
-  days were one message and the second was never kept. Both forms now give the same minute.
+  messages it saved (`mvSavedFrom(store, records)`, one line in each reader's core, so a review's save and the confirmation screen's
+  batch save mark alike: `relayApplyPlan` → `relayPastes`, `prodSaveCore` → `production.pastes`, `stockCommitPaste` → `stock.pastes`,
+  `cashSaveCore` → `cashPastes`; `msgMarkSaved` keeps one record once); a message is found by its key, else by its words (and its day
+  and sender where both say one). Nothing a reader reads or saves is changed.
 - **The screen** (`pageMessages`, a top-bar tool beside History and Knowledge, in no workspace; the owner's, as the guard stands, since it
   holds cash paid out among the rest). Its verdict (messages, Not read, a red question, saved; *How sure, by kind* folded under it:
   the profile's figure where msgprofile.js gives one, `mpKindConf`, else the share of a kind's messages saved with no correction against
@@ -133,7 +131,7 @@ message's text and correcting its reading. P255 (both layouts).
   the reader reads who sent it and when); the paste box keeps the handed text as the message it is, not a new one. The book is never
   written from here.
 - **Correct the kind** (`fix: {kind, at, by, was}`, which wins over the sorter, M2 reads it) or mark it *Not a report* (`skipped`).
-- **What M2 adds, read where it exists**: a Not read row says the kind it looks like (msgSort's `like`, kept on the record as
+- **What M2 adds, read where it exists**: a Not read row says the kind it looks like (the sorter's `like`, read off `msgOtherSort` while drawing so the profile writes nothing; kept on the record as
   `like` when the screen sorts it again), the kind's confidence is `mpKindConf(kind)` (a number or null; null falls back to the share
   above), and beside the sender a message carries *Sender's card* (`data-action="invMsgProfile" data-sender`), drawn only where
   msgprofile.js answers it (`mpAction`).

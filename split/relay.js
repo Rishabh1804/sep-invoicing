@@ -1203,6 +1203,8 @@ function relayRead() {
   var text = ta ? ta.value : _relayDraft;
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
+  // Every message pasted is kept (msgview.js: the Messages screen), whatever is read and saved from here.
+  if (typeof mvKeepPaste === 'function') mvKeepPaste(text);
   var msgs = relaySplit(text);
   var rolls = [], stock = [], other = [], checkins = 0;
   msgs.forEach(function(m) {
@@ -1433,6 +1435,7 @@ function relaySave() {
     if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
   });
   var done = relayApplyPlan(rv, plan), marks = done.marks, extras = done.extras;
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('relayPastes', relayPastes().filter(function(p) { return done.ids.indexOf(p.id) >= 0; }));
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
   _relay = null; _relayView = 'paste';

@@ -89,6 +89,8 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // (Reports' two: the kind and the period). History and Knowledge, assembled to one look, gave the room back: History's five rows
   // of controls are one, the Library's five one; Invoiced, Troubleshoot and Training grew by the card they gained (said in the PR).
   'History': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  // The Messages screen (msgview.js, 31 Oct 2026): its verdict, one toolbar row, the list by day (1.13 on the long book's six messages).
+  'Messages': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Knowledge › Start': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   // Raised 3 → 3.5 in TM4, said in the PR (I10): the guides took the Floor screens' method paragraphs (two new guides, five
   // rewritten), and the Library lists them (2.86 → 3.05). Raised 3.5 → 4 in TM5, said in the PR: a new guide took Performance's
@@ -118,6 +120,8 @@ const VERDICT: string[] = [
   // TM6f: the screens no step had touched (Knowledge's Start carries its verdict on its first card).
   'Office › Challans › Invoiced', 'History', 'Knowledge › Start', 'Knowledge › Library', 'Knowledge › Troubleshoot', 'Knowledge › Records',
   'Knowledge › Training',
+  // The Messages screen (msgview.js).
+  'Messages',
 ];
 
 test('every screen of the map is within its load budget on the long book', async ({ page }) => {

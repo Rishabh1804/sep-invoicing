@@ -1195,6 +1195,7 @@ function prodSaveReview() {
     });
   });
   if (!n && !closed) { showToast('Nothing new to save', 'error'); return; }
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('production', p.pastes.filter(function(x) { return x.at === at; }));
   prodTouch();
   saveState();
   _prodReview = null; _prodPasteDraft = '';

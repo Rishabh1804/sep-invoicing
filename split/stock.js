@@ -1143,6 +1143,7 @@ function stockSavePaste() {
   var by = stockBy();
   var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by, choices: rv.choices });
   if (!out.entries) { showToast('Nothing to save: pick a line for each unnamed row', 'error'); return; }
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('stock', stockData().pastes.slice(-1));
   saveState();
   _stockReview = null; _stockPasteDraft = '';
   stockSetView('list');

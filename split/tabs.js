@@ -5,7 +5,7 @@ const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
   pageClients: 'Clients', pageFinance: 'Money', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
   pageFloor: 'Floor overview', pagePipeline: 'Pipeline', pageFace: 'Mine',
-  pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
+  pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge', pageMessages: 'Messages'
 };
 
 /* ===== ONE LOOK: EVERY SCREEN DECLARES ITS KIND (docs/TAB_MAP.md §3e) =====
@@ -23,7 +23,7 @@ var SCREEN_KINDS = {
   pagePower: 'work', 'pagePower/case': 'document',
   pageFinance: 'work', 'pageFinance/overview': 'overview',
   pageStats: 'work',
-  pageReports: 'document', pagePlanner: 'work', pageHistory: 'work',
+  pageReports: 'document', pagePlanner: 'work', pageHistory: 'work', pageMessages: 'work',
   pageKnow: 'work', 'pageKnow/start': 'overview'
 };
 // A part of the address that is a form wherever it appears: a challan, a quotation, a paste and its check, by hand, a register
@@ -35,6 +35,8 @@ function screenKindOf(loc) {
   if (parts.some(function(x) { return SCREEN_FORM_PARTS.test(x); })) return 'form';
   // An article read on the phone is a record opened as a sub-view; on the desktop it sits in the pane beside its list.
   if (loc.tab === 'pageKnow' && loc.id && !_isDesktop) return 'form';
+  // A message opened on the phone is its own sub-view (msgview.js), its text and its reading; on the desktop the pane beside the list.
+  if (loc.tab === 'pageMessages' && loc.id && !_isDesktop) return 'form';
   return SCREEN_KINDS[loc.tab + '/' + parts[0]] || SCREEN_KINDS[loc.tab] || 'work';
 }
 function screenKindApply() {
@@ -210,6 +212,8 @@ function tabRender(tabId, isDirty) {
     renderHistory();
   } else if (tabId === 'pageKnow') {
     renderKnow();
+  } else if (tabId === 'pageMessages') {
+    if (typeof renderMessages === 'function') renderMessages();
   }
   screenKindApply();
 }

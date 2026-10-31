@@ -204,6 +204,9 @@ export async function walkMap(page: Page, at: (name: string) => Promise<void>): 
   await page.locator('.inv-topbar [data-action="invGoHistory"]:visible').first().click();
   await page.locator('#pageHistory.inv-page-active').waitFor();
   await ownWalk('History');
+  await page.locator('.inv-topbar [data-action="invMsgGo"]:visible').first().click();
+  await page.locator('#pageMessages.inv-page-active').waitFor();
+  await ownWalk('Messages');
   await page.evaluate(() => (window as any).navOpen({ tab: 'pageKnow', v: 'start', id: '' }));
   await page.locator('#pageKnow.inv-page-active').waitFor();
   await ownWalk('Knowledge');
@@ -410,6 +413,8 @@ export const ONE_LOOK: string[] = [
   // TM6f: the screens no step had touched. Reports (a document), Challans' Invoiced, History and Knowledge's five views. The list is
   // now every screen of the map.
   'Home › Reports', 'Office › Challans › Invoiced', 'History',
+  // The Messages screen (msgview.js, 31 Oct 2026): its verdict, one toolbar row, the list by day.
+  'Messages',
   'Knowledge › Start', 'Knowledge › Library', 'Knowledge › Troubleshoot', 'Knowledge › Records', 'Knowledge › Training',
 ];
 

@@ -135,6 +135,7 @@ function cashReviewSave() {
       cat: ln.cat, week: r.week, msgId: msgId, at: at, by: by });
   });
   var total = gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0));
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('cashPastes', cashPastes().slice(-1));
   saveState();
   var form0 = document.querySelector('[data-cash-review]'), sc = form0 && form0.closest('.inv-scrim-dialog');
   if (sc) { delete sc.dataset.typed; dialogCloseScrim(sc); }

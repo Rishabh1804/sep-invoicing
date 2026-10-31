@@ -44,8 +44,17 @@ function msgImports() { if (!Array.isArray(S.msgImports)) S.msgImports = []; ret
 /* The message once: its sender, the minute it was sent and its words. A repost later is another message (the readers
    refuse it as already read, as they always have); the same export imported twice is the same messages. */
 function msgKey(m) {
-  var minute = m.sentAt ? Math.floor(m.sentAt / 60000) : (m.sentOn || '');
-  return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + minute + '|' + String(m.text || ''));
+  return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + msgMinuteOf(m) + '|' + String(m.text || ''));
+}
+/* The minute a message was sent, one way however it came: `sentAt` in ms (an export read whole), or in minutes into its day beside
+   `sentOn` (relaySplit's, a paste). Read as ms, a paste's minutes all fell in the first minute of 1970, so one sender's same words
+   on two days were one message and the second was never kept (M4, 31 Oct 2026). */
+function msgMinuteOf(m) {
+  var at = m && m.sentAt, on = m && m.sentOn;
+  if (at == null || at === '' || isNaN(+at)) return on || '';
+  at = +at;
+  if (at < 1440) return on ? Math.floor(new Date(on + 'T00:00:00').getTime() / 60000) + at : 'm' + at;
+  return Math.floor(at / 60000);
 }
 
 /* The sorter. Each reader is asked in the order the floor's messages are told apart today (relayRead, addDescribe), so the

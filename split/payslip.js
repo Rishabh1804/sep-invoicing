@@ -11,6 +11,8 @@
      days, overtime hours, or hours × the hour rate), the gross, each payment and advance in the period with its date, the
      balance brought forward, and what is due (or the advance still to work off). The EXTRA pool is not on it: it is one line
      on the week's slip, disbursed on the floor, and a weekly slip says so.
+   - **Its days** (owner, 30 Oct 2026): a weekly slip a column a day, a monthly slip its month on a grid beside the details; each
+     day present, half or absent and where the hand stood (below, psDay).
    - **Two to an A4 page**, with a line to cut along; a reference derived, never counted (`PS/<period>/<card or id>`), so a
      reprint is the same slip and nothing is written when one is printed (the certificate's rule).
    - Wages: only a role that opens Pay reaches it. */
@@ -61,6 +63,79 @@ function psLines(r) {
   return out;
 }
 
+/* ---------- The days: where the hand stood each day, and the days away (owner, 30 Oct 2026: "in the print add the week and
+   monthly calendar for every employee, so that they can see which day they were absent and where they worked each day … they
+   don't necessarily have to share the same layout") ----------
+   Read off the day's marks (the general shift's area, the hand's in and out, hours and overtime) and the OT slots the hand stood
+   on (attHandSlotArea), never stored. A day with no mark says why where the app knows: a Sunday, a paid holiday, the plant shut;
+   else nothing was recorded. A weekly slip has room for a column a day; a monthly slip is a month on one small grid of codes. */
+var PS_AREA_CODE = { 'vat-a1': 'A1', 'vat-a2': 'A2', barrel: 'BR', 'pickling-barrel': 'BP', 'pickling-vat': 'PK', flex: 'FX', office: 'OF', gate: 'GT', civil: 'CV' };
+var PS_ST_WORD = { P: 'Present', H: 'Half day', A: 'Absent' };
+function psDay(w, iso) {
+  var rec = (S.attendance || {})[iso], m = rec && rec.marks ? rec.marks[w.id] : null, out = { iso: iso, st: m && PS_ST_WORD[m.st] ? m.st : '' };
+  if (iso > localDateStr()) { out.ahead = true; return out; }
+  if (!out.st) {
+    var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+    out.off = shut ? 'Shut' : typeof labourIsHoliday === 'function' && labourIsHoliday(iso) ? 'Holiday' : new Date(iso + 'T00:00:00').getDay() === 0 ? 'Sunday' : '';
+    return out;
+  }
+  if (out.st === 'A') return out;
+  out.area = m.area || w.area || 'flex';
+  out.slots = ATT_SLOTS.map(function(z) { var a = attHandSlotArea(rec, w.id, z[0]); return a ? { slot: z[0], name: z[1], area: a } : null; }).filter(Boolean);
+  out.inMin = m.inMin; out.outMin = m.outMin; out.hours = Number(m.hours) || 0; out.ot = Number(m.ot) || 0;
+  return out;
+}
+function psAreaShort(id) { return PS_AREA_CODE[id] || areaLabel(id); }
+/* A weekly slip: Sunday to Saturday, a column a day, five lines: the day, present or not, where, in and out, the hours. */
+function psWeekHtml(w, from, to) {
+  var days = attDatesInRange(from, to).map(function(iso) { return psDay(w, iso); });
+  var cell = function(d, part) {
+    if (part === 'st') return d.ahead ? '' : d.st ? escHtml(PS_ST_WORD[d.st]) : escHtml(d.off || 'Not recorded');
+    if (!d.st || d.st === 'A') return '';
+    if (part === 'area') return '<div>' + escHtml(areaLabel(d.area)) + '</div>' + d.slots.map(function(x) { return '<div class="inv-ps-sub">' + escHtml(x.name + ': ' + psAreaShort(x.area)) + '</div>'; }).join('');
+    if (part === 'time') return d.inMin == null && d.outMin == null ? '' : escHtml((d.inMin != null ? relayClockLabel(d.inMin) : 'start') + ' – ' + (d.outMin != null ? relayClockLabel(d.outMin % 1440) : 'end'));
+    return d.hours ? escHtml(formatNum(d.hours, d.hours % 1 ? 1 : 0) + ' h' + (d.ot ? ' · OT ' + formatNum(d.ot, d.ot % 1 ? 1 : 0) : '')) : '';
+  };
+  var row = function(label, part) {
+    return '<tr><th scope="row">' + label + '</th>' + days.map(function(d) {
+      return '<td' + (part === 'st' && (d.st === 'A' || d.st === 'H') ? ' class="inv-ps-st-' + d.st + '"' : '') + (part === 'st' ? ' data-ps-day="' + d.iso + '" data-ps-st="' + (d.st || d.off || '') + '"' : '') + '>' + cell(d, part) + '</td>';
+    }).join('') + '</tr>';
+  };
+  return '<table class="inv-ps-week" data-ps-cal="week"><thead><tr><th></th>' + days.map(function(d) {
+    return '<th>' + escHtml(attDayName(d.iso).slice(0, 3) + ' ' + Number(d.iso.slice(8))) + '</th>';
+  }).join('') + '</tr></thead><tbody>' + row('Day', 'st') + row('Worked at', 'area') + row('In – out', 'time') + row('Hours', 'hours') + '</tbody></table>';
+}
+/* A monthly slip: the month on one grid, a week a row, each day its date and a code: P, H or A, then where (A1, BR …), a +code
+   for an OT slot stood elsewhere; the key under it names only the codes the grid uses. */
+function psMonthHtml(w, month) {
+  var first = month + '-01', last = isoAddDays(payMonthStart(isoAddDays(first, 40)), -1), used = {};
+  var start = attWeekStartOf(first), cells = '', iso = start;
+  while (iso <= last || new Date(iso + 'T00:00:00').getDay() !== 0) {
+    if (new Date(iso + 'T00:00:00').getDay() === 0) cells += (iso === start ? '' : '</tr>') + '<tr>';
+    if (iso.slice(0, 7) !== month) cells += '<td class="inv-ps-out"></td>';
+    else {
+      var d = psDay(w, iso), code = '';
+      if (d.st) {
+        used[d.st] = true; code = d.st;
+        if (d.area) { used[d.area] = true; code += ' ' + psAreaShort(d.area); }
+        (d.slots || []).forEach(function(x) { if (x.area !== d.area) { used[x.area] = true; code += '+' + psAreaShort(x.area); } });
+      } else if (!d.ahead) code = d.off === 'Sunday' ? 'Sun' : d.off === 'Holiday' ? 'Hol' : d.off === 'Shut' ? 'Shut' : '–';
+      cells += '<td' + (d.st === 'A' || d.st === 'H' ? ' class="inv-ps-st-' + d.st + '"' : '') + ' data-ps-day="' + iso + '" data-ps-st="' + (d.st || d.off || '') + '">' +
+        '<span class="inv-ps-dn">' + Number(iso.slice(8)) + '</span> ' + escHtml(code) + '</td>';
+    }
+    iso = isoAddDays(iso, 1);
+  }
+  cells += '</tr>';
+  var key = ['P', 'H', 'A'].filter(function(k) { return used[k]; }).map(function(k) { return k + ' ' + PS_ST_WORD[k].toLowerCase(); })
+    .concat(STAFF_AREAS.filter(function(a) { return used[a.id]; }).map(function(a) { return psAreaShort(a.id) + ' ' + a.label; }));
+  return '<table class="inv-ps-month" data-ps-cal="month"><thead><tr>' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(function(x) { return '<th>' + x + '</th>'; }).join('') +
+    '</tr></thead><tbody>' + cells + '</tbody></table>' +
+    (key.length ? '<div class="inv-ps-sub" data-ps-key>' + escHtml(key.join(' · ') + ' · +code an OT slot worked elsewhere') + '</div>' : '');
+}
+function psCalHtml(r) {
+  return r.weekly ? '<div class="inv-ps-cal">' + psWeekHtml(r.w, r.from, r.to) + '</div>' : '';
+}
+
 function psSlipHtml(r) {
   var co = S.company || {}, w = r.w, p = w.profile || {}, e = r.earned || {};
   var addr = [co.add1, co.add2, co.add3].map(function(x) { return String(x || '').trim(); }).filter(Boolean).join(', ');
@@ -76,8 +151,11 @@ function psSlipHtml(r) {
       '<div class="inv-ps-title"><div class="inv-ps-title-t">PAY SLIP</div><div class="inv-ps-sub">' + escHtml(psPeriodLabel(r)) + '</div>' +
       '<div class="inv-ps-sub" data-ps-ref>' + escHtml(psRef(r)) + '</div></div></div>' +
     '<div class="inv-ps-body"><dl class="inv-ps-kv">' + kv.map(function(x) { return '<dt>' + escHtml(x[0]) + '</dt><dd>' + escHtml(x[1]) + '</dd>'; }).join('') + '</dl>' +
-      '<div class="inv-ps-att"><div class="inv-ps-lbl">Attendance</div><div data-ps-att>Present ' + marks.P + ' · Half day ' + marks.H + ' · Absent ' + marks.A + '</div>' +
-        (r.asPaid ? '<div class="inv-ps-sub">Earned as the month\'s payroll says</div>' : '') + '</div></div>' +
+      '<div class="inv-ps-att' + (r.weekly ? '' : ' inv-ps-att-month') + '"><div class="inv-ps-lbl">Attendance</div><div data-ps-att>Present ' + marks.P + ' · Half day ' + marks.H + ' · Absent ' + marks.A + '</div>' +
+        (r.asPaid ? '<div class="inv-ps-sub">Earned as the month\'s payroll says</div>' : '') +
+        // A monthly slip's month sits beside the hand's details, where the room is; a week runs the slip's width under them.
+        (r.weekly ? '' : '<div class="inv-ps-cal">' + psMonthHtml(w, r.from.slice(0, 7)) + '</div>') + '</div></div>' +
+    psCalHtml(r) +
     '<table class="inv-ps-table"><thead><tr><th>Earnings</th><th class="inv-ps-n">Qty</th><th class="inv-ps-n">Rate</th><th class="inv-ps-n">Amount</th></tr></thead><tbody>' +
     lines.map(function(l) {
       return '<tr><td>' + escHtml(l.what) + '</td><td class="inv-ps-n">' + escHtml(formatNum(l.qty, l.qty % 1 ? 1 : 0)) + ' ' + l.unit + '</td>' +

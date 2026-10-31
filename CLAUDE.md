@@ -185,6 +185,7 @@ split/
 ├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from People → Pay's own rows, any month's, each with its days (a week's columns, a month's grid): two to an A4 page (~290 lines)
+├── cashout.js         ← Cash paid out: the supervisor's WhatsApp account of cash spent, read, checked, kept a line each with its kind, counted in the week's payout (~200 lines)
 ├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner; a day's marks hand by hand (`mrgDeep`) (~490 lines)
 ├── prospects.js       ← Office → Sales → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
@@ -240,7 +241,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → shifts → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → prtlight → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → cashout → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → shifts → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → prtlight → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -4749,6 +4750,22 @@ five things had gone wrong; each is fixed, and the week's payout read from the o
   The 24th's night (three hands, EXTRA 39 h) had been in neither payout.
 - **Found, not the parser's**: the 29th's out-time roll was never pasted (the day typed by hand missed four hands' 8 PM and one hand's
   night), and the night schedule in the book runs 5:30 PM to 8:30 AM where the rolls and the owner's corrections end the night at 6 AM.
+
+### Cash paid out (31 Oct 2026)
+The supervisor's cash spent for the plant, as he sends it on WhatsApp (`cashout.js`, P252; owner, 31 Oct 2026: *"For Shyam's 1840 - he
+has given that as a message in whatsapp"*, then, of where it counts, *"Payout total"*). A line each (a day before some, the amount at the
+end), a rule and *ONLY 1840* under them.
+- **Read where every message is pasted** (`cashLooksLike`, before Production in `relayRead`; Add describes it, *Read in Pay*): two lines or
+  more ending in an amount and a total line (*ONLY*, *TOTAL*); his weekly payment message (PAYMENT, NASTA, …) is a summary and is not.
+  `parseCashMessage` is pure: each line's day, what for, amount and kind (`cashCat`: carriage, consumables, repairs, food and tea, paid to
+  a person, other), a line with no words asked, a total the lines do not reach red.
+- **Reviewed before it is saved** (the review dialog: what for, kind, day and amount a line, editable), behind `grdGate('payments')`, into
+  `S.cashOut` (a line each: day, what, amount, kind, the pay week, the message, who) and the message whole in `S.cashPastes`; the same
+  message twice is refused by its hash; a line is voided with a reason, never deleted.
+- **Counted in the payout** of the pay week it was sent in (`payWeek().cashOut`, in its `total`), said on Pay's verdict and its own card;
+  out of the forecast's pace. **On the bank's side** the week's cash is wages up to the payout less it, these costs (other) up to what they
+  came to, drawings past both (`bankCostByMonth`, `c.misc`).
+- **A data flow changed**: `S.cashOut` and `S.cashPastes` travel with the book (backups, GitHub, the merge; the change log names a line).
 
 ### Shifts by line: the night shift
 Owner, 29 Oct 2026: a night shift on VAT A1 from that day, *"Build it as a schedule per line with a start date, read by attendance,

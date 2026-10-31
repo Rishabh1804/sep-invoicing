@@ -364,8 +364,10 @@ function payWeek(weekStart) {
   // The snacks of the Saturday before's evening are this payout's, this Saturday's evening the next one's (the cut-off, payLate).
   var snacks = paySnacks(weekStart, sat);
   snacks.amount = gstRound(snacks.amount - lab.cutoff.after.snacks + lab.cutoff.before.snacks);
-  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks,
-    total: gstRound(workers + lab.extra + snacks.amount), paid: gstRound(paid),
+  // The supervisor's cash spent for the plant, paid back with the payout (cashout.js; owner, 31 Oct 2026: "Payout total").
+  var cash = typeof cashWeekTotal === 'function' ? cashWeekTotal(weekStart) : 0;
+  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks, cashOut: cash,
+    total: gstRound(workers + lab.extra + snacks.amount + cash), paid: gstRound(paid),
     recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
@@ -396,6 +398,8 @@ function payForecast(weekStart) {
     var bf = wk.lab.cutoff.before;
     Object.keys(bf.byWorker).forEach(function(id) { sunPay += bf.byWorker[id]; });
     sunPay += bf.extra + bf.snacks;
+    // Cash paid out is a sum the supervisor sends, not a day's work: it does not repeat either.
+    sunPay += wk.cashOut || 0;
     var missing = Math.max(0, wk.workingDays - wk.recordedDays);
     if (wk.recordedDays > 0) {
       var pace = (wk.total - sunPay) / wk.recordedDays;
@@ -468,6 +472,7 @@ function _attPayView() {
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
   html += payLabourPanelsHtml();
   html += _payDueCard(ws);
+  if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
@@ -500,6 +505,7 @@ function _payVerdictHtml(ws) {
       uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) +
       uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
         sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
+      (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
       _payGapsHtml(gaps) + '</div>',
     attrs: ' id="payForecast"' });
 }
@@ -1087,7 +1093,7 @@ function payAction(action, btn) {
     case 'invPayCarryFromSave': payCarryFromSave(false); return true;
     case 'invPayCarryFromOff': payCarryFromSave(true); return true;
   }
-  return false;
+  return typeof cashAction === 'function' && cashAction(action, btn);
 }
 
 /* ===== Hours by area =====

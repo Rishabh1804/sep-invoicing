@@ -940,13 +940,17 @@ function bankCostByMonth(cls) {
     // its cash would read as drawings, so it is not split.
     // A week with only some of its days typed has a payout that reads small, and its cash would read as drawings: it is
     // split only once 90% of its working days are recorded.
-    var known = bankCashWeekKnown(pw), wages = known ? Math.min(c.amount, Math.max(0, pw.total)) : 0;
-    c.wages = wages; c.drawings = known ? c.amount - wages : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
+    // The payout carries the supervisor's cash paid out (cashout.js): that part of the cash is the plant's other costs, not
+    // wages, and past both it is drawings.
+    var known = bankCashWeekKnown(pw), cashOut = known ? (pw.cashOut || 0) : 0;
+    var wages = known ? Math.min(c.amount, Math.max(0, pw.total - cashOut)) : 0, misc = known ? Math.min(c.amount - wages, cashOut) : 0;
+    c.wages = wages; c.misc = misc; c.drawings = known ? c.amount - wages - misc : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
     var seen = {};
     for (var k = 0; k < 7; k++) {
       var d = attParseIso(ws); d.setDate(d.getDate() + k);
       var ym = isoOf(d).slice(0, 7), C = at(ym).labour;
       C.amount += wages / 7; C.cash += wages / 7; C.drawings += c.drawings / 7; C.open += c.open / 7;
+      if (misc) at(ym).other.amount += misc / 7;
       if (!seen[ym]) { seen[ym] = 1; c.rows.forEach(function(v) { C.rows.push(v); }); }
     }
   });

@@ -1217,6 +1217,9 @@ function relayRead() {
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   // Check-ins from the office QR (checkin.js) have a review of their own; beside rolls, the roll's check offers it.
   if (!rolls.length && checkins) { ckReviewOpen(text, { prod: prod.length, stock: stock.length }); return; }
+  // The supervisor's cash paid out (cashout.js): a message of amounts and the total they add up to, paid back with the payout.
+  var cashMsg = !rolls.length && typeof cashLooksLike === 'function' ? msgs.find(function(m) { return cashLooksLike(m.text); }) : null;
+  if (cashMsg) { cashReviewOpen(cashMsg.text, cashMsg.sentOn); return; }
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
   // A stock message belongs to Stock's own review.
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }

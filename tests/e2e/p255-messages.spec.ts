@@ -189,7 +189,9 @@ test.describe('P255: the Messages screen (phone)', () => {
       rec('MSG-1', 'in', ROLL, { status: 'saved' }), rec('MSG-2', 'in', ROLL + '\n', { status: 'saved', key: 'k2' }),
       rec('MSG-3', 'other', 'Pickling later', { status: 'notread' })] }));
     expect(await ev(page, `mvConf('in').conf`)).toBe(1);
-    await ev(page, `mvSetKind('MSG-1', 'out')`);
+    // A roll's text corrected: the kind is less sure (the profile's share, msgprofile.js, or the screen's own where it is not loaded).
+    await ev(page, `_mvEdit = { id: 'MSG-2', text: msgById('MSG-2').text + '03) ALFA', diff: null }; mvReadAgain('MSG-2'); mvEditSave('MSG-2')`);
+    expect((await readStoredState(page)).messages.find((m: any) => m.id === 'MSG-2').textWas.length).toBe(1);
     expect(await ev(page, `mvConf('in').conf`)).toBeCloseTo(0.5, 5);
   });
 

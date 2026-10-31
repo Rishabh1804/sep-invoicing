@@ -54,8 +54,10 @@ EXTRA 12 HOURS`;
 
 test.describe('P249: the night shift on a line\'s schedule', () => {
   test('the schedule in force on a day: its night on the day\'s clock, the latest from-date winning', async ({ page }) => {
+    // A day under the older schedule that is no Sunday (the night does not run on one).
+    let MID = shift(DAY, -10); while (new Date(MID + 'T00:00:00').getDay() === 0) MID = shift(MID, -1);
     await loadAppWithState(page, book({ lineShifts: [{ ...NIGHT, id: 'ls0', from: shift(DAY, -20), start: '17:00', end: '08:30', stop: '08:30', breakMin: 0 }, NIGHT] }));
-    const r = await ev(page, `[lineNightOn('vat-a1', '${DAY}'), lineNightOn('vat-a1', '${shift(DAY, -10)}'), lineNightOn('vat-a2', '${DAY}'), lineNightOn('vat-a1', '${shift(DAY, -30)}')]
+    const r = await ev(page, `[lineNightOn('vat-a1', '${DAY}'), lineNightOn('vat-a1', '${MID}'), lineNightOn('vat-a2', '${DAY}'), lineNightOn('vat-a1', '${shift(DAY, -30)}')]
       .map(function(n) { return n && [n.start, n.end, n.stop, n.plateMin, n.need, n.spare]; })`);
     expect(r[0]).toEqual([1080, 1800, 1740, 615, 6, 1]);
     expect(r[1]).toEqual([1020, 1950, 1950, 930, 6, 1]);
@@ -101,6 +103,19 @@ test.describe('P249: the night shift on a line\'s schedule', () => {
 ---absent---
 2) BRAVO`);
     expect((await readStoredState(page)).attendance[DAY].marks[2]).toMatchObject({ st: 'P', inMin: 1080, outMin: 1800, hours: 12 });
+  });
+
+  test('a night roll sent the next morning with no date is the night before\'s; one with its date, or sent after noon, is not', async ({ page }) => {
+    // Owner, 30 Oct 2026: the night roll "is sent retrospectively in the morning".
+    await loadAppWithState(page, book());
+    const body = OUT.split('\n').slice(1).join('\n');
+    const r = await ev(page, `(function() { var t = ${JSON.stringify('out time\n')} + ${JSON.stringify(body)};
+      var morn = parseRelayRoll(t, [], '${NEXT}', { sentAt: 7 * 60 + 15, night: shiftNightFor });
+      var noon = parseRelayRoll(t, [], '${NEXT}', { sentAt: 13 * 60, night: shiftNightFor });
+      var dated = parseRelayRoll(${JSON.stringify(dmy(NEXT) + '/ ')} + t, [], '${NEXT}', { sentAt: 7 * 60, night: shiftNightFor });
+      var day = parseRelayRoll(${JSON.stringify('out time\n----5:00 PM----\n1) ALFA')}, [], '${NEXT}', { sentAt: 7 * 60, night: shiftNightFor });
+      return [morn.date, morn.issues.some(function(i) { return /night before/.test(i.text); }), noon.date, dated.date, day.date]; })()`);
+    expect(r).toEqual([DAY, true, NEXT, NEXT, NEXT]);
   });
 
   test('an evening block is no night; a day hand on an untagged night is on it, and flagged back to back', async ({ page }) => {

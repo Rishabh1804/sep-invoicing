@@ -4745,6 +4745,7 @@ schedules are the book's (`S.lineShifts`), typed in Settings → Labour → **Sh
   EXTRA its loading or unloading books a window (`extraOne` for one barrel, `extraFew` for two to four, `extraMany` for five or six).
 - **The roll**: a night heading with no time is the schedule's night, one with a time keeps the schedule's other end (8 PM to 6 AM
   where no line has a night, as before); a hand under it on no other roll is in at its start (`nightIn`), never at 8:30 (21 hours).
+  **The night roll is sent the next morning** (owner, 30 Oct 2026): a roll with no date, sent before noon, whose first heading is a night, is the night before's, said amber; a dated roll keeps its date.
   **Read the rolls again from …** (the section's button, `shiftRereadFrom`, `relayRereadDay`) reads every day since the first
   schedule with nothing asked, keeping what was typed by hand; a day whose rolls ask a red question is left to be read on the day.
 - **Pay reads the hands' own times and needed nothing new**: 6 PM to 6 AM is 12 hours by the roll's rule, a monthly hand's 4 of them

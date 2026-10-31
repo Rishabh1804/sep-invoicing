@@ -398,8 +398,24 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
   var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
   out.date = dated || sentOn || null;
+  // The night roll is sent the morning after (owner, 30 Oct 2026: "It is sent retrospectively in the morning"): a roll with no
+  // date, sent before noon, whose first heading is a night, is that night's, the day before the one it was sent.
+  var nightAfter = false;
+  if (!dm && sentOn && opts && opts.sentAt != null && opts.sentAt < 720) {
+    var fh = null;
+    lines.slice(0, 6).some(function(l) {
+      var b = String(l || '').replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+      var k = b ? relaySlotOrArea(b) : null;
+      if (k && k.slot) { fh = k; return true; }
+      return false;
+    });
+    if (fh && (fh.night || (fh.start != null && fh.start >= 960 && fh.end != null && fh.end > 1440))) {
+      out.date = isoAddDays(sentOn, -1); nightAfter = true;
+    }
+  }
   if (!out.date) out.issues.push({ tone: 'red', text: (dm ? '"' + dm[0] + '" is not a date, and' : 'The roll carries no date, and') +
     ' the day it was sent is not known: nothing from it can be saved. Paste it with its WhatsApp line, or put the date on its first line.' });
+  else if (nightAfter) out.issues.push({ tone: 'amber', text: 'The roll carries no date and was sent in the morning; its night is read as the night before (' + out.date + ').' });
   else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
   var headTimes = relayTimes(first.replace(/\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/?/, ''));
@@ -918,7 +934,7 @@ function relayPlan(rv) {
   roster.forEach(function(w) { byId[w.id] = w; });
   var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn, { exact: !!m.exact, night: typeof shiftNightFor === 'function' ? shiftNightFor : null }), h = relayHash(m.text);
+    var r = parseRelayRoll(m.text, roster, m.sentOn, { exact: !!m.exact, sentAt: m.sentAt != null ? m.sentAt : null, night: typeof shiftNightFor === 'function' ? shiftNightFor : null }), h = relayHash(m.text);
     m.parsed = r;
     // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
     m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;

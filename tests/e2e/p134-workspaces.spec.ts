@@ -240,11 +240,12 @@ test.describe('P134: workspaces on the phone', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the top bar: search, History, Knowledge, then Settings; two tab rows leave the page starting by 150px', async ({ page }) => {
+  test('the top bar: search, History, Messages, Knowledge, then Settings; two tab rows leave the page starting by 150px', async ({ page }) => {
     await loadAppWithState(page, state());
     const btns = page.locator('.inv-topbar > button:visible');
-    await expect(btns.nth(-4)).toHaveAttribute('data-action', 'invSearchOpen');
-    await expect(btns.nth(-3)).toHaveAttribute('data-action', 'invGoHistory');   // a tool since the tab map (P184)
+    await expect(btns.nth(-5)).toHaveAttribute('data-action', 'invSearchOpen');
+    await expect(btns.nth(-4)).toHaveAttribute('data-action', 'invGoHistory');   // a tool since the tab map (P184)
+    await expect(btns.nth(-3)).toHaveAttribute('data-action', 'invMsgGo');   // the WhatsApp messages (P255), the owner's
     await expect(btns.nth(-2)).toHaveAttribute('data-action', 'invKbHelp');   // the knowledge base (P154)
     await expect(btns.nth(-1)).toHaveAttribute('data-action', 'invOpenSettings');
     for (const h of await btns.evaluateAll(els => els.map(e => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);

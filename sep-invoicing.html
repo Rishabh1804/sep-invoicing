@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="768ad2b0">
+<meta name="app-build" content="9a170c33">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2616,7 +2616,7 @@ a.inv-btn { text-decoration: none; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
 body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
 /* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
-body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"]) { display: none; }
+body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"], [data-action="invMsgGo"]) { display: none; }
 
 /* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
    The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
@@ -3748,6 +3748,21 @@ body:not(.inv-desktop) button.inv-brief-row { min-height: var(--touch); }
 .inv-wx-ico { flex: none; width: var(--sp-16); height: var(--sp-16); }
 .inv-wx-temp { color: var(--text-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .inv-wx-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== msgconfirm.js: the confirmation screen over the new messages ===== */
+/* A wide dialog whose list scrolls between the head and the foot, which stays put with its count. */
+.inv-mc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.inv-mc-body > * { margin-top: 0; margin-bottom: var(--sp-12); }
+.inv-mc > .inv-dialog-foot { flex-shrink: 0; position: static; align-items: center; }
+.inv-mc-count { flex: 1 1 100%; color: var(--text-2); font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.inv-mc-group + .inv-mc-group { border-top: var(--hair) solid var(--border); }
+.inv-mc-acts { display: flex; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-4) var(--pad-x) var(--sp-8); }
+.inv-row-main > .inv-mc-acts { padding-inline: 0; }
+.inv-mc-what { display: flex; flex-direction: column; gap: var(--sp-2); }
+body.inv-desktop .inv-mc-count { flex: 0 1 auto; margin-right: auto; }
+/* A mark typed by hand that a roll would change: its two answers under its row, the row's width. */
+.inv-mc-pick { padding: 0 var(--pad-x) var(--sp-8); }
+.inv-mc-pick > .inv-seg { width: 100%; }
 </style>
 </head>
 <body>
@@ -3772,6 +3787,10 @@ body:not(.inv-desktop) button.inv-brief-row { min-height: var(--touch); }
   <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
     <span data-icon="history"></span>
   </button>
+  <!-- Messages (msgview.js): every WhatsApp message kept, beside what the app read it as. A tool, like History. -->
+  <button class="inv-topbar-btn" data-action="invMsgGo" aria-label="Messages" title="Messages">
+    <span data-icon="message"></span>
+  </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <span data-icon="book"></span>
@@ -3780,6 +3799,9 @@ body:not(.inv-desktop) button.inv-brief-row { min-height: var(--touch); }
        had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
     <span data-icon="history"></span>
+  </button>
+  <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invMsgGo" aria-label="Messages" title="Messages">
+    <span data-icon="message"></span>
   </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <span data-icon="book"></span>
@@ -3883,6 +3905,11 @@ body:not(.inv-desktop) button.inv-brief-row { min-height: var(--touch); }
 <div id="pageHistory" class="inv-page">
   <div id="historyToolbar"></div>
   <div id="historyList"></div>
+</div>
+
+<!-- Messages (msgview.js): the verdict, the toolbar, the list by day; the message open beside it on the desktop. -->
+<div id="pageMessages" class="inv-page">
+  <div id="msgViewArea"></div>
 </div>
 
 <!-- BOTTOM BAR (phone and tablet): Today · Office · Add · Floor · Money, drawn from the workspaces' map (workspace.js). -->
@@ -4024,6 +4051,9 @@ function getDefaultState() {
     staffPayments: [],
     cashOut: [],
     cashPastes: [],
+    messages: [],
+    msgImports: [],
+    msgProfile: {},
     payCarryClears: [],
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
@@ -4552,7 +4582,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'messages', 'msgImports', 'msgProfile', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
   'devices', 'market'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
@@ -7023,6 +7053,8 @@ var CHG_TRACK = [
   { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
   { path: 'relayPastes', kind: 'raw', noun: 'roll', label: function(r) { return chgJoin(r.kind === 'in' ? 'in-time' : r.kind === 'out' ? 'out-time' : r.kind, r.date ? chgDay(r.date) : ''); } },
   { path: 'cashPastes', kind: 'raw', noun: 'cash message', label: function(r) { return chgJoin('cash paid out', r.sentOn ? chgDay(r.sentOn) : ''); } },
+  { path: 'messages', kind: 'raw', noun: 'message', label: function(r) { return chgJoin(r.sentBy, msgKindLabel(r.kind), r.sentOn ? chgDay(r.sentOn) : ''); } },
+  { path: 'msgImports', kind: 'raw', noun: 'WhatsApp import', label: function(r) { return chgJoin(r.file, r.added != null ? r.added + ' new' : ''); } },
   { path: 'relayLearn', kind: 'skip' },
   { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
   { path: 'attRegister.names', kind: 'map', noun: 'register column name', label: function(r, k) { return k; } },
@@ -8679,6 +8711,8 @@ function grdApplyDoors() {
   if (!grdCan('settings')) document.querySelectorAll('.inv-topbar [data-action="invOpenSettings"], #invSidebar [data-action="invOpenSettings"]').forEach(off);
   // History is a tool in the top bar (the tab map): its door goes with the page.
   if (!grdSees('pageHistory')) document.querySelectorAll('.inv-topbar [data-action="invGoHistory"]').forEach(off);
+  // Messages (msgview.js) is the owner's: it holds every message pasted, cash paid out among them. Its door goes with the page.
+  if (!grdSees('pageMessages')) document.querySelectorAll('.inv-topbar [data-action="invMsgGo"]').forEach(off);
 }
 var _grdDoorsQueued = false;
 function grdApplyDoorsSoon() {
@@ -9522,7 +9556,7 @@ const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
   pageClients: 'Clients', pageFinance: 'Money', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
   pageFloor: 'Floor overview', pagePipeline: 'Pipeline', pageFace: 'Mine',
-  pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
+  pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge', pageMessages: 'Messages'
 };
 
 /* ===== ONE LOOK: EVERY SCREEN DECLARES ITS KIND (docs/TAB_MAP.md §3e) =====
@@ -9540,7 +9574,7 @@ var SCREEN_KINDS = {
   pagePower: 'work', 'pagePower/case': 'document',
   pageFinance: 'work', 'pageFinance/overview': 'overview',
   pageStats: 'work',
-  pageReports: 'document', pagePlanner: 'work', pageHistory: 'work',
+  pageReports: 'document', pagePlanner: 'work', pageHistory: 'work', pageMessages: 'work',
   pageKnow: 'work', 'pageKnow/start': 'overview'
 };
 // A part of the address that is a form wherever it appears: a challan, a quotation, a paste and its check, by hand, a register
@@ -9552,6 +9586,8 @@ function screenKindOf(loc) {
   if (parts.some(function(x) { return SCREEN_FORM_PARTS.test(x); })) return 'form';
   // An article read on the phone is a record opened as a sub-view; on the desktop it sits in the pane beside its list.
   if (loc.tab === 'pageKnow' && loc.id && !_isDesktop) return 'form';
+  // A message opened on the phone is its own sub-view (msgview.js), its text and its reading; on the desktop the pane beside the list.
+  if (loc.tab === 'pageMessages' && loc.id && !_isDesktop) return 'form';
   return SCREEN_KINDS[loc.tab + '/' + parts[0]] || SCREEN_KINDS[loc.tab] || 'work';
 }
 function screenKindApply() {
@@ -9727,6 +9763,8 @@ function tabRender(tabId, isDirty) {
     renderHistory();
   } else if (tabId === 'pageKnow') {
     renderKnow();
+  } else if (tabId === 'pageMessages') {
+    if (typeof renderMessages === 'function') renderMessages();
   }
   screenKindApply();
 }
@@ -29987,6 +30025,7 @@ function stockCommitPaste(parsed, res, meta) {
   if (made) {
     st.pastes.push({ id: pasteId, at: at, by: meta.by || '', sentBy: meta.sentBy || '', from: res.from, to: res.to,
       hash: stockHash(parsed.text || ''), text: parsed.text || '', choices: meta.choices || {} });
+    if (typeof mvSavedFrom === 'function') mvSavedFrom('stock.pastes', st.pastes.slice(-1));
   }
   return { entries: made, lines: lines, skipped: skipped, ids: ids };
 }
@@ -33041,10 +33080,14 @@ function _xlsxZipDir(buf) {
   for (var k = 0; k < count; k++) {
     if (off + 46 > n || dv.getUint32(off, true) !== 0x02014B50) throw new Error('Not an Excel workbook: its list of parts cannot be read');
     var nl = dv.getUint16(off + 28, true), xl = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true);
-    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), at: dv.getUint32(off + 42, true) };
+    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), usize: dv.getUint32(off + 24, true), at: dv.getUint32(off + 42, true) };
     off += 46 + nl + xl + cl;
   }
   return dir;
+}
+/* A deflated zip entry's bytes, inflated by the browser (the WhatsApp export's reader, wazip.js, reads its chat with it too). */
+function _xlsxInflate(raw) {
+  return new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b) { return new Uint8Array(b); });
 }
 /* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
 function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
@@ -33058,7 +33101,7 @@ async function _xlsxPart(buf, dir, name) {
   var raw = new Uint8Array(buf, start, e.size), bytes = raw;
   if (e.method === 8) {
     if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open an .xlsx: import the statement as the .xls the bank exports');
-    bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    bytes = await _xlsxInflate(raw);
   } else if (e.method !== 0) throw new Error('The workbook is packed in a way the app does not read (method ' + e.method + ')');
   return new TextDecoder('utf-8').decode(bytes);
 }
@@ -37202,6 +37245,18 @@ function cashReviewSave() {
   var blank = lines.find(function(ln) { return !ln.what; });
   if (blank) { showToast('Line ' + blank.n + ': say what it was for', 'error'); return; }
   if (!grdGate('payments', 'record cash paid out', cashReviewSave)) return;   // P1 (guard.js): money paid out
+  var total = cashSaveCore(r, lines).total;
+  saveState();
+  var form0 = document.querySelector('[data-cash-review]'), sc = form0 && form0.closest('.inv-scrim-dialog');
+  if (sc) { delete sc.dataset.typed; dialogCloseScrim(sc); }
+  _cashReview = null;
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast('Cash paid out saved: ' + formatCurrency(total) + ', in the payout of Sat ' + stockShortDate(isoAddDays(r.week, 6)));
+}
+/* The review's save without its screen: the message kept whole, a line each in the week it is paid back in. The review and
+   the confirmation screen (msgconfirm.js) write through here. `r` is the review's { text, hash, sentOn, week }; `lines` the
+   lines with an amount, each saying what it was for. → { msgId, total }. */
+function cashSaveCore(r, lines) {
   var by = typeof grdUserId === 'function' ? grdUserId() : null, at = Date.now();
   var msgId = 'CSHM-' + at.toString(36) + Math.random().toString(36).slice(2, 5);
   cashPastes().push({ id: msgId, text: r.text, hash: r.hash, sentOn: r.sentOn, week: r.week, at: at, by: by });
@@ -37209,13 +37264,8 @@ function cashReviewSave() {
     cashOut().push({ id: 'CSH-' + at.toString(36) + Math.random().toString(36).slice(2, 6), date: ln.date || r.sentOn, what: ln.what, amount: ln.amount,
       cat: ln.cat, week: r.week, msgId: msgId, at: at, by: by });
   });
-  var total = gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0));
-  saveState();
-  var form0 = document.querySelector('[data-cash-review]'), sc = form0 && form0.closest('.inv-scrim-dialog');
-  if (sc) { delete sc.dataset.typed; dialogCloseScrim(sc); }
-  _cashReview = null;
-  if (navPageOf() === 'pageStaff') renderAttendance();
-  showToast('Cash paid out saved: ' + formatCurrency(total) + ', in the payout of Sat ' + stockShortDate(isoAddDays(r.week, 6)));
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('cashPastes', cashPastes().slice(-1));
+  return { msgId: msgId, total: gstRound(lines.reduce(function(s, ln) { return s + ln.amount; }, 0)) };
 }
 async function cashVoid(id) {
   var e = cashOut().find(function(x) { return x.id === id; });
@@ -39652,7 +39702,20 @@ function relayKind(text) {
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
   if (/pickling\s*time/i.test(text)) return 'material';
+  if (relayIsChemList(text)) return 'stock';
   return 'other';
+}
+/* A chemical use written with no head ("BRIGHTNER 5 LTR / NITRIC ACID 4 LTR"; the group's export of 16 Sep – 31 Oct 2026, profiled
+   for the Messages build, msgprofile.js): every line a figure in kilos or litres, a chemical named, no pieces and no clock time
+   (a pickling load and the barrel list carry those). Stock's own check reads it, and says what it could not place. */
+function relayIsChemList(text) {
+  var lines = String(text || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  if (lines.length < 2 || lines.length > 25) return false;
+  var unit = /\b\d+(?:\.\d+)?\s*(?:kgs?|ltrs?|litres?|liters?|l)\b/i;
+  if (!lines.every(function(l) { return unit.test(l); })) return false;
+  if (lines.some(function(l) { return /\b(?:nos|no|pcs?|pieces?)\b|\d{1,2}[:.]\d{2}|\d\s*[ap]\.?m\b/i.test(l); })) return false;
+  var chem = typeof PROD_CHEM_IN_RE !== 'undefined' ? PROD_CHEM_IN_RE : /c[ae]mical|chemical/i;
+  return lines.some(function(l) { return chem.test(l); });
 }
 
 /* The chemical stock written into a roll under its own heading, no date ("camical use camical stock"): the roll ends there
@@ -40309,7 +40372,14 @@ function relayPlan(rv) {
     var rows = [];
     Object.keys(t.people).forEach(function(id) {
       var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
-      if (prev && prev.src !== 'relay') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
+      // A mark typed by hand is kept unless the owner says to use the message (relayApplyPlan's `useMsg`): what the roll would
+      // write over it is worked out beside it (`roll`), read over the day as a mark the rolls wrote is, and a mark it would change
+      // is asked about hand by hand (`differs`; owner, 31 Oct 2026: "Use the message / Keep what was typed").
+      if (prev && prev.src !== 'relay') {
+        var roll = w ? relayRollOver(p, prev, w, t) : null;
+        rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept', hand: true, roll: roll, differs: !!roll && relayHandDiffers(prev, roll) });
+        return;
+      }
       // A night hand's mark the rolls wrote (in from 4 PM) is not taken back by an in-time roll pasted after it listing them absent:
       // they were absent from the 8:30 shift, not from the night (Castor M-1).
       if (prev && prev.src === 'relay' && prev.st === 'P' && Number(prev.inMin) >= 960 && p.st === 'A') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
@@ -40418,6 +40488,66 @@ function relayPlan(rv) {
   issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else if (is.tone === 'amber') out.counts.amber++; });
   return out;
 }
+/* What a roll writes for a hand over the mark the day holds: the merge relayPlan makes over a mark the rolls wrote before (the
+   earlier in, an out the roll does not give, the general shift's area), so a roll that only gives the out does not move a typed
+   area. Used for a mark typed by hand, which is kept unless the message is used. */
+function relayRollOver(p, prev, w, t) {
+  var q = JSON.parse(JSON.stringify(p));
+  if (prev && prev.st !== 'A' && q.st === 'P') {
+    if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);
+    if (q.outExp == null && q.outSlot == null && prev.outMin != null && prev.outKnown) q.outExp = prev.outMin;
+    if (!q.generalArea && prev.area && (prev.area !== 'flex' || !q.areas)) q.areas = prev.area;
+  }
+  var n = relayPersonMark(q, w, t.restOut);
+  n.outKnown = n.outMin != null && (q.outExp != null || q.outSlot != null || t.restOut != null || t.kinds.indexOf('out') >= 0);
+  return n;
+}
+/* A mark the roll would change: present, half or absent, where, the hours or the overtime. A mark typed with no hours is not
+   said to differ on its hours. */
+function relayHandDiffers(prev, roll) {
+  if (prev.st !== roll.st) return true;
+  if (roll.st === 'A') return false;
+  if ((prev.area || 'flex') !== (roll.area || 'flex')) return true;
+  if (prev.hours != null && Number(prev.hours) !== Number(roll.hours)) return true;
+  return Number(prev.ot || 0) !== Number(roll.ot || 0);
+}
+/* The marks typed by hand a plan's rolls would change, a row each: { iso, id, w, prev, roll }. */
+function relayHandAsks(plan) {
+  var out = [];
+  (plan && plan.days || []).forEach(function(d) {
+    d.rows.forEach(function(r) { if (r.change === 'kept' && r.hand && r.differs && r.w) out.push({ iso: d.iso, id: r.w.id, w: r.w, prev: r.prev, roll: r.roll }); });
+  });
+  return out;
+}
+function relayHandKey(iso, id) { return iso + '|' + id; }
+/* The marks typed by hand replaced by the roll go to the log as they were, a day at a time, as a day read again from its rolls
+   goes (relayRereadBase, how 'reread'): History says what was replaced, and nothing typed is lost. */
+function relayHandLog(iso, old) {
+  var n = Object.keys(old).length;
+  if (!n) return null;
+  var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: iso, iso: iso,
+    reason: 'the roll used in place of what was typed by hand', how: 'override', at: Date.now(), marks: n, extra: 0, day: { marks: old } };
+  if (!Array.isArray(S.attendanceDeletes)) S.attendanceDeletes = [];
+  S.attendanceDeletes.push(entry);
+  return entry;
+}
+
+/* The two answers for one hand, and the callout over them all: the paste review's and the confirmation screen's (msgconfirm.js). */
+function relayHandSegHtml(action, iso, id, use) {
+  var b = function(v, label, on) {
+    return '<button type="button" class="inv-seg-btn" data-action="' + action + '" data-iso="' + escHtml(iso) + '" data-id="' + escHtml(String(id)) + '" data-use="' + v + '" aria-pressed="' + on + '">' + label + '</button>';
+  };
+  return '<div class="inv-mc-pick"><span class="inv-seg" role="group" aria-label="Which mark">' + b('1', 'Use the message', use) + b('0', 'Keep what was typed', !use) + '</span></div>';
+}
+function relayHandNoteHtml(asks, handUse, allAction) {
+  var used = asks.filter(function(a) { return handUse[relayHandKey(a.iso, a.id)]; }).length, all = used === asks.length;
+  return '<div class="inv-callout inv-callout-warning inv-mb-8" id="relayHandNote" data-hand-asks="' + asks.length + '"><div>' +
+    todoPlural(asks.length, 'mark typed by hand differs', 'marks typed by hand differ') + ' from the message. Each is kept as typed unless you use the message' +
+    (used ? ' (' + used + ' of ' + asks.length + ' set to the message)' : '') + '.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="' + allAction + '" data-use="' + (all ? '0' : '1') + '">' +
+    (all ? 'Keep what was typed for all ' + asks.length : 'Use the message for all ' + asks.length) + '</button></div>';
+}
+
 /* The slot an EXTRA row books in: a general-shift row by its area, a block by its times as the roll read them. A block
    corrected by hand kept a new key, so a roll pasted again neither kept nor replaced it and added the block a second
    time, its hours counted twice (the QA sweep's review, 30 Sep 2026). */
@@ -40503,6 +40633,8 @@ function relayRead() {
   var text = ta ? ta.value : _relayDraft;
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
+  // Every message pasted is kept (msgview.js: the Messages screen), whatever is read and saved from here.
+  if (typeof mvKeepPaste === 'function') mvKeepPaste(text);
   var msgs = relaySplit(text);
   var rolls = [], stock = [], other = [], checkins = 0;
   msgs.forEach(function(m) {
@@ -40600,6 +40732,9 @@ function relayRenderReview() {
     h += '</div>';
   }
 
+  // The marks typed by hand the rolls would change, asked hand by hand: Keep what was typed unless the message is used.
+  var handUse = rv.handUse || (rv.handUse = {}), asks = relayHandAsks(plan);
+  if (asks.length) h += relayHandNoteHtml(asks, handUse, 'invRelayHandAll');
   var marks = 0, extras = 0;
   plan.days.forEach(function(d) {
     var rec = S.attendance && S.attendance[d.iso];
@@ -40610,16 +40745,21 @@ function relayRenderReview() {
     if (d.holiday) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning">Holiday: ' + escHtml(d.holiday) + '</div></div>';
     if (d.provisional) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-info" data-issue="info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div></div>';
     d.rows.forEach(function(r) {
-      var ch = RELAY_CHANGE[r.change] || RELAY_CHANGE.same;
-      var was = r.change === 'kept' ? 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.'
+      var ask = r.change === 'kept' && r.hand && r.differs && r.w, use = ask && !!handUse[relayHandKey(d.iso, r.w.id)];
+      var ch = use ? ['info', 'From the message'] : RELAY_CHANGE[r.change] || RELAY_CHANGE.same;
+      var was = ask ? 'Typed by hand: ' + relayMarkText(r.prev) + '. The message reads ' + (r.roll.st === 'A' ? 'Absent' : areaLabel(r.roll.area) + ', ' + relayMarkText(r.roll)) + '.'
+        : r.change === 'kept' ? 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.'
         : r.change === 'updated' ? 'Was ' + relayMarkText(r.prev) : '';
-      if (r.change === 'new' || r.change === 'updated') marks++;
-      var absent = r.next.st === 'A';
-      h += '<div class="inv-row inv-row-2" data-relay-row data-st="' + escHtml(r.next.st) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
-        '<span class="inv-row-meta">' + (absent ? '<span class="inv-dot inv-dot-danger">Absent</span>' : escHtml(areaLabel(r.next.area))) + '</span>' +
-        (was ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(was) + '</span>' : '') + '</span>' +
-        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
-        '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
+      if (r.change === 'new' || r.change === 'updated' || use) marks++;
+      var shown = use ? r.roll : r.next, absent = shown.st === 'A';
+      h += '<div class="inv-row inv-row-2" data-relay-row data-st="' + escHtml(shown.st) + '"' + (ask ? ' data-relay-hand="' + escHtml(relayHandKey(d.iso, r.w.id)) + '" data-use="' + (use ? '1' : '0') + '"' : '') +
+        '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
+        '<span class="inv-row-meta">' + (absent ? '<span class="inv-dot inv-dot-danger">Absent</span>' : escHtml(areaLabel(shown.area))) + '</span>' +
+        (was ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(was) + '</span>' : '') +
+        '</span>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(shown)) + '</span>' +
+        '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>' +
+        (ask ? relayHandSegHtml('invRelayHand', d.iso, r.w.id, use) : '');
     });
     // Read again: a mark the rolls wrote before and no longer read goes on Save.
     (d.removed || []).forEach(function(r) {
@@ -40680,11 +40820,19 @@ function relayParseHhmm(s) {
    paste's Save and a person's own screen (faces.js, `o.face`: who entered it there, kept on the roll) both write through here. */
 function relayApplyPlan(rv, plan, o) {
   o = o || {};
-  var marks = 0, extras = 0;
+  // `useMsg`: the marks typed by hand the owner chose the message over, keyed relayHandKey(iso, id). Keep is the default.
+  var marks = 0, extras = 0, overrides = 0, useMsg = o.useMsg || {};
   plan.days.forEach(function(d) {
     // Read again, the day is rebuilt: it goes to the log as it was, and starts over from what was entered by hand.
-    var rec = rv.reread ? relayRereadBase(d.iso, rv.rereadWhy) : attDay(d.iso, true);
+    var rec = rv.reread ? relayRereadBase(d.iso, rv.rereadWhy) : attDay(d.iso, true), old = {};
     d.rows.forEach(function(r) {
+      if (r.change === 'kept' && r.hand && r.differs && r.roll && r.w && useMsg[relayHandKey(d.iso, r.w.id)]) {
+        var u = r.roll;
+        old[r.w.id] = JSON.parse(JSON.stringify(rec.marks[r.w.id] || r.prev));
+        rec.marks[r.w.id] = { st: u.st, ot: u.ot, hours: u.hours, area: u.area, inMin: u.inMin, outMin: u.outMin, outKnown: !!u.outKnown, src: 'relay' };
+        marks++; overrides++;
+        return;
+      }
       if (r.change === 'kept' || (r.change === 'same' && !rv.reread)) return;
       var n = r.next;
       rec.marks[r.w.id] = { st: n.st, ot: n.ot, hours: n.hours, area: n.area, inMin: n.inMin, outMin: n.outMin, outKnown: !!n.outKnown, src: 'relay' };
@@ -40695,6 +40843,7 @@ function relayApplyPlan(rv, plan, o) {
     // The hands' own slot picks stand over the roll's crews: put on the roll's block of their slot and area, or kept on
     // the block made for them. Crew the roll named for a hand with no pick is as the roll wrote it.
     attSlotsApply(rec);
+    relayHandLog(d.iso, old);
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));
@@ -40717,8 +40866,11 @@ function relayApplyPlan(rv, plan, o) {
     if (o.face) rp.face = o.face;
     relayPastes().push(rp);
     ids.push(rp.id);
+    m.rpId = rp.id;   // the roll's record, for the message it came from (msgconfirm.js marks it saved)
   });
-  return { marks: marks, extras: extras, ids: ids };
+  // The messages these rolls were (msgview.js): marked saved, whoever saved them (the review, the confirmation screen, a face).
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('relayPastes', relayPastes().filter(function(p) { return ids.indexOf(p.id) >= 0; }));
+  return { marks: marks, extras: extras, ids: ids, overrides: overrides };
 }
 function relaySave() {
   var rv = _relay;
@@ -40732,7 +40884,7 @@ function relaySave() {
   plan.issues.forEach(function(is) {
     if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
   });
-  var done = relayApplyPlan(rv, plan), marks = done.marks, extras = done.extras;
+  var done = relayApplyPlan(rv, plan, { useMsg: rv.handUse || {} }), marks = done.marks, extras = done.extras;
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
   _relay = null; _relayView = 'paste';
@@ -40741,7 +40893,7 @@ function relaySave() {
   renderAttendance();
   viewTop();
   showToast((reread ? 'Read again: ' : 'Saved ' + todoPlural(plan.days.length, 'day') + ': ') + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row') +
-    (reread ? '; the day as it was is in the log' : ''));
+    (reread ? '; the day as it was is in the log' : '') + (done.overrides ? '; ' + todoPlural(done.overrides, 'mark typed by hand', 'marks typed by hand') + ' replaced by the message, the old in the log' : ''));
 }
 
 /* ===== Read the rolls again (Staff → Day) =====
@@ -40839,6 +40991,13 @@ function relayAction(action, btn) {
     // Back from a day's rolls read again is back to the day, and the reading is dropped: Paste message opens empty.
     case 'invRelayRereadBack': _relay = null; _relayView = 'paste'; _attView = 'day'; renderAttendance(); viewTop(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
+    // A mark typed by hand the roll would change: use the message, or keep what was typed (the default), one hand or all.
+    case 'invRelayHand': if (_relay) { (_relay.handUse = _relay.handUse || {})[relayHandKey(btn.dataset.iso, btn.dataset.id)] = btn.dataset.use === '1'; renderAttendance(); } break;
+    case 'invRelayHandAll': if (_relay) {
+      var hu = _relay.handUse = _relay.handUse || {};
+      relayHandAsks(relayPlan(_relay)).forEach(function(a) { hu[relayHandKey(a.iso, a.id)] = btn.dataset.use === '1'; });
+      renderAttendance();
+    } break;
     case 'invRelayForget': {
       var L = relayLearnData();
       if (L[btn.dataset.kind]) { delete L[btn.dataset.kind][btn.dataset.key]; saveState(); showToast('Forgotten'); renderAttendance(); }
@@ -40876,7 +41035,8 @@ function relayOnInput(t) {
      never works"*). A photo picked as a file is named as one, and the page is entered by hand.
    - A file: routed by what is in it, never by its name (addFileKind): the bank's Excel 97–2003 statement, or JSON by its
      format (sep-stock, sep-production, sep-power, sep-payroll-paid, sep-att-register), a roster, or a backup, which replaces the whole book
-     and so asks first exactly as Settings → Import does. Anything else is named, never guessed at.
+     and so asks first exactly as Settings → Import does; the group's WhatsApp export, a zip holding its chat or the bare .txt,
+     goes to wazip.js (wzImportBuf). Anything else is named, never guessed at.
    - By hand: each form opened on the job, through the openers the screens already have.
    Leaving the sheet for a route asks first about what was typed in it (the dialog guard) and about unsaved work on the
    screen under it (the leave guard, nav.js). Add is a layer, not a place: it has no address, and back closes it. */
@@ -40957,10 +41117,10 @@ function addOpen() {
     // 2–3. The clipboard (read only on a tap) and a file. The picker sits first and unseen, so the last row is the
     // panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
     '<div class="inv-panel inv-panel-flush">' +
-    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
+    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,.zip,.txt,application/zip,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
     row('clipboard', 'invAddClip', ADD_ICON.clipboard, 'Check the clipboard', 'What you copied, read only when you tap here') +
     '<div class="inv-panel-body inv-hidden" id="addClipOut" aria-live="polite"></div>' +
-    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
+    row('file', 'invAddFile', ADD_ICON.file, 'File', 'The group’s WhatsApp export (.zip or .txt), a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
     '</div>' +
     // 5. By hand: every form, opened on the job.
     '<div class="inv-panel" data-add-sec="hand"><div class="inv-panel-head"><span class="inv-panel-title">By hand</span></div>' +
@@ -41155,7 +41315,11 @@ function addFileKind(buf) {
   var at = function(sig, from) { from = from || 0; return u8.length >= from + sig.length && sig.every(function(b, i) { return u8[from + i] === b; }); };
   if (at(ADD_OLE_SIG)) return { kind: 'xls' };
   // A zip is an .xlsx when it holds a workbook: a statement saved from Excel (owner, 8 Oct 2026), read as the .xls is.
-  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf) ? 'xls' : 'zip' };
+  // A zip holding a chat is WhatsApp's export (wazip.js), told by the chat in it, never by the file's name: an .xlsx is a zip too.
+  if (at([0x50, 0x4B, 0x03, 0x04])) {
+    if (typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf)) return { kind: 'xls' };
+    return typeof wzHasChat === 'function' && wzHasChat(buf) ? { kind: 'wazip', buf: buf } : { kind: 'zip' };
+  }
   if (at([0x25, 0x50, 0x44, 0x46])) return { kind: 'pdf' };
   if (at([0xFF, 0xD8, 0xFF]) || at([0x89, 0x50, 0x4E, 0x47]) || at([0x47, 0x49, 0x46, 0x38]) || (at([0x52, 0x49, 0x46, 0x46]) && at([0x57, 0x45, 0x42, 0x50], 8)) ||
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
@@ -41170,6 +41334,8 @@ function addTextKind(text) {
     try { return { kind: 'json', text: t, obj: JSON.parse(t) }; } catch (e) { return { kind: 'badjson', error: e.message }; }
   }
   if (/^</.test(t)) return { kind: 'html' };
+  // A WhatsApp chat exported as a bare .txt (wazip.js): its lines open on the date, time and sender WhatsApp writes.
+  if (t && typeof wzLooksLikeChat === 'function' && wzLooksLikeChat(t)) return { kind: 'watext', text: t };
   return { kind: t ? 'text' : 'empty' };
 }
 /* Which import a JSON file is for, by its format (the payroll file names it as its kind); a backup is the book itself. */
@@ -41209,6 +41375,8 @@ var ADD_FILE_GUARD = {
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
   bank: { grp: 'payments', what: 'import cheques received', page: 'pageFinance' },
+  // The group's WhatsApp export carries the floor's rolls, production and stock: the floor's imports' gate (wazip.js).
+  whatsapp: { grp: 'imports', what: 'import a WhatsApp chat' },
   // Knowledge's own Import is the owner's and asks the PIN again whatever the window (knowledge.js kbImport).
   kb: { grp: 'imports', what: 'import knowledge', page: 'pageKnow', owner: true, always: true },
   backup: { grp: 'users', what: 'import a backup' }
@@ -41236,12 +41404,18 @@ async function addFileRoute(file, buf) {
     addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); });
     return;
   }
-  var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
+  var what = addFileWhat(k);
   if (what && !(await addFileGuardOk(what))) return;
   var go = what && addFileGo(what, k, name);
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
+    '. Add takes the group’s WhatsApp export (.zip or .txt), a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
+}
+/* Which import a file read by its kind is for: a JSON file by its format, WhatsApp's export (a zip or a bare .txt) the chat's. */
+function addFileWhat(k) {
+  if (!k) return '';
+  if (k.kind === 'json') return addJsonWhat(k.obj);
+  return k.kind === 'wazip' || k.kind === 'watext' ? 'whatsapp' : '';
 }
 /* Where each kind of file is imported, opened on the screen and view that import it. */
 function addFileGo(what, k, name) {
@@ -41256,6 +41430,8 @@ function addFileGo(what, k, name) {
     plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text, name); },
     kb: function() { kbSetTab('library'); switchTab('pageKnow'); kbImportData(k.obj, name); },
     bank: function() { finSetTab('receipts'); switchTab('pageFinance'); bankChequesImport(k.obj, name); },
+    // The guard has answered (addFileGuardOk): the export is read, cut to the new messages and confirmed (wazip.js).
+    whatsapp: function() { wzImportBuf(k.buf || k.text, name, { guarded: true }); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text, name); }
   }[what] || null;
@@ -41272,6 +41448,7 @@ var ADD_FILE_KINDS = {
   plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
   kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
   bank: { title: 'A bank export', noun: 'this app’s bank export (sep-bank), whose cheques received are taken', page: 'pageFinance', view: 'Receivables' },
+  whatsapp: { title: 'A WhatsApp chat', noun: 'the group’s WhatsApp chat, exported', where: 'Add → File' },
   backup: { title: 'A backup', noun: 'a backup of the whole book', where: 'Settings → Data & device' },
   xls: { noun: 'a bank statement' }
 };
@@ -41287,7 +41464,7 @@ function addFileWhere(what) {
 function addFileElsewhere(src, name, here) {
   var k = src instanceof ArrayBuffer ? addFileKind(src) : typeof src === 'string' ? addTextKind(src)
     : src && typeof src === 'object' ? { kind: 'json', obj: src, text: JSON.stringify(src) } : null;
-  var what = k && k.kind === 'json' ? addJsonWhat(k.obj) : '', mine = [].concat(here || []);
+  var what = k ? addFileWhat(k) : '', mine = [].concat(here || []);
   if (!what || mine.indexOf(what) >= 0 || !addFileGo(what, k, name)) return false;
   var it = ADD_FILE_KINDS[what] || {}, at = ADD_FILE_KINDS[mine[0]];
   uiConfirm({ title: it.title || 'Another screen’s file',
@@ -41306,7 +41483,7 @@ function addFileWords(k) {
     return 'a JSON file' + (f ? ' marked ' + f : '') + (keys.length ? ' with keys ' + keys.slice(0, 8).join(', ') + (keys.length > 8 ? ' and ' + (keys.length - 8) + ' more' : '') : ', empty') + ', not one the app imports';
   }
   return {
-    zip: 'a zip file with no Excel workbook in it; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
+    zip: 'a zip file with no Excel workbook in it and no WhatsApp chat; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
     pdf: 'a PDF, which the app does not read; the page is entered by hand',
     html: 'a web page (HTML), not the bank’s Excel 97–2003 statement',
     badjson: 'JSON that could not be read (' + (k.error || 'not valid') + ')',
@@ -41391,6 +41568,2069 @@ document.addEventListener('keydown', function(e) {
   e.preventDefault();
   addOpen();
 });
+/* ===== Messages: one record of every WhatsApp message, and one sorter =====
+   (owner, 31 Oct 2026: "We need the pasted whatsapp message to be stored in the app, so that we can read the message in the
+   app and make changes and the app can learn what it got wrong"; then a WhatsApp zip read like this chat, every new message
+   sorted, and a final confirmation screen.) The readers that exist stay as they are: rolls (relay.js), production
+   (prodparse.js), stock (stock.js), cash (cashout.js), check-ins (checkin.js), and so do the stores they save to. This
+   module is the one record of every message pasted or imported, and the one place that says which reader takes it.
+
+   THE CONTRACT the Messages screen (msgview.js), the zip reader (wazip.js), the profile (msgprofile.js) and the
+   confirmation screen (msgconfirm.js) build to:
+
+   S.messages: [{
+     id: 'MSG-…', key: msgKey(m)                 the message once, however often it arrives
+     sentBy, sentOn (iso or null), sentAt (the minute on sentOn as relaySplit and wazip give it, or epoch ms; or null), text, edited
+     src: 'paste' | 'zip', importId (S.msgImports id or null), seenIn (the exports that held it again, ids)
+     kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
+     status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
+     saved: [{ store, id }]                        the records it made, where the reader's save says
+     textWas: [{ text, at, by }]                   each edit of its text, the text before
+     fix: { kind, at, by } | null                  the owner's word on its kind, which wins over the sorter
+     at, by                                        when and by whom it was taken in
+   }]
+   S.msgImports: [{ id, at, by, file, chat, first, last, total, added, seen, skippedOld, inBook, media, system, order, kinds }]
+     (wazip.js: what each import read, cut and took; see its head)
+   S.msgProfile: kept by msgprofile.js (how each sender sends messages), never by this module.
+
+   Names here are msg*; the four modules' own are mv* (msgview), wz* (wazip), mp* (msgprofile), mc* (msgconfirm). */
+
+var MSG_KINDS = [
+  { id: 'in', label: 'In-time roll', where: 'People' },
+  { id: 'out', label: 'Out-time roll', where: 'People' },
+  { id: 'pickling', label: 'Pickling loads', where: 'Production' },
+  { id: 'production', label: 'Barrel production', where: 'Production' },
+  { id: 'runs', label: 'Production by slot', where: 'Production' },
+  { id: 'power', label: 'Power cut', where: 'Production' },
+  { id: 'stock', label: 'Stock message', where: 'Stock' },
+  { id: 'cash', label: 'Cash paid out', where: 'Pay' },
+  { id: 'checkin', label: 'Office QR check-in', where: 'People' },
+  { id: 'payment', label: 'Weekly payment', where: 'Pay' },
+  { id: 'other', label: 'Not read', where: '' }
+];
+function msgKindLabel(id) { var k = MSG_KINDS.find(function(x) { return x.id === id; }); return k ? k.label : 'Not read'; }
+
+function msgStore() { if (!Array.isArray(S.messages)) S.messages = []; return S.messages; }
+function msgImports() { if (!Array.isArray(S.msgImports)) S.msgImports = []; return S.msgImports; }
+/* The message once: its sender, the minute it was sent and its words. A repost later is another message (the readers
+   refuse it as already read, as they always have); the same export imported twice is the same messages. */
+function msgKey(m) {
+  // `sentAt` is epoch ms from a zip, or the minute of the day from a paste (relaySplit's reading): a minute of the day is kept
+  // with its day, or the same words sent on two days (the pickling hand's same load) read as one message and the second was lost.
+  var minute = m.sentAt > 1e7 ? Math.floor(m.sentAt / 60000) : (m.sentOn || '') + (m.sentAt != null ? '@' + m.sentAt : '');
+  return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + minute + '|' + String(m.text || ''));
+}
+
+/* The sorter. Each reader is asked in the order the floor's messages are told apart today (relayRead, addDescribe), so the
+   sorter and the paste box can never disagree: a check-in, a roll, cash, the weekly payment summary, production's kinds,
+   stock. Pure but for the book's readers. Returns { kind, conf, why } and, for a message no reader takes, `like`: the kind it
+   looks like, when it looks like one. A message no reader takes is 'other' (Not read), never dropped; its `conf` is how sure the
+   sorter is that nothing in it is for a reader (a photo with no words, the chat's own notice), its `why` what it is.
+   msgprofile.js tunes `conf` from how the sender usually writes (mpConf), when it is loaded.
+
+   Tuned on the group's export of 16 Sep – 31 Oct 2026 (msgprofile.js, docs/MESSAGES.md M2): shapes only, never a name. A roll
+   whose date is written with spaces or after a word ("Sunday duty DD/ MM/ YY/ in time") is a dated roll; a roll heading inside
+   a sentence of a few lines is a note about a roll, not one; the rest of what no reader takes is said for what it is. */
+var MSG_MEDIA = [
+  [/^\s*(?:\[forwarded\]\s*)?<album message>\s*$/i, 'a photo album with no words'],
+  [/^\s*(?:\[forwarded\]\s*)?<(?:image|video|gif|sticker) omitted>\s*$/i, 'a photo or video with no words'],
+  [/^\s*(?:\[forwarded\]\s*)?<(?:audio omitted|voice omitted)>|^\s*\S+\.opus\b/i, 'a voice note'],
+  [/^\s*(?:\[forwarded\]\s*)?<document omitted>/i, 'a document (a PDF or a file)'],
+  [/^\s*(?:\[forwarded\]\s*)?<contact card omitted>/i, 'a contact card'],
+  [/^\s*(?:this message was deleted|you deleted this message)\s*$/i, 'a deleted message'],
+  [/^\s*messages and calls are end-to-end encrypted|^\s*(?:-\s*)?\S+ (?:created (?:the|this) group|changed (?:the|this) group)/i, 'the chat’s own notice']
+];
+var MSG_CAPTION_RE = /^\s*(?:\[forwarded\]\s*)?<(?:image|video|gif|document) omitted>\s*\S/i;
+var MSG_DATED_ROLL_RE = /^\s*(?:[a-z]+\s+){0,3}\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\s*\/*\s*(?:\S+\s+){0,2}?(?:in|out)\s*-*\s*time/i;
+function msgSort(m) {
+  var text = String(m && m.text || ''), out;
+  if (m && m.fix && m.fix.kind) return { kind: m.fix.kind, conf: 1, why: 'set by hand' };
+  var media = MSG_MEDIA.find(function(x) { return x[0].test(text); });
+  if (media) out = { kind: 'other', conf: 0.95, why: media[1] };
+  else {
+    var rk = relayKind(text), first = (text.split('\n').find(function(l) { return l.trim(); }) || '').trim();
+    if (rk === 'checkin') out = { kind: 'checkin', conf: 0.95, why: 'the office QR’s head' };
+    else if (rk === 'in' || rk === 'out') out = msgRollSort(rk, text, first);
+    else if (typeof cashLooksLike === 'function' && cashLooksLike(text)) out = { kind: 'cash', conf: 0.9, why: 'amounts and the total they add up to' };
+    else if (/\bweekly\s+payment\b/i.test(text)) out = { kind: 'payment', conf: 0.9, why: 'the weekly payment summary' };
+    else {
+      var pk = typeof prodKind === 'function' ? prodKind(text) : 'other';
+      if (pk === 'stock' || rk === 'stock') out = { kind: 'stock', conf: 0.85, why: !/c[ae]mical|chemical|stock|\bto\s+soma\b/i.test(text.split('\n').slice(0, 2).join(' ')) && relayIsChemList(text) ? 'chemicals in kilos and litres, with no head' : 'a stock head or a delivery to the plant' };
+      else if (pk === 'pickling' || pk === 'production' || pk === 'runs' || pk === 'power') out = { kind: pk, conf: 0.8, why: 'production’s reader: ' + pk };
+      else out = msgOtherSort(text, first);
+    }
+  }
+  if (typeof mpConf === 'function') { try { out = mpConf(m, out) || out; } catch (e) { /* a profile never stops a sort */ } }
+  return out;
+}
+/* A roll: its own dated head is surest; a heading with no date is a roll by its words; a roll heading inside a sentence of a few
+   lines ("the date written yesterday was today's out time") is a note about a roll, and is kept as the kind the paste box
+   reads it as, with little confidence, so the confirmation screen asks. */
+function msgRollSort(rk, text, first) {
+  if (RELAY_ROLL_HEAD_RE.test(text) || MSG_DATED_ROLL_RE.test(first)) return { kind: rk, conf: 0.95, why: 'a dated roll head' };
+  var lines = text.split('\n').filter(function(l) { return l.trim(); }).length;
+  var before = first.split(/\b(?:in|out)\s*-*\s*time/i)[0].trim().split(/\s+/).filter(function(w) { return /[a-z]/i.test(w); }).length;
+  if (lines <= 3 && before >= 4) return { kind: rk, conf: 0.35, why: 'reads like a note about a roll, not a roll' };
+  return { kind: rk, conf: 0.8, why: 'an in/out time heading' };
+}
+/* What a message no reader takes is, in words, and the kind it looks like where it looks like one. */
+function msgOtherSort(text, first) {
+  var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  var qty = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|kg|kgs)\b/i;
+  if (MSG_CAPTION_RE.test(text)) return { kind: 'other', conf: 0.6, why: 'a photo’s caption: no reader takes it' };
+  if (/^\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/*\s*(?:sunday\s*of+|holiday|off\b|chhutti|closed)/i.test(first) && lines.length <= 3) return { kind: 'other', conf: 0.6, why: 'a dated notice that the plant is off' };
+  if (/^\s*[a-z]*\s*production\b/i.test(first) && lines.slice(1).some(function(l) { return qty.test(l); })) return { kind: 'other', conf: 0.2, like: 'production', why: 'a production block sent apart from its roll: no reader takes it alone' };
+  if (lines.length >= 2 && lines.length <= 6 && /-{1,}\s*\d{1,2}[:.]\d{2}\s*(?:a\.?m|p\.?m)?\.?\s*$/i.test(lines[lines.length - 1])) return { kind: 'other', conf: 0.2, like: 'pickling', why: 'a load and a time, with no “pickling time” written' };
+  if (/\bin\s*c?o?ming\b/i.test(first) && typeof PROD_CHEM_IN_RE !== 'undefined' && PROD_CHEM_IN_RE.test(first)) return { kind: 'other', conf: 0.3, like: 'stock', why: 'a chemical delivery with no figures' };
+  if (!/\d/.test(text) && lines.length <= 3) return { kind: 'other', conf: 0.6, why: 'words with no figures: a line of conversation' };
+  return { kind: 'other', conf: 0, why: 'no reader takes it' };
+}
+
+/* Take messages in (relaySplit's shape: sentBy, sentOn, sentAt, text, edited). Each new one is sorted and kept; one the
+   book holds already is counted, not added. Writes nothing to disk: the caller saves. Returns { added: [records], seen }. */
+function msgIngest(list, src, importId) {
+  var have = {}, out = { added: [], seen: 0 };
+  msgStore().forEach(function(r) { have[r.key] = r; });
+  var by = typeof grdUserId === 'function' ? grdUserId() : null, at = Date.now();
+  (list || []).forEach(function(m) {
+    if (!m || !String(m.text || '').trim()) return;
+    var key = msgKey(m);
+    if (have[key]) {
+      out.seen++;
+      // Kept before (a paste), then found in an export: the export's check lists it as in the book already (msgconfirm.js).
+      var h = have[key];
+      if (importId && h.importId !== importId && (h.seenIn || []).indexOf(importId) < 0) (h.seenIn = h.seenIn || []).push(importId);
+      return;
+    }
+    var r = { id: 'MSG-' + at.toString(36) + Math.random().toString(36).slice(2, 7), key: key, sentBy: m.sentBy || '', sentAt: m.sentAt != null ? m.sentAt : null,
+      sentOn: m.sentOn || null, text: String(m.text), edited: !!m.edited, src: src || 'paste', importId: importId || null,
+      status: 'new', saved: [], textWas: [], fix: null, at: at, by: by };
+    var s = msgSort(r);
+    r.kind = s.kind; r.conf = s.conf; r.why = s.why;
+    if (r.kind === 'other') r.status = 'notread';
+    have[key] = r;
+    msgStore().push(r);
+    out.added.push(r);
+  });
+  return out;
+}
+/* A message's record by id, and the records it made, once its reader has saved them. */
+function msgById(id) { return msgStore().find(function(r) { return r.id === id; }) || null; }
+function msgMarkSaved(id, store, recId) {
+  var r = msgById(id);
+  if (!r) return;
+  r.status = 'saved';
+  // One record once, whichever part marked it (a reader's own save, msgview.js, and the confirmation screen both mark).
+  if (store && !(r.saved || []).some(function(x) { return x.store === store && x.id === (recId || null); })) (r.saved = r.saved || []).push({ store: store, id: recId || null });
+}
+
+/* Every msg-screen action (invMsg…) comes here from events.js and goes to the module that owns it. */
+function msgAction(action, btn) {
+  var fns = [typeof mvAction === 'function' ? mvAction : null, typeof wzAction === 'function' ? wzAction : null,
+    typeof mcAction === 'function' ? mcAction : null, typeof mpAction === 'function' ? mpAction : null];
+  for (var i = 0; i < fns.length; i++) if (fns[i] && fns[i](action, btn)) return true;
+  return false;
+}
+/* ===== How each sender sends messages, learnt from every message the book holds (mp*) =====
+   Built to the contract in msgstore.js (owner, 31 Oct 2026: "analyse every bit of chat data from the zip that we have and profile
+   how they send messages, so that the parser keeps evolving with future uploads of zip files"). Nobody is written in here: the
+   profile is learnt from the book's own messages (msgStore()), and grows with every paste and every zip taken in.
+
+   S.msgProfile = { v, n, lastId, sig, at, senders: { <SENDER KEY>: {
+     name                      the sender as first written
+     n, first, last            messages, and the first and last day sent
+     kinds: { kind: n }        what they send (the owner's word on a kind wins over the sorter's)
+     hours: { kind: { h: n } } at which hour of the day, kind by kind
+     days:  { kind: { 0..6: n } } on which weekday (0 Sunday)
+     shapes: { kind: { shape: n } } how the message opens (mpShape: "date · out time", "words", "chemical · date" …)
+     lines: { kind: { min, max, sum, n } } how long, in lines
+     spell: { word: { as written: n } } how the shop's words are spelt (in time, out time, chemical, pickling time, power cut …)
+     split: { kind: n }        a report carried on in another message within 20 minutes, with no head of its own
+     joined: { kind: n }       one message carrying another kind as well (a roll with its production block or its stock)
+     fixed: { kind: n }        later corrected: its kind set by hand (r.fix) or its text edited (r.textWas)
+     notread: n, media: n      no reader takes it; a photo, a document, a deleted message
+   } } }
+
+   mpLearn() builds it (a memo: nothing is read again until the book or the store changes; a message added is folded in, a
+   correction read again from the start). mpConf(m, out) moves the sorter's confidence by how the sender usually writes the kind,
+   in words. mpKindConf(kind, sender) is the share of a kind's messages of the last 60 days read with no correction, which the
+   confirmation screen sets against 90%. mpSender(name) and mpSenderHtml(name) say how one sender sends messages. */
+
+var MP_V = 1;
+var MP_MIN = 8;                 // messages from a sender before the profile moves a confidence
+var MP_SPLIT_MIN = 20;          // a report carried on within this many minutes is one report split over two messages
+var MP_KIND_DAYS = 60;          // mpKindConf's window
+var MP_SPELL = [
+  ['in time', /\bin\s*-*\s*time(?![a-z])/gi],
+  ['out time', /\bout\s*-*\s*time(?![a-z])/gi],
+  ['chemical', /\b(?:c[ae]mi?c[ae]?l|chemicals?)\b/gi],
+  ['pickling time', /\bp\w{0,2}[ckx]{1,2}l\w*\s*t\w*me\b/gi],
+  ['power cut', /\bp[ao]\s?w[ae]r\s*-*\s*(?:cut|cat|cute)\b/gi],
+  ['power back', /\bp[ao]\s?w[ae]r\s*-*\s*(?:in|back|on)\b/gi],
+  ['barrel', /\bb[ae]r+[ae]*l+\b/gi],
+  ['incoming', /\bin\s?c?o?ming\b/gi],
+  ['production', /\bprod\w*ion\b/gi]
+];
+/* The words a first line is told by, in the order they are looked for. */
+var MP_SHAPE_WORDS = [
+  ['in time', /\bin\s*-*\s*time(?![a-z])/i], ['out time', /\bout\s*-*\s*time(?![a-z])/i], ['pickling time', /\bp\w{0,2}[ckx]{1,2}l\w*\s*t\w*me\b/i],
+  ['chemical', /\b(?:c[ae]mi?c[ae]?l|chemicals?)\b/i], ['incoming', /\bin\s?c?o?ming\b/i], ['to the plant', /\bto\s+soma\b/i],
+  ['power', /\bp[ao]\s?w[ae]r\b/i], ['barrel', /\bb[ae]r+[ae]*l+\b/i], ['production', /\bprod\w*ion\b/i], ['update', /\bupdated?\b/i],
+  ['payment', /\bpayment\b/i], ['use', /\buse[ds]?\b/i], ['stock', /\bstocks?\b/i], ['night', /\bnight\b/i], ['morning', /\bmorning\b/i],
+  ['sunday', /\bsunday\b/i], ['total', /\btotal\b/i]
+];
+var MP_MEDIA_RE = /^\s*(?:\[forwarded\]\s*)?(?:<(?:album message|image omitted|video omitted|gif omitted|sticker omitted|audio omitted|document omitted|contact card omitted)>|this message was deleted|you deleted this message)/i;
+var _mpMemo = null;
+var MP_PLURAL = { 'in': 'in-time rolls', out: 'out-time rolls', pickling: 'pickling loads', production: 'barrel lists', runs: 'production slot logs',
+  power: 'power cut messages', stock: 'stock messages', cash: 'cash accounts', checkin: 'office QR check-ins', payment: 'weekly payment summaries', other: 'messages no reader takes' };
+function mpPlural(k) { return MP_PLURAL[k] || String(k); }
+
+function mpKey(name) { return String(name || '').replace(/\s+/g, ' ').trim().toUpperCase(); }
+/* A message's kind as it stands: the owner's word, else the sorter's. */
+function mpKindOf(r) { return r && r.fix && r.fix.kind ? r.fix.kind : (r && r.kind) || 'other'; }
+/* The minute and hour a message was sent: `sentAt` is epoch ms from a zip, or the minute of the day from a paste
+   (relaySplit's reading); null where neither is known. */
+function mpHourOf(r) {
+  if (!r || r.sentAt == null) return null;
+  if (r.sentAt > 1e7) return new Date(r.sentAt).getHours();
+  return r.sentAt >= 0 && r.sentAt < 1440 ? Math.floor(r.sentAt / 60) : null;
+}
+function mpMinuteOf(r) {
+  if (!r || r.sentAt == null) return null;
+  if (r.sentAt > 1e7) return Math.floor(r.sentAt / 60000);
+  if (!r.sentOn) return null;
+  return Math.round(new Date(r.sentOn + 'T00:00:00Z').getTime() / 60000) + r.sentAt;
+}
+function mpIsoOf(r) {
+  if (!r) return null;
+  if (r.sentOn) return r.sentOn;
+  if (r.sentAt > 1e7) return isoOf(new Date(r.sentAt));
+  return r.at ? isoOf(new Date(r.at)) : null;
+}
+function mpDowOf(iso) { return iso ? new Date(iso + 'T12:00:00').getDay() : null; }
+function mpFirstLine(text) { return (String(text || '').split('\n').find(function(l) { return l.trim(); }) || '').trim(); }
+function mpLineCount(text) { return String(text || '').split('\n').filter(function(l) { return l.trim(); }).length; }
+
+/* How a message opens, in a few generic words: a date, a dashed rule, the shop's words in the order the first line has them,
+   else a numbered line, words or figures. Never a name: "date · out time", "chemical · use · stock", "words". */
+function mpShape(text) {
+  if (MP_MEDIA_RE.test(mpFirstLine(text)) && !mpFirstLine(text).replace(MP_MEDIA_RE, '').replace(/^\s*>?\s*/, '').trim()) return 'a photo or file';
+  var l = mpFirstLine(text).replace(MP_MEDIA_RE, '').trim(), out = [];
+  if (/^[\[(]?\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}/.test(l)) out.push('date');
+  else if (/^\s*[a-z]+(?:\s+[a-z]+){0,2}\s+\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}/i.test(l)) out.push('words · date');
+  if (/^[\s\-_=*.•]{3,}/.test(l) || /-{3,}/.test(l)) out.push('rule');
+  var found = [];
+  MP_SHAPE_WORDS.forEach(function(w) { var m = w[1].exec(l); if (m) found.push([m.index, w[0]]); });
+  found.sort(function(a, b) { return a[0] - b[0]; }).slice(0, 3).forEach(function(f) { out.push(f[1]); });
+  if (out.indexOf('date') < 0 && found.length && /\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}/.test(l)) out.push('date');
+  if (!found.length && out.indexOf('date') < 0 && out.indexOf('words · date') < 0) {
+    if (/^\(?\d{1,3}\s*[).]/.test(l)) out.push('numbered line');
+    else if (/[a-z]/i.test(l)) out.push(/\d/.test(l) ? 'words and figures' : 'words');
+    else if (/\d/.test(l)) out.push('figures');
+  }
+  return out.join(' · ') || 'blank';
+}
+
+function mpBlank(name) {
+  return { name: String(name || '').trim(), n: 0, first: null, last: null, kinds: {}, hours: {}, days: {}, shapes: {}, lines: {},
+    spell: {}, split: {}, joined: {}, fixed: {}, notread: 0, media: 0 };
+}
+function mpInc(map, k, by) { map[k] = (map[k] || 0) + (by || 1); }
+function mpSub(map, k) { return map[k] || (map[k] = {}); }
+/* What says the store has changed in a way that is not a message added: a kind set by hand, a text edited, a status. */
+function mpSig(store, n) {
+  var fix = 0, was = 0, nr = 0;
+  for (var i = 0; i < n; i++) {
+    var r = store[i];
+    if (r.fix) fix++;
+    was += (r.textWas || []).length;
+    if (r.status === 'notread') nr++;
+  }
+  return n + ':' + fix + ':' + was + ':' + nr;
+}
+/* Fold one message into its sender's profile. `prev` is the sender's message before it (split habit). */
+function mpFold(prof, r, prevOf) {
+  var key = mpKey(r.sentBy);
+  if (!key) return;
+  var p = prof.senders[key] || (prof.senders[key] = mpBlank(r.sentBy));
+  var kind = mpKindOf(r), text = String(r.text || ''), iso = mpIsoOf(r), h = mpHourOf(r);
+  p.n++;
+  if (iso) { if (!p.first || iso < p.first) p.first = iso; if (!p.last || iso > p.last) p.last = iso; }
+  mpInc(p.kinds, kind);
+  if (h != null) mpInc(mpSub(p.hours, kind), h);
+  var dw = mpDowOf(iso);
+  if (dw != null) mpInc(mpSub(p.days, kind), dw);
+  var shape = mpShape(text);
+  mpInc(mpSub(p.shapes, kind), shape);
+  var L = mpLineCount(text), ln = p.lines[kind] || (p.lines[kind] = { min: L, max: L, sum: 0, n: 0 });
+  ln.min = Math.min(ln.min, L); ln.max = Math.max(ln.max, L); ln.sum += L; ln.n++;
+  MP_SPELL.forEach(function(sp) {
+    var ms = text.match(sp[1]);
+    if (ms) ms.forEach(function(w) { mpInc(mpSub(p.spell, sp[0]), w.replace(/\s+/g, ' ').trim()); });
+  });
+  if (MP_MEDIA_RE.test(text)) p.media++;
+  if (kind === 'other') p.notread++;
+  if (r.fix || (r.textWas || []).length) mpInc(p.fixed, kind);
+  // One message carrying another kind too: a roll with its production block or the stock written under it.
+  // The supervisor writes a slot's work straight under its line ("3301-600 nos"), so a figure in pieces or kilos is production.
+  if ((kind === 'in' || kind === 'out') && ((typeof relayStockTail === 'function' && relayStockTail(text)) || /^\s*-*\s*(?:production|work)\s*-*\s*$/im.test(text) ||
+      /\d+(?:\.\d+)?\s*(?:nos|pcs|kgs?)\b/i.test(text))) mpInc(p.joined, kind);
+  // A report carried on in the next message: the same kind, within 20 minutes, and no head of its own (no date, none of the
+  // shop's words on its first line).
+  var prev = prevOf[key], at = mpMinuteOf(r);
+  if (prev && kind !== 'other' && prev.kind === kind && at != null && prev.at != null && at >= prev.at && at - prev.at <= MP_SPLIT_MIN &&
+      !/date|time|chemical|production|update|payment|stock|power|incoming|plant/.test(shape)) mpInc(p.split, kind);
+  prevOf[key] = { kind: kind, at: at };
+}
+/* Build, or extend, the profile from the book's messages. Cheap: nothing is read again while the store and the book are as they
+   were; messages added since are folded in; a correction (a kind set by hand, a text edited) reads the store again. Safe on an
+   empty book. Returns S.msgProfile. */
+function mpLearn() {
+  if (!S) return null;
+  var store = typeof msgStore === 'function' ? msgStore() : [];
+  var writes = typeof _bookWrites !== 'undefined' ? _bookWrites : 0;
+  if (_mpMemo && _mpMemo.store === store && _mpMemo.len === store.length && _mpMemo.writes === writes && _mpMemo.prof === S.msgProfile && S.msgProfile && S.msgProfile.v === MP_V) return S.msgProfile;
+  var p = S.msgProfile, from = 0;
+  var keep = p && p.v === MP_V && p.senders && p.n > 0 && p.n <= store.length && store[p.n - 1] && store[p.n - 1].id === p.lastId && p.sig === mpSig(store, p.n);
+  if (keep) from = p.n;
+  else p = S.msgProfile = { v: MP_V, n: 0, lastId: null, sig: '', at: 0, senders: {} };
+  // The split habit needs each sender's message before: read again from the last few already folded.
+  var prevOf = {};
+  for (var j = Math.max(0, from - 50); j < from; j++) {
+    var q = store[j], k = mpKey(q.sentBy);
+    if (k) prevOf[k] = { kind: mpKindOf(q), at: mpMinuteOf(q) };
+  }
+  for (var i = from; i < store.length; i++) mpFold(p, store[i], prevOf);
+  p.n = store.length;
+  p.lastId = store.length ? store[store.length - 1].id : null;
+  p.sig = mpSig(store, store.length);
+  if (from < store.length) p.at = Date.now();
+  _mpMemo = { store: store, len: store.length, writes: writes, prof: p };
+  return p;
+}
+
+/* One sender's profile, with what it comes to: their kinds largest first, the hours each kind is usually sent, how each usually
+   opens, its usual length, and the shares corrected and not read. null for a sender the book has no message from. */
+function mpSender(name) {
+  var prof = mpLearn(), p = prof && prof.senders[mpKey(name)];
+  if (!p) return null;
+  var kinds = Object.keys(p.kinds).map(function(k) {
+    var hrs = p.hours[k] || {}, ln = p.lines[k], shapes = p.shapes[k] || {};
+    var hk = Object.keys(hrs).map(Number).sort(function(a, b) { return a - b; });
+    // The hours that hold four in five of the kind: its usual window.
+    var tot = hk.reduce(function(s, h) { return s + hrs[h]; }, 0), byN = hk.slice().sort(function(a, b) { return hrs[b] - hrs[a]; }), acc = 0, win = [];
+    byN.forEach(function(h) { if (acc < tot * 0.8) { win.push(h); acc += hrs[h]; } });
+    win.sort(function(a, b) { return a - b; });
+    var top = Object.keys(shapes).sort(function(a, b) { return shapes[b] - shapes[a]; });
+    return { kind: k, label: typeof msgKindLabel === 'function' ? msgKindLabel(k) : k, n: p.kinds[k], share: p.kinds[k] / p.n,
+      hourFrom: win.length ? win[0] : null, hourTo: win.length ? win[win.length - 1] : null, shape: top[0] || null, shapeN: top.length ? shapes[top[0]] : 0,
+      lines: ln ? Math.round(ln.sum / ln.n) : null, fixed: p.fixed[k] || 0, joined: p.joined[k] || 0, split: p.split[k] || 0 };
+  }).sort(function(a, b) { return b.n - a.n; });
+  var fixed = Object.keys(p.fixed).reduce(function(s, k) { return s + p.fixed[k]; }, 0);
+  return Object.assign({}, p, { key: mpKey(name), list: kinds, top: kinds.find(function(k) { return k.kind !== 'other'; }) || null,
+    fixedShare: p.n ? fixed / p.n : 0, notreadShare: p.n ? p.notread / p.n : 0 });
+}
+
+/* The sorter's confidence moved by how the sender usually writes the kind, with the reason in plain words added to `why`. A
+   sender with fewer than MP_MIN messages moves nothing; a kind set by hand is never moved. */
+function mpConf(m, out) {
+  if (!out || !m || out.why === 'set by hand' || !m.sentBy) return out;
+  var p = mpSender(m.sentBy);
+  if (!p || p.n < MP_MIN) return out;
+  var k = out.kind, kn = p.kinds[k] || 0, nm = p.name || 'This sender', up = [], down = [], d = 0;
+  if (k === 'other') {
+    if (out.conf >= 0.9 || !p.top || p.top.share < 0.8) return out;
+    // Not read, from somebody who nearly always sends one kind: less sure it is nothing, and it looks like their usual.
+    return Object.assign({}, out, { conf: Math.max(0, Math.round((out.conf - 0.1) * 100) / 100), like: out.like || p.top.kind,
+      why: out.why + '; ' + nm + ' mostly sends ' + mpPlural(p.top.kind) });
+  }
+  if (kn >= 5 && kn / p.n >= 0.2) { d += 0.04; up.push('usual for ' + nm); }
+  else if (!kn && p.n >= 10) { d -= 0.15; down.push(nm + ' has not sent one before'); }
+  if (kn >= 10) {
+    var h = mpHourOf(m), hrs = p.hours[k] || {};
+    if (h != null) {
+      var near = (hrs[h - 1] || 0) + (hrs[h] || 0) + (hrs[h + 1] || 0);
+      if (near / kn < 0.05) { d -= 0.05; down.push('an unusual hour for ' + nm); }
+    }
+    var shapes = p.shapes[k] || {}, sh = mpShape(m.text);
+    if ((shapes[sh] || 0) >= 2) { d += 0.03; up.push('opens as ' + nm + ' usually opens it'); }
+    else if (!shapes[sh]) { d -= 0.05; down.push('opens differently from ' + nm + '’s usual'); }
+    var ln = p.lines[k], L = mpLineCount(m.text);
+    if (ln && ln.n >= 5) {
+      if (L < ln.min / 2) { d -= 0.05; down.push('shorter than ' + nm + '’s usual'); }
+      else if (L > ln.max * 1.5) { d -= 0.05; down.push('longer than ' + nm + '’s usual'); }
+    }
+  }
+  var fx = p.fixed[k] || 0;
+  if (kn >= 4 && fx / kn >= 0.25) { d -= 0.1; down.push(nm + '’s ' + mpPlural(k) + ' are often corrected'); }
+  if (!d && !up.length && !down.length) return out;
+  var conf = Math.min(0.99, Math.max(0.05, Math.round((out.conf + d) * 100) / 100));
+  var words = down.concat(up).slice(0, 2);
+  return Object.assign({}, out, { conf: conf, why: out.why + '; ' + words.join('; ') });
+}
+
+/* The share of a kind's messages of the last 60 days read with no correction (no kind set by hand, no text edited, not left
+   unread), for one sender or all; null when there are none. The confirmation screen sets it against 90%. */
+function mpKindConf(kind, sender) {
+  var since = isoAddDays(localDateStr(), -MP_KIND_DAYS), key = sender ? mpKey(sender) : null, n = 0, ok = 0;
+  (typeof msgStore === 'function' ? msgStore() : []).forEach(function(r) {
+    if (key && mpKey(r.sentBy) !== key) return;
+    if (r.kind !== kind && !(r.fix && r.fix.kind === kind)) return;
+    if (r.status === 'dup') return;
+    var iso = mpIsoOf(r);
+    if (iso && iso < since) return;
+    n++;
+    if (!r.fix && !(r.textWas || []).length && r.status !== 'notread') ok++;
+  });
+  return n ? ok / n : null;
+}
+
+function mpHourWords(a, b) {
+  var f = function(h) { return (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'); };
+  if (a == null) return '';
+  return a === b ? 'around ' + f(a) : f(a) + ' – ' + f(b + 1 > 23 ? 23 : b + 1);
+}
+/* A small card: how one sender sends messages, from the profile. */
+function mpSenderHtml(name) {
+  var p = mpSender(name);
+  var head = '<div class="inv-panel-head"><span class="inv-panel-title">How ' + escHtml(String(name || '').trim() || 'this sender') + ' sends messages' +
+    (p ? ' <span class="inv-panel-count">' + p.n + '</span>' : '') + '</span></div>';
+  if (!p || p.n < MP_MIN) {
+    return '<div class="inv-panel inv-panel-flush" data-mp-sender="' + escHtml(mpKey(name)) + '">' + head +
+      uiBlankHtml({ kind: 'early', title: p ? 'Only ' + todoPlural(p.n, 'message') + ' so far' : 'No messages from them yet',
+        body: 'Their habits are learnt from every message pasted or imported; from ' + MP_MIN + ' on they steady how sure the reading is.', small: !!p }) + '</div>';
+  }
+  var rows = p.list.filter(function(k) { return k.kind !== 'other'; }).slice(0, 4).map(function(k) {
+    var sub = [mpHourWords(k.hourFrom, k.hourTo), k.shape ? 'opens “' + k.shape + '”' : '', k.lines ? 'about ' + todoPlural(k.lines, 'line') : '']
+      .filter(Boolean).join(' · ');
+    return uiFactRowHtml({ label: k.label, value: k.n, sub: sub, attrs: ' data-mp-kind="' + escHtml(k.kind) + '"' });
+  });
+  var joined = Object.keys(p.joined).reduce(function(s, k) { return s + p.joined[k]; }, 0);
+  var split = Object.keys(p.split).reduce(function(s, k) { return s + p.split[k]; }, 0);
+  if (joined) rows.push(uiFactRowHtml({ label: 'With another kind in it', value: joined, sub: 'a roll carrying its production or its stock' }));
+  if (split) rows.push(uiFactRowHtml({ label: 'Carried on in the next message', value: split, sub: 'within ' + MP_SPLIT_MIN + ' minutes, with no head of its own' }));
+  var fx = Math.round(p.fixedShare * 100);
+  rows.push(uiFactRowHtml({ label: 'Corrected later', value: fx + '%', tone: fx >= 10 ? 'warning' : 'ok', sub: fx ? 'its kind set by hand or its text edited' : 'none corrected', attrs: ' data-mp-fixed' }));
+  if (p.notread) rows.push(uiFactRowHtml({ label: 'Not read', value: p.notread, sub: p.media ? todoPlural(p.media, 'photo or document', 'photos or documents') + ' with no words among them' : 'no reader takes them', attrs: ' data-mp-notread' }));
+  var sp = Object.keys(p.spell).filter(function(w) { return Object.keys(p.spell[w]).length > 1; }).slice(0, 3).map(function(w) {
+    var forms = p.spell[w];
+    return w + ': ' + Object.keys(forms).sort(function(a, b) { return forms[b] - forms[a]; }).slice(0, 3).join(', ');
+  });
+  if (sp.length) rows.push(uiFactRowHtml({ label: 'Spellings', value: '', sub: sp.join(' · '), wrap: true, attrs: ' data-mp-spell' }));
+  return '<div class="inv-panel inv-panel-flush" data-mp-sender="' + escHtml(mpKey(name)) + '">' + head + rows.join('') + '</div>';
+}
+
+/* invMsgProfile (data-sender): the sender's card in a dialog, for the Messages screen and the confirmation screen. */
+function mpAction(action, btn) {
+  if (action !== 'invMsgProfile') return false;
+  var name = btn && btn.dataset ? btn.dataset.sender || '' : '';
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="How they send messages" data-mp-dialog>' + dialogHeadHtml('How they send messages') +
+    '<div class="inv-dialog-body">' + mpSenderHtml(name) + '</div></div>', { dismiss: true });
+  return true;
+}
+/* ===== The WhatsApp export read: the zip, its chat, the new messages (wz*) =====
+   Built to the contract in msgstore.js. Owner, 31 Oct 2026: a WhatsApp zip read "like we do here on this chat", for the
+   app's one group chat; the first import "from the last message of each kind the book already holds".
+
+   wzUnzip(buf) → Promise<[{ name, bytes }]>: the zip's text entries, stored or deflated (xlsx.js's own directory reader and
+     inflate). Media beside the chat is counted (wzZipList) and never read.
+   wzParseChat(text) → { msgs, order, orderWhy, system, media, deleted, edited, lines }: the chat's messages in relaySplit's
+     shape ({ sentBy, sentOn, sentAt: minute on sentOn, text, edited, wa }), the day-first or month-first order decided once
+     for the whole file, and what was dropped (WhatsApp's own lines, media, deleted messages).
+   wzImportFile(file) → Promise<record | null>: the guard, the file read, unzipped and parsed, the messages cut to the new
+     ones (wzCut), taken in (msgIngest(…, 'zip', id)), the import recorded (S.msgImports) and saved, then the confirmation
+     screen (mcOpen) where it is loaded, after a toast saying what was taken in.
+
+   Add → File routes a zip holding a chat here, and a bare WhatsApp .txt export (add.js addFileKind, addTextKind). */
+
+var WZ_MAX_BYTES = 50 * 1024 * 1024;
+var WZ_BIDI_RE = /[‎‏‪-‮⁦-⁩﻿]/g;
+// A message's own line: iPhone "[10/28/26, 11:32:38 AM] Name: text", Android "28/10/26, 11:32 am - Name: text", the clock
+// 12- or 24-hour. Without the bracket, the dash is required: a floor message's own line "28/10/26 10:30 power cut" is text.
+var WZ_HEAD_BR_RE = /^\s*\[(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*([AaPp]\.?\s?[Mm]\.?)?\]\s?(?:-\s)?(.*)$/;
+var WZ_HEAD_DASH_RE = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*([AaPp]\.?\s?[Mm]\.?)?\s+-\s(.*)$/;
+// What WhatsApp writes in place of a message: media left out of the export, an attachment's own line, a deleted message.
+var WZ_MEDIA_RE = /^(image|video|audio|sticker|gif|document|contact card) omitted$|^<attached:\s*[^>]*>$|^\S.{0,120}\.(jpe?g|png|webp|gif|heic|mp4|3gp|mov|opus|ogg|m4a|mp3|aac|pdf|docx?|xlsx?|vcf|webm)\s*\(file attached\)$/i;
+// iPhone's marker opens the line, and what follows it is the caption ("<image omitted> 120 kg"), or a document's file name.
+var WZ_MEDIA_HEAD_RE = /^<\s*(media|image|video|audio|sticker|gif|document|contact card|voice message|video note|album message)(\s+omitted)?\s*>\s*(.*)$/i;
+var WZ_FILE_NAME_RE = /^\S.{0,160}\.(jpe?g|png|webp|gif|heic|mp4|3gp|mov|opus|ogg|m4a|mp3|aac|pdf|docx?|xlsx?|vcf|webm|zip|txt)$/i;
+var WZ_DELETED_RE = /^(this message was deleted|you deleted this message|null|waiting for this message[.\s\S]*)$/i;
+var WZ_SYSTEM_RE = /^(messages and calls are end-to-end encrypted|messages to this group are now secured|.{1,80}\s(created group|created this group|added|removed|left|joined using|changed the subject|changed this group|changed the group|changed their phone number|changed to|is now an admin|pinned a message|turned (on|off) disappearing)|you (created|were added|joined|left|added|removed)|missed (voice|video) call)/i;
+
+/* ---------- 1. The zip ---------- */
+/* The zip's entries from its own directory (xlsx.js _xlsxZipDir): the text ones, and the media counted, never read. */
+function wzZipList(buf) {
+  var dir;
+  try { dir = _xlsxZipDir(buf); } catch (e) { throw new Error('The zip cannot be read: it is incomplete or damaged'); }
+  var out = { texts: [], media: 0, xlsx: !!dir['xl/workbook.xml'] };
+  Object.keys(dir).forEach(function(name) {
+    var base = name.split('/').pop();
+    if (!base || /\/$/.test(name) || /^__MACOSX\//.test(name) || /^\._/.test(base)) return;
+    var e = dir[name];
+    if (/\.(txt|md)$/i.test(base)) out.texts.push({ name: name, base: base, method: e.method, size: e.size, usize: e.usize, at: e.at });
+    else out.media++;
+  });
+  return out;
+}
+/* Which text is the chat: _chat.txt (an iPhone's export), then "WhatsApp Chat….txt" (an Android's), then the largest .txt;
+   a .md only where the zip has no .txt at all (the owner's export carries the chat as both). */
+function wzChatEntry(texts) {
+  var txt = texts.filter(function(t) { return /\.txt$/i.test(t.base); }), pool = txt.length ? txt : texts;
+  var by = function(re) { return pool.filter(function(t) { return re.test(t.base); }); };
+  var big = function(a) { return a.slice().sort(function(x, y) { return (y.usize || y.size) - (x.usize || x.size); })[0] || null; };
+  return big(by(/^_chat\.txt$/i)) || big(by(/^WhatsApp Chat.*\.txt$/i)) || big(pool);
+}
+/* Whether a zip carries a chat, from its directory alone (Add → File asks before it reads): a text entry and no workbook. */
+function wzHasChat(buf) {
+  try { var l = wzZipList(buf); return !l.xlsx && !!wzChatEntry(l.texts); } catch (e) { return false; }
+}
+async function wzEntryBytes(buf, e) {
+  var dv = new DataView(buf);
+  if (e.at + 30 > buf.byteLength || dv.getUint32(e.at, true) !== 0x04034B50) throw new Error(e.name + ' cannot be found in the zip');
+  var start = e.at + 30 + dv.getUint16(e.at + 26, true) + dv.getUint16(e.at + 28, true);
+  if (start + e.size > buf.byteLength) throw new Error(e.name + ' runs past the end of the zip');
+  var raw = new Uint8Array(buf, start, e.size);
+  if (e.method === 0) return new Uint8Array(raw);
+  if (e.method !== 8) throw new Error(e.name + ' is packed in a way the app does not read (method ' + e.method + ')');
+  if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open a zip: export the chat as a .txt (Export chat → Without media)');
+  return _xlsxInflate(raw);
+}
+/* The zip's text entries, each read (stored as is, deflated through the browser). `names`, when given, reads those alone. */
+async function wzUnzip(buf, names) {
+  var l = wzZipList(buf), out = [];
+  for (var i = 0; i < l.texts.length; i++) {
+    var e = l.texts[i];
+    if (names && names.indexOf(e.name) < 0) continue;
+    out.push({ name: e.name, bytes: await wzEntryBytes(buf, e) });
+  }
+  return out;
+}
+
+/* ---------- 2. The chat ---------- */
+function wzHead(line) {
+  var m = WZ_HEAD_BR_RE.exec(line), br = true;
+  if (!m) { m = WZ_HEAD_DASH_RE.exec(line); br = false; }
+  if (!m) return null;
+  var h = +m[4], min = +m[5], ap = m[6] ? m[6].replace(/[\s.]/g, '').toLowerCase() : '';
+  if (min > 59 || h > 23 || (ap && (h < 1 || h > 12))) return null;
+  if (ap) h = h % 12 + (ap.charAt(0) === 'p' ? 12 : 0);
+  return { a: +m[1], b: +m[2], y: +m[3], min: h * 60 + min, br: br, wa: line.slice(0, line.length - m[7].length), rest: m[7] };
+}
+/* Day-first or month-first, once for the whole file: a first figure over 12 is a day, a second over 12 a day; where the
+   file says neither (or both, a broken line), the order its messages ran in. */
+function wzDateOrder(heads) {
+  var aHi = heads.some(function(h) { return h.a > 12; }), bHi = heads.some(function(h) { return h.b > 12; });
+  if (aHi && !bHi) return { order: 'day-first', why: 'a day over 12 is written first' };
+  if (bHi && !aHi) return { order: 'month-first', why: 'a day over 12 is written second' };
+  var run = function(dayFirst) {
+    var n = 0, prev = '';
+    heads.forEach(function(h) {
+      var iso = dayFirst ? isoFromDmy(h.a, h.b, h.y) : isoFromDmy(h.b, h.a, h.y);
+      if (!iso) { n -= 2; return; }
+      if (prev && iso >= prev) n++;
+      prev = iso;
+    });
+    return n;
+  };
+  var d = run(true), m = run(false);
+  if (m > d) return { order: 'month-first', why: 'the dates run in order read month first' };
+  if (d > m) return { order: 'day-first', why: 'the dates run in order read day first' };
+  return heads.length && heads[0].br && !aHi ? { order: 'month-first', why: 'nothing tells them apart: an iPhone’s bracketed export' }
+    : { order: 'day-first', why: 'nothing tells them apart: day first, as the shop writes dates' };
+}
+function wzParseChat(text) {
+  var lines = String(text || '').replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n'), raw = [], cur = null;
+  lines.forEach(function(line) {
+    var h = wzHead(line);
+    if (h) { cur = { h: h, lines: [h.rest] }; raw.push(cur); return; }
+    if (cur) cur.lines.push(line);
+    // A line before the first message (an export's own head, "Messages and calls are end-to-end encrypted…") is WhatsApp's.
+  });
+  var ord = wzDateOrder(raw.map(function(r) { return r.h; })), dayFirst = ord.order === 'day-first';
+  var out = { msgs: [], order: ord.order, orderWhy: ord.why, system: 0, media: 0, deleted: 0, edited: 0, lines: lines.length };
+  raw.forEach(function(r) {
+    // "Name: text". A line with no sender is WhatsApp's own (the chat made, someone added or gone, the subject changed), and
+    // so is one whose "sender" holds a quote (Android's "Alfa changed the subject from "a: b"").
+    var sm = /^([^:\n]{1,60}?):[ \u00a0]?([\s\S]*)$/.exec(r.lines[0]);
+    if (!sm || /["“”]/.test(sm[1]) || !sm[1].replace(WZ_BIDI_RE, '').trim()) { out.system++; return; }
+    var sentBy = sm[1].replace(WZ_BIDI_RE, '').trim(), firstText = sm[2];
+    // On an iPhone, WhatsApp's own lines come under the group's name, their text opening on an unseen mark (U+200E).
+    if (/^\s*\u200e/.test(firstText) && WZ_SYSTEM_RE.test(firstText.replace(WZ_BIDI_RE, '').trim())) { out.system++; return; }
+    var edited = false, media = 0;
+    // A message forwarded from another chat says so first ("[Forwarded] …"); its words are what was sent, as a copy reads.
+    var kept = [firstText.replace(/^(\s*\u200e)?\s*\[forwarded\]\s*/i, '')].concat(r.lines.slice(1)).map(function(l) {
+      return l.replace(WZ_BIDI_RE, '').replace(/\s*<this message was edited>\s*$/i, function() { edited = true; return ''; });
+    }).map(function(l) {
+      var t = l.trim(), mh = WZ_MEDIA_HEAD_RE.exec(t);
+      if (WZ_MEDIA_RE.test(t)) { media++; return null; }
+      if (!mh) return l;
+      media++;
+      return mh[3] && !WZ_FILE_NAME_RE.test(mh[3].trim()) ? mh[3] : null;
+    }).filter(function(l) { return l != null; });
+    var body = kept.join('\n').trim();
+    if (!body.trim()) { if (media) out.media++; else out.system++; return; }
+    if (WZ_DELETED_RE.test(body.trim())) { out.deleted++; return; }
+    if (edited) out.edited++;
+    var sentOn = dayFirst ? isoFromDmy(r.h.a, r.h.b, r.h.y) : isoFromDmy(r.h.b, r.h.a, r.h.y);
+    out.msgs.push({ sentBy: sentBy, sentOn: sentOn, sentAt: r.h.min, text: body, edited: edited, wa: r.h.wa + sentBy + ': ' });
+  });
+  return out;
+}
+/* Whether a text file is a WhatsApp export: its first message line comes among its first lines, and messages are read. */
+function wzLooksLikeChat(text) {
+  var head = String(text || '').replace(/^﻿/, '').split(/\r?\n/).slice(0, 8);
+  if (!head.some(function(l) { return wzHead(l); })) return false;
+  try { return wzParseChat(String(text).slice(0, 200000)).msgs.length > 0; } catch (e) { return false; }
+}
+
+/* ---------- 3. The new ones ---------- */
+/* A moment as minutes since 1970 on the shop's calendar: the day, and the minute on it. */
+function wzMoment(iso, min) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return null;
+  return Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 60000 + (min != null && isFinite(min) ? +min : 0);
+}
+/* Where each kind's last message in the book is: the latest of the Messages record's own and of the kind's own store (rolls:
+   the rolls pasted; production: its pastes and the entries they made; stock: its messages; cash: the cash messages). A
+   record that keeps only its day counts from that day's start, so the whole day is read again: what a reader has read it
+   refuses as read, and a message is never lost to a guess at its minute. */
+var WZ_PROD_KINDS = ['pickling', 'production', 'runs', 'power'];
+function wzAnchors() {
+  var a = {};
+  var put = function(kind, iso, min, src) {
+    var t = wzMoment(iso, min);
+    if (t == null || !kind) return;
+    if (min == null) t -= 1;
+    if (!a[kind] || t > a[kind].t) a[kind] = { t: t, iso: iso, min: min == null ? null : min, src: src };
+  };
+  msgStore().forEach(function(r) { put(r.fix && r.fix.kind || r.kind, r.sentOn, r.sentAt, 'messages'); });
+  (Array.isArray(S.relayPastes) ? S.relayPastes : []).forEach(function(p) {
+    if (p.kind === 'in' || p.kind === 'out') put(p.kind, p.sentOn || p.date, p.sentOn && p.sentAt != null ? p.sentAt : null, 'rolls');
+  });
+  var pr = S.production || {}, pk = {};
+  (pr.pastes || []).forEach(function(p) {
+    pk[p.id] = p.kind;
+    if (WZ_PROD_KINDS.indexOf(p.kind) >= 0) put(p.kind, p.sentOn || p.day, null, 'production');
+  });
+  (pr.entries || []).forEach(function(e) {
+    if (e.voidedAt) return;
+    var k = e.pasteId && pk[e.pasteId] ? pk[e.pasteId] : e.basis === 'pickling' ? 'pickling'
+      : e.basis === 'relay' ? (e.kind === 'downtime' ? 'power' : e.kind === 'plated' ? 'production' : '') : '';
+    if (WZ_PROD_KINDS.indexOf(k) >= 0) put(k, e.date, null, 'production');
+  });
+  (S.stock && Array.isArray(S.stock.pastes) ? S.stock.pastes : []).forEach(function(p) { put('stock', p.sentOn || p.to || p.from, null, 'stock'); });
+  (Array.isArray(S.cashPastes) ? S.cashPastes : []).forEach(function(p) { if (!p.voidedAt) put('cash', p.sentOn, null, 'cash'); });
+  return a;
+}
+/* The texts the book's stores already hold, as their readers keep them: a message saying the same is read already. */
+function wzBookTexts() {
+  var seen = {}, add = function(t) { if (t && String(t).trim()) seen[relayHash(t)] = true; };
+  (S.relayPastes || []).forEach(function(p) { add(p.text); });
+  ((S.production || {}).pastes || []).forEach(function(p) { add(p.text); });
+  ((S.stock || {}).pastes || []).forEach(function(p) { add(p.text); });
+  (S.cashPastes || []).forEach(function(p) { add(p.text); });
+  return seen;
+}
+/* The messages cut to the new ones: each sorted (msgSort), new when sent after the last of its kind the book holds. A kind the
+   book holds none of is taken whole. Returns { fresh, skippedOld, inBook, kinds: { kind: { taken, skipped, from, src } }, none }. */
+function wzCut(msgs) {
+  var a = wzAnchors(), texts = wzBookTexts(), out = { fresh: [], skippedOld: 0, inBook: 0, kinds: {}, none: !Object.keys(a).length };
+  msgs.forEach(function(m) {
+    var kind = msgSort(m).kind, an = a[kind], t = wzMoment(m.sentOn, m.sentAt);
+    var k = out.kinds[kind] || (out.kinds[kind] = { taken: 0, skipped: 0, from: an ? an.iso : null, src: an ? an.src : null });
+    if (an && (t == null || t <= an.t)) { k.skipped++; out.skippedOld++; return; }
+    if (texts[relayHash(m.text)]) { k.skipped++; out.inBook++; return; }
+    k.taken++;
+    out.fresh.push(m);
+  });
+  return out;
+}
+
+/* ---------- 4. The import ---------- */
+function wzRefuse(title, body) {
+  if (typeof uiAlert === 'function') uiAlert({ title: title, body: body });
+  return null;
+}
+/* A file picked (Add → File, Messages' own Import): a zip or a bare .txt export. */
+async function wzImportFile(file, opts) {
+  if (!file) return null;
+  if (file.size > WZ_MAX_BYTES) return wzRefuse('The export is too large', (file.name || 'The file') + ' is ' + (Math.round(file.size / 104857.6) / 10) + ' MB; the app reads up to 50 MB. In WhatsApp, export the chat again with Without media.');
+  var buf;
+  try { buf = await file.arrayBuffer(); } catch (e) { return wzRefuse('The file could not be read', (file.name || 'The file') + ': ' + ((e && e.message) || 'the browser could not read it') + '.'); }
+  return wzImportBuf(buf, file.name || '', opts);
+}
+/* The file's bytes (or its text) read, cut and taken in. `opts.guarded` when the guard has already answered (Add → File). */
+async function wzImportBuf(src, name, opts) {
+  opts = opts || {};
+  if (!opts.guarded && typeof addFileGuardOk === 'function' && !(await addFileGuardOk('whatsapp'))) return null;
+  var text = '', chatName = '', media = 0;
+  var bytes = typeof src === 'string' ? null : src instanceof ArrayBuffer ? src : src && src.buffer ? src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength) : null;
+  if (bytes && bytes.byteLength > WZ_MAX_BYTES) return wzRefuse('The export is too large', (name || 'The file') + ' is over 50 MB, which the app reads at most. In WhatsApp, export the chat again with Without media.');
+  if (bytes && new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength)).join(',') === '80,75,3,4') {
+    var l;
+    try { l = wzZipList(bytes); } catch (e) { return wzRefuse('Not a WhatsApp export', (name || 'The zip') + ': ' + e.message + '.'); }
+    var ent = l.xlsx ? null : wzChatEntry(l.texts);
+    if (!ent) return wzRefuse('No chat in the zip', (name || 'The zip') + ' holds ' + (l.xlsx ? 'an Excel workbook' : l.media ? todoPlural(l.media, 'file') + ' and no chat text' : 'nothing') + '. WhatsApp’s export holds the chat as a .txt (Export chat in the group’s menu).');
+    if ((ent.usize || 0) > WZ_MAX_BYTES) return wzRefuse('The chat is too large', ent.base + ' is over 50 MB, which the app reads at most.');
+    media = l.media;
+    try { text = new TextDecoder('utf-8').decode((await wzUnzip(bytes, [ent.name]))[0].bytes); } catch (e) { return wzRefuse('The chat could not be read', ent.base + ': ' + ((e && e.message) || 'it could not be opened') + '.'); }
+    chatName = ent.base;
+  } else {
+    text = typeof src === 'string' ? src : new TextDecoder('utf-8').decode(bytes || new ArrayBuffer(0));
+    chatName = name || '';
+  }
+  var chat = wzParseChat(text);
+  if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). In WhatsApp, open the group, open its menu and pick Export chat.');
+  var cut = wzCut(chat.msgs), id = 'WZ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  var got = msgIngest(cut.fresh, 'zip', id), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
+  var rec = { id: id, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, file: name || '', chat: wzChatTitle(name, chatName),
+    first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen,
+    skippedOld: cut.skippedOld, inBook: cut.inBook, media: media + chat.media, system: chat.system, deleted: chat.deleted,
+    order: chat.order, orderWhy: chat.orderWhy, none: cut.none, kinds: cut.kinds };
+  msgImports().push(rec);
+  var saved = typeof saveState === 'function' ? await saveState() : true;
+  if (saved === false) return rec;
+  // What the import took in is said either way; the confirmation screen then opens on the new messages.
+  if (rec.added) showToast(wzSaid(rec));
+  if (typeof mcOpen === 'function' && rec.added) mcOpen({ importId: id });
+  else uiAlert({ title: 'Nothing new in the export', body: wzSaid(rec) });
+  return rec;
+}
+/* The chat's name: the group in an Android export's file name ("WhatsApp Chat with <group>.txt"), else the zip's. */
+function wzChatTitle(file, entry) {
+  var m = /^WhatsApp Chat (?:with|-)\s*(.+?)\.(txt|zip)$/i.exec(entry || '') || /^WhatsApp Chat (?:with|-)\s*(.+?)\.(txt|zip)$/i.exec(file || '');
+  return m ? m[1] : String(file || entry || '').replace(/\.(zip|txt)$/i, '');
+}
+/* What an import did, in a line. */
+function wzSaid(rec) {
+  var bits = [rec.added ? todoPlural(rec.added, 'new message') + ' taken in' : 'No new message'];
+  var old = rec.skippedOld + rec.inBook + rec.seen;
+  if (old) bits.push(todoPlural(old, 'older message') + ' skipped');
+  if (rec.media) bits.push(todoPlural(rec.media, 'media file') + ' not read');
+  return bits.join(' · ') + (rec.none ? ' · the book held no messages yet, so every one was taken' : '') + '.';
+}
+
+/* ---------- 5. Its own door ---------- */
+/* An import started from a screen of its own (the Messages screen's Import): the file picker, then wzImportFile. */
+function wzPick() {
+  var inp = document.getElementById('wzFileInput');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.id = 'wzFileInput'; inp.className = 'inv-hidden'; inp.accept = '.zip,.txt,application/zip,text/plain';
+    inp.setAttribute('data-nodirty', ''); inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true');
+    inp.addEventListener('change', function() { var f = inp.files && inp.files[0]; inp.value = ''; if (f) wzImportFile(f); });
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.click();
+}
+function wzAction(action) {
+  if (action === 'invMsgZipPick') { wzPick(); return true; }
+  return false;
+}
+/* ===== The Messages screen: every message, its reading line by line, edited and read again, corrected (mv*) =====
+   Built to the contract in msgstore.js. Owner, 31 Oct 2026: "We need the pasted whatsapp message to be stored in the app, so
+   that we can read the message in the app and make changes and the app can learn what it got wrong"; and "Both" to editing a
+   message's text and correcting its reading.
+
+   - Every paste through the one paste box (relayRead: Add → Paste, People → Paste message, Home) is kept (mvKeepPaste), and a
+     reader's save marks the messages it saved (mvSavedFrom: rolls, production, stock, cash paid out). Nothing a reader reads or
+     saves is changed.
+   - The screen (pageMessages): a top-bar tool beside History and Knowledge, in no workspace. Its verdict, one toolbar row (the
+     search; Filter by kind, sender, status and day; More), the list by day; on the desktop the list beside the open message, on
+     the phone the message as a sub-view. The address names the message: ?tab=pageMessages&id=MSG-….
+   - One message (mvOpen): its text line by line beside what its reader read it as, its kind with the sorter's confidence and
+     why, the records it made, its edits. Its text edited and read again shows what the reading would change before anything is
+     saved; its kind corrected (`fix`, which wins over the sorter) or marked Not a report. A message a reader saved is handed to
+     that reader's own review to read again: the book is never written from here.
+   - What the app has learnt from the corrections: each kind set by hand and each heading lesson of the roll reader
+     (S.relayLearn), with Forget. Read every message again sorts them all again and lists what moved; it writes no records. */
+
+var _mvOpen = null;          // the message open (the address's id): the desktop's pane, the phone's sub-view
+var _mvOpenLabel = '';       // what the back trail calls it
+var _mvSearch = '', _mvKind = '', _mvSender = '', _mvStatus = '', _mvDay = '';
+var _mvSearchTimer = null;
+var _mvEdit = null;          // { id, text, diff: {text, before, after, d} | null } while the text is being edited
+var _mvHandoff = null;       // { id, text }: a message handed to its reader; the paste box keeps it as the message it is
+var _mvReadCache = { s: null, by: {} };
+var _mvCtx = { key: null };   // the readers' contexts (Production's, the roster), worked out once a book write
+
+var MV_STATUS = {
+  'new': ['info', 'Not saved'], saved: ['ok', 'Saved'], skipped: ['neutral', 'Not a report'],
+  notread: ['warning', 'Not read'], dup: ['neutral', 'Repeat']
+};
+function mvStatusOf(r) { var s = MV_STATUS[r && r.status] || MV_STATUS['new']; return { tone: s[0], word: s[1] }; }
+
+/* ---------- Taken in, and marked saved ---------- */
+/* The paste box's hook (relayRead): every message in the paste kept, whatever the reader does next. A message's own text handed
+   to its reader from this screen is that message, not a new one. */
+function mvKeepPaste(text) {
+  if (!text || !String(text).trim() || typeof msgIngest !== 'function') return;
+  if (_mvHandoff && _mvHandoff.text === text) return;
+  try {
+    var res = msgIngest(relaySplit(text), 'paste');
+    if (res.added.length) saveState();
+  } catch (e) { if (typeof errReport === 'function') errReport(e, 'msgview'); }
+}
+/* A message the book holds, found from a reader's copy of it: by its key, else by its words (and its day, where both say one). */
+function mvFind(m) {
+  if (!m || typeof msgStore !== 'function') return null;
+  var all = msgStore(), key = msgKey(m), hit = all.find(function(r) { return r.key === key; });
+  if (hit) return hit;
+  var h = relayHash(m.text);
+  var same = all.filter(function(r) { return relayHash(r.text) === h; });
+  if (m.sentOn) { var day = same.filter(function(r) { return !r.sentOn || r.sentOn === m.sentOn; }); if (day.length) same = day; }
+  if (m.sentBy) { var by = same.filter(function(r) { return !r.sentBy || String(r.sentBy).trim().toUpperCase() === String(m.sentBy).trim().toUpperCase(); }); if (by.length) same = by; }
+  if (_mvHandoff) { var ho = same.find(function(r) { return r.id === _mvHandoff.id; }); if (ho) return ho; }
+  return same.filter(function(r) { return r.status !== 'saved'; }).pop() || same.pop() || null;
+}
+/* A reader's save: `recs` the records it kept of the messages it read ({id, text, sentBy, sentOn, sentAt}). A record holding a
+   paste whole (WhatsApp's lines in it) is each of its messages. Called before the save lands, so one save writes both. */
+function mvSavedFrom(store, recs) {
+  if (typeof msgMarkSaved !== 'function') return;
+  (recs || []).forEach(function(rec) {
+    if (!rec || !rec.text) return;
+    var parts = relaySplit(rec.text);
+    if (!parts.some(function(p) { return p.sentBy; })) parts = [rec];
+    parts.forEach(function(p) {
+      var r = mvFind(p);
+      if (!r || (r.saved || []).some(function(s) { return s.store === store && s.id === rec.id; })) return;
+      msgMarkSaved(r.id, store, rec.id || null);
+    });
+  });
+}
+
+/* ---------- When ---------- */
+/* The minute in its day it was sent: a paste's minutes, or an export's ms. */
+function mvMinutes(r) {
+  if (!r || r.sentAt == null || r.sentAt === '') return null;
+  var a = +r.sentAt;
+  if (a < 1440) return a;
+  var d = new Date(a);
+  return d.getHours() * 60 + d.getMinutes();
+}
+function mvDayOf(r) {
+  if (r.sentOn) return r.sentOn;
+  if (r.sentAt != null && +r.sentAt >= 1440) return isoOf(new Date(+r.sentAt));
+  return r.at ? isoOf(new Date(r.at)) : '';
+}
+function mvTimeText(r) { var m = mvMinutes(r); return m == null ? 'no time' : relayClockLabel(m); }
+/* The message as WhatsApp's copy writes it, its line first, so a reader reads who sent it and when (the bracketed export: month
+   first, read the same by relaySplit and prodSplit). */
+function mvWaText(r, text) {
+  var day = mvDayOf(r), min = mvMinutes(r), by = String(r.sentBy || '').replace(/:/g, ' ').trim();
+  if (!r.sentOn && !(r.sentAt >= 1440)) return text;
+  if (!day || !by) return text;
+  var p = day.split('-'), m = min == null ? 0 : min, h = Math.floor(m / 60), ap = h >= 12 ? 'PM' : 'AM';
+  return '[' + (+p[1]) + '/' + (+p[2]) + '/' + p[0].slice(2) + ', ' + (h % 12 || 12) + ':' + String(m % 60).padStart(2, '0') + ' ' + ap + '] ' + by + ': ' + text;
+}
+function mvFirstLine(t) { var l = String(t || '').split('\n').map(function(x) { return x.trim(); }).find(Boolean) || ''; return l.length > 90 ? l.slice(0, 89) + '…' : l; }
+
+/* ---------- The reading ---------- */
+function mvReaderOf(kind) {
+  if (kind === 'in' || kind === 'out') return 'relay';
+  if (/^(pickling|production|runs|power)$/.test(kind || '')) return 'prod';
+  if (kind === 'stock') return 'stock';
+  if (kind === 'cash') return 'cash';
+  if (kind === 'checkin') return 'checkin';
+  return null;
+}
+var MV_WHERE = { relay: 'People', prod: 'Production', stock: 'Stock', cash: 'Pay', checkin: 'People' };
+function mvTone(t) { return t === 'red' || t === 'danger' ? 'danger' : t === 'amber' || t === 'warning' ? 'warning' : t === 'info' ? 'info' : ''; }
+/* What its reader reads a text as: { reader, lines: [{raw, read, tone}], records: [{key, text}], issues: [{tone, text}] }, the
+   reader's own output put one way. A reader that throws reads nothing, and says so. */
+function mvCtx() {
+  var key = (typeof _bookWrites !== 'undefined' ? _bookWrites : 0);
+  if (_mvCtx.key !== key || _mvCtx.s !== S) _mvCtx = { key: key, s: S, prod: null, roster: {} };
+  return _mvCtx;
+}
+function mvProdCtx() { var c = mvCtx(); return c.prod || (c.prod = prodCtx()); }
+function mvRoster(day) { var c = mvCtx(); return c.roster[day || ''] || (c.roster[day || ''] = relayRoster({}, day)); }
+function mvRead(r, text, kind) {
+  var out = { reader: mvReaderOf(kind), lines: [], records: [], issues: [] };
+  var push = function(raw, read, tone) { out.lines.push({ raw: String(raw || '').trim(), read: read || '', tone: tone || '' }); };
+  try {
+    if (out.reader === 'relay') {
+      var rr = parseRelayRoll(text, mvRoster(mvDayOf(r)), r.sentOn || null, { sentAt: mvMinutes(r) });
+      var byN = {};
+      rr.issues.forEach(function(x) { if (x.n != null) (byN[x.n] = byN[x.n] || []).push(x); else out.issues.push({ tone: mvTone(x.tone) || 'info', text: x.text }); });
+      push(String(text).split('\n')[0], rr.date ? 'The roll’s head: ' + formatDate(rr.date) : 'The roll’s head', '');
+      rr.lines.forEach(function(ln) {
+        var is = byN[ln.n] || [], worst = is.some(function(x) { return x.tone === 'red'; }) ? 'danger' : is.some(function(x) { return x.tone === 'amber'; }) ? 'warning' : ln.role === 'unknown' ? 'danger' : '';
+        push(ln.raw, ln.read || (is[0] ? is[0].text : ''), worst);
+        is.forEach(function(x) { out.issues.push({ tone: mvTone(x.tone) || 'info', text: 'Line ' + ln.n + ': ' + x.text }); });
+      });
+      Object.keys(rr.days).sort().forEach(function(iso) {
+        var d = rr.days[iso];
+        Object.keys(d.people).forEach(function(id) {
+          var p = d.people[id], area = p.generalArea || (p.areas || [])[0];
+          out.records.push({ key: formatDate(iso) + ' · ' + p.name, text: (p.st === 'A' ? 'Absent' : p.st === 'H' ? 'Half day' : 'Present') + (area ? ', ' + relayAreaName(area) : '') +
+            (p.inExp != null ? ', in ' + relayClockLabel(p.inExp) : '') + (p.outExp != null ? ', out ' + relayClockLabel(p.outExp) : '') });
+        });
+        (d.extra || []).forEach(function(x) {
+          var where = x.kind === 'coverage' ? relayAreaName(x.area) : extraAreas(x).map(relayAreaName).join(' + ') + (x.from ? ' from ' + x.from : '');
+          out.records.push({ key: formatDate(iso) + ' · EXTRA ' + where, text: x.hours + ' h' + ((x.crew || []).length ? ', ' + todoPlural(x.crew.length, 'hand') : '') });
+        });
+      });
+    } else if (out.reader === 'prod') {
+      parseProdPaste(mvWaText(r, text), mvProdCtx()).forEach(function(m) {
+        (m.read.items || []).forEach(function(it) {
+          var worst = (it.issues || []).some(function(x) { return x.tone === 'red'; }) ? 'danger' : (it.issues || []).some(function(x) { return x.tone === 'amber'; }) ? 'warning' : '';
+          var rd = mvProdItemText(it);
+          push(it.raw, rd, worst);
+          (it.issues || []).forEach(function(x) { out.issues.push({ tone: mvTone(x.tone) || 'info', text: x.text }); });
+          out.records.push({ key: (it.date ? formatDate(it.date) + ' · ' : '') + String(it.raw || '').trim().split('\n')[0], text: rd });
+        });
+        (m.read.notes || []).forEach(function(nt) { push(nt.raw, nt.text, ''); });
+      });
+    } else if (out.reader === 'stock') {
+      var parsed = parseStockMessage(mvWaText(r, text));
+      parsed.text = text;
+      if (!parsed.to) { parsed.from = parsed.to = r.sentOn || localDateStr(); parsed.noDate = true; }
+      resolveStockParse(parsed, {}).lines.forEach(function(x) {
+        var name = x.item ? x.item.name : x.src.key ? stockDisplayName(x.src.key) : 'no name', unit = x.item ? x.item.unit : x.src.unit;
+        var rd = name + ': ' + (stockResultText(x, unit) || 'nothing read'), is = x.issues || [];
+        var worst = is.some(function(y) { return y.tone === 'red'; }) ? 'danger' : is.some(function(y) { return y.tone === 'amber'; }) ? 'warning' : '';
+        push(x.src.raw, rd, worst);
+        is.forEach(function(y) { out.issues.push({ tone: mvTone(y.tone) || 'info', text: name + ': ' + y.text }); });
+        out.records.push({ key: name, text: stockResultText(x, unit) || 'nothing read' });
+      });
+    } else if (out.reader === 'cash') {
+      var c = parseCashMessage(text, r.sentOn || null);
+      c.lines.forEach(function(ln) {
+        var rd = formatCurrency(ln.amount) + (ln.what ? ' for ' + ln.what : '') + (ln.date ? ', ' + formatDate(ln.date) : '');
+        push(ln.raw, rd, ln.what ? '' : 'warning');
+        out.records.push({ key: (ln.what || 'no word') + (ln.date ? ' · ' + formatDate(ln.date) : ''), text: formatCurrency(ln.amount) });
+      });
+      // The total written under them is read too: it is what the lines are checked against.
+      String(text).split('\n').forEach(function(x) {
+        var t = x.trim();
+        if (t && CASH_TOTAL_RE.test(t.replace(/\s+/g, ' ')) && c.total != null)
+          push(t, 'The total: ' + formatCurrency(c.total) + (Math.abs(c.total - c.sum) < 0.5 ? ', the lines add up to it' : ''), Math.abs(c.total - c.sum) < 0.5 ? '' : 'danger');
+      });
+      c.issues.forEach(function(x) { out.issues.push({ tone: mvTone(x.tone) || 'warning', text: (x.n ? 'Line ' + x.n + ': ' : '') + x.text }); });
+    }
+  } catch (e) {
+    out.issues.push({ tone: 'danger', text: 'Its reader could not read it: ' + (e && e.message ? e.message : 'an error') });
+  }
+  // Every line of the text, the ones no reading covers said as not read.
+  if (out.reader && out.reader !== 'relay') {
+    var covered = {};
+    out.lines.forEach(function(l) { l.raw.split('\n').forEach(function(x) { covered[x.trim()] = true; }); });
+    var extra = String(text).split('\n').map(function(x) { return x.trim(); }).filter(function(x) { return x && !covered[x]; });
+    if (extra.length && out.lines.length) extra.forEach(function(x) { out.lines.push({ raw: x, read: '', tone: '' }); });
+    // In the order the message has them (a line not read sat between two that were).
+    var src = String(text).split('\n').map(function(x) { return x.trim(); });
+    var at = function(l) { var i = src.indexOf(String(l.raw).split('\n')[0].trim()); return i < 0 ? 1e9 : i; };
+    out.lines = out.lines.map(function(l, i) { return { l: l, i: i, at: at(l) }; })
+      .sort(function(a, b) { return a.at - b.at || a.i - b.i; }).map(function(x) { return x.l; });
+  }
+  if (!out.reader || !out.lines.length) {
+    out.lines = String(text).split('\n').map(function(x) { return x.trim(); }).filter(Boolean).map(function(x) { return { raw: x, read: '', tone: '' }; });
+  }
+  return out;
+}
+function mvProdItemText(it) {
+  if (it.kind === 'downtime') return 'Power cut ' + (it.time || '?') + ' to ' + (it.to || 'not back');
+  var word = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived' }[it.kind] || 'Read';
+  return word + (it.time ? ' ' + it.time : '') + ', ' + (it.clientId != null ? prodClientName(it.clientId) : it.client ? it.client + ' (as written)' : 'no client') +
+    (it.part ? ', ' + it.part : '') + (it.gauge ? ' [' + it.gauge + ']' : '') + ', ' + prodQtyText(it.qty, it.unit) +
+    (it.kind === 'plated' ? ', ' + (it.line ? prodLineName(it.line) : 'line unknown') : '');
+}
+/* A message's reading as it stands, kept until its text, its kind or the book it is read against changes. */
+function mvReading(r) {
+  if (_mvReadCache.s !== S) _mvReadCache = { s: S, by: {} };
+  var sig = relayHash(r.text) + '|' + r.kind + '|' + (typeof _bookWrites !== 'undefined' ? _bookWrites : 0);
+  var c = _mvReadCache.by[r.id];
+  if (c && c.sig === sig) return c.reading;
+  var reading = mvRead(r, r.text, r.kind);
+  _mvReadCache.by[r.id] = { sig: sig, reading: reading };
+  return reading;
+}
+/* Whether a message holds a question that stops its save (a red one), read as its reader reads it. Worked out lazily and kept with
+   the reading: a message with no reader asks nothing here. */
+function mvAsks(r) {
+  if (!mvReaderOf(r.kind) || r.status === 'saved' || r.status === 'skipped' || r.status === 'dup') return false;
+  return mvReading(r).issues.some(function(x) { return x.tone === 'danger'; });
+}
+
+/* ---------- What reading it again would change ---------- */
+/* Lines by their words, matched in order (the longest common run); a line on both sides whose reading moved is changed. Records by
+   what they are about. */
+function mvDiff(a, b) {
+  var A = a.lines, B = b.lines, n = A.length, m = B.length, L = [];
+  for (var i = 0; i <= n; i++) { L.push(new Array(m + 1).fill(0)); }
+  for (i = n - 1; i >= 0; i--) for (var j = m - 1; j >= 0; j--) L[i][j] = A[i].raw === B[j].raw ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  var lines = [];
+  i = 0; j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && A[i].raw === B[j].raw) {
+      if (A[i].read !== B[j].read) lines.push({ how: 'changed', raw: B[j].raw, was: A[i].read, now: B[j].read });
+      i++; j++;
+    } else if (j < m && (i >= n || L[i][j + 1] >= L[i + 1][j])) { lines.push({ how: 'added', raw: B[j].raw, now: B[j].read }); j++; }
+    else { lines.push({ how: 'removed', raw: A[i].raw, was: A[i].read }); i++; }
+  }
+  var ra = {}, rb = {}, records = [];
+  a.records.forEach(function(x) { ra[x.key] = x.text; });
+  b.records.forEach(function(x) { rb[x.key] = x.text; });
+  b.records.forEach(function(x) {
+    if (!(x.key in ra)) records.push({ how: 'added', key: x.key, now: x.text });
+    else if (ra[x.key] !== x.text) records.push({ how: 'changed', key: x.key, was: ra[x.key], now: x.text });
+  });
+  a.records.forEach(function(x) { if (!(x.key in rb)) records.push({ how: 'removed', key: x.key, was: x.text }); });
+  return { lines: lines, records: records, any: !!(lines.length || records.length) };
+}
+var MV_HOW = { added: ['ok', 'Added'], removed: ['danger', 'Removed'], changed: ['warning', 'Changed'] };
+function mvDiffHtml(d, saved) {
+  var row = function(x, title) {
+    var h = MV_HOW[x.how], sub = x.how === 'changed' ? 'was ' + (x.was || 'not read') + ', now ' + (x.now || 'not read') : x.how === 'added' ? (x.now || 'not read') : (x.was || 'not read');
+    return '<div class="inv-row inv-row-2" data-mv-diff="' + x.how + '"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(title) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(sub) + '</span></span>' + uiRowEndHtml('', { tone: h[0], word: h[1] }) + '</div>';
+  };
+  var h = '<div class="inv-panel inv-panel-flush" data-mv-diffpanel><div class="inv-panel-head"><span class="inv-panel-title">Read again: what changes</span></div>';
+  if (!d.any) return h + '<div class="inv-panel-body inv-note">The reading is the same: nothing changes.</div></div>';
+  if (d.records.length) h += '<div class="inv-row-group"><span>Records</span><span class="inv-num">' + d.records.length + '</span></div>' + d.records.map(function(x) { return row(x, x.key); }).join('');
+  if (d.lines.length) h += '<div class="inv-row-group"><span>Lines</span><span class="inv-num">' + d.lines.length + '</span></div>' + d.lines.map(function(x) { return row(x, x.raw || '(blank)'); }).join('');
+  if (saved) h += '<div class="inv-panel-body inv-note">Its reader saved this message already. Saving here keeps the new text; read it again in its reader to change what was saved.</div>';
+  return h + '</div>';
+}
+
+/* ---------- Confidence ---------- */
+/* How sure the app is of a kind: the profile's where it has one (msgprofile.js), else the share of the kind's messages saved with
+   no correction, against those corrected (a kind set by hand on one it sorted there, or its text edited). Null: nothing decided. */
+function mvConf(kind) {
+  if (typeof mpKindConf === 'function') {
+    try { var p = mpKindConf(kind); var v = p && typeof p === 'object' ? p.conf : p; if (v != null && !isNaN(v)) return { conf: +v, n: p && p.n != null ? p.n : null, from: 'profile' }; } catch (e) { /* the fallback */ }
+  }
+  var hits = 0, misses = 0;
+  msgStore().forEach(function(r) {
+    if (r.fix && r.fix.was === kind && r.fix.kind !== kind) misses++;
+    if (r.kind !== kind) return;
+    if ((r.textWas || []).length) misses++;
+    else if (r.status === 'saved' && !(r.fix && r.fix.was && r.fix.was !== r.kind)) hits++;
+  });
+  return hits + misses ? { conf: hits / (hits + misses), n: hits + misses, misses: misses } : null;
+}
+function mvConfRowsHtml() {
+  var facts = MSG_KINDS.filter(function(k) { return k.id !== 'other'; }).map(function(k) {
+    var n = msgStore().filter(function(r) { return r.kind === k.id; }).length, c = mvConf(k.id);
+    if (!n && !c) return null;
+    var pct = c ? Math.round(c.conf * 100) : null;
+    return { label: k.label, value: pct == null ? '' : pct + '%', tone: pct == null ? '' : pct >= 90 ? 'ok' : pct >= 70 ? 'warning' : 'danger',
+      sub: todoPlural(n, 'message') + (c && c.from === 'profile' ? ', from how they are sent' : c && c.misses ? ', ' + todoPlural(c.misses, 'correction') : c ? ', none corrected' : ', none decided yet'),
+      attrs: ' data-mv-conf="' + k.id + '"' };
+  });
+  return uiWorkingHtml('mv-conf', facts, 'How sure, by kind', ' data-mv-confs');
+}
+
+/* ---------- The screen ---------- */
+function mvFiltered() {
+  var q = _mvSearch.toUpperCase();
+  return msgStore().filter(function(r) {
+    if (_mvKind && r.kind !== _mvKind) return false;
+    if (_mvSender && String(r.sentBy || '') !== _mvSender) return false;
+    if (_mvStatus && r.status !== _mvStatus) return false;
+    if (_mvDay && mvDayOf(r) !== _mvDay) return false;
+    if (q && String(r.text || '').toUpperCase().indexOf(q) < 0 && String(r.sentBy || '').toUpperCase().indexOf(q) < 0) return false;
+    return true;
+  }).sort(function(a, b) {
+    return String(mvDayOf(b)).localeCompare(String(mvDayOf(a))) || (mvMinutes(b) || 0) - (mvMinutes(a) || 0) || (b.at || 0) - (a.at || 0);
+  });
+}
+function mvVerdictHtml(list, filtered) {
+  var all = msgStore(), shown = filtered ? list : all;
+  var notread = shown.filter(function(r) { return r.status === 'notread'; }).length;
+  var saved = shown.filter(function(r) { return r.status === 'saved'; }).length;
+  var asks = shown.filter(mvAsks).length;
+  var fresh = shown.filter(function(r) { return r.status === 'new'; }).length;
+  var screen = 'Messages · ' + shown.length + ' kept' + (filtered ? ' · filtered' : '');
+  if (!all.length) return uiVerdictHtml({ screen: 'Messages', tone: 'neutral', verdict: 'No message kept yet', key: 'pageMessages',
+    facts: ['every paste is kept from now on'] });
+  var tone = asks ? 'danger' : notread ? 'warning' : fresh ? 'info' : 'ok';
+  var verdict = asks ? todoPlural(asks, 'message asks', 'messages ask') + ' a question' : notread ? todoPlural(notread, 'message') + ' no reader takes'
+    : fresh ? todoPlural(fresh, 'message') + ' read, not saved' : 'Every message read and settled';
+  return uiVerdictHtml({ screen: screen, tone: tone, verdict: verdict, key: 'pageMessages',
+    factors: [{ label: 'Messages', fig: String(shown.length) },
+      { label: 'Not read', fig: String(notread), tone: notread ? 'warning' : 'ok' },
+      { label: 'A red question', fig: String(asks), tone: asks ? 'danger' : 'ok' },
+      { label: 'Saved', fig: String(saved), tone: saved ? 'ok' : 'neutral' }],
+    body: mvConfRowsHtml(), attrs: ' data-mv-verdict data-mv-asks="' + asks + '"' });
+}
+function mvToolbarHtml() {
+  var all = msgStore(), phone = !_isDesktop;
+  var senders = [];
+  all.forEach(function(r) { if (r.sentBy && senders.indexOf(r.sentBy) < 0) senders.push(r.sentBy); });
+  senders.sort();
+  var opt = function(v, label, cur) { return '<option value="' + escHtml(v) + '"' + (cur === v ? ' selected' : '') + '>' + escHtml(label) + '</option>'; };
+  var controls = '<select class="inv-select inv-toolbar-item" id="mvKind" aria-label="Kind of message">' + opt('', 'Every kind', _mvKind) +
+      MSG_KINDS.map(function(k) { return opt(k.id, k.label, _mvKind); }).join('') + '</select>' +
+    '<select class="inv-select inv-toolbar-item" id="mvSender" aria-label="Sent by">' + opt('', 'Everyone', _mvSender) +
+      senders.map(function(s) { return opt(s, s, _mvSender); }).join('') + '</select>' +
+    '<select class="inv-select inv-toolbar-item" id="mvStatus" aria-label="Status">' + opt('', 'Every status', _mvStatus) +
+      Object.keys(MV_STATUS).map(function(k) { return opt(k, MV_STATUS[k][1], _mvStatus); }).join('') + '</select>' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">Day</span><input type="date" class="inv-input" id="mvDay" value="' + escHtml(_mvDay) + '"></label>';
+  var count = (_mvKind ? 1 : 0) + (_mvSender ? 1 : 0) + (_mvStatus ? 1 : 0) + (_mvDay ? 1 : 0);
+  return '<div class="inv-toolbar" data-mv-toolbar>' +
+    '<label class="inv-search">' + ICON_SEARCH + '<input type="search" id="mvSearch" value="' + escHtml(_mvSearch) + '" placeholder="Search the messages" autocomplete="off" aria-label="Search the messages"></label>' +
+    uiFilterHtml({ key: 'messages', count: count, controls: controls }) +
+    uiToolbarMoreHtml([{ label: 'Read every message again', action: 'invMsgRereadAll' }], { icon: phone }) + '</div>' +
+    uiTokensHtml([{ key: 'Kind', value: _mvKind ? msgKindLabel(_mvKind) : '', action: 'invMsgClear', attrs: ' data-clear="kind"' },
+      { key: 'Sender', value: _mvSender, action: 'invMsgClear', attrs: ' data-clear="sender"' },
+      { key: 'Status', value: _mvStatus ? MV_STATUS[_mvStatus][1] : '', action: 'invMsgClear', attrs: ' data-clear="status"' },
+      { key: 'Day', value: _mvDay ? formatDate(_mvDay) : '', action: 'invMsgClear', attrs: ' data-clear="day"' }]);
+}
+/* The kind a message no reader takes looks like (msgSort's `like`, msgprofile.js), worked out where it was not kept. */
+function mvLike(r) {
+  if (!r || r.kind !== 'other') return '';
+  // Read off the sorter's own words for what no reader takes (msgOtherSort), never msgSort, whose profile would write the book while
+  // the screen is drawn; kept on the record only by an act (sorted again, a kind set).
+  var like = r.like;
+  if (like == null && typeof msgOtherSort === 'function') {
+    try { like = msgOtherSort(String(r.text || ''), (String(r.text || '').split('\n').find(function(l) { return l.trim(); }) || '').trim()).like || ''; } catch (e) { like = ''; }
+  }
+  return like && like !== 'other' ? like : '';
+}
+function mvRowHtml(r) {
+  var st = mvStatusOf(r), like = mvLike(r);
+  return '<button class="inv-row inv-row-2 inv-row-top" data-action="invMsgOpen" data-id="' + escHtml(r.id) + '" data-mv-row="' + escHtml(r.id) + '"' +
+    (_mvOpen === r.id ? ' aria-current="true"' : '') + '>' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml((r.sentBy || 'No sender') + ' · ' + mvTimeText(r)) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml((like ? 'Looks like ' + msgKindLabel(like).toLowerCase() + ': ' : '') + mvFirstLine(r.text)) + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-badge inv-badge-neutral">' + escHtml(msgKindLabel(r.kind)) + '</span>' +
+    '<span class="inv-dot inv-dot-' + uiTone(st.tone) + '">' + escHtml(st.word) + '</span></span></span></button>';
+}
+function mvListHtml(list) {
+  if (!msgStore().length) return '<div class="inv-panel">' + uiBlankHtml({ kind: 'empty', title: 'No message kept yet',
+    body: 'Every message pasted in the paste box (Add, People → Paste message) is kept here, beside what the app read it as.' }) + '</div>';
+  if (!list.length) return '<div class="inv-panel">' + uiBlankHtml({ kind: 'empty', title: 'No message matches', body: 'Clear a filter or the search to see more.' }) + '</div>';
+  var rows = [], count = {};
+  list.forEach(function(r) { var d = mvDayOf(r); count[d] = (count[d] || 0) + 1; });
+  var last = null;
+  list.forEach(function(r) {
+    var d = mvDayOf(r);
+    if (d !== last) { rows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + escHtml(d ? formatDate(d) : 'No day') + '</span><span class="inv-num">' + count[d] + '</span></div>'] }); last = d; }
+    rows.push(mvRowHtml(r));
+  });
+  return '<div class="inv-panel inv-panel-flush" data-card="messages"><div class="inv-panel-head"><span class="inv-panel-title">Messages <span class="inv-panel-count">' + list.length + '</span></span></div>' +
+    uiMoreHtml('mv-list', rows, { noun: 'messages' }) + '</div>';
+}
+/* What the app has learnt from your corrections: each kind set by hand, and the roll reader's heading lessons, each with Forget. */
+function mvLessonsHtml() {
+  var rows = '';
+  msgStore().filter(function(r) { return r.fix && r.fix.kind; }).forEach(function(r) {
+    rows += '<div class="inv-row inv-row-2" data-mv-lesson="kind"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mvFirstLine(r.text)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(msgKindLabel(r.fix.kind) + (r.fix.was ? ', not ' + msgKindLabel(r.fix.was) : '') + (r.sentBy ? ', from ' + r.sentBy : '')) + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgForgetKind" data-id="' + escHtml(r.id) + '">Forget</button></span></div>';
+  });
+  var L = typeof relayLearnData === 'function' ? relayLearnData() : { heads: {}, slots: {} };
+  Object.keys(L.heads || {}).sort().forEach(function(k) {
+    var l = L.heads[k];
+    rows += '<div class="inv-row inv-row-2" data-mv-lesson="head"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(l.text || k) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml('Read as ' + ((l.areas || []).map(relayAreaName).join(' + ') || 'no line') + ', was ' + ((l.was || []).map(relayAreaName).join(' + ') || 'no line')) + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgForgetHead" data-kind="heads" data-key="' + escHtml(k) + '">Forget</button></span></div>';
+  });
+  Object.keys(L.slots || {}).sort().forEach(function(k) {
+    var l = L.slots[k];
+    rows += '<div class="inv-row inv-row-2" data-mv-lesson="slot"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(l.text || k) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml('Read as ' + l.from + ' – ' + l.to + ', was ' + (l.wasFrom || '?') + ' – ' + (l.wasTo || '?')) + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgForgetHead" data-kind="slots" data-key="' + escHtml(k) + '">Forget</button></span></div>';
+  });
+  if (!rows) return '';
+  return uiFoldHtml('mv-lessons', '<span class="inv-panel-title">What the app has learnt from your corrections</span>', rows, false, ' id="mvLessons"');
+}
+function renderMessages() {
+  var area = document.getElementById('msgViewArea');
+  if (!area || typeof msgStore !== 'function') return;
+  if (_mvOpen && !msgById(_mvOpen)) _mvOpen = null;
+  var open = _mvOpen ? msgById(_mvOpen) : null;
+  _mvOpenLabel = open ? ((open.sentBy || 'No sender') + ' · ' + mvTimeText(open)) : '';
+  // The phone opens a message as a sub-view, with its way back.
+  if (open && !_isDesktop) { area.innerHTML = mvMessageHtml(open, true); return; }
+  var list = mvFiltered(), filtered = !!(_mvSearch || _mvKind || _mvSender || _mvStatus || _mvDay);
+  var head = '<div id="mvVerdict">' + mvVerdictHtml(list, filtered) + '</div>' + mvToolbarHtml();
+  var body = mvListHtml(list) + mvLessonsHtml();
+  var html = head + (_isDesktop ? '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="mvHost" data-open="' + escHtml(_mvOpen || '') + '"><div class="inv-pane-list">' + body + '</div>' +
+    '<div class="inv-pane" id="mvPane">' + (open ? mvMessageHtml(open, false) : '') + '</div></div>' : body);
+  paneScrollKeep(function() { area.innerHTML = html; });
+}
+/* Opens the screen, and one message on it (a step of the trail). */
+function mvShow() { navOpen({ tab: 'pageMessages', v: '', id: '' }); viewTop(); }
+function mvOpen(id) {
+  if (!msgById(id)) { showToast('That message is not kept here', 'warning'); return; }
+  _mvEdit = null;
+  navOpen({ tab: 'pageMessages', v: '', id: id });
+  if (!_isDesktop) viewTop();
+}
+
+/* ---------- One message ---------- */
+function mvMessageHtml(r, phone) {
+  var st = mvStatusOf(r), reading = mvReading(r), reader = mvReaderOf(r.kind), where = reader ? MV_WHERE[reader] : '';
+  var title = (r.sentBy || 'No sender') + ' · ' + mvTimeText(r);
+  var h = phone
+    ? '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invMsgClose">' + iconSvg('back') + 'Messages</button>' +
+      '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>'
+    : paneHeadHtml('<span class="inv-panel-title">' + escHtml(title) + '</span>', 'invMsgClose');
+  var conf = r.conf != null ? Math.round(r.conf * 100) + '%' : '';
+  h += '<div class="inv-panel inv-panel-flush" data-mv-message="' + escHtml(r.id) + '">' +
+    uiFactRowHtml({ label: 'Sent', value: (mvDayOf(r) ? formatDate(mvDayOf(r)) + ', ' : '') + mvTimeText(r), sub: (r.sentBy || 'no sender') + (r.edited ? ', edited in WhatsApp' : ''),
+      // How the sender sends messages (msgprofile.js): their card in a dialog, a fact about them and not about this message.
+      actions: r.sentBy && typeof mpAction === 'function' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgProfile" data-sender="' + escHtml(r.sentBy) + '">Sender’s card</button>' : '' }) +
+    uiFactRowHtml({ label: 'Kind', value: msgKindLabel(r.kind), sub: (r.fix ? 'set by hand' : (r.why || 'sorted')) + (conf && !r.fix ? ', ' + conf + ' sure' : '') + (mvLike(r) ? ', looks like ' + msgKindLabel(mvLike(r)).toLowerCase() : ''), attrs: ' data-mv-kind-now="' + escHtml(r.kind) + '"' }) +
+    uiFactRowHtml({ label: 'Status', value: st.word, sub: r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
+    '</div>';
+  if (_mvEdit && _mvEdit.id === r.id) h += mvEditHtml(r);
+  else if (reader && r.status !== 'skipped') {
+    h += '<div class="inv-panel" data-mv-handoff><button class="inv-btn inv-btn-primary inv-btn-block" data-action="invMsgHandoff" data-id="' + escHtml(r.id) + '">' +
+      (r.status === 'saved' ? 'Read again in ' : 'Read in ') + escHtml(where) + '</button>' +
+      '<div class="inv-note inv-mt-8">' + (r.status === 'saved' ? 'Its reader’s own check shows what reading it again would change, and nothing changes until you save there.' : 'Its reader’s own check, where it is saved.') + '</div></div>';
+  }
+  // The questions its reader asks, then each line beside its reading.
+  var qs = reading.issues.filter(function(x) { return x.tone === 'danger' || x.tone === 'warning'; });
+  if (qs.length) h += '<div class="inv-panel inv-panel-flush" data-mv-issues><div class="inv-panel-head"><span class="inv-panel-title">Questions <span class="inv-panel-count">' + qs.length + '</span></span></div>' +
+    uiMoreHtml('mv-q-' + r.id, qs.map(function(x) { return '<div class="inv-row inv-row-auto"><div class="inv-row-main"><div class="inv-callout inv-callout-' + x.tone + '" data-mv-issue="' + x.tone + '">' + escHtml(x.text) + '</div></div></div>'; }), { n: 10, noun: 'questions' }) + '</div>';
+  h += '<div class="inv-panel inv-panel-flush" data-mv-lines><div class="inv-panel-head"><span class="inv-panel-title">The message, line by line <span class="inv-panel-count">' + reading.lines.length + '</span></span></div>' +
+    uiMoreHtml('mv-l-' + r.id, reading.lines.map(function(l) {
+      // A rule (a line of dashes) says nothing to read, so it is not called unread.
+      var rule = /^[-=_*~.\s]+$/.test(l.raw || '');
+      var rd = l.read ? (l.tone ? '<span class="inv-dot inv-dot-' + l.tone + '">' + escHtml(l.read) + '</span>' : escHtml(l.read)) : (reader && !rule ? 'Not read' : '');
+      return '<div class="inv-row inv-row-auto" data-mv-line><div class="inv-row-main"><div class="inv-quote">' + escHtml(l.raw) + '</div>' +
+        (rd ? '<div class="inv-row-meta inv-row-wrap inv-mt-4">' + rd + '</div>' : '') + '</div></div>';
+    }), { noun: 'lines' }) + '</div>';
+  // The kind corrected, or the message set aside as no report.
+  h += '<div class="inv-panel" data-mv-correct><div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="mvFixKind">It is</label>' +
+    '<select class="inv-select" id="mvFixKind" data-mv-fix="' + escHtml(r.id) + '">' + MSG_KINDS.map(function(k) {
+      return '<option value="' + k.id + '"' + (k.id === r.kind ? ' selected' : '') + '>' + escHtml(k.label) + '</option>';
+    }).join('') + '</select></div></div>' +
+    '<div class="inv-toolbar inv-mt-8">' + (r.status === 'skipped'
+      ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgReport" data-id="' + escHtml(r.id) + '">It is a report</button>'
+      : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgSkip" data-id="' + escHtml(r.id) + '">Not a report</button>') +
+    (_mvEdit && _mvEdit.id === r.id ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgEdit" data-id="' + escHtml(r.id) + '">Edit the text</button>') + '</div></div>';
+  h += mvMadeHtml(r) + mvEditsHtml(r);
+  return h;
+}
+/* The records it made, each with the way to it where the app has one. */
+function mvMadeHtml(r) {
+  var saved = r.saved || [];
+  if (!saved.length) return '';
+  var rows = saved.map(function(s) {
+    var label = '', go = '', btn = '';
+    if (s.store === 'relayPastes') {
+      var rp = relayPastes().find(function(p) { return p.id === s.id; });
+      label = 'Attendance' + (rp && rp.days ? ': ' + rp.days.map(formatDate).join(', ') : '');
+      if (rp && rp.days && rp.days[0] && (typeof grdSees !== 'function' || grdSees('pageStaff'))) btn = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpDay" data-id="' + escHtml(rp.days[0]) + '">Open the day</button>';
+    } else if (s.store === 'production' || s.store === 'production.pastes') { label = 'Production entries'; go = 'production'; }
+    else if (s.store === 'stock' || s.store === 'stock.pastes') { label = 'Stock entries'; go = 'stock'; }
+    else if (s.store === 'cashPastes') { label = 'Cash paid out'; go = 'pay'; }
+    else label = String(s.store || 'A record');
+    if (go) btn = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgGoRec" data-go="' + go + '">Open</button>';
+    return '<div class="inv-row" data-mv-made="' + escHtml(s.store) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(label) + '</span></span>' +
+      (btn ? '<span class="inv-row-end">' + btn + '</span>' : '') + '</div>';
+  }).join('');
+  return '<div class="inv-panel inv-panel-flush" data-mv-records><div class="inv-panel-head"><span class="inv-panel-title">What it made <span class="inv-panel-count">' + saved.length + '</span></span></div>' + rows + '</div>';
+}
+function mvEditsHtml(r) {
+  var was = r.textWas || [];
+  if (!was.length) return '';
+  return '<div class="inv-panel inv-panel-flush" data-mv-edits><div class="inv-panel-head"><span class="inv-panel-title">Its edits <span class="inv-panel-count">' + was.length + '</span></span></div>' +
+    was.slice().reverse().map(function(w) {
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml('Was: ' + mvFirstLine(w.text)) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml((w.at ? formatTimestamp(w.at) : '') + (w.by && typeof chgUserName === 'function' ? ', ' + chgUserName(w.by) : '')) + '</span></span></div>';
+    }).join('') + '</div>';
+}
+function mvEditHtml(r) {
+  var e = _mvEdit, fresh = e.diff && e.diff.text === e.text;
+  var h = '<div class="inv-panel" data-mv-edit><div class="inv-field"><label class="inv-field-label" for="mvEditText">The message’s text</label>' +
+    '<textarea id="mvEditText" class="inv-textarea inv-textarea-mono" rows="10" spellcheck="false">' + escHtml(e.text) + '</textarea></div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invMsgReadAgain" data-id="' + escHtml(r.id) + '">Read again</button>' +
+    '<div class="inv-note inv-mt-8">Read again shows what the reading would change. Nothing is saved until you save.</div></div>';
+  if (fresh) h += mvDiffHtml(e.diff.d, r.status === 'saved');
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Edited text</div><div class="inv-actionbar-value">' +
+    (fresh ? (e.diff.d.any ? 'Read again' : 'Reads the same') : 'Read it again first') + '</div></div>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invMsgEditCancel">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invMsgEditSave" data-id="' + escHtml(r.id) + '"' + (fresh && e.text.trim() && e.text !== r.text ? '' : ' disabled') + '>Save the text</button></div>';
+  return h;
+}
+
+/* ---------- Acts ---------- */
+function mvRedraw() { if (navPageOf() === 'pageMessages') keepScroll(renderMessages); }
+function mvResort(r) {
+  var s = msgSort(r);
+  r.kind = s.kind; r.conf = s.conf; r.why = s.why; r.like = s.like || '';
+  if (r.status === 'new' || r.status === 'notread') r.status = r.kind === 'other' ? 'notread' : 'new';
+}
+function mvSetKind(id, kind) {
+  var r = msgById(id);
+  if (!r || !MSG_KINDS.some(function(k) { return k.id === kind; }) || kind === r.kind) return;
+  var was = r.fix && r.fix.was ? r.fix.was : r.kind;
+  r.fix = kind === was ? null : { kind: kind, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, was: was };
+  mvResort(r);
+  saveState();
+  _pageTyped = false;
+  mvRedraw();
+  showToast('Kept as ' + msgKindLabel(r.kind) + (r.fix ? ': the app learns from it' : ''));
+}
+function mvHandoff(id) {
+  var r = msgById(id), reader = r && mvReaderOf(r.kind);
+  if (!reader) return;
+  var text = mvWaText(r, r.text);
+  _mvHandoff = { id: r.id, text: text };
+  if (reader === 'relay') { relayOpen(text); relayRead(); }
+  else if (reader === 'prod') prodOpenPaste(text);
+  else if (reader === 'stock') relayOpenStock(text);
+  else if (reader === 'cash') cashReviewOpen(r.text, r.sentOn || null);
+  else if (reader === 'checkin' && typeof ckReviewOpen === 'function') ckReviewOpen(text, {});
+}
+function mvReadAgain(id) {
+  var r = msgById(id), ta = document.getElementById('mvEditText');
+  if (!r || !_mvEdit) return;
+  if (ta) _mvEdit.text = ta.value;
+  if (!_mvEdit.text.trim()) { showToast('The message needs its text', 'error'); return; }
+  var next = { text: _mvEdit.text, sentBy: r.sentBy, sentOn: r.sentOn, sentAt: r.sentAt };
+  var kind = r.fix ? r.fix.kind : msgSort(next).kind;
+  var before = mvReading(r), after = mvRead(r, _mvEdit.text, kind);
+  _mvEdit.diff = { text: _mvEdit.text, before: before, after: after, d: mvDiff(before, after) };
+  if (kind !== r.kind) _mvEdit.diff.d.lines.unshift({ how: 'changed', raw: 'Its kind', was: msgKindLabel(r.kind), now: msgKindLabel(kind) });
+  _mvEdit.diff.d.any = _mvEdit.diff.d.any || kind !== r.kind;
+  mvRedraw();
+}
+function mvEditSave(id) {
+  var r = msgById(id), e = _mvEdit;
+  if (!r || !e || !e.diff || e.diff.text !== e.text || !e.text.trim() || e.text === r.text) return;
+  if (!Array.isArray(r.textWas)) r.textWas = [];
+  r.textWas.push({ text: r.text, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null });
+  r.text = e.text;
+  mvResort(r);
+  _mvEdit = null;
+  _pageTyped = false;
+  saveState();
+  mvRedraw();
+  showToast(r.status === 'saved' ? 'Text saved. Read it again in its reader to change what it saved' : 'Text saved and read again');
+}
+/* Every message sorted again by the sorter as it stands; what moved is listed. The messages' kinds move with it; no reader's
+   record is written. */
+function mvRereadAll() {
+  var moved = [];
+  msgStore().forEach(function(r) {
+    var was = r.kind, s = msgSort(r);
+    if (s.kind !== was) moved.push({ r: r, was: was, now: s.kind });
+    r.kind = s.kind; r.conf = s.conf; r.why = s.why; r.like = s.like || '';
+    if (r.status === 'new' || r.status === 'notread') r.status = r.kind === 'other' ? 'notread' : 'new';
+  });
+  _mvReadCache = { s: null, by: {} };
+  if (moved.length) saveState();
+  mvRedraw();
+  var rows = moved.map(function(x) {
+    return '<div class="inv-row inv-row-2" data-mv-moved><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mvFirstLine(x.r.text)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(msgKindLabel(x.was) + ' → ' + msgKindLabel(x.now)) + '</span></span></div>';
+  });
+  dialogOpen('<div class="inv-dialog" data-mv-reread>' + dialogHeadHtml('Read every message again') +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(moved.length ? todoPlural(moved.length, 'message') + ' moved' : 'Nothing moved') + '</span></div>' +
+    (rows.length ? uiMoreHtml('mv-moved', rows, { noun: 'messages' }) :
+      '<div class="inv-panel-body inv-note">Every one of the ' + todoPlural(msgStore().length, 'message') + ' sorts as it did.</div>') +
+    '<div class="inv-panel-body inv-note">No record was written: a reader saves only from its own check.</div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true });
+}
+
+function mvAction(action, btn) {
+  var d = btn && btn.dataset ? btn.dataset : {};
+  switch (action) {
+    case 'invMsgGo': mvShow(); return true;
+    case 'invMsgOpen': if (_isDesktop && _mvOpen === d.id) { _mvOpen = null; _mvEdit = null; keepScroll(renderMessages); } else mvOpen(d.id); return true;
+    case 'invMsgClose': _mvOpen = null; _mvEdit = null; _pageTyped = false; if (_isDesktop) keepScroll(renderMessages); else { renderMessages(); viewTop(); } return true;
+    case 'invMsgClear':
+      if (d.clear === 'kind') _mvKind = ''; else if (d.clear === 'sender') _mvSender = ''; else if (d.clear === 'status') _mvStatus = ''; else if (d.clear === 'day') _mvDay = '';
+      renderMessages(); return true;
+    case 'invMsgEdit': { var r = msgById(d.id); if (r) { _mvEdit = { id: r.id, text: r.text, diff: null }; mvRedraw(); } return true; }
+    case 'invMsgEditCancel': _mvEdit = null; _pageTyped = false; mvRedraw(); return true;
+    case 'invMsgReadAgain': mvReadAgain(d.id); return true;
+    case 'invMsgEditSave': mvEditSave(d.id); return true;
+    case 'invMsgHandoff': mvHandoff(d.id); return true;
+    case 'invMsgSkip': case 'invMsgReport': {
+      var m = msgById(d.id);
+      if (!m) return true;
+      m.status = action === 'invMsgSkip' ? 'skipped' : ((m.saved || []).length ? 'saved' : m.kind === 'other' ? 'notread' : 'new');
+      saveState(); mvRedraw();
+      showToast(action === 'invMsgSkip' ? 'Set aside: not a report' : 'Back among the reports');
+      return true;
+    }
+    case 'invMsgForgetKind': { var f = msgById(d.id); if (f) { f.fix = null; mvResort(f); saveState(); mvRedraw(); showToast('Forgotten: it is sorted by the app again'); } return true; }
+    case 'invMsgForgetHead': {
+      var L = relayLearnData();
+      if (L[d.kind] && d.key in L[d.kind]) { delete L[d.kind][d.key]; _mvReadCache = { s: null, by: {} }; saveState(); mvRedraw(); showToast('Forgotten'); }
+      return true;
+    }
+    case 'invMsgRereadAll': mvRereadAll(); return true;
+    case 'invMsgGoRec':
+      if (d.go === 'production') navOpen({ tab: 'pageProduction', v: 'entries', id: '' });
+      else if (d.go === 'stock') navOpen({ tab: 'pageStock', v: 'list', id: '' });
+      else if (d.go === 'pay') navOpen({ tab: 'pageStaff', v: 'pay', id: '' });
+      viewTop();
+      return true;
+  }
+  return false;
+}
+/* The screen's own fields: a <select> and a date through change, the search and the text as typed. */
+function mvOnChange(t) {
+  if (!t || !t.id) return false;
+  if (t.id === 'mvKind') _mvKind = t.value;
+  else if (t.id === 'mvSender') _mvSender = t.value;
+  else if (t.id === 'mvStatus') _mvStatus = t.value;
+  else if (t.id === 'mvDay') _mvDay = t.value;
+  else if (t.id === 'mvFixKind') { mvSetKind(t.getAttribute('data-mv-fix'), t.value); return true; }
+  else return false;
+  // Inside the phone's Filter dialog the row is drawn again when it shuts; on the desktop the list follows at once.
+  if (!t.closest('.inv-scrim')) renderMessages();
+  return true;
+}
+function mvOnInput(t) {
+  if (!t) return false;
+  if (t.id === 'mvEditText' && _mvEdit) { _mvEdit.text = t.value; return true; }
+  if (t.id !== 'mvSearch') return false;
+  _mvSearch = t.value.trim();
+  clearTimeout(_mvSearchTimer);
+  _mvSearchTimer = setTimeout(function() {
+    var el = document.getElementById('mvSearch'), caret = null;
+    if (el) { try { caret = el.selectionStart; } catch (e) { caret = null; } }
+    renderMessages();
+    var again = document.getElementById('mvSearch');
+    if (again) { again.focus(); if (caret != null && again.setSelectionRange) again.setSelectionRange(caret, caret); }
+  }, 250);
+  return true;
+}
+document.addEventListener('change', function(e) { if (navPageOf() === 'pageMessages' || (e.target && e.target.closest && e.target.closest('[data-tb-filter-dialog="messages"]'))) keepScroll(function() { mvOnChange(e.target); }); });
+document.addEventListener('input', function(e) { if (navPageOf() === 'pageMessages') mvOnInput(e.target); });
+/* ===== The final confirmation screen: every new message sorted, conflicts asked, one save (mc*) =====
+   Built to the contract in msgstore.js. The owner, 31 Oct 2026: "the parser should be able to sort every new message and then
+   bring up a final confirmation screen up for me"; production messages "Always" wait for a tick, "but repetitive work must be
+   designed better"; a roll that disagrees with marks typed by hand asks hand by hand.
+
+   mcOpen({ importId } | { ids }) opens it over the S.messages records named: a full layer (a sheet on the phone, wide on the
+   desktop), the messages grouped by the day they report and then by kind in the floor's order. Each says what it would write,
+   worked out by its own reader without saving (parseRelayRoll, parseProdPaste with prodReviewResolve, parseStockMessage with
+   resolveStockParse, parseCashMessage), whether the book holds it already (by the readers' own refusals), its red questions and
+   how sure the sorter is. Rolls, stock and cash at 90% or more with no red question come ticked; production always waits, with a
+   tick for a day's group, a tick for every message like one, and the keys on the desktop. Save writes the ticked messages
+   through each reader's own save (relayApplyPlan, prodSaveCore, stockCommitPaste, cashSaveCore), in the floor's order, marks
+   each message saved (msgMarkSaved) and says what changed. A message left unticked stays 'new'. */
+
+var MC_ORDER = ['in', 'out', 'pickling', 'production', 'runs', 'power', 'stock', 'cash', 'checkin', 'payment', 'other'];
+var MC_PROD = { pickling: true, production: true, runs: true, power: true };
+var MC_TICK_AT = 0.9;   // the sorter's confidence a roll, stock or cash message must reach to come ticked
+// A day-and-kind group's noun: "Tick the 6 pickling loads of 28 Oct".
+var MC_NOUN = {
+  in: ['in-time roll', 'in-time rolls'], out: ['out-time roll', 'out-time rolls'], pickling: ['pickling load message', 'pickling load messages'],
+  production: ['barrel list', 'barrel lists'], runs: ['production message', 'production messages'], power: ['power cut message', 'power cut messages'],
+  stock: ['stock message', 'stock messages'], cash: ['cash message', 'cash messages'], checkin: ['check-in', 'check-ins'],
+  payment: ['weekly payment summary', 'weekly payment summaries'], other: ['message not read', 'messages not read']
+};
+var _mc = null;   // { ids, read: { id: reading }, tick: { id: bool }, open: { key: bool }, hand: { iso|id: bool }, done, scrim }
+
+/* ---------- What each message would write ---------- */
+/* The minute of the day WhatsApp sent it: relaySplit gives minutes, a record may carry a moment (ms). */
+function mcMin(rec) {
+  var a = rec && rec.sentAt;
+  if (a == null || a === '') return null;
+  a = Number(a);
+  if (!isFinite(a)) return null;
+  if (a < 2880) return Math.round(a);
+  var d = new Date(a);
+  return d.getHours() * 60 + d.getMinutes();
+}
+/* The message as the paste box is handed it: its WhatsApp line and its words, so each reader reads who sent it and when. */
+function mcWaText(rec) {
+  var min = mcMin(rec), on = rec.sentOn;
+  if (!on || min == null || !/^\d{4}-\d{2}-\d{2}$/.test(on)) return String(rec.text || '');
+  var p = on.split('-'), who = String(rec.sentBy || 'Unknown').replace(/:/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) || 'Unknown';
+  var hh = Math.floor(min / 60) % 24, mm = min % 60;
+  return p[2] + '/' + p[1] + '/' + p[0] + ', ' + hh + ':' + String(mm).padStart(2, '0') + ' - ' + who + ': ' + String(rec.text || '');
+}
+/* How sure the reading is, set against 90%: the sorter's own word on this message (`conf`, tuned by the profile), and, where
+   msgprofile.js has it, how often the sender's messages of this kind were read right (mpKindConf(kind, sender) → 0..1, or null
+   where the sender has sent nothing of the kind yet): the lower of the two. Null is not known: the message waits for a tick. */
+function mcConf(rec) {
+  var own = typeof rec.conf === 'number' ? rec.conf : 0;
+  if (typeof mpKindConf === 'function') {
+    try {
+      var c = mpKindConf(mcKindOf(rec), rec.sentBy || '');
+      if (c === null) return null;
+      if (typeof c === 'number' && isFinite(c)) return Math.min(own, c);
+    } catch (e) { /* a profile never stops the screen */ }
+  }
+  return own;
+}
+function mcKindOf(rec) { return rec.fix && rec.fix.kind ? rec.fix.kind : rec.kind || 'other'; }
+function mcIsProd(kind) { return !!MC_PROD[kind]; }
+function mcRoll(rec) {
+  return { sentBy: rec.sentBy || '', sentOn: rec.sentOn || null, sentAt: mcMin(rec), text: String(rec.text || ''), _mcId: rec.id };
+}
+/* A message read by its reader, nothing saved: { id, kind, day, conf, dup, red: [texts], amber, blocked, review, what: [lines],
+   sum: { clients, NOS, KG }, key (its reader's own key, to find the same message twice), tickable, def }. */
+function mcRead(rec) {
+  var kind = mcKindOf(rec), o = { id: rec.id, rec: rec, kind: kind, day: rec.sentOn || '', conf: mcConf(rec), dup: null, red: [], amber: 0,
+    blocked: null, review: null, what: [], sum: null, key: '', tickable: false, def: false };
+  try {
+    if (kind === 'in' || kind === 'out') mcReadRoll(rec, o);
+    else if (mcIsProd(kind)) mcReadProd(rec, o);
+    else if (kind === 'stock') mcReadStock(rec, o);
+    else if (kind === 'cash') mcReadCash(rec, o);
+    else if (kind === 'checkin') { o.blocked = 'Read with its own checks against a proxy.'; o.review = 'checkin'; }
+    else if (kind === 'payment') o.blocked = 'Shown, never saved: the payout is worked out from the day’s marks.';
+  } catch (e) {
+    console.error(e);
+    o.blocked = 'Its reader could not read it: open it in its review.';
+    o.review = kind;
+  }
+  if (rec.status === 'saved') o.dup = 'Saved before';
+  else if (rec.status === 'skipped') o.dup = 'Set aside as not a report';
+  else if (rec.status === 'dup') o.dup = 'Older than what the book holds';
+  // Production with a red question is answered in its review, as its own Save waits on it: it is never ticked here.
+  o.tickable = !o.dup && !o.blocked && kind !== 'other' && !(mcIsProd(kind) && o.red.length);
+  o.def = o.tickable && !mcIsProd(kind) && o.conf != null && o.conf >= MC_TICK_AT && !o.red.length;
+  return o;
+}
+function mcReadRoll(rec, o) {
+  var roster = relayRoster({}), r = parseRelayRoll(rec.text, roster, rec.sentOn || null,
+    { exact: false, sentAt: mcMin(rec), night: typeof shiftNightFor === 'function' ? shiftNightFor : null });
+  var days = Object.keys(r.days || {}).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }).sort();
+  o.day = r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : days[0] || o.day;
+  o.key = relayHash(rec.text);
+  if (relayPastes().some(function(p) { return p.hash === o.key; })) o.dup = 'Saved before';
+  r.issues.forEach(function(is) { if (is.tone === 'red') o.red.push((is.n != null ? 'Line ' + is.n + ': ' : '') + is.text); else if (is.tone === 'amber') o.amber++; });
+  if (!(S.staff || []).length) o.blocked = 'Add the roster first: People → Roster.';
+  else if (!days.length) o.blocked = 'No date to put it on: open it in its review.';
+  o.review = 'roll';
+  days.forEach(function(iso) {
+    var d = r.days[iso], c = { P: 0, H: 0, A: 0 };
+    Object.keys(d.people || {}).forEach(function(id) { var st = d.people[id].st; c[st] = (c[st] || 0) + 1; });
+    var cov = 0, blocks = 0, bh = 0;
+    (d.extra || []).forEach(function(x) { if (x.kind === 'block') { blocks++; bh += Number(x.hours) || 0; } else cov += Number(x.hours) || 0; });
+    var t = [attDayName(iso) + ' ' + stockShortDate(iso) + ': ' + c.P + ' present' + (c.H ? ', ' + c.H + ' half day' : '') + (c.A ? ', ' + c.A + ' absent' : '')];
+    if (cov) t.push('EXTRA ' + formatNum(cov, cov % 1 ? 1 : 0) + ' h on the 8:30 shift');
+    if (blocks) t.push(todoPlural(blocks, 'block') + ', ' + formatNum(bh, bh % 1 ? 1 : 0) + ' h');
+    o.what.push(t.join(' · '));
+  });
+}
+function mcReadProd(rec, o) {
+  var msgs = parseProdPaste(mcWaText(rec), prodCtx()), items = 0;
+  o.review = 'prod';
+  msgs.forEach(function(m) { items += m.read.items.length; });
+  o.key = msgs.map(function(m) { return m.hash; }).join('|');
+  if (!items) { o.blocked = 'Its reader found no load, run or cut in it: open it in Messages.'; return; }
+  o.day = msgs[0].read.date || o.day;
+  var res = prodReviewResolve({ msgs: msgs, choices: {} }), saving = 0;
+  if (msgs.every(function(m) { return !m.read.items.length || m.dup; })) o.dup = msgs.some(function(m) { return m.faceBy; }) ? 'Entered on a face already' : 'Saved before';
+  var sum = { clients: [], NOS: 0, KG: 0 };
+  res.rows.forEach(function(r) {
+    var it = r.it;
+    if (r.m.dup || r.twin) return;
+    saving++;
+    if (r.tone === 'red') r.issues.forEach(function(x) { if (x.tone === 'red') o.red.push(x.text); });
+    else if (r.tone === 'amber') o.amber++;
+    var cn = r.clientId != null ? prodClientName(r.clientId) : it.client || '';
+    if (cn && sum.clients.indexOf(cn) < 0) sum.clients.push(cn);
+    [[it.qty, it.unit], [it.qty2, it.unit2]].forEach(function(q) { if (q[0] != null && (q[1] === 'NOS' || q[1] === 'KG')) sum[q[1]] += Number(q[0]) || 0; });
+    o.what.push(it.kind === 'downtime' ? 'Power cut ' + (it.time || '?') + ' to ' + (it.to || 'not back')
+      : ({ pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived' }[it.kind] || 'Entry') + (it.time ? ' ' + it.time : '') + ' · ' + (cn || 'no client') +
+        (it.part ? ' · ' + it.part : '') + (it.gauge ? ' [' + it.gauge + ']' : '') + ' · ' + prodQtyText(it.qty, it.unit) +
+        (it.kind === 'plated' ? ' · ' + prodLineName(r.line || it.line) : ''));
+  });
+  if (!saving && !o.dup) o.dup = 'Entered on a face already';
+  o.sum = sum;
+}
+function mcStockParse(rec) {
+  var text = mcWaText(rec), parsed = parseStockMessage(text);
+  parsed.text = text;
+  if (!parsed.to) { parsed.from = parsed.to = rec.sentOn || localDateStr(); parsed.noDate = true; }
+  return parsed;
+}
+function mcReadStock(rec, o) {
+  var parsed = mcStockParse(rec);
+  o.review = 'stock';
+  o.key = stockHash(parsed.text);
+  if (!parsed.lines.length) { o.blocked = 'No numbered stock lines found: open it in its review.'; return; }
+  o.day = parsed.to || o.day;
+  var res = resolveStockParse(parsed, {});
+  if (res.dup) o.dup = 'Saved before';
+  res.lines.forEach(function(r) {
+    var item = r.item || r.newItem, unit = item ? item.unit : r.src.unit;
+    if (r.tone === 'red') r.issues.forEach(function(is) { if (is.level === 'red' || is.level === 'danger') o.red.push(r.src.n + ' · ' + is.text); });
+    else if (r.tone === 'amber') o.amber++;
+    var said = stockResultText(r, unit);
+    o.what.push(r.src.n + ' · ' + (item ? item.name : r.src.name || 'No name') + (r.newItem ? ' (a new line)' : '') + (said ? ': ' + said : '') + (r.skip ? ' · not saved' : ''));
+  });
+  if (res.lines.some(function(r) { return r.tone === 'red'; }) && !o.red.length) o.red.push('A line needs you: open it in its review.');
+}
+function mcCashParse(rec) {
+  var sent = rec.sentOn || localDateStr();
+  return { read: parseCashMessage(rec.text, sent), sentOn: sent, hash: relayHash(rec.text) };
+}
+function mcReadCash(rec, o) {
+  var c = mcCashParse(rec), p = c.read;
+  o.review = 'cash';
+  o.key = c.hash;
+  o.day = c.sentOn;
+  if (cashPastes().some(function(x) { return x.hash === c.hash && !x.voidedAt; })) o.dup = 'Saved before';
+  p.issues.forEach(function(x) { if (x.tone === 'danger') o.red.push(x.text); else o.amber++; });
+  if (!p.lines.some(function(ln) { return ln.amount > 0; })) o.blocked = 'Nothing with an amount: open it in its review.';
+  else if (p.lines.some(function(ln) { return ln.amount > 0 && !ln.what; })) o.blocked = 'A line says what it was for nowhere: say it in its review.';
+  p.lines.forEach(function(ln) { o.what.push((ln.what || 'Not said') + ' · ' + formatCurrency(ln.amount) + (ln.date ? ' · ' + stockShortDate(ln.date) : '')); });
+  o.what.push('Total ' + formatCurrency(p.sum) + (p.total != null && Math.abs(p.total - p.sum) >= 0.5 ? ' (the message says ' + formatCurrency(p.total) + ')' : ''));
+}
+
+/* ---------- The set on screen ---------- */
+function mcRecords(o) {
+  o = o || {};
+  if (o.importId) return msgStore().filter(function(r) { return r.importId === o.importId || (r.seenIn || []).indexOf(o.importId) >= 0; });
+  return (o.ids || []).map(msgById).filter(Boolean);
+}
+function mcSortKey(r) {
+  var k = MC_ORDER.indexOf(r.kind);
+  return [r.day || '9999', k < 0 ? 99 : k, r.rec.sentOn || '', mcMin(r.rec) == null ? 9999 : mcMin(r.rec)];
+}
+function mcCmp(a, b) {
+  var x = mcSortKey(a), y = mcSortKey(b);
+  for (var i = 0; i < x.length; i++) { if (x[i] < y[i]) return -1; if (x[i] > y[i]) return 1; }
+  return 0;
+}
+function mcReadAll() {
+  var seen = {};
+  _mc.list = _mc.ids.map(msgById).filter(Boolean).map(mcRead).sort(mcCmp);
+  _mc.read = {};
+  // The same message twice in the set (a roll posted again): read once, as the paste box reads it once.
+  _mc.list.forEach(function(r) {
+    _mc.read[r.id] = r;
+    if (!r.key || r.dup || r.kind === 'other') return;
+    var k = r.kind + '|' + r.key;
+    if (seen[k]) { r.dup = 'The same message is earlier here'; r.tickable = r.def = false; }
+    seen[k] = true;
+  });
+}
+function mcShown() { return _mc.list.filter(function(r) { return !r.dup; }); }
+function mcTicked() { return mcShown().filter(function(r) { return r.tickable && _mc.tick[r.id]; }); }
+/* A message nothing here saves: one no reader takes, and the weekly payment summary (the payout is worked out from the marks).
+   They are listed apart, folded at the foot, so what can be saved leads. */
+function mcIsRest(r) { return r.kind === 'other' || r.kind === 'payment'; }
+function mcToLook() { return mcShown().filter(function(r) { return !mcIsRest(r) && (!r.tickable || (r.red.length && !_mc.tick[r.id])); }); }
+
+/* The rolls ticked, in the order they are saved: by the day they report, the in-time roll first, then when they were sent. */
+function mcRollMsgs(list) {
+  return list.filter(function(r) { return r.kind === 'in' || r.kind === 'out'; }).map(function(r) { return mcRoll(r.rec); });
+}
+function mcRollPlan(list) {
+  var msgs = mcRollMsgs(list);
+  if (!msgs.length) return null;
+  var rv = { text: msgs.map(function(m) { return m.text; }).join('\n\n'), msgs: msgs, choices: {} };
+  return { rv: rv, plan: relayPlan(rv) };
+}
+
+/* ---------- The screen ---------- */
+function mcOpen(o) {
+  if (!S) return null;
+  var recs = mcRecords(o);
+  _mc = { ids: recs.map(function(r) { return r.id; }), tick: {}, open: {}, hand: {}, done: null, scrim: null, from: o || {} };
+  mcReadAll();
+  _mc.list.forEach(function(r) { if (r.def) _mc.tick[r.id] = true; });
+  var scrim = dialogOpen(mcDialogHtml(), { dismiss: true });
+  _mc.scrim = scrim;
+  scrim.addEventListener('keydown', mcKeys);
+  return scrim;
+}
+function mcDialogHtml() {
+  return '<div class="inv-dialog inv-dialog-wide inv-mc" data-mc>' + dialogHeadHtml(_mc.done ? 'Saved from the messages' : 'Check the new messages') +
+    '<div class="inv-mc-body" id="mcBody">' + (_mc.done ? mcDoneHtml() : mcBodyHtml()) + '</div>' + mcFootHtml() + '</div>';
+}
+/* Drawn again in place: the list keeps where it was scrolled, and the control that was pressed keeps the focus. */
+function mcRedraw() {
+  var scrim = _mc && _mc.scrim;
+  if (!scrim || !scrim.isConnected) return;
+  var body = scrim.querySelector('#mcBody'), top = body ? body.scrollTop : 0, a = document.activeElement, fk = a && a.closest && a.closest('[data-mc-k]');
+  var k = fk ? fk.getAttribute('data-mc-k') : null;
+  scrim.innerHTML = mcDialogHtml();
+  var nb = scrim.querySelector('#mcBody');
+  if (nb) nb.scrollTop = top;
+  var el = k ? scrim.querySelector('[data-mc-k="' + k.replace(/"/g, '') + '"]') : null;
+  if (el) el.focus({ preventScroll: true });
+}
+function mcTyped() { if (_mc && _mc.scrim) _mc.scrim.dataset.typed = '1'; }
+
+/* A message's first lines, enough to know it by: its whole text is in Messages. */
+function mcPreview(text) {
+  var lines = String(text || '').split('\n'), first = lines.slice(0, 4).join('\n');
+  return (first.length > 240 ? first.slice(0, 240) : first) + (lines.length > 4 || first.length > 240 ? ' …' : '');
+}
+function mcDayLabel(iso) { return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? attDayName(iso) + ' ' + stockShortDate(iso) : 'No date'; }
+function mcConfHtml(r) {
+  if (r.kind === 'other') return uiDot('neutral', 'Not read');
+  if (r.conf == null) return uiDot('neutral', 'New from this sender');
+  var pct = Math.round(r.conf * 100);
+  return uiDot(r.conf >= MC_TICK_AT ? 'ok' : 'warning', pct + '% sure');
+}
+function mcSumText(list) {
+  var s = { clients: [], NOS: 0, KG: 0 };
+  list.forEach(function(r) {
+    if (!r.sum) return;
+    r.sum.clients.forEach(function(c) { if (s.clients.indexOf(c) < 0) s.clients.push(c); });
+    s.NOS += r.sum.NOS; s.KG += r.sum.KG;
+  });
+  var q = [];
+  if (s.NOS) q.push(prodQtyText(s.NOS, 'NOS'));
+  if (s.KG) q.push(prodQtyText(s.KG, 'KG'));
+  var cl = s.clients.length ? s.clients.slice(0, 3).map(clientShortName).join(', ') + (s.clients.length > 3 ? ' and ' + (s.clients.length - 3) + ' more' : '') : 'no client written';
+  return cl + (q.length ? ' · ' + q.join(' + ') : '');
+}
+
+function mcBodyHtml() {
+  var shown = mcShown(), held = _mc.list.filter(function(r) { return r.dup; });
+  var h = '';
+  if (!_mc.list.length) return uiBlankHtml({ kind: 'empty', title: 'No new messages', body: 'Every message here is in the book already.' });
+  // What the book holds already: left out, and said.
+  if (held.length) {
+    var hk = 'held';
+    h += '<div class="inv-callout inv-callout-info inv-mb-8" id="mcHeld"><div>' + todoPlural(held.length, 'message is', 'messages are') + ' in the book already and ' +
+      (held.length === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgMcFold" data-key="' + hk + '" data-mc-k="f:' + hk + '" aria-expanded="' + !!_mc.open[hk] + '">' + (_mc.open[hk] ? 'Hide them' : 'Show them') + '</button>' +
+      (_mc.open[hk] ? '<div class="inv-mt-8">' + held.map(function(r) {
+        return '<div class="inv-row inv-row-2 inv-row-muted" data-mc-held="' + escHtml(r.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(msgKindLabel(r.kind)) + ' · ' + escHtml(r.rec.sentBy || 'No sender') + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(mcDayLabel(r.day)) + '</span></span><span class="inv-row-end"><span class="inv-badge inv-badge-neutral">' + escHtml(r.dup) + '</span></span></div>';
+      }).join('') + '</div>' : '') + '</div>';
+  }
+  h += mcHandHtml();
+  var rest = shown.filter(mcIsRest);
+  shown = shown.filter(function(r) { return !mcIsRest(r); });
+  if (!shown.length) h += uiBlankHtml({ kind: 'empty', title: 'Nothing here to save', body: 'Every new message is one no reader takes or a weekly payment summary, listed below.', small: true });
+  // Grouped by day, then by kind in the floor's order.
+  var days = [];
+  shown.forEach(function(r) { var d = r.day || ''; if (days.indexOf(d) < 0) days.push(d); });
+  days.forEach(function(day) {
+    var inDay = shown.filter(function(r) { return (r.day || '') === day; });
+    h += '<section class="inv-panel inv-panel-flush" data-mc-day="' + escHtml(day || 'none') + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(mcDayLabel(day)) +
+      ' <span class="inv-panel-count">' + inDay.length + '</span></span></div>';
+    MC_ORDER.forEach(function(kind) {
+      var list = inDay.filter(function(r) { return r.kind === kind; });
+      if (list.length) h += mcGroupHtml(day, kind, list);
+    });
+    h += '</section>';
+  });
+  return h + mcRestHtml(rest);
+}
+/* What nothing here saves, one panel shut at the foot: each kind a group, each message with its day. */
+function mcRestHtml(rest) {
+  if (!rest.length) return '';
+  var key = 'rest', open = !!_mc.open[key];
+  var n = { other: rest.filter(function(r) { return r.kind === 'other'; }).length, payment: rest.filter(function(r) { return r.kind === 'payment'; }).length };
+  var sub = [n.other ? todoPlural(n.other, 'not read', 'not read') : '', n.payment ? todoPlural(n.payment, 'weekly payment summary', 'weekly payment summaries') : ''].filter(Boolean).join(' · ');
+  var h = '<section class="inv-panel inv-panel-flush" data-mc-rest><div class="inv-row inv-row-2" data-mc-sum="rest"><button class="inv-row-main" data-action="invMsgMcFold" data-key="' + key + '" data-mc-k="f:' + key + '" aria-expanded="' + open + '">' +
+    '<span class="inv-row-title">Nothing to save <span class="inv-panel-count">' + rest.length + '</span></span><span class="inv-row-meta inv-row-wrap">' + escHtml(sub) + '</span></button></div>';
+  if (open) ['payment', 'other'].forEach(function(kind) {
+    var list = rest.filter(function(r) { return r.kind === kind; });
+    if (!list.length) return;
+    var gk = 'g:rest:' + kind;
+    h += '<div class="inv-mc-group" data-mc-group="' + gk + '" data-kind="' + kind + '"><div class="inv-row-group" data-mc-head="' + gk + '">' + escHtml(msgKindLabel(kind) + ' · ' + list.length) + '</div>' +
+      uiMoreHtml('mc-' + gk, list.map(function(r) { return mcRowHtml(r, true); }), { n: 10, noun: 'messages' }) + '</div>';
+  });
+  return h + '</section>';
+}
+/* A day's messages of one kind. Production is a summary row that opens to its messages, with one tick for them all; the
+   messages not read are one row that opens; the rest are listed. */
+function mcGroupHtml(day, kind, list) {
+  var key = 'g:' + (day || 'none') + ':' + kind, ticks = list.filter(function(r) { return r.tickable; });
+  var on = ticks.filter(function(r) { return _mc.tick[r.id]; }).length, noun = MC_NOUN[kind] || ['message', 'messages'];
+  var prod = mcIsProd(kind), folded = prod || kind === 'other', open = folded ? !!_mc.open[key] : true;
+  var h = '<div class="inv-mc-group" data-mc-group="' + escHtml(key) + '" data-kind="' + escHtml(kind) + '">';
+  var label = msgKindLabel(kind) + ' · ' + list.length;
+  var groupTick = ticks.length > 1 || prod ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgMcGroup" data-key="' + escHtml(key) + '" data-mc-k="t:' + escHtml(key) + '" data-on="' + (on === ticks.length ? '0' : '1') + '"' +
+    (ticks.length ? '' : ' disabled') + '>' + escHtml((on === ticks.length && ticks.length ? 'Untick the ' : 'Tick the ') + todoPlural(ticks.length, noun[0], noun[1]).replace(/^1 /, '') + (/^\d{4}/.test(day) ? ' of ' + stockShortDate(day) : '')) + '</button>' : '';
+  if (folded) {
+    var sub = prod ? mcSumText(list) : list.slice(0, 2).map(function(r) { return String(r.rec.text || '').split('\n')[0].slice(0, 40); }).join(' · ');
+    h += '<div class="inv-row inv-row-2 inv-row-flow" data-mc-sum="' + escHtml(key) + '"><button class="inv-row-main" data-action="invMsgMcFold" data-key="' + escHtml(key) + '" data-mc-k="f:' + escHtml(key) + '" aria-expanded="' + open + '">' +
+      '<span class="inv-row-title">' + escHtml(label) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(sub) + '</span></button>' +
+      '<span class="inv-row-end"><span class="inv-row-stack">' + (prod ? '<span class="inv-num" data-mc-on>' + on + ' of ' + ticks.length + ' ticked</span>' : '') +
+      '<span class="inv-badge inv-badge-' + (prod ? (on ? 'ok' : 'warning') : 'neutral') + '">' + (prod ? (on ? 'Ticked' : 'Waits for you') : 'Not read') + '</span></span></span></div>';
+    if (groupTick) h += '<div class="inv-mc-acts">' + groupTick + '</div>';
+  } else {
+    h += '<div class="inv-row-group" data-mc-head="' + escHtml(key) + '">' + escHtml(label) + '</div>';
+    if (groupTick) h += '<div class="inv-mc-acts">' + groupTick + '</div>';
+  }
+  if (open) h += list.map(mcRowHtml).join('');
+  return h + '</div>';
+}
+function mcRowHtml(r, withDay) {
+  var rec = r.rec, ticked = !!_mc.tick[r.id], min = mcMin(rec), more = !!_mc.open['m:' + r.id];
+  var meta = (withDay ? mcDayLabel(r.day || '') + ' · ' : '') + (rec.sentBy || 'No sender') + (min != null ? ' · ' + relayClockLabel(min) : '') + (rec.sentOn && rec.sentOn !== r.day ? ' · sent ' + stockShortDate(rec.sentOn) : '');
+  var tone = r.red.length ? 'danger' : r.blocked ? 'neutral' : r.amber ? 'warning' : 'ok';
+  var badge = r.kind === 'other' ? ['neutral', 'Not read'] : r.kind === 'payment' ? ['neutral', 'Shown, not saved'] : r.blocked ? ['warning', 'Its review'] :
+    r.red.length ? ['danger', 'Needs you'] : ticked ? ['ok', 'Ticked'] : mcIsProd(r.kind) ? ['warning', 'Waits for you'] : ['neutral', 'Not ticked'];
+  var h = '<div class="inv-row inv-row-auto inv-row-top" data-mc-row="' + escHtml(r.id) + '" data-kind="' + escHtml(r.kind) + '" data-tone="' + tone + '">';
+  h += r.tickable ? '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invMsgMcTick" data-id="' + escHtml(r.id) + '" data-mc-k="c:' + escHtml(r.id) + '"' +
+    (ticked ? ' checked' : '') + ' aria-label="Save this message"></label>' : '';
+  h += '<div class="inv-row-main"><div class="inv-row-title">' + escHtml(msgKindLabel(r.kind)) + '</div><div class="inv-row-meta inv-row-wrap">' + escHtml(meta) + ' · ' + mcConfHtml(r) + '</div>';
+  if (r.kind === 'other' || r.kind === 'payment' || r.kind === 'checkin') h += '<div class="inv-quote inv-mt-4">' + escHtml(mcPreview(rec.text)) + '</div>';
+  var lines = r.what, shownLines = more ? lines : lines.slice(0, 3);
+  if (shownLines.length) h += '<div class="inv-mc-what inv-mt-4" data-mc-what>' + shownLines.map(function(t) { return '<div class="inv-row-meta inv-row-wrap">' + escHtml(t) + '</div>'; }).join('') + '</div>';
+  if (lines.length > 3) h += '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgMcFold" data-key="m:' + escHtml(r.id) + '" data-mc-k="f:m:' + escHtml(r.id) + '" aria-expanded="' + more + '">' +
+    (more ? 'Show less' : 'Show all ' + lines.length) + '</button>';
+  r.red.slice(0, 3).forEach(function(t) { h += '<div class="inv-callout inv-callout-danger inv-mt-8" data-mc-red>' + escHtml(t) + '</div>'; });
+  if (r.red.length > 3) h += '<div class="inv-note">' + todoPlural(r.red.length - 3, 'more question') + ' in its review.</div>';
+  if (r.blocked) h += '<div class="inv-note inv-mt-4" data-mc-blocked>' + escHtml(r.blocked) + '</div>';
+  var acts = [];
+  if (mcIsProd(r.kind) && r.tickable && !r.red.length) acts.push('<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgMcLike" data-id="' + escHtml(r.id) + '" data-mc-k="l:' + escHtml(r.id) + '">Tick every production message like this one</button>');
+  if (r.review && (r.blocked || r.red.length)) acts.push('<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgMcReview" data-id="' + escHtml(r.id) + '">' + (r.review === 'checkin' ? 'Read the check-ins' : 'Open its review') + '</button>');
+  if ((r.kind === 'other' || r.blocked || r.red.length) && typeof mvOpen === 'function') acts.push('<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMsgMcView" data-id="' + escHtml(r.id) + '">Open in Messages</button>');
+  if (r.kind === 'other') acts.push('<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMsgMcNotReport" data-id="' + escHtml(r.id) + '">Not a report</button>');
+  if (acts.length) h += '<div class="inv-mc-acts inv-mt-4">' + acts.join('') + '</div>';
+  return h + '</div><div class="inv-row-end"><span class="inv-badge inv-badge-' + badge[0] + '">' + badge[1] + '</span></div></div>';
+}
+/* The marks typed by hand the ticked rolls would change, asked hand by hand: Keep what was typed unless the message is used. */
+function mcHandHtml() {
+  var rp = mcRollPlan(mcTicked());
+  if (!rp) return '';
+  var asks = relayHandAsks(rp.plan);
+  if (!asks.length) return '';
+  var h = '<div class="inv-panel inv-panel-flush" id="mcHand"><div class="inv-panel-head"><span class="inv-panel-title">Marks typed by hand <span class="inv-panel-count">' + asks.length + '</span></span></div>' +
+    '<div class="inv-panel-body">' + relayHandNoteHtml(asks, _mc.hand, 'invMsgMcHandAll') + '</div>';
+  var rows = asks.map(function(a) {
+    var use = !!_mc.hand[relayHandKey(a.iso, a.id)];
+    return { parts: ['<div class="inv-row inv-row-2" data-mc-hand="' + escHtml(relayHandKey(a.iso, a.id)) + '" data-use="' + (use ? '1' : '0') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.w.name) + ' · ' + escHtml(mcDayLabel(a.iso)) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml('Typed by hand: ' + (a.prev.st === 'A' ? 'Absent' : areaLabel(a.prev.area) + ', ' + relayMarkText(a.prev)) +
+        '. The message reads ' + (a.roll.st === 'A' ? 'Absent' : areaLabel(a.roll.area) + ', ' + relayMarkText(a.roll)) + '.') + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-badge inv-badge-' + (use ? 'info' : 'warning') + '">' + (use ? 'From the message' : 'Kept') + '</span></span></div>',
+      relayHandSegHtml('invMsgMcHand', a.iso, a.id, use)] };
+  });
+  h += uiMoreHtml('mc-hand', rows, { n: 3, noun: 'hands' });
+  return h + '</div>';
+}
+function mcFootHtml() {
+  if (_mc.done) return '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invMsgMcDone">Done</button></div>';
+  var shown = mcShown(), can = shown.filter(function(r) { return r.tickable; }).length, on = mcTicked().length, look = mcToLook().length;
+  return '<div class="inv-dialog-foot"><span class="inv-mc-count" data-mc-count>' + escHtml(on + ' of ' + can + ' ticked' + (look ? ' · ' + look + ' to look at' : '')) + '</span>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Not now</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invMsgMcSave"' + (on ? '' : ' disabled') + '>' + (on ? 'Save ' + todoPlural(on, 'message') : 'Nothing ticked') + '</button></div>';
+}
+
+/* ---------- Keys on the desktop: ↑ ↓ move between the messages, space ticks ---------- */
+function mcKeys(e) {
+  if (!_mc || _mc.done || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+  if (!document.body.classList.contains('inv-desktop')) return;
+  var t = e.target;
+  if (t && t.matches && t.matches('input:not([type="checkbox"]), textarea, select')) return;
+  var boxes = Array.prototype.slice.call(_mc.scrim.querySelectorAll('[data-mc-row] input.inv-check'));
+  if (!boxes.length) return;
+  var row = t && t.closest ? t.closest('[data-mc-row]') : null, i = row ? boxes.indexOf(row.querySelector('input.inv-check')) : -1;
+  var j = e.key === 'ArrowDown' ? (i < 0 ? 0 : Math.min(boxes.length - 1, i + 1)) : (i < 0 ? boxes.length - 1 : Math.max(0, i - 1));
+  e.preventDefault();
+  boxes[j].focus();
+  if (boxes[j].scrollIntoView) boxes[j].scrollIntoView({ block: 'nearest' });
+}
+
+/* ---------- The ticks ---------- */
+function mcLikeOf(r) {
+  var who = String(r.rec.sentBy || '').trim().toUpperCase();
+  return mcShown().filter(function(x) { return x.tickable && x.kind === r.kind && !x.red.length && String(x.rec.sentBy || '').trim().toUpperCase() === who; });
+}
+function mcAction(action, btn) {
+  if (action.indexOf('invMsgMc') !== 0) return false;
+  if (!_mc) return true;
+  var id = btn && btn.dataset ? btn.dataset.id : null, r = id ? _mc.read[id] : null;
+  switch (action) {
+    case 'invMsgMcTick':
+      if (r && r.tickable) { _mc.tick[id] = !!btn.checked; mcTyped(); mcRedraw(); }
+      break;
+    case 'invMsgMcGroup': {
+      var key = btn.dataset.key, parts = String(key).split(':'), day = parts[1] === 'none' ? '' : parts[1], kind = parts[2], v = btn.dataset.on === '1';
+      mcShown().forEach(function(x) { if (x.tickable && x.kind === kind && (x.day || '') === day && (!v || !x.red.length || !mcIsProd(kind))) _mc.tick[x.id] = v; });
+      if (mcIsProd(kind) && v) _mc.open[key] = true;
+      mcTyped(); mcRedraw();
+      break;
+    }
+    case 'invMsgMcLike':
+      if (r) { var like = mcLikeOf(r); like.forEach(function(x) { _mc.tick[x.id] = true; }); mcTyped(); mcRedraw(); showToast('Ticked ' + todoPlural(like.length, 'message') + ' from ' + (r.rec.sentBy || 'no sender') + ' like this one'); }
+      break;
+    case 'invMsgMcFold': _mc.open[btn.dataset.key] = !_mc.open[btn.dataset.key]; mcRedraw(); break;
+    case 'invMsgMcHand': _mc.hand[relayHandKey(btn.dataset.iso, btn.dataset.id)] = btn.dataset.use === '1'; mcTyped(); mcRedraw(); break;
+    case 'invMsgMcHandAll': {
+      var rp = mcRollPlan(mcTicked());
+      if (rp) relayHandAsks(rp.plan).forEach(function(a) { _mc.hand[relayHandKey(a.iso, a.id)] = btn.dataset.use === '1'; });
+      mcTyped(); mcRedraw();
+      break;
+    }
+    case 'invMsgMcNotReport':
+      if (r) { r.rec.status = 'skipped'; saveState(); r.dup = 'Set aside as not a report'; r.tickable = false; mcRedraw(); showToast('Set aside: not a report'); }
+      break;
+    case 'invMsgMcView': if (r) mcLeave(function() { mvOpen(r.id); }); break;
+    case 'invMsgMcReview': if (r) mcLeave(function() { mcOpenReview(r); }); break;
+    case 'invMsgMcSave': mcSave(); break;
+    case 'invMsgMcDone': mcClose(); break;
+    default: return false;
+  }
+  return true;
+}
+/* Leaving for another screen: what was ticked asks first, as any dialog holding typed work does. */
+function mcLeave(go) {
+  var scrim = _mc && _mc.scrim;
+  dialogLeaveOk(scrim).then(function(ok) {
+    if (!ok) return;
+    mcClose();
+    go();
+  });
+}
+function mcClose() {
+  var scrim = _mc && _mc.scrim;
+  _mc = null;
+  if (scrim && scrim.isConnected) { delete scrim.dataset.typed; dialogCloseScrim(scrim); }
+  if (typeof tabRedrawActive === 'function' && document.querySelector('.inv-page-active')) tabRedrawActive();
+}
+/* The message in its reader's own review, where every question has its picker. */
+function mcOpenReview(r) {
+  var rec = r.rec, text = mcWaText(rec);
+  if (r.review === 'roll') { relayOpen(text); relayRead(); }
+  else if (r.review === 'prod') prodOpenPaste(text);
+  else if (r.review === 'stock') relayOpenStock(text);
+  else if (r.review === 'cash') cashReviewOpen(rec.text, rec.sentOn || localDateStr());
+  else if (r.review === 'checkin') ckReviewOpen(text);
+}
+
+/* ---------- One save ---------- */
+async function mcSave() {
+  if (!_mc || _mc.done) return;
+  var ticked = mcTicked();
+  if (!ticked.length) { showToast('Tick the messages to save first', 'error'); return; }
+  var floorKinds = ticked.filter(function(r) { return r.kind !== 'cash'; }), cashKinds = ticked.filter(function(r) { return r.kind === 'cash'; });
+  var refused = [];
+  // The guard (guard.js), asked once for the batch: the floor's entries a permission, the cash paid out the PIN.
+  if (floorKinds.length && !grdOk('floor') && !(await guardAsk('floor', 'save the messages'))) { refused = refused.concat(floorKinds); floorKinds = []; }
+  if (cashKinds.length && !grdOk('payments') && !(await guardAsk('payments', 'record cash paid out'))) { refused = refused.concat(cashKinds); cashKinds = []; }
+  if (!_mc) return;
+  var go = floorKinds.concat(cashKinds), out = { saved: [], skipped: [], left: [], days: {} };
+  var day = function(iso) { var k = iso || ''; return out.days[k] || (out.days[k] = { marks: 0, extras: 0, overrides: 0, prod: 0, stock: 0, cash: 0, cashLines: 0 }); };
+  refused.forEach(function(r) { out.left.push({ r: r, why: 'Your ID can’t save it' }); });
+  var chrono = function(a, b) { return String(a.rec.sentOn || '').localeCompare(String(b.rec.sentOn || '')) || (mcMin(a.rec) || 0) - (mcMin(b.rec) || 0); };
+
+  // 1. The rolls, in one reading: by day, the in-time roll before the out-time, as the paste box saves them.
+  var rolls = go.filter(function(r) { return r.kind === 'in' || r.kind === 'out'; });
+  if (rolls.length) {
+    var rp = mcRollPlan(rolls), plan = rp.plan;
+    plan.issues.forEach(function(is) { if (is.tone === 'amber' && is.key && is.id != null) relayRemember(is.key, is.id); });
+    plan.days.forEach(function(d) {
+      var t = day(d.iso);
+      d.rows.forEach(function(r) {
+        if (r.change === 'new' || r.change === 'updated') t.marks++;
+        else if (r.change === 'kept' && r.hand && r.differs && r.w && _mc.hand[relayHandKey(d.iso, r.w.id)]) { t.marks++; t.overrides++; }
+      });
+      d.extras.forEach(function(x) { if (!x.dup && !x.kept) t.extras++; });
+    });
+    relayApplyPlan(rp.rv, plan, { useMsg: _mc.hand });
+    rp.rv.msgs.forEach(function(m) {
+      var r = _mc.read[m._mcId];
+      if (m.rpId) { msgMarkSaved(r.id, 'relayPastes', m.rpId); out.saved.push(r); }
+      else if (m.dup || m.repeat) out.skipped.push({ r: r, why: m.dup ? 'Saved before' : 'The same roll is earlier here' });
+      else out.left.push({ r: r, why: 'No date to put it on' });
+    });
+  }
+
+  // 2. Production, in one reading in the order the messages were sent (a power back closes the cut before it).
+  var prod = go.filter(function(r) { return mcIsProd(r.kind); }).sort(chrono);
+  for (var pass = 0; pass < 2 && prod.length; pass++) {
+    var spans = [], msgs = [];
+    prod.forEach(function(r) {
+      var mine = parseProdPaste(mcWaText(r.rec), prodCtx()).length;
+      spans.push({ r: r, from: msgs.length, to: msgs.length + mine });
+      msgs.length += mine;
+    });
+    msgs = parseProdPaste(prod.map(function(r) { return mcWaText(r.rec); }).join('\n'), prodCtx());
+    var rv = { msgs: msgs, choices: {} }, res = prodReviewResolve(rv);
+    if (res.red) {
+      // A question only the whole set raises: that message is left to its review, and the rest read again.
+      var redMi = {};
+      res.rows.forEach(function(row) { if (row.tone === 'red' && !row.m.dup && !row.twin) redMi[row.mi] = true; });
+      var keep = [];
+      spans.forEach(function(sp) {
+        var red = false;
+        for (var i = sp.from; i < sp.to; i++) if (redMi[i]) red = true;
+        if (red) out.left.push({ r: sp.r, why: 'A question needs you in its review' }); else keep.push(sp.r);
+      });
+      prod = keep;
+      continue;
+    }
+    var before = prodData().entries.length;
+    var done = prodSaveCore(rv, res, stockBy());
+    if (done.n || done.closed) prodTouch();
+    prodData().entries.slice(before).forEach(function(e) { day(e.date).prod++; });
+    spans.forEach(function(sp) {
+      var ids = [];
+      for (var i = sp.from; i < sp.to; i++) if (done.pasteIds[i]) ids.push(done.pasteIds[i]);
+      if (ids.length) { ids.forEach(function(pid) { msgMarkSaved(sp.r.id, 'production.pastes', pid); }); out.saved.push(sp.r); }
+      else out.skipped.push({ r: sp.r, why: 'Saved before' });
+    });
+    break;
+  }
+
+  // 3. Stock, a message at a time, as Stock's paste check saves one.
+  go.filter(function(r) { return r.kind === 'stock'; }).sort(chrono).forEach(function(r) {
+    var parsed = mcStockParse(r.rec);
+    if (!parsed.lines.length) { out.left.push({ r: r, why: 'No stock lines read' }); return; }
+    var res = resolveStockParse(parsed, {});
+    if (res.dup) { out.skipped.push({ r: r, why: 'Saved before' }); return; }
+    var st = stockData(), before = st.entries.length;
+    var made = stockCommitPaste(parsed, res, { sentBy: parsed.sentBy, by: stockBy(), choices: {} });
+    if (!made.entries) { out.left.push({ r: r, why: 'Nothing to save: a line needs its name in its review' }); return; }
+    st.entries.slice(before).forEach(function(e) { day(e.date).stock++; });
+    msgMarkSaved(r.id, 'stock.pastes', st.pastes[st.pastes.length - 1].id);
+    out.saved.push(r);
+  });
+
+  // 4. Cash paid out, as its review saves it with nothing changed.
+  cashKinds.sort(chrono).forEach(function(r) {
+    var c = mcCashParse(r.rec);
+    if (cashPastes().some(function(x) { return x.hash === c.hash && !x.voidedAt; })) { out.skipped.push({ r: r, why: 'Saved before' }); return; }
+    var lines = c.read.lines.filter(function(ln) { return ln.amount > 0; }).map(function(ln) { return { what: ln.what, cat: ln.cat, date: ln.date || null, amount: ln.amount, n: ln.n }; });
+    if (!lines.length || lines.some(function(ln) { return !ln.what; })) { out.left.push({ r: r, why: 'A line needs saying what it was for' }); return; }
+    var saved = cashSaveCore({ text: r.rec.text, hash: c.hash, sentOn: c.sentOn, week: attWeekStartOf(c.sentOn) }, lines);
+    lines.forEach(function(ln) { var t = day(ln.date || c.sentOn); t.cashLines++; t.cash = gstRound(t.cash + ln.amount); });
+    msgMarkSaved(r.id, 'cashPastes', saved.msgId);
+    out.saved.push(r);
+  });
+
+  if (out.saved.length || out.left.length) saveState();
+  // What was not ticked waits, 'new', and is listed with what is left to look at.
+  mcShown().forEach(function(r) { if (!_mc.tick[r.id] || !r.tickable) out.left.push({ r: r, why: !r.tickable ? (r.blocked || 'Not read') : r.red.length ? 'A question needs you' : 'Not ticked' }); });
+  _mc.done = out;
+  if (_mc.scrim) delete _mc.scrim.dataset.typed;
+  mcRedraw();
+  showToast(out.saved.length ? 'Saved ' + todoPlural(out.saved.length, 'message') : 'Nothing saved', out.saved.length ? 'success' : 'error');
+}
+function mcDoneHtml() {
+  var o = _mc.done, h = '';
+  h += '<div class="inv-tiles inv-tiles-3" id="mcDoneTiles">' +
+    '<div class="inv-tile inv-tile-ok" data-tile="saved"><div class="inv-tile-label">Saved</div><div class="inv-tile-value">' + o.saved.length + '</div></div>' +
+    '<div class="inv-tile" data-tile="skipped"><div class="inv-tile-label">Left out</div><div class="inv-tile-value">' + o.skipped.length + '</div></div>' +
+    '<div class="inv-tile' + (o.left.length ? ' inv-tile-warning' : '') + '" data-tile="left"><div class="inv-tile-label">To look at</div><div class="inv-tile-value">' + o.left.length + '</div></div></div>';
+  var days = Object.keys(o.days).sort();
+  if (days.length) {
+    h += '<div class="inv-panel inv-panel-flush" id="mcDoneDays"><div class="inv-panel-head"><span class="inv-panel-title">What changed</span></div>';
+    days.forEach(function(iso) {
+      var t = o.days[iso], said = [];
+      if (t.marks) said.push(todoPlural(t.marks, 'mark') + (t.overrides ? ' (' + t.overrides + ' over what was typed)' : ''));
+      if (t.extras) said.push(todoPlural(t.extras, 'EXTRA row'));
+      if (t.prod) said.push(todoPlural(t.prod, 'production entry', 'production entries'));
+      if (t.stock) said.push(todoPlural(t.stock, 'stock entry', 'stock entries'));
+      if (t.cashLines) said.push(todoPlural(t.cashLines, 'cash line') + ', ' + formatCurrency(t.cash));
+      if (!said.length) return;
+      h += uiFactRowHtml({ label: escHtml(mcDayLabel(iso)), value: escHtml(said.join(' · ')), attrs: ' data-mc-done-day="' + escHtml(iso) + '"' });
+    });
+    h += '</div>';
+  }
+  var row = function(x, tone) {
+    var r = x.r;
+    return '<div class="inv-row inv-row-2" data-mc-done="' + escHtml(r.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(msgKindLabel(r.kind)) + ' · ' + escHtml(r.rec.sentBy || 'No sender') + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(mcDayLabel(r.day) + ' · ' + x.why) + '</span></span><span class="inv-row-end">' +
+      (tone === 'left' && typeof mvOpen === 'function' ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invMsgMcView" data-id="' + escHtml(r.id) + '">Open in Messages</button>' : '<span class="inv-badge inv-badge-neutral">Left out</span>') + '</span></div>';
+  };
+  if (o.skipped.length) h += '<div class="inv-panel inv-panel-flush" id="mcDoneSkipped"><div class="inv-panel-head"><span class="inv-panel-title">Left out <span class="inv-panel-count">' + o.skipped.length + '</span></span></div>' +
+    o.skipped.map(function(x) { return row(x, 'skip'); }).join('') + '</div>';
+  if (o.left.length) h += '<div class="inv-panel inv-panel-flush" id="mcDoneLeft"><div class="inv-panel-head"><span class="inv-panel-title">Left to look at <span class="inv-panel-count">' + o.left.length + '</span></span></div>' +
+    uiMoreHtml('mc-left', o.left.map(function(x) { return row(x, 'left'); }), { noun: 'messages' }) + '</div>';
+  if (!o.saved.length && !o.skipped.length && !o.left.length) h += uiBlankHtml({ kind: 'empty', title: 'Nothing saved' });
+  return h;
+}
 /* ===== ATTENDANCE SHEETS: the paper route (owner, 29 Sep 2026) =====
    "I want 2 printable sheet generator from the attendance sheet, one for Shyam and one for Deepak aka Champai. The one
    for Shyam should be generated using his whatsapp text in mind, that way he can easily fill the same on a sheet and
@@ -44979,6 +47219,9 @@ function pushFloorEvents(events) {
       // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
       text: x.how === 'reread'
         ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
+        // Marks typed by hand replaced by a roll (relay.js, relayHandLog): the marks as they were, in the log.
+        : x.how === 'override'
+        ? 'Marks typed by hand replaced by the roll \u2014 ' + formatDate(x.iso) + ', ' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ' as typed kept in the log'
         : 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') + what +
           (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
     });
@@ -45215,7 +47458,7 @@ var HISTORY_REMOVALS = { void: 1, attDelete: 1, cancel: 1, quoteVoid: 1 };
    is its tombstone and the invoice removed; a day deleted takes its rolls). */
 function historyRemovals(list) {
   var acts = list.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; });
-  var audit = acts.filter(function(ev) { return !(ev.kind === 'attDelete' && ev.how === 'reread') && !(ev.kind === 'void' && ev.source === 'reconciled'); });
+  var audit = acts.filter(function(ev) { return !(ev.kind === 'attDelete' && (ev.how === 'reread' || ev.how === 'override')) && !(ev.kind === 'void' && ev.source === 'reconciled'); });
   var chg = list.filter(function(ev) {
     return ev.kind === 'chg' && /^(removed|voided|cancelled)$/.test(ev.act || '') && !acts.some(function(a) { return Math.abs((a.ts || 0) - (ev.ts || 0)) <= CHG_MATCH_MS; });
   });
@@ -54745,8 +56988,8 @@ function prodStoredOpenCut(m, it) {
     return e.pasteId === seen.id && e.kind === 'downtime' && !e.voidedAt && e.date === it.date && e.time === it.time && e.to == null;
   }) || null : null;
 }
-function prodReviewResolve() {
-  var rv = _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 }, inPaste = {};
+function prodReviewResolve(rvIn) {
+  var rv = rvIn || _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 }, inPaste = {};
   rv.msgs.forEach(function(m, mi) {
     // Saved before, or the same message earlier in this paste (the supervisor reposts a roll): read once.
     m.twice = !!(m.read.items.length && inPaste[m.hash]);
@@ -54849,13 +57092,11 @@ function prodReviewRowHtml(r, idx) {
   }
   return h + '</div><div class="inv-row-end"><span class="inv-badge inv-badge-' + badge[0] + '">' + badge[1] + '</span></div></div>';
 }
-function prodSaveReview() {
-  var rv = _prodReview;
-  if (!rv) return;
-  if (!grdGate('floor', 'save production', prodSaveReview)) return;   // the guard (guard.js): a floor entry, never re-asked
-  var res = prodReviewResolve();
-  if (res.red) { showToast('Answer the rows marked Needs you first', 'error'); return; }
-  var p = prodData(), at = Date.now(), byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy(), n = 0, pasteIds = {};
+/* The paste's save, without its screen: every row of a message not saved before written as an entry, the paste kept, the
+   spellings picked remembered, a cut saved before closed. The review's Save and the confirmation screen (msgconfirm.js) write
+   through here. `res` is prodReviewResolve(rv), with nothing red. → { n, closed, learnt, pasteIds: { message index: id } }. */
+function prodSaveCore(rv, res, by) {
+  var p = prodData(), at = Date.now(), n = 0, pasteIds = {};
   var learnt = 0;
   res.rows.forEach(function(r) {
     if (r.m.dup || r.twin) return;
@@ -54903,6 +57144,17 @@ function prodSaveReview() {
       closed++;
     });
   });
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('production.pastes', p.pastes.filter(function(x) { return x.at === at; }));
+  return { n: n, closed: closed, learnt: learnt, pasteIds: pasteIds };
+}
+function prodSaveReview() {
+  var rv = _prodReview;
+  if (!rv) return;
+  if (!grdGate('floor', 'save production', prodSaveReview)) return;   // the guard (guard.js): a floor entry, never re-asked
+  var res = prodReviewResolve();
+  if (res.red) { showToast('Answer the rows marked Needs you first', 'error'); return; }
+  var byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy();
+  var done = prodSaveCore(rv, res, by), n = done.n, closed = done.closed, learnt = done.learnt;
   if (!n && !closed) { showToast('Nothing new to save', 'error'); return; }
   prodTouch();
   saveState();
@@ -75477,6 +77729,7 @@ function onDocClick(e) {
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
       else if (action.indexOf('invPay') === 0) payAction(action, btn);
+      else if (action.indexOf('invMsg') === 0) msgAction(action, btn);
       else if (action.indexOf('invCost') === 0) costAction(action, btn);
       else if (action.indexOf('invPred') === 0) predAction(action, btn);
   }
@@ -76629,6 +78882,7 @@ function navLoc() {
     case 'pageFace': d = faceNavD(); if (_faceForm) { v = _faceForm.duty === 'vat' ? 'vat/' + _faceForm.line : _faceForm.duty; if (_faceForm.replaces) id = _faceForm.replaces; } break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
     case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
+    case 'pageMessages': if (_mvOpen) id = _mvOpen; break;
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
@@ -76746,6 +79000,7 @@ function navLabel(loc) {
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
     case 'pageKnow': { var kl = kbNavLabel(loc.v, loc.id); sub = sub.concat(kl.sub); rec = kl.rec; break; }
+    case 'pageMessages': if (loc.id && loc.id === _mvOpen && _mvOpenLabel) rec = _mvOpenLabel; break;
   }
   if (rec) sub.push(rec);
   // The page by its name in its workspace (Invoices, People, Money), with the workspace's.
@@ -76825,6 +79080,8 @@ function navApply(loc) {
       case 'pageFace': faceSetDay(loc && loc.d); faceFormFromNav(loc && loc.v, id); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
       case 'pageKnow': kbNavApply(loc && loc.v, id); break;
+      // A message by its id, on both layouts (the phone's sub-view, the desktop's pane); one not kept opens the list.
+      case 'pageMessages': _mvOpen = id && typeof msgById === 'function' && msgById(id) ? id : null; if (!_mvOpen) _mvEdit = null; break;
     }
     if (!same) switchTab(tab);
     else {
@@ -76921,7 +79178,7 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -77257,6 +79514,7 @@ function srchScreens() {
     ['planner-finance', 'Planner finance', 'Home › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
     // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
     ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
+    ['messages', 'Messages', 'Top bar', 'whatsapp messages pasted kept read again parser lessons corrections', at('pageMessages')],
     ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
     ['know-lib', 'Library', 'Top bar › Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
     ['know-trouble', 'Troubleshoot', 'Top bar › Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
@@ -78116,6 +80374,8 @@ function srchLocOf(el) {
   // The rail's mark opens Home's dashboard (invGoPulse its old name, UI pass 3); the top bar's History, History.
   if (act === 'invGoHome' || act === 'invGoPulse') return { tab: 'pageHome', v: 'home', id: '' };
   if (act === 'invGoHistory') return { tab: 'pageHistory', v: '', id: '' };
+  if (act === 'invMsgGo') return { tab: 'pageMessages', v: '', id: '' };
+  if (act === 'invMsgOpen') return { tab: 'pageMessages', v: '', id: String(d.id) };
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[3] === String(d.ws || ''); });
     var go = sp ? srchGTarget(sp[0]) : null;

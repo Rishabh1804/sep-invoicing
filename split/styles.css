@@ -2594,7 +2594,7 @@ a.inv-btn { text-decoration: none; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
 body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
 /* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
-body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"]) { display: none; }
+body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"], [data-action="invMsgGo"]) { display: none; }
 
 /* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
    The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
@@ -3726,3 +3726,18 @@ body:not(.inv-desktop) button.inv-brief-row { min-height: var(--touch); }
 .inv-wx-ico { flex: none; width: var(--sp-16); height: var(--sp-16); }
 .inv-wx-temp { color: var(--text-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .inv-wx-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== msgconfirm.js: the confirmation screen over the new messages ===== */
+/* A wide dialog whose list scrolls between the head and the foot, which stays put with its count. */
+.inv-mc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.inv-mc-body > * { margin-top: 0; margin-bottom: var(--sp-12); }
+.inv-mc > .inv-dialog-foot { flex-shrink: 0; position: static; align-items: center; }
+.inv-mc-count { flex: 1 1 100%; color: var(--text-2); font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.inv-mc-group + .inv-mc-group { border-top: var(--hair) solid var(--border); }
+.inv-mc-acts { display: flex; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-4) var(--pad-x) var(--sp-8); }
+.inv-row-main > .inv-mc-acts { padding-inline: 0; }
+.inv-mc-what { display: flex; flex-direction: column; gap: var(--sp-2); }
+body.inv-desktop .inv-mc-count { flex: 0 1 auto; margin-right: auto; }
+/* A mark typed by hand that a roll would change: its two answers under its row, the row's width. */
+.inv-mc-pick { padding: 0 var(--pad-x) var(--sp-8); }
+.inv-mc-pick > .inv-seg { width: 100%; }

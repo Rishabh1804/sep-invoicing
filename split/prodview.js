@@ -1036,8 +1036,8 @@ function prodStoredOpenCut(m, it) {
     return e.pasteId === seen.id && e.kind === 'downtime' && !e.voidedAt && e.date === it.date && e.time === it.time && e.to == null;
   }) || null : null;
 }
-function prodReviewResolve() {
-  var rv = _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 }, inPaste = {};
+function prodReviewResolve(rvIn) {
+  var rv = rvIn || _prodReview, ch = rv.choices, out = { rows: [], red: 0, amber: 0, save: 0, dup: 0 }, inPaste = {};
   rv.msgs.forEach(function(m, mi) {
     // Saved before, or the same message earlier in this paste (the supervisor reposts a roll): read once.
     m.twice = !!(m.read.items.length && inPaste[m.hash]);
@@ -1140,13 +1140,11 @@ function prodReviewRowHtml(r, idx) {
   }
   return h + '</div><div class="inv-row-end"><span class="inv-badge inv-badge-' + badge[0] + '">' + badge[1] + '</span></div></div>';
 }
-function prodSaveReview() {
-  var rv = _prodReview;
-  if (!rv) return;
-  if (!grdGate('floor', 'save production', prodSaveReview)) return;   // the guard (guard.js): a floor entry, never re-asked
-  var res = prodReviewResolve();
-  if (res.red) { showToast('Answer the rows marked Needs you first', 'error'); return; }
-  var p = prodData(), at = Date.now(), byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy(), n = 0, pasteIds = {};
+/* The paste's save, without its screen: every row of a message not saved before written as an entry, the paste kept, the
+   spellings picked remembered, a cut saved before closed. The review's Save and the confirmation screen (msgconfirm.js) write
+   through here. `res` is prodReviewResolve(rv), with nothing red. → { n, closed, learnt, pasteIds: { message index: id } }. */
+function prodSaveCore(rv, res, by) {
+  var p = prodData(), at = Date.now(), n = 0, pasteIds = {};
   var learnt = 0;
   res.rows.forEach(function(r) {
     if (r.m.dup || r.twin) return;
@@ -1194,6 +1192,17 @@ function prodSaveReview() {
       closed++;
     });
   });
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('production.pastes', p.pastes.filter(function(x) { return x.at === at; }));
+  return { n: n, closed: closed, learnt: learnt, pasteIds: pasteIds };
+}
+function prodSaveReview() {
+  var rv = _prodReview;
+  if (!rv) return;
+  if (!grdGate('floor', 'save production', prodSaveReview)) return;   // the guard (guard.js): a floor entry, never re-asked
+  var res = prodReviewResolve();
+  if (res.red) { showToast('Answer the rows marked Needs you first', 'error'); return; }
+  var byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy();
+  var done = prodSaveCore(rv, res, by), n = done.n, closed = done.closed, learnt = done.learnt;
   if (!n && !closed) { showToast('Nothing new to save', 'error'); return; }
   prodTouch();
   saveState();

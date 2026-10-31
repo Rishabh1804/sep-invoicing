@@ -111,9 +111,9 @@ test.describe('P184: the tab map on the phone', () => {
 
   test('History and Knowledge are tools in the top bar: no door lit, no section row, their own title', async ({ page }) => {
     await loadAppWithState(page, book());
-    // The phone's top bar, in order: Search, History, Knowledge, Settings.
+    // The phone's top bar, in order: Search, History, Messages (msgview.js, 31 Oct 2026), Knowledge, Settings.
     const tools = await page.locator('.inv-topbar button:visible').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.action));
-    expect(tools.filter(a => a !== 'invNavBack')).toEqual(['invSearchOpen', 'invGoHistory', 'invKbHelp', 'invOpenSettings']);
+    expect(tools.filter(a => a !== 'invNavBack')).toEqual(['invSearchOpen', 'invGoHistory', 'invMsgGo', 'invKbHelp', 'invOpenSettings']);
     expect(await g(page, `[wsOf('pageHistory'), wsOf('pageKnow')]`)).toEqual([null, null]);
 
     await bar(page, 'floor').click();

@@ -249,7 +249,7 @@ async function wzImportBuf(src, name, opts) {
     chatName = name || '';
   }
   var chat = wzParseChat(text);
-  if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). Export the chat from the group’s menu: More → Export chat.');
+  if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). In WhatsApp, open the group, open its menu and pick Export chat.');
   var cut = wzCut(chat.msgs), id = 'WZ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   var got = msgIngest(cut.fresh, 'zip', id), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
   var rec = { id: id, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, file: name || '', chat: wzChatTitle(name, chatName),

@@ -10,7 +10,7 @@
 
    S.messages: [{
      id: 'MSG-…', key: msgKey(m)                 the message once, however often it arrives
-     sentBy, sentAt (ms or null), sentOn (iso or null), text, edited (bool)
+     sentBy, sentOn (iso or null), sentAt (the minute on sentOn, 0..1439, as relaySplit gives it, or null), text, edited
      src: 'paste' | 'zip', importId (S.msgImports id or null)
      kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
      status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
@@ -19,7 +19,8 @@
      fix: { kind, at, by } | null                  the owner's word on its kind, which wins over the sorter
      at, by                                        when and by whom it was taken in
    }]
-   S.msgImports: [{ id, at, by, file, chat, first, last, total, added, seen, media }]
+   S.msgImports: [{ id, at, by, file, chat, first, last, total, added, seen, skippedOld, inBook, media, system, order, kinds }]
+     (wazip.js: what each import read, cut and took; see its head)
    S.msgProfile: kept by msgprofile.js (how each sender sends messages), never by this module.
 
    Names here are msg*; the four modules' own are mv* (msgview), wz* (wazip), mp* (msgprofile), mc* (msgconfirm). */
@@ -44,7 +45,10 @@ function msgImports() { if (!Array.isArray(S.msgImports)) S.msgImports = []; ret
 /* The message once: its sender, the minute it was sent and its words. A repost later is another message (the readers
    refuse it as already read, as they always have); the same export imported twice is the same messages. */
 function msgKey(m) {
-  var minute = m.sentAt ? Math.floor(m.sentAt / 60000) : (m.sentOn || '');
+  // The day and the minute on it: sentAt is relaySplit's minute of the day (an epoch ms, should one come, is read as its
+  // minute). The minute alone made "OK" sent on two days by one sender one message, and a message at midnight had none.
+  var at = m.sentAt == null || m.sentAt === '' ? '' : +m.sentAt > 100000 ? Math.floor(m.sentAt / 60000) : +m.sentAt;
+  var minute = (m.sentOn || '') + '@' + at;
   return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + minute + '|' + String(m.text || ''));
 }
 
@@ -80,7 +84,7 @@ function msgIngest(list, src, importId) {
     if (!m || !String(m.text || '').trim()) return;
     var key = msgKey(m);
     if (have[key]) { out.seen++; return; }
-    var r = { id: 'MSG-' + at.toString(36) + Math.random().toString(36).slice(2, 7), key: key, sentBy: m.sentBy || '', sentAt: m.sentAt || null,
+    var r = { id: 'MSG-' + at.toString(36) + Math.random().toString(36).slice(2, 7), key: key, sentBy: m.sentBy || '', sentAt: m.sentAt != null ? m.sentAt : null,
       sentOn: m.sentOn || null, text: String(m.text), edited: !!m.edited, src: src || 'paste', importId: importId || null,
       status: 'new', saved: [], textWas: [], fix: null, at: at, by: by };
     var s = msgSort(r);

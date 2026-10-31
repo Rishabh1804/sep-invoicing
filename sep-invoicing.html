@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="b54fec0c">
+<meta name="app-build" content="b926df56">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -33065,10 +33065,14 @@ function _xlsxZipDir(buf) {
   for (var k = 0; k < count; k++) {
     if (off + 46 > n || dv.getUint32(off, true) !== 0x02014B50) throw new Error('Not an Excel workbook: its list of parts cannot be read');
     var nl = dv.getUint16(off + 28, true), xl = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true);
-    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), at: dv.getUint32(off + 42, true) };
+    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), usize: dv.getUint32(off + 24, true), at: dv.getUint32(off + 42, true) };
     off += 46 + nl + xl + cl;
   }
   return dir;
+}
+/* A deflated zip entry's bytes, inflated by the browser (the WhatsApp export's reader, wazip.js, reads its chat with it too). */
+function _xlsxInflate(raw) {
+  return new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b) { return new Uint8Array(b); });
 }
 /* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
 function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
@@ -33082,7 +33086,7 @@ async function _xlsxPart(buf, dir, name) {
   var raw = new Uint8Array(buf, start, e.size), bytes = raw;
   if (e.method === 8) {
     if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open an .xlsx: import the statement as the .xls the bank exports');
-    bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    bytes = await _xlsxInflate(raw);
   } else if (e.method !== 0) throw new Error('The workbook is packed in a way the app does not read (method ' + e.method + ')');
   return new TextDecoder('utf-8').decode(bytes);
 }
@@ -39677,7 +39681,20 @@ function relayKind(text) {
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
   if (/pickling\s*time/i.test(text)) return 'material';
+  if (relayIsChemList(text)) return 'stock';
   return 'other';
+}
+/* A chemical use written with no head ("BRIGHTNER 5 LTR / NITRIC ACID 4 LTR"; the group's export of 16 Sep – 31 Oct 2026, profiled
+   for the Messages build, msgprofile.js): every line a figure in kilos or litres, a chemical named, no pieces and no clock time
+   (a pickling load and the barrel list carry those). Stock's own check reads it, and says what it could not place. */
+function relayIsChemList(text) {
+  var lines = String(text || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  if (lines.length < 2 || lines.length > 25) return false;
+  var unit = /\b\d+(?:\.\d+)?\s*(?:kgs?|ltrs?|litres?|liters?|l)\b/i;
+  if (!lines.every(function(l) { return unit.test(l); })) return false;
+  if (lines.some(function(l) { return /\b(?:nos|no|pcs?|pieces?)\b|\d{1,2}[:.]\d{2}|\d\s*[ap]\.?m\b/i.test(l); })) return false;
+  var chem = typeof PROD_CHEM_IN_RE !== 'undefined' ? PROD_CHEM_IN_RE : /c[ae]mical|chemical/i;
+  return lines.some(function(l) { return chem.test(l); });
 }
 
 /* The chemical stock written into a roll under its own heading, no date ("camical use camical stock"): the roll ends there
@@ -40904,7 +40921,8 @@ function relayOnInput(t) {
      never works"*). A photo picked as a file is named as one, and the page is entered by hand.
    - A file: routed by what is in it, never by its name (addFileKind): the bank's Excel 97–2003 statement, or JSON by its
      format (sep-stock, sep-production, sep-power, sep-payroll-paid, sep-att-register), a roster, or a backup, which replaces the whole book
-     and so asks first exactly as Settings → Import does. Anything else is named, never guessed at.
+     and so asks first exactly as Settings → Import does; the group's WhatsApp export, a zip holding its chat or the bare .txt,
+     goes to wazip.js (wzImportBuf). Anything else is named, never guessed at.
    - By hand: each form opened on the job, through the openers the screens already have.
    Leaving the sheet for a route asks first about what was typed in it (the dialog guard) and about unsaved work on the
    screen under it (the leave guard, nav.js). Add is a layer, not a place: it has no address, and back closes it. */
@@ -40985,10 +41003,10 @@ function addOpen() {
     // 2–3. The clipboard (read only on a tap) and a file. The picker sits first and unseen, so the last row is the
     // panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
     '<div class="inv-panel inv-panel-flush">' +
-    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
+    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,.zip,.txt,application/zip,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
     row('clipboard', 'invAddClip', ADD_ICON.clipboard, 'Check the clipboard', 'What you copied, read only when you tap here') +
     '<div class="inv-panel-body inv-hidden" id="addClipOut" aria-live="polite"></div>' +
-    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
+    row('file', 'invAddFile', ADD_ICON.file, 'File', 'The group’s WhatsApp export (.zip or .txt), a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
     '</div>' +
     // 5. By hand: every form, opened on the job.
     '<div class="inv-panel" data-add-sec="hand"><div class="inv-panel-head"><span class="inv-panel-title">By hand</span></div>' +
@@ -41183,7 +41201,11 @@ function addFileKind(buf) {
   var at = function(sig, from) { from = from || 0; return u8.length >= from + sig.length && sig.every(function(b, i) { return u8[from + i] === b; }); };
   if (at(ADD_OLE_SIG)) return { kind: 'xls' };
   // A zip is an .xlsx when it holds a workbook: a statement saved from Excel (owner, 8 Oct 2026), read as the .xls is.
-  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf) ? 'xls' : 'zip' };
+  // A zip holding a chat is WhatsApp's export (wazip.js), told by the chat in it, never by the file's name: an .xlsx is a zip too.
+  if (at([0x50, 0x4B, 0x03, 0x04])) {
+    if (typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf)) return { kind: 'xls' };
+    return typeof wzHasChat === 'function' && wzHasChat(buf) ? { kind: 'wazip', buf: buf } : { kind: 'zip' };
+  }
   if (at([0x25, 0x50, 0x44, 0x46])) return { kind: 'pdf' };
   if (at([0xFF, 0xD8, 0xFF]) || at([0x89, 0x50, 0x4E, 0x47]) || at([0x47, 0x49, 0x46, 0x38]) || (at([0x52, 0x49, 0x46, 0x46]) && at([0x57, 0x45, 0x42, 0x50], 8)) ||
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
@@ -41198,6 +41220,8 @@ function addTextKind(text) {
     try { return { kind: 'json', text: t, obj: JSON.parse(t) }; } catch (e) { return { kind: 'badjson', error: e.message }; }
   }
   if (/^</.test(t)) return { kind: 'html' };
+  // A WhatsApp chat exported as a bare .txt (wazip.js): its lines open on the date, time and sender WhatsApp writes.
+  if (t && typeof wzLooksLikeChat === 'function' && wzLooksLikeChat(t)) return { kind: 'watext', text: t };
   return { kind: t ? 'text' : 'empty' };
 }
 /* Which import a JSON file is for, by its format (the payroll file names it as its kind); a backup is the book itself. */
@@ -41237,6 +41261,8 @@ var ADD_FILE_GUARD = {
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
   bank: { grp: 'payments', what: 'import cheques received', page: 'pageFinance' },
+  // The group's WhatsApp export carries the floor's rolls, production and stock: the floor's imports' gate (wazip.js).
+  whatsapp: { grp: 'imports', what: 'import a WhatsApp chat' },
   // Knowledge's own Import is the owner's and asks the PIN again whatever the window (knowledge.js kbImport).
   kb: { grp: 'imports', what: 'import knowledge', page: 'pageKnow', owner: true, always: true },
   backup: { grp: 'users', what: 'import a backup' }
@@ -41264,12 +41290,18 @@ async function addFileRoute(file, buf) {
     addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); });
     return;
   }
-  var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
+  var what = addFileWhat(k);
   if (what && !(await addFileGuardOk(what))) return;
   var go = what && addFileGo(what, k, name);
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
+    '. Add takes the group’s WhatsApp export (.zip or .txt), a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
+}
+/* Which import a file read by its kind is for: a JSON file by its format, WhatsApp's export (a zip or a bare .txt) the chat's. */
+function addFileWhat(k) {
+  if (!k) return '';
+  if (k.kind === 'json') return addJsonWhat(k.obj);
+  return k.kind === 'wazip' || k.kind === 'watext' ? 'whatsapp' : '';
 }
 /* Where each kind of file is imported, opened on the screen and view that import it. */
 function addFileGo(what, k, name) {
@@ -41284,6 +41316,8 @@ function addFileGo(what, k, name) {
     plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text, name); },
     kb: function() { kbSetTab('library'); switchTab('pageKnow'); kbImportData(k.obj, name); },
     bank: function() { finSetTab('receipts'); switchTab('pageFinance'); bankChequesImport(k.obj, name); },
+    // The guard has answered (addFileGuardOk): the export is read, cut to the new messages and confirmed (wazip.js).
+    whatsapp: function() { wzImportBuf(k.buf || k.text, name, { guarded: true }); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text, name); }
   }[what] || null;
@@ -41300,6 +41334,7 @@ var ADD_FILE_KINDS = {
   plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
   kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
   bank: { title: 'A bank export', noun: 'this app’s bank export (sep-bank), whose cheques received are taken', page: 'pageFinance', view: 'Receivables' },
+  whatsapp: { title: 'A WhatsApp chat', noun: 'the group’s WhatsApp chat, exported', where: 'Add → File' },
   backup: { title: 'A backup', noun: 'a backup of the whole book', where: 'Settings → Data & device' },
   xls: { noun: 'a bank statement' }
 };
@@ -41315,7 +41350,7 @@ function addFileWhere(what) {
 function addFileElsewhere(src, name, here) {
   var k = src instanceof ArrayBuffer ? addFileKind(src) : typeof src === 'string' ? addTextKind(src)
     : src && typeof src === 'object' ? { kind: 'json', obj: src, text: JSON.stringify(src) } : null;
-  var what = k && k.kind === 'json' ? addJsonWhat(k.obj) : '', mine = [].concat(here || []);
+  var what = k ? addFileWhat(k) : '', mine = [].concat(here || []);
   if (!what || mine.indexOf(what) >= 0 || !addFileGo(what, k, name)) return false;
   var it = ADD_FILE_KINDS[what] || {}, at = ADD_FILE_KINDS[mine[0]];
   uiConfirm({ title: it.title || 'Another screen’s file',
@@ -41334,7 +41369,7 @@ function addFileWords(k) {
     return 'a JSON file' + (f ? ' marked ' + f : '') + (keys.length ? ' with keys ' + keys.slice(0, 8).join(', ') + (keys.length > 8 ? ' and ' + (keys.length - 8) + ' more' : '') : ', empty') + ', not one the app imports';
   }
   return {
-    zip: 'a zip file with no Excel workbook in it; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
+    zip: 'a zip file with no Excel workbook in it and no WhatsApp chat; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
     pdf: 'a PDF, which the app does not read; the page is entered by hand',
     html: 'a web page (HTML), not the bank’s Excel 97–2003 statement',
     badjson: 'JSON that could not be read (' + (k.error || 'not valid') + ')',
@@ -41431,7 +41466,7 @@ document.addEventListener('keydown', function(e) {
 
    S.messages: [{
      id: 'MSG-…', key: msgKey(m)                 the message once, however often it arrives
-     sentBy, sentAt (ms or null), sentOn (iso or null), text, edited (bool)
+     sentBy, sentOn (iso or null), sentAt (the minute on sentOn as relaySplit and wazip give it, or epoch ms; or null), text, edited
      src: 'paste' | 'zip', importId (S.msgImports id or null)
      kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
      status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
@@ -41440,7 +41475,8 @@ document.addEventListener('keydown', function(e) {
      fix: { kind, at, by } | null                  the owner's word on its kind, which wins over the sorter
      at, by                                        when and by whom it was taken in
    }]
-   S.msgImports: [{ id, at, by, file, chat, first, last, total, added, seen, media }]
+   S.msgImports: [{ id, at, by, file, chat, first, last, total, added, seen, skippedOld, inBook, media, system, order, kinds }]
+     (wazip.js: what each import read, cut and took; see its head)
    S.msgProfile: kept by msgprofile.js (how each sender sends messages), never by this module.
 
    Names here are msg*; the four modules' own are mv* (msgview), wz* (wazip), mp* (msgprofile), mc* (msgconfirm). */
@@ -41465,39 +41501,75 @@ function msgImports() { if (!Array.isArray(S.msgImports)) S.msgImports = []; ret
 /* The message once: its sender, the minute it was sent and its words. A repost later is another message (the readers
    refuse it as already read, as they always have); the same export imported twice is the same messages. */
 function msgKey(m) {
-  return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + msgMinuteOf(m) + '|' + String(m.text || ''));
-}
-/* The minute a message was sent, one way however it came: `sentAt` in ms (an export read whole), or in minutes into its day beside
-   `sentOn` (relaySplit's, a paste). Read as ms, a paste's minutes all fell in the first minute of 1970, so one sender's same words
-   on two days were one message and the second was never kept (M4, 31 Oct 2026). */
-function msgMinuteOf(m) {
-  var at = m && m.sentAt, on = m && m.sentOn;
-  if (at == null || at === '' || isNaN(+at)) return on || '';
-  at = +at;
-  if (at < 1440) return on ? Math.floor(new Date(on + 'T00:00:00').getTime() / 60000) + at : 'm' + at;
-  return Math.floor(at / 60000);
+  // `sentAt` is epoch ms from a zip, or the minute of the day from a paste (relaySplit's reading): a minute of the day is kept
+  // with its day, or the same words sent on two days (the pickling hand's same load) read as one message and the second was lost.
+  var minute = m.sentAt > 1e7 ? Math.floor(m.sentAt / 60000) : (m.sentOn || '') + (m.sentAt != null ? '@' + m.sentAt : '');
+  return relayHash(String(m.sentBy || '').trim().toUpperCase() + '|' + minute + '|' + String(m.text || ''));
 }
 
 /* The sorter. Each reader is asked in the order the floor's messages are told apart today (relayRead, addDescribe), so the
    sorter and the paste box can never disagree: a check-in, a roll, cash, the weekly payment summary, production's kinds,
-   stock. Pure but for the book's readers. Returns { kind, conf, why }. A message no reader takes is 'other' (Not read),
-   never dropped. msgprofile.js tunes `conf` from how the sender usually writes (mpConf), when it is loaded. */
+   stock. Pure but for the book's readers. Returns { kind, conf, why } and, for a message no reader takes, `like`: the kind it
+   looks like, when it looks like one. A message no reader takes is 'other' (Not read), never dropped; its `conf` is how sure the
+   sorter is that nothing in it is for a reader (a photo with no words, the chat's own notice), its `why` what it is.
+   msgprofile.js tunes `conf` from how the sender usually writes (mpConf), when it is loaded.
+
+   Tuned on the group's export of 16 Sep – 31 Oct 2026 (msgprofile.js, docs/MESSAGES.md M2): shapes only, never a name. A roll
+   whose date is written with spaces or after a word ("Sunday duty DD/ MM/ YY/ in time") is a dated roll; a roll heading inside
+   a sentence of a few lines is a note about a roll, not one; the rest of what no reader takes is said for what it is. */
+var MSG_MEDIA = [
+  [/^\s*(?:\[forwarded\]\s*)?<album message>\s*$/i, 'a photo album with no words'],
+  [/^\s*(?:\[forwarded\]\s*)?<(?:image|video|gif|sticker) omitted>\s*$/i, 'a photo or video with no words'],
+  [/^\s*(?:\[forwarded\]\s*)?<(?:audio omitted|voice omitted)>|^\s*\S+\.opus\b/i, 'a voice note'],
+  [/^\s*(?:\[forwarded\]\s*)?<document omitted>/i, 'a document (a PDF or a file)'],
+  [/^\s*(?:\[forwarded\]\s*)?<contact card omitted>/i, 'a contact card'],
+  [/^\s*(?:this message was deleted|you deleted this message)\s*$/i, 'a deleted message'],
+  [/^\s*messages and calls are end-to-end encrypted|^\s*(?:-\s*)?\S+ (?:created (?:the|this) group|changed (?:the|this) group)/i, 'the chat’s own notice']
+];
+var MSG_CAPTION_RE = /^\s*(?:\[forwarded\]\s*)?<(?:image|video|gif|document) omitted>\s*\S/i;
+var MSG_DATED_ROLL_RE = /^\s*(?:[a-z]+\s+){0,3}\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\s*\/*\s*(?:\S+\s+){0,2}?(?:in|out)\s*-*\s*time/i;
 function msgSort(m) {
   var text = String(m && m.text || ''), out;
   if (m && m.fix && m.fix.kind) return { kind: m.fix.kind, conf: 1, why: 'set by hand' };
-  var rk = relayKind(text);
-  if (rk === 'checkin') out = { kind: 'checkin', conf: 0.95, why: 'the office QR’s head' };
-  else if (rk === 'in' || rk === 'out') out = { kind: rk, conf: RELAY_ROLL_HEAD_RE.test(text) ? 0.95 : 0.8, why: RELAY_ROLL_HEAD_RE.test(text) ? 'a dated roll head' : 'an in/out time heading' };
-  else if (typeof cashLooksLike === 'function' && cashLooksLike(text)) out = { kind: 'cash', conf: 0.9, why: 'amounts and the total they add up to' };
-  else if (/\bweekly\s+payment\b/i.test(text)) out = { kind: 'payment', conf: 0.9, why: 'the weekly payment summary' };
+  var media = MSG_MEDIA.find(function(x) { return x[0].test(text); });
+  if (media) out = { kind: 'other', conf: 0.95, why: media[1] };
   else {
-    var pk = typeof prodKind === 'function' ? prodKind(text) : 'other';
-    if (pk === 'stock' || rk === 'stock') out = { kind: 'stock', conf: 0.85, why: 'a stock head or a delivery to the plant' };
-    else if (pk === 'pickling' || pk === 'production' || pk === 'runs' || pk === 'power') out = { kind: pk, conf: 0.8, why: 'production’s reader: ' + pk };
-    else out = { kind: 'other', conf: 0, why: 'no reader takes it' };
+    var rk = relayKind(text), first = (text.split('\n').find(function(l) { return l.trim(); }) || '').trim();
+    if (rk === 'checkin') out = { kind: 'checkin', conf: 0.95, why: 'the office QR’s head' };
+    else if (rk === 'in' || rk === 'out') out = msgRollSort(rk, text, first);
+    else if (typeof cashLooksLike === 'function' && cashLooksLike(text)) out = { kind: 'cash', conf: 0.9, why: 'amounts and the total they add up to' };
+    else if (/\bweekly\s+payment\b/i.test(text)) out = { kind: 'payment', conf: 0.9, why: 'the weekly payment summary' };
+    else {
+      var pk = typeof prodKind === 'function' ? prodKind(text) : 'other';
+      if (pk === 'stock' || rk === 'stock') out = { kind: 'stock', conf: 0.85, why: !/c[ae]mical|chemical|stock|\bto\s+soma\b/i.test(text.split('\n').slice(0, 2).join(' ')) && relayIsChemList(text) ? 'chemicals in kilos and litres, with no head' : 'a stock head or a delivery to the plant' };
+      else if (pk === 'pickling' || pk === 'production' || pk === 'runs' || pk === 'power') out = { kind: pk, conf: 0.8, why: 'production’s reader: ' + pk };
+      else out = msgOtherSort(text, first);
+    }
   }
   if (typeof mpConf === 'function') { try { out = mpConf(m, out) || out; } catch (e) { /* a profile never stops a sort */ } }
   return out;
+}
+/* A roll: its own dated head is surest; a heading with no date is a roll by its words; a roll heading inside a sentence of a few
+   lines ("the date written yesterday was today's out time") is a note about a roll, and is kept as the kind the paste box
+   reads it as, with little confidence, so the confirmation screen asks. */
+function msgRollSort(rk, text, first) {
+  if (RELAY_ROLL_HEAD_RE.test(text) || MSG_DATED_ROLL_RE.test(first)) return { kind: rk, conf: 0.95, why: 'a dated roll head' };
+  var lines = text.split('\n').filter(function(l) { return l.trim(); }).length;
+  var before = first.split(/\b(?:in|out)\s*-*\s*time/i)[0].trim().split(/\s+/).filter(function(w) { return /[a-z]/i.test(w); }).length;
+  if (lines <= 3 && before >= 4) return { kind: rk, conf: 0.35, why: 'reads like a note about a roll, not a roll' };
+  return { kind: rk, conf: 0.8, why: 'an in/out time heading' };
+}
+/* What a message no reader takes is, in words, and the kind it looks like where it looks like one. */
+function msgOtherSort(text, first) {
+  var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  var qty = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|kg|kgs)\b/i;
+  if (MSG_CAPTION_RE.test(text)) return { kind: 'other', conf: 0.6, why: 'a photo’s caption: no reader takes it' };
+  if (/^\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/*\s*(?:sunday\s*of+|holiday|off\b|chhutti|closed)/i.test(first) && lines.length <= 3) return { kind: 'other', conf: 0.6, why: 'a dated notice that the plant is off' };
+  if (/^\s*[a-z]*\s*production\b/i.test(first) && lines.slice(1).some(function(l) { return qty.test(l); })) return { kind: 'other', conf: 0.2, like: 'production', why: 'a production block sent apart from its roll: no reader takes it alone' };
+  if (lines.length >= 2 && lines.length <= 6 && /-{1,}\s*\d{1,2}[:.]\d{2}\s*(?:a\.?m|p\.?m)?\.?\s*$/i.test(lines[lines.length - 1])) return { kind: 'other', conf: 0.2, like: 'pickling', why: 'a load and a time, with no “pickling time” written' };
+  if (/\bin\s*c?o?ming\b/i.test(first) && typeof PROD_CHEM_IN_RE !== 'undefined' && PROD_CHEM_IN_RE.test(first)) return { kind: 'other', conf: 0.3, like: 'stock', why: 'a chemical delivery with no figures' };
+  if (!/\d/.test(text) && lines.length <= 3) return { kind: 'other', conf: 0.6, why: 'words with no figures: a line of conversation' };
+  return { kind: 'other', conf: 0, why: 'no reader takes it' };
 }
 
 /* Take messages in (relaySplit's shape: sentBy, sentOn, sentAt, text, edited). Each new one is sorted and kept; one the
@@ -41510,7 +41582,7 @@ function msgIngest(list, src, importId) {
     if (!m || !String(m.text || '').trim()) return;
     var key = msgKey(m);
     if (have[key]) { out.seen++; return; }
-    var r = { id: 'MSG-' + at.toString(36) + Math.random().toString(36).slice(2, 7), key: key, sentBy: m.sentBy || '', sentAt: m.sentAt || null,
+    var r = { id: 'MSG-' + at.toString(36) + Math.random().toString(36).slice(2, 7), key: key, sentBy: m.sentBy || '', sentAt: m.sentAt != null ? m.sentAt : null,
       sentOn: m.sentOn || null, text: String(m.text), edited: !!m.edited, src: src || 'paste', importId: importId || null,
       status: 'new', saved: [], textWas: [], fix: null, at: at, by: by };
     var s = msgSort(r);
@@ -41539,9 +41611,600 @@ function msgAction(action, btn) {
   return false;
 }
 /* ===== How each sender sends messages, learnt from every message the book holds (mp*) =====
-   Built to the contract in msgstore.js. */
+   Built to the contract in msgstore.js (owner, 31 Oct 2026: "analyse every bit of chat data from the zip that we have and profile
+   how they send messages, so that the parser keeps evolving with future uploads of zip files"). Nobody is written in here: the
+   profile is learnt from the book's own messages (msgStore()), and grows with every paste and every zip taken in.
+
+   S.msgProfile = { v, n, lastId, sig, at, senders: { <SENDER KEY>: {
+     name                      the sender as first written
+     n, first, last            messages, and the first and last day sent
+     kinds: { kind: n }        what they send (the owner's word on a kind wins over the sorter's)
+     hours: { kind: { h: n } } at which hour of the day, kind by kind
+     days:  { kind: { 0..6: n } } on which weekday (0 Sunday)
+     shapes: { kind: { shape: n } } how the message opens (mpShape: "date · out time", "words", "chemical · date" …)
+     lines: { kind: { min, max, sum, n } } how long, in lines
+     spell: { word: { as written: n } } how the shop's words are spelt (in time, out time, chemical, pickling time, power cut …)
+     split: { kind: n }        a report carried on in another message within 20 minutes, with no head of its own
+     joined: { kind: n }       one message carrying another kind as well (a roll with its production block or its stock)
+     fixed: { kind: n }        later corrected: its kind set by hand (r.fix) or its text edited (r.textWas)
+     notread: n, media: n      no reader takes it; a photo, a document, a deleted message
+   } } }
+
+   mpLearn() builds it (a memo: nothing is read again until the book or the store changes; a message added is folded in, a
+   correction read again from the start). mpConf(m, out) moves the sorter's confidence by how the sender usually writes the kind,
+   in words. mpKindConf(kind, sender) is the share of a kind's messages of the last 60 days read with no correction, which the
+   confirmation screen sets against 90%. mpSender(name) and mpSenderHtml(name) say how one sender sends messages. */
+
+var MP_V = 1;
+var MP_MIN = 8;                 // messages from a sender before the profile moves a confidence
+var MP_SPLIT_MIN = 20;          // a report carried on within this many minutes is one report split over two messages
+var MP_KIND_DAYS = 60;          // mpKindConf's window
+var MP_SPELL = [
+  ['in time', /\bin\s*-*\s*time(?![a-z])/gi],
+  ['out time', /\bout\s*-*\s*time(?![a-z])/gi],
+  ['chemical', /\b(?:c[ae]mi?c[ae]?l|chemicals?)\b/gi],
+  ['pickling time', /\bp\w{0,2}[ckx]{1,2}l\w*\s*t\w*me\b/gi],
+  ['power cut', /\bp[ao]\s?w[ae]r\s*-*\s*(?:cut|cat|cute)\b/gi],
+  ['power back', /\bp[ao]\s?w[ae]r\s*-*\s*(?:in|back|on)\b/gi],
+  ['barrel', /\bb[ae]r+[ae]*l+\b/gi],
+  ['incoming', /\bin\s?c?o?ming\b/gi],
+  ['production', /\bprod\w*ion\b/gi]
+];
+/* The words a first line is told by, in the order they are looked for. */
+var MP_SHAPE_WORDS = [
+  ['in time', /\bin\s*-*\s*time(?![a-z])/i], ['out time', /\bout\s*-*\s*time(?![a-z])/i], ['pickling time', /\bp\w{0,2}[ckx]{1,2}l\w*\s*t\w*me\b/i],
+  ['chemical', /\b(?:c[ae]mi?c[ae]?l|chemicals?)\b/i], ['incoming', /\bin\s?c?o?ming\b/i], ['to the plant', /\bto\s+soma\b/i],
+  ['power', /\bp[ao]\s?w[ae]r\b/i], ['barrel', /\bb[ae]r+[ae]*l+\b/i], ['production', /\bprod\w*ion\b/i], ['update', /\bupdated?\b/i],
+  ['payment', /\bpayment\b/i], ['use', /\buse[ds]?\b/i], ['stock', /\bstocks?\b/i], ['night', /\bnight\b/i], ['morning', /\bmorning\b/i],
+  ['sunday', /\bsunday\b/i], ['total', /\btotal\b/i]
+];
+var MP_MEDIA_RE = /^\s*(?:\[forwarded\]\s*)?(?:<(?:album message|image omitted|video omitted|gif omitted|sticker omitted|audio omitted|document omitted|contact card omitted)>|this message was deleted|you deleted this message)/i;
+var _mpMemo = null;
+var MP_PLURAL = { 'in': 'in-time rolls', out: 'out-time rolls', pickling: 'pickling loads', production: 'barrel lists', runs: 'production slot logs',
+  power: 'power cut messages', stock: 'stock messages', cash: 'cash accounts', checkin: 'office QR check-ins', payment: 'weekly payment summaries', other: 'messages no reader takes' };
+function mpPlural(k) { return MP_PLURAL[k] || String(k); }
+
+function mpKey(name) { return String(name || '').replace(/\s+/g, ' ').trim().toUpperCase(); }
+/* A message's kind as it stands: the owner's word, else the sorter's. */
+function mpKindOf(r) { return r && r.fix && r.fix.kind ? r.fix.kind : (r && r.kind) || 'other'; }
+/* The minute and hour a message was sent: `sentAt` is epoch ms from a zip, or the minute of the day from a paste
+   (relaySplit's reading); null where neither is known. */
+function mpHourOf(r) {
+  if (!r || r.sentAt == null) return null;
+  if (r.sentAt > 1e7) return new Date(r.sentAt).getHours();
+  return r.sentAt >= 0 && r.sentAt < 1440 ? Math.floor(r.sentAt / 60) : null;
+}
+function mpMinuteOf(r) {
+  if (!r || r.sentAt == null) return null;
+  if (r.sentAt > 1e7) return Math.floor(r.sentAt / 60000);
+  if (!r.sentOn) return null;
+  return Math.round(new Date(r.sentOn + 'T00:00:00Z').getTime() / 60000) + r.sentAt;
+}
+function mpIsoOf(r) {
+  if (!r) return null;
+  if (r.sentOn) return r.sentOn;
+  if (r.sentAt > 1e7) return isoOf(new Date(r.sentAt));
+  return r.at ? isoOf(new Date(r.at)) : null;
+}
+function mpDowOf(iso) { return iso ? new Date(iso + 'T12:00:00').getDay() : null; }
+function mpFirstLine(text) { return (String(text || '').split('\n').find(function(l) { return l.trim(); }) || '').trim(); }
+function mpLineCount(text) { return String(text || '').split('\n').filter(function(l) { return l.trim(); }).length; }
+
+/* How a message opens, in a few generic words: a date, a dashed rule, the shop's words in the order the first line has them,
+   else a numbered line, words or figures. Never a name: "date · out time", "chemical · use · stock", "words". */
+function mpShape(text) {
+  if (MP_MEDIA_RE.test(mpFirstLine(text)) && !mpFirstLine(text).replace(MP_MEDIA_RE, '').replace(/^\s*>?\s*/, '').trim()) return 'a photo or file';
+  var l = mpFirstLine(text).replace(MP_MEDIA_RE, '').trim(), out = [];
+  if (/^[\[(]?\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}/.test(l)) out.push('date');
+  else if (/^\s*[a-z]+(?:\s+[a-z]+){0,2}\s+\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}/i.test(l)) out.push('words · date');
+  if (/^[\s\-_=*.•]{3,}/.test(l) || /-{3,}/.test(l)) out.push('rule');
+  var found = [];
+  MP_SHAPE_WORDS.forEach(function(w) { var m = w[1].exec(l); if (m) found.push([m.index, w[0]]); });
+  found.sort(function(a, b) { return a[0] - b[0]; }).slice(0, 3).forEach(function(f) { out.push(f[1]); });
+  if (out.indexOf('date') < 0 && found.length && /\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}/.test(l)) out.push('date');
+  if (!found.length && out.indexOf('date') < 0 && out.indexOf('words · date') < 0) {
+    if (/^\(?\d{1,3}\s*[).]/.test(l)) out.push('numbered line');
+    else if (/[a-z]/i.test(l)) out.push(/\d/.test(l) ? 'words and figures' : 'words');
+    else if (/\d/.test(l)) out.push('figures');
+  }
+  return out.join(' · ') || 'blank';
+}
+
+function mpBlank(name) {
+  return { name: String(name || '').trim(), n: 0, first: null, last: null, kinds: {}, hours: {}, days: {}, shapes: {}, lines: {},
+    spell: {}, split: {}, joined: {}, fixed: {}, notread: 0, media: 0 };
+}
+function mpInc(map, k, by) { map[k] = (map[k] || 0) + (by || 1); }
+function mpSub(map, k) { return map[k] || (map[k] = {}); }
+/* What says the store has changed in a way that is not a message added: a kind set by hand, a text edited, a status. */
+function mpSig(store, n) {
+  var fix = 0, was = 0, nr = 0;
+  for (var i = 0; i < n; i++) {
+    var r = store[i];
+    if (r.fix) fix++;
+    was += (r.textWas || []).length;
+    if (r.status === 'notread') nr++;
+  }
+  return n + ':' + fix + ':' + was + ':' + nr;
+}
+/* Fold one message into its sender's profile. `prev` is the sender's message before it (split habit). */
+function mpFold(prof, r, prevOf) {
+  var key = mpKey(r.sentBy);
+  if (!key) return;
+  var p = prof.senders[key] || (prof.senders[key] = mpBlank(r.sentBy));
+  var kind = mpKindOf(r), text = String(r.text || ''), iso = mpIsoOf(r), h = mpHourOf(r);
+  p.n++;
+  if (iso) { if (!p.first || iso < p.first) p.first = iso; if (!p.last || iso > p.last) p.last = iso; }
+  mpInc(p.kinds, kind);
+  if (h != null) mpInc(mpSub(p.hours, kind), h);
+  var dw = mpDowOf(iso);
+  if (dw != null) mpInc(mpSub(p.days, kind), dw);
+  var shape = mpShape(text);
+  mpInc(mpSub(p.shapes, kind), shape);
+  var L = mpLineCount(text), ln = p.lines[kind] || (p.lines[kind] = { min: L, max: L, sum: 0, n: 0 });
+  ln.min = Math.min(ln.min, L); ln.max = Math.max(ln.max, L); ln.sum += L; ln.n++;
+  MP_SPELL.forEach(function(sp) {
+    var ms = text.match(sp[1]);
+    if (ms) ms.forEach(function(w) { mpInc(mpSub(p.spell, sp[0]), w.replace(/\s+/g, ' ').trim()); });
+  });
+  if (MP_MEDIA_RE.test(text)) p.media++;
+  if (kind === 'other') p.notread++;
+  if (r.fix || (r.textWas || []).length) mpInc(p.fixed, kind);
+  // One message carrying another kind too: a roll with its production block or the stock written under it.
+  // The supervisor writes a slot's work straight under its line ("3301-600 nos"), so a figure in pieces or kilos is production.
+  if ((kind === 'in' || kind === 'out') && ((typeof relayStockTail === 'function' && relayStockTail(text)) || /^\s*-*\s*(?:production|work)\s*-*\s*$/im.test(text) ||
+      /\d+(?:\.\d+)?\s*(?:nos|pcs|kgs?)\b/i.test(text))) mpInc(p.joined, kind);
+  // A report carried on in the next message: the same kind, within 20 minutes, and no head of its own (no date, none of the
+  // shop's words on its first line).
+  var prev = prevOf[key], at = mpMinuteOf(r);
+  if (prev && kind !== 'other' && prev.kind === kind && at != null && prev.at != null && at >= prev.at && at - prev.at <= MP_SPLIT_MIN &&
+      !/date|time|chemical|production|update|payment|stock|power|incoming|plant/.test(shape)) mpInc(p.split, kind);
+  prevOf[key] = { kind: kind, at: at };
+}
+/* Build, or extend, the profile from the book's messages. Cheap: nothing is read again while the store and the book are as they
+   were; messages added since are folded in; a correction (a kind set by hand, a text edited) reads the store again. Safe on an
+   empty book. Returns S.msgProfile. */
+function mpLearn() {
+  if (!S) return null;
+  var store = typeof msgStore === 'function' ? msgStore() : [];
+  var writes = typeof _bookWrites !== 'undefined' ? _bookWrites : 0;
+  if (_mpMemo && _mpMemo.store === store && _mpMemo.len === store.length && _mpMemo.writes === writes && _mpMemo.prof === S.msgProfile && S.msgProfile && S.msgProfile.v === MP_V) return S.msgProfile;
+  var p = S.msgProfile, from = 0;
+  var keep = p && p.v === MP_V && p.senders && p.n > 0 && p.n <= store.length && store[p.n - 1] && store[p.n - 1].id === p.lastId && p.sig === mpSig(store, p.n);
+  if (keep) from = p.n;
+  else p = S.msgProfile = { v: MP_V, n: 0, lastId: null, sig: '', at: 0, senders: {} };
+  // The split habit needs each sender's message before: read again from the last few already folded.
+  var prevOf = {};
+  for (var j = Math.max(0, from - 50); j < from; j++) {
+    var q = store[j], k = mpKey(q.sentBy);
+    if (k) prevOf[k] = { kind: mpKindOf(q), at: mpMinuteOf(q) };
+  }
+  for (var i = from; i < store.length; i++) mpFold(p, store[i], prevOf);
+  p.n = store.length;
+  p.lastId = store.length ? store[store.length - 1].id : null;
+  p.sig = mpSig(store, store.length);
+  if (from < store.length) p.at = Date.now();
+  _mpMemo = { store: store, len: store.length, writes: writes, prof: p };
+  return p;
+}
+
+/* One sender's profile, with what it comes to: their kinds largest first, the hours each kind is usually sent, how each usually
+   opens, its usual length, and the shares corrected and not read. null for a sender the book has no message from. */
+function mpSender(name) {
+  var prof = mpLearn(), p = prof && prof.senders[mpKey(name)];
+  if (!p) return null;
+  var kinds = Object.keys(p.kinds).map(function(k) {
+    var hrs = p.hours[k] || {}, ln = p.lines[k], shapes = p.shapes[k] || {};
+    var hk = Object.keys(hrs).map(Number).sort(function(a, b) { return a - b; });
+    // The hours that hold four in five of the kind: its usual window.
+    var tot = hk.reduce(function(s, h) { return s + hrs[h]; }, 0), byN = hk.slice().sort(function(a, b) { return hrs[b] - hrs[a]; }), acc = 0, win = [];
+    byN.forEach(function(h) { if (acc < tot * 0.8) { win.push(h); acc += hrs[h]; } });
+    win.sort(function(a, b) { return a - b; });
+    var top = Object.keys(shapes).sort(function(a, b) { return shapes[b] - shapes[a]; });
+    return { kind: k, label: typeof msgKindLabel === 'function' ? msgKindLabel(k) : k, n: p.kinds[k], share: p.kinds[k] / p.n,
+      hourFrom: win.length ? win[0] : null, hourTo: win.length ? win[win.length - 1] : null, shape: top[0] || null, shapeN: top.length ? shapes[top[0]] : 0,
+      lines: ln ? Math.round(ln.sum / ln.n) : null, fixed: p.fixed[k] || 0, joined: p.joined[k] || 0, split: p.split[k] || 0 };
+  }).sort(function(a, b) { return b.n - a.n; });
+  var fixed = Object.keys(p.fixed).reduce(function(s, k) { return s + p.fixed[k]; }, 0);
+  return Object.assign({}, p, { key: mpKey(name), list: kinds, top: kinds.find(function(k) { return k.kind !== 'other'; }) || null,
+    fixedShare: p.n ? fixed / p.n : 0, notreadShare: p.n ? p.notread / p.n : 0 });
+}
+
+/* The sorter's confidence moved by how the sender usually writes the kind, with the reason in plain words added to `why`. A
+   sender with fewer than MP_MIN messages moves nothing; a kind set by hand is never moved. */
+function mpConf(m, out) {
+  if (!out || !m || out.why === 'set by hand' || !m.sentBy) return out;
+  var p = mpSender(m.sentBy);
+  if (!p || p.n < MP_MIN) return out;
+  var k = out.kind, kn = p.kinds[k] || 0, nm = p.name || 'This sender', up = [], down = [], d = 0;
+  if (k === 'other') {
+    if (out.conf >= 0.9 || !p.top || p.top.share < 0.8) return out;
+    // Not read, from somebody who nearly always sends one kind: less sure it is nothing, and it looks like their usual.
+    return Object.assign({}, out, { conf: Math.max(0, Math.round((out.conf - 0.1) * 100) / 100), like: out.like || p.top.kind,
+      why: out.why + '; ' + nm + ' mostly sends ' + mpPlural(p.top.kind) });
+  }
+  if (kn >= 5 && kn / p.n >= 0.2) { d += 0.04; up.push('usual for ' + nm); }
+  else if (!kn && p.n >= 10) { d -= 0.15; down.push(nm + ' has not sent one before'); }
+  if (kn >= 10) {
+    var h = mpHourOf(m), hrs = p.hours[k] || {};
+    if (h != null) {
+      var near = (hrs[h - 1] || 0) + (hrs[h] || 0) + (hrs[h + 1] || 0);
+      if (near / kn < 0.05) { d -= 0.05; down.push('an unusual hour for ' + nm); }
+    }
+    var shapes = p.shapes[k] || {}, sh = mpShape(m.text);
+    if ((shapes[sh] || 0) >= 2) { d += 0.03; up.push('opens as ' + nm + ' usually opens it'); }
+    else if (!shapes[sh]) { d -= 0.05; down.push('opens differently from ' + nm + '’s usual'); }
+    var ln = p.lines[k], L = mpLineCount(m.text);
+    if (ln && ln.n >= 5) {
+      if (L < ln.min / 2) { d -= 0.05; down.push('shorter than ' + nm + '’s usual'); }
+      else if (L > ln.max * 1.5) { d -= 0.05; down.push('longer than ' + nm + '’s usual'); }
+    }
+  }
+  var fx = p.fixed[k] || 0;
+  if (kn >= 4 && fx / kn >= 0.25) { d -= 0.1; down.push(nm + '’s ' + mpPlural(k) + ' are often corrected'); }
+  if (!d && !up.length && !down.length) return out;
+  var conf = Math.min(0.99, Math.max(0.05, Math.round((out.conf + d) * 100) / 100));
+  var words = down.concat(up).slice(0, 2);
+  return Object.assign({}, out, { conf: conf, why: out.why + '; ' + words.join('; ') });
+}
+
+/* The share of a kind's messages of the last 60 days read with no correction (no kind set by hand, no text edited, not left
+   unread), for one sender or all; null when there are none. The confirmation screen sets it against 90%. */
+function mpKindConf(kind, sender) {
+  var since = isoAddDays(localDateStr(), -MP_KIND_DAYS), key = sender ? mpKey(sender) : null, n = 0, ok = 0;
+  (typeof msgStore === 'function' ? msgStore() : []).forEach(function(r) {
+    if (key && mpKey(r.sentBy) !== key) return;
+    if (r.kind !== kind && !(r.fix && r.fix.kind === kind)) return;
+    if (r.status === 'dup') return;
+    var iso = mpIsoOf(r);
+    if (iso && iso < since) return;
+    n++;
+    if (!r.fix && !(r.textWas || []).length && r.status !== 'notread') ok++;
+  });
+  return n ? ok / n : null;
+}
+
+function mpHourWords(a, b) {
+  var f = function(h) { return (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'); };
+  if (a == null) return '';
+  return a === b ? 'around ' + f(a) : f(a) + ' – ' + f(b + 1 > 23 ? 23 : b + 1);
+}
+/* A small card: how one sender sends messages, from the profile. */
+function mpSenderHtml(name) {
+  var p = mpSender(name);
+  var head = '<div class="inv-panel-head"><span class="inv-panel-title">How ' + escHtml(String(name || '').trim() || 'this sender') + ' sends messages' +
+    (p ? ' <span class="inv-panel-count">' + p.n + '</span>' : '') + '</span></div>';
+  if (!p || p.n < MP_MIN) {
+    return '<div class="inv-panel inv-panel-flush" data-mp-sender="' + escHtml(mpKey(name)) + '">' + head +
+      uiBlankHtml({ kind: 'early', title: p ? 'Only ' + todoPlural(p.n, 'message') + ' so far' : 'No messages from them yet',
+        body: 'Their habits are learnt from every message pasted or imported; from ' + MP_MIN + ' on they steady how sure the reading is.', small: !!p }) + '</div>';
+  }
+  var rows = p.list.filter(function(k) { return k.kind !== 'other'; }).slice(0, 4).map(function(k) {
+    var sub = [mpHourWords(k.hourFrom, k.hourTo), k.shape ? 'opens “' + k.shape + '”' : '', k.lines ? 'about ' + todoPlural(k.lines, 'line') : '']
+      .filter(Boolean).join(' · ');
+    return uiFactRowHtml({ label: k.label, value: k.n, sub: sub, attrs: ' data-mp-kind="' + escHtml(k.kind) + '"' });
+  });
+  var joined = Object.keys(p.joined).reduce(function(s, k) { return s + p.joined[k]; }, 0);
+  var split = Object.keys(p.split).reduce(function(s, k) { return s + p.split[k]; }, 0);
+  if (joined) rows.push(uiFactRowHtml({ label: 'With another kind in it', value: joined, sub: 'a roll carrying its production or its stock' }));
+  if (split) rows.push(uiFactRowHtml({ label: 'Carried on in the next message', value: split, sub: 'within ' + MP_SPLIT_MIN + ' minutes, with no head of its own' }));
+  var fx = Math.round(p.fixedShare * 100);
+  rows.push(uiFactRowHtml({ label: 'Corrected later', value: fx + '%', tone: fx >= 10 ? 'warning' : 'ok', sub: fx ? 'its kind set by hand or its text edited' : 'none corrected', attrs: ' data-mp-fixed' }));
+  if (p.notread) rows.push(uiFactRowHtml({ label: 'Not read', value: p.notread, sub: p.media ? todoPlural(p.media, 'photo or document', 'photos or documents') + ' with no words among them' : 'no reader takes them', attrs: ' data-mp-notread' }));
+  var sp = Object.keys(p.spell).filter(function(w) { return Object.keys(p.spell[w]).length > 1; }).slice(0, 3).map(function(w) {
+    var forms = p.spell[w];
+    return w + ': ' + Object.keys(forms).sort(function(a, b) { return forms[b] - forms[a]; }).slice(0, 3).join(', ');
+  });
+  if (sp.length) rows.push(uiFactRowHtml({ label: 'Spellings', value: '', sub: sp.join(' · '), wrap: true, attrs: ' data-mp-spell' }));
+  return '<div class="inv-panel inv-panel-flush" data-mp-sender="' + escHtml(mpKey(name)) + '">' + head + rows.join('') + '</div>';
+}
+
+/* invMsgProfile (data-sender): the sender's card in a dialog, for the Messages screen and the confirmation screen. */
+function mpAction(action, btn) {
+  if (action !== 'invMsgProfile') return false;
+  var name = btn && btn.dataset ? btn.dataset.sender || '' : '';
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="How they send messages" data-mp-dialog>' + dialogHeadHtml('How they send messages') +
+    '<div class="inv-dialog-body">' + mpSenderHtml(name) + '</div></div>', { dismiss: true });
+  return true;
+}
 /* ===== The WhatsApp export read: the zip, its chat, the new messages (wz*) =====
-   Built to the contract in msgstore.js. */
+   Built to the contract in msgstore.js. Owner, 31 Oct 2026: a WhatsApp zip read "like we do here on this chat", for the
+   app's one group chat; the first import "from the last message of each kind the book already holds".
+
+   wzUnzip(buf) → Promise<[{ name, bytes }]>: the zip's text entries, stored or deflated (xlsx.js's own directory reader and
+     inflate). Media beside the chat is counted (wzZipList) and never read.
+   wzParseChat(text) → { msgs, order, orderWhy, system, media, deleted, edited, lines }: the chat's messages in relaySplit's
+     shape ({ sentBy, sentOn, sentAt: minute on sentOn, text, edited, wa }), the day-first or month-first order decided once
+     for the whole file, and what was dropped (WhatsApp's own lines, media, deleted messages).
+   wzImportFile(file) → Promise<record | null>: the guard, the file read, unzipped and parsed, the messages cut to the new
+     ones (wzCut), taken in (msgIngest(…, 'zip', id)), the import recorded (S.msgImports) and saved, then the confirmation
+     screen (mcOpen) where it is loaded, else a toast.
+
+   Add → File routes a zip holding a chat here, and a bare WhatsApp .txt export (add.js addFileKind, addTextKind). */
+
+var WZ_MAX_BYTES = 50 * 1024 * 1024;
+var WZ_BIDI_RE = /[‎‏‪-‮⁦-⁩﻿]/g;
+// A message's own line: iPhone "[10/28/26, 11:32:38 AM] Name: text", Android "28/10/26, 11:32 am - Name: text", the clock
+// 12- or 24-hour. Without the bracket, the dash is required: a floor message's own line "28/10/26 10:30 power cut" is text.
+var WZ_HEAD_BR_RE = /^\s*\[(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*([AaPp]\.?\s?[Mm]\.?)?\]\s?(?:-\s)?(.*)$/;
+var WZ_HEAD_DASH_RE = /^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*([AaPp]\.?\s?[Mm]\.?)?\s+-\s(.*)$/;
+// What WhatsApp writes in place of a message: media left out of the export, an attachment's own line, a deleted message.
+var WZ_MEDIA_RE = /^(image|video|audio|sticker|gif|document|contact card) omitted$|^<attached:\s*[^>]*>$|^\S.{0,120}\.(jpe?g|png|webp|gif|heic|mp4|3gp|mov|opus|ogg|m4a|mp3|aac|pdf|docx?|xlsx?|vcf|webm)\s*\(file attached\)$/i;
+// iPhone's marker opens the line, and what follows it is the caption ("<image omitted> 120 kg"), or a document's file name.
+var WZ_MEDIA_HEAD_RE = /^<\s*(media|image|video|audio|sticker|gif|document|contact card|voice message|video note|album message)(\s+omitted)?\s*>\s*(.*)$/i;
+var WZ_FILE_NAME_RE = /^\S.{0,160}\.(jpe?g|png|webp|gif|heic|mp4|3gp|mov|opus|ogg|m4a|mp3|aac|pdf|docx?|xlsx?|vcf|webm|zip|txt)$/i;
+var WZ_DELETED_RE = /^(this message was deleted|you deleted this message|null|waiting for this message[.\s\S]*)$/i;
+var WZ_SYSTEM_RE = /^(messages and calls are end-to-end encrypted|messages to this group are now secured|.{1,80}\s(created group|created this group|added|removed|left|joined using|changed the subject|changed this group|changed the group|changed their phone number|changed to|is now an admin|pinned a message|turned (on|off) disappearing)|you (created|were added|joined|left|added|removed)|missed (voice|video) call)/i;
+
+/* ---------- 1. The zip ---------- */
+/* The zip's entries from its own directory (xlsx.js _xlsxZipDir): the text ones, and the media counted, never read. */
+function wzZipList(buf) {
+  var dir;
+  try { dir = _xlsxZipDir(buf); } catch (e) { throw new Error('The zip cannot be read: it is incomplete or damaged'); }
+  var out = { texts: [], media: 0, xlsx: !!dir['xl/workbook.xml'] };
+  Object.keys(dir).forEach(function(name) {
+    var base = name.split('/').pop();
+    if (!base || /\/$/.test(name) || /^__MACOSX\//.test(name) || /^\._/.test(base)) return;
+    var e = dir[name];
+    if (/\.(txt|md)$/i.test(base)) out.texts.push({ name: name, base: base, method: e.method, size: e.size, usize: e.usize, at: e.at });
+    else out.media++;
+  });
+  return out;
+}
+/* Which text is the chat: _chat.txt (an iPhone's export), then "WhatsApp Chat….txt" (an Android's), then the largest .txt;
+   a .md only where the zip has no .txt at all (the owner's export carries the chat as both). */
+function wzChatEntry(texts) {
+  var txt = texts.filter(function(t) { return /\.txt$/i.test(t.base); }), pool = txt.length ? txt : texts;
+  var by = function(re) { return pool.filter(function(t) { return re.test(t.base); }); };
+  var big = function(a) { return a.slice().sort(function(x, y) { return (y.usize || y.size) - (x.usize || x.size); })[0] || null; };
+  return big(by(/^_chat\.txt$/i)) || big(by(/^WhatsApp Chat.*\.txt$/i)) || big(pool);
+}
+/* Whether a zip carries a chat, from its directory alone (Add → File asks before it reads): a text entry and no workbook. */
+function wzHasChat(buf) {
+  try { var l = wzZipList(buf); return !l.xlsx && !!wzChatEntry(l.texts); } catch (e) { return false; }
+}
+async function wzEntryBytes(buf, e) {
+  var dv = new DataView(buf);
+  if (e.at + 30 > buf.byteLength || dv.getUint32(e.at, true) !== 0x04034B50) throw new Error(e.name + ' cannot be found in the zip');
+  var start = e.at + 30 + dv.getUint16(e.at + 26, true) + dv.getUint16(e.at + 28, true);
+  if (start + e.size > buf.byteLength) throw new Error(e.name + ' runs past the end of the zip');
+  var raw = new Uint8Array(buf, start, e.size);
+  if (e.method === 0) return new Uint8Array(raw);
+  if (e.method !== 8) throw new Error(e.name + ' is packed in a way the app does not read (method ' + e.method + ')');
+  if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open a zip: export the chat as a .txt (Export chat → Without media)');
+  return _xlsxInflate(raw);
+}
+/* The zip's text entries, each read (stored as is, deflated through the browser). `names`, when given, reads those alone. */
+async function wzUnzip(buf, names) {
+  var l = wzZipList(buf), out = [];
+  for (var i = 0; i < l.texts.length; i++) {
+    var e = l.texts[i];
+    if (names && names.indexOf(e.name) < 0) continue;
+    out.push({ name: e.name, bytes: await wzEntryBytes(buf, e) });
+  }
+  return out;
+}
+
+/* ---------- 2. The chat ---------- */
+function wzHead(line) {
+  var m = WZ_HEAD_BR_RE.exec(line), br = true;
+  if (!m) { m = WZ_HEAD_DASH_RE.exec(line); br = false; }
+  if (!m) return null;
+  var h = +m[4], min = +m[5], ap = m[6] ? m[6].replace(/[\s.]/g, '').toLowerCase() : '';
+  if (min > 59 || h > 23 || (ap && (h < 1 || h > 12))) return null;
+  if (ap) h = h % 12 + (ap.charAt(0) === 'p' ? 12 : 0);
+  return { a: +m[1], b: +m[2], y: +m[3], min: h * 60 + min, br: br, wa: line.slice(0, line.length - m[7].length), rest: m[7] };
+}
+/* Day-first or month-first, once for the whole file: a first figure over 12 is a day, a second over 12 a day; where the
+   file says neither (or both, a broken line), the order its messages ran in. */
+function wzDateOrder(heads) {
+  var aHi = heads.some(function(h) { return h.a > 12; }), bHi = heads.some(function(h) { return h.b > 12; });
+  if (aHi && !bHi) return { order: 'day-first', why: 'a day over 12 is written first' };
+  if (bHi && !aHi) return { order: 'month-first', why: 'a day over 12 is written second' };
+  var run = function(dayFirst) {
+    var n = 0, prev = '';
+    heads.forEach(function(h) {
+      var iso = dayFirst ? isoFromDmy(h.a, h.b, h.y) : isoFromDmy(h.b, h.a, h.y);
+      if (!iso) { n -= 2; return; }
+      if (prev && iso >= prev) n++;
+      prev = iso;
+    });
+    return n;
+  };
+  var d = run(true), m = run(false);
+  if (m > d) return { order: 'month-first', why: 'the dates run in order read month first' };
+  if (d > m) return { order: 'day-first', why: 'the dates run in order read day first' };
+  return heads.length && heads[0].br && !aHi ? { order: 'month-first', why: 'nothing tells them apart: an iPhone’s bracketed export' }
+    : { order: 'day-first', why: 'nothing tells them apart: day first, as the shop writes dates' };
+}
+function wzParseChat(text) {
+  var lines = String(text || '').replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n'), raw = [], cur = null;
+  lines.forEach(function(line) {
+    var h = wzHead(line);
+    if (h) { cur = { h: h, lines: [h.rest] }; raw.push(cur); return; }
+    if (cur) cur.lines.push(line);
+    // A line before the first message (an export's own head, "Messages and calls are end-to-end encrypted…") is WhatsApp's.
+  });
+  var ord = wzDateOrder(raw.map(function(r) { return r.h; })), dayFirst = ord.order === 'day-first';
+  var out = { msgs: [], order: ord.order, orderWhy: ord.why, system: 0, media: 0, deleted: 0, edited: 0, lines: lines.length };
+  raw.forEach(function(r) {
+    // "Name: text". A line with no sender is WhatsApp's own (the chat made, someone added or gone, the subject changed), and
+    // so is one whose "sender" holds a quote (Android's "Alfa changed the subject from "a: b"").
+    var sm = /^([^:\n]{1,60}?):[ \u00a0]?([\s\S]*)$/.exec(r.lines[0]);
+    if (!sm || /["“”]/.test(sm[1]) || !sm[1].replace(WZ_BIDI_RE, '').trim()) { out.system++; return; }
+    var sentBy = sm[1].replace(WZ_BIDI_RE, '').trim(), firstText = sm[2];
+    // On an iPhone, WhatsApp's own lines come under the group's name, their text opening on an unseen mark (U+200E).
+    if (/^\s*\u200e/.test(firstText) && WZ_SYSTEM_RE.test(firstText.replace(WZ_BIDI_RE, '').trim())) { out.system++; return; }
+    var edited = false, media = 0;
+    // A message forwarded from another chat says so first ("[Forwarded] …"); its words are what was sent, as a copy reads.
+    var kept = [firstText.replace(/^(\s*\u200e)?\s*\[forwarded\]\s*/i, '')].concat(r.lines.slice(1)).map(function(l) {
+      return l.replace(WZ_BIDI_RE, '').replace(/\s*<this message was edited>\s*$/i, function() { edited = true; return ''; });
+    }).map(function(l) {
+      var t = l.trim(), mh = WZ_MEDIA_HEAD_RE.exec(t);
+      if (WZ_MEDIA_RE.test(t)) { media++; return null; }
+      if (!mh) return l;
+      media++;
+      return mh[3] && !WZ_FILE_NAME_RE.test(mh[3].trim()) ? mh[3] : null;
+    }).filter(function(l) { return l != null; });
+    var body = kept.join('\n').trim();
+    if (!body.trim()) { if (media) out.media++; else out.system++; return; }
+    if (WZ_DELETED_RE.test(body.trim())) { out.deleted++; return; }
+    if (edited) out.edited++;
+    var sentOn = dayFirst ? isoFromDmy(r.h.a, r.h.b, r.h.y) : isoFromDmy(r.h.b, r.h.a, r.h.y);
+    out.msgs.push({ sentBy: sentBy, sentOn: sentOn, sentAt: r.h.min, text: body, edited: edited, wa: r.h.wa + sentBy + ': ' });
+  });
+  return out;
+}
+/* Whether a text file is a WhatsApp export: its first message line comes among its first lines, and messages are read. */
+function wzLooksLikeChat(text) {
+  var head = String(text || '').replace(/^﻿/, '').split(/\r?\n/).slice(0, 8);
+  if (!head.some(function(l) { return wzHead(l); })) return false;
+  try { return wzParseChat(String(text).slice(0, 200000)).msgs.length > 0; } catch (e) { return false; }
+}
+
+/* ---------- 3. The new ones ---------- */
+/* A moment as minutes since 1970 on the shop's calendar: the day, and the minute on it. */
+function wzMoment(iso, min) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return null;
+  return Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 60000 + (min != null && isFinite(min) ? +min : 0);
+}
+/* Where each kind's last message in the book is: the latest of the Messages record's own and of the kind's own store (rolls:
+   the rolls pasted; production: its pastes and the entries they made; stock: its messages; cash: the cash messages). A
+   record that keeps only its day counts from that day's start, so the whole day is read again: what a reader has read it
+   refuses as read, and a message is never lost to a guess at its minute. */
+var WZ_PROD_KINDS = ['pickling', 'production', 'runs', 'power'];
+function wzAnchors() {
+  var a = {};
+  var put = function(kind, iso, min, src) {
+    var t = wzMoment(iso, min);
+    if (t == null || !kind) return;
+    if (min == null) t -= 1;
+    if (!a[kind] || t > a[kind].t) a[kind] = { t: t, iso: iso, min: min == null ? null : min, src: src };
+  };
+  msgStore().forEach(function(r) { put(r.fix && r.fix.kind || r.kind, r.sentOn, r.sentAt, 'messages'); });
+  (Array.isArray(S.relayPastes) ? S.relayPastes : []).forEach(function(p) {
+    if (p.kind === 'in' || p.kind === 'out') put(p.kind, p.sentOn || p.date, p.sentOn && p.sentAt != null ? p.sentAt : null, 'rolls');
+  });
+  var pr = S.production || {}, pk = {};
+  (pr.pastes || []).forEach(function(p) {
+    pk[p.id] = p.kind;
+    if (WZ_PROD_KINDS.indexOf(p.kind) >= 0) put(p.kind, p.sentOn || p.day, null, 'production');
+  });
+  (pr.entries || []).forEach(function(e) {
+    if (e.voidedAt) return;
+    var k = e.pasteId && pk[e.pasteId] ? pk[e.pasteId] : e.basis === 'pickling' ? 'pickling'
+      : e.basis === 'relay' ? (e.kind === 'downtime' ? 'power' : e.kind === 'plated' ? 'production' : '') : '';
+    if (WZ_PROD_KINDS.indexOf(k) >= 0) put(k, e.date, null, 'production');
+  });
+  (S.stock && Array.isArray(S.stock.pastes) ? S.stock.pastes : []).forEach(function(p) { put('stock', p.sentOn || p.to || p.from, null, 'stock'); });
+  (Array.isArray(S.cashPastes) ? S.cashPastes : []).forEach(function(p) { if (!p.voidedAt) put('cash', p.sentOn, null, 'cash'); });
+  return a;
+}
+/* The texts the book's stores already hold, as their readers keep them: a message saying the same is read already. */
+function wzBookTexts() {
+  var seen = {}, add = function(t) { if (t && String(t).trim()) seen[relayHash(t)] = true; };
+  (S.relayPastes || []).forEach(function(p) { add(p.text); });
+  ((S.production || {}).pastes || []).forEach(function(p) { add(p.text); });
+  ((S.stock || {}).pastes || []).forEach(function(p) { add(p.text); });
+  (S.cashPastes || []).forEach(function(p) { add(p.text); });
+  return seen;
+}
+/* The messages cut to the new ones: each sorted (msgSort), new when sent after the last of its kind the book holds. A kind the
+   book holds none of is taken whole. Returns { fresh, skippedOld, inBook, kinds: { kind: { taken, skipped, from, src } }, none }. */
+function wzCut(msgs) {
+  var a = wzAnchors(), texts = wzBookTexts(), out = { fresh: [], skippedOld: 0, inBook: 0, kinds: {}, none: !Object.keys(a).length };
+  msgs.forEach(function(m) {
+    var kind = msgSort(m).kind, an = a[kind], t = wzMoment(m.sentOn, m.sentAt);
+    var k = out.kinds[kind] || (out.kinds[kind] = { taken: 0, skipped: 0, from: an ? an.iso : null, src: an ? an.src : null });
+    if (an && (t == null || t <= an.t)) { k.skipped++; out.skippedOld++; return; }
+    if (texts[relayHash(m.text)]) { k.skipped++; out.inBook++; return; }
+    k.taken++;
+    out.fresh.push(m);
+  });
+  return out;
+}
+
+/* ---------- 4. The import ---------- */
+function wzRefuse(title, body) {
+  if (typeof uiAlert === 'function') uiAlert({ title: title, body: body });
+  return null;
+}
+/* A file picked (Add → File, Messages' own Import): a zip or a bare .txt export. */
+async function wzImportFile(file, opts) {
+  if (!file) return null;
+  if (file.size > WZ_MAX_BYTES) return wzRefuse('The export is too large', (file.name || 'The file') + ' is ' + (Math.round(file.size / 104857.6) / 10) + ' MB; the app reads up to 50 MB. In WhatsApp, export the chat again with Without media.');
+  var buf;
+  try { buf = await file.arrayBuffer(); } catch (e) { return wzRefuse('The file could not be read', (file.name || 'The file') + ': ' + ((e && e.message) || 'the browser could not read it') + '.'); }
+  return wzImportBuf(buf, file.name || '', opts);
+}
+/* The file's bytes (or its text) read, cut and taken in. `opts.guarded` when the guard has already answered (Add → File). */
+async function wzImportBuf(src, name, opts) {
+  opts = opts || {};
+  if (!opts.guarded && typeof addFileGuardOk === 'function' && !(await addFileGuardOk('whatsapp'))) return null;
+  var text = '', chatName = '', media = 0;
+  var bytes = typeof src === 'string' ? null : src instanceof ArrayBuffer ? src : src && src.buffer ? src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength) : null;
+  if (bytes && bytes.byteLength > WZ_MAX_BYTES) return wzRefuse('The export is too large', (name || 'The file') + ' is over 50 MB, which the app reads at most. In WhatsApp, export the chat again with Without media.');
+  if (bytes && new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength)).join(',') === '80,75,3,4') {
+    var l;
+    try { l = wzZipList(bytes); } catch (e) { return wzRefuse('Not a WhatsApp export', (name || 'The zip') + ': ' + e.message + '.'); }
+    var ent = l.xlsx ? null : wzChatEntry(l.texts);
+    if (!ent) return wzRefuse('No chat in the zip', (name || 'The zip') + ' holds ' + (l.xlsx ? 'an Excel workbook' : l.media ? todoPlural(l.media, 'file') + ' and no chat text' : 'nothing') + '. WhatsApp’s export holds the chat as a .txt (Export chat in the group’s menu).');
+    if ((ent.usize || 0) > WZ_MAX_BYTES) return wzRefuse('The chat is too large', ent.base + ' is over 50 MB, which the app reads at most.');
+    media = l.media;
+    try { text = new TextDecoder('utf-8').decode((await wzUnzip(bytes, [ent.name]))[0].bytes); } catch (e) { return wzRefuse('The chat could not be read', ent.base + ': ' + ((e && e.message) || 'it could not be opened') + '.'); }
+    chatName = ent.base;
+  } else {
+    text = typeof src === 'string' ? src : new TextDecoder('utf-8').decode(bytes || new ArrayBuffer(0));
+    chatName = name || '';
+  }
+  var chat = wzParseChat(text);
+  if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). In WhatsApp, open the group, open its menu and pick Export chat.');
+  var cut = wzCut(chat.msgs), id = 'WZ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  var got = msgIngest(cut.fresh, 'zip', id), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
+  var rec = { id: id, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, file: name || '', chat: wzChatTitle(name, chatName),
+    first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen,
+    skippedOld: cut.skippedOld, inBook: cut.inBook, media: media + chat.media, system: chat.system, deleted: chat.deleted,
+    order: chat.order, orderWhy: chat.orderWhy, none: cut.none, kinds: cut.kinds };
+  msgImports().push(rec);
+  var saved = typeof saveState === 'function' ? await saveState() : true;
+  if (saved === false) return rec;
+  if (typeof mcOpen === 'function' && rec.added) mcOpen({ importId: id });
+  else if (rec.added) showToast(wzSaid(rec));
+  else uiAlert({ title: 'Nothing new in the export', body: wzSaid(rec) });
+  return rec;
+}
+/* The chat's name: the group in an Android export's file name ("WhatsApp Chat with <group>.txt"), else the zip's. */
+function wzChatTitle(file, entry) {
+  var m = /^WhatsApp Chat (?:with|-)\s*(.+?)\.(txt|zip)$/i.exec(entry || '') || /^WhatsApp Chat (?:with|-)\s*(.+?)\.(txt|zip)$/i.exec(file || '');
+  return m ? m[1] : String(file || entry || '').replace(/\.(zip|txt)$/i, '');
+}
+/* What an import did, in a line. */
+function wzSaid(rec) {
+  var bits = [rec.added ? todoPlural(rec.added, 'new message') + ' taken in' : 'No new message'];
+  var old = rec.skippedOld + rec.inBook + rec.seen;
+  if (old) bits.push(todoPlural(old, 'older message') + ' skipped');
+  if (rec.media) bits.push(todoPlural(rec.media, 'media file') + ' not read');
+  return bits.join(' · ') + (rec.none ? ' · the book held no messages yet, so every one was taken' : '') + '.';
+}
+
+/* ---------- 5. Its own door ---------- */
+/* An import started from a screen of its own (the Messages screen's Import): the file picker, then wzImportFile. */
+function wzPick() {
+  var inp = document.getElementById('wzFileInput');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.id = 'wzFileInput'; inp.className = 'inv-hidden'; inp.accept = '.zip,.txt,application/zip,text/plain';
+    inp.setAttribute('data-nodirty', ''); inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true');
+    inp.addEventListener('change', function() { var f = inp.files && inp.files[0]; inp.value = ''; if (f) wzImportFile(f); });
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.click();
+}
+function wzAction(action) {
+  if (action === 'invMsgZipPick') { wzPick(); return true; }
+  return false;
+}
 /* ===== The Messages screen: every message, its reading line by line, edited and read again, corrected (mv*) =====
    Built to the contract in msgstore.js. Owner, 31 Oct 2026: "We need the pasted whatsapp message to be stored in the app, so
    that we can read the message in the app and make changes and the app can learn what it got wrong"; and "Both" to editing a

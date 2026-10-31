@@ -352,7 +352,20 @@ function relayKind(text) {
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
   if (/pickling\s*time/i.test(text)) return 'material';
+  if (relayIsChemList(text)) return 'stock';
   return 'other';
+}
+/* A chemical use written with no head ("BRIGHTNER 5 LTR / NITRIC ACID 4 LTR"; the group's export of 16 Sep – 31 Oct 2026, profiled
+   for the Messages build, msgprofile.js): every line a figure in kilos or litres, a chemical named, no pieces and no clock time
+   (a pickling load and the barrel list carry those). Stock's own check reads it, and says what it could not place. */
+function relayIsChemList(text) {
+  var lines = String(text || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  if (lines.length < 2 || lines.length > 25) return false;
+  var unit = /\b\d+(?:\.\d+)?\s*(?:kgs?|ltrs?|litres?|liters?|l)\b/i;
+  if (!lines.every(function(l) { return unit.test(l); })) return false;
+  if (lines.some(function(l) { return /\b(?:nos|no|pcs?|pieces?)\b|\d{1,2}[:.]\d{2}|\d\s*[ap]\.?m\b/i.test(l); })) return false;
+  var chem = typeof PROD_CHEM_IN_RE !== 'undefined' ? PROD_CHEM_IN_RE : /c[ae]mical|chemical/i;
+  return lines.some(function(l) { return chem.test(l); });
 }
 
 /* The chemical stock written into a roll under its own heading, no date ("camical use camical stock"): the roll ends there

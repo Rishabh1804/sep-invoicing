@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="15679ab6">
+<meta name="app-build" content="6acb0f70">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -50944,7 +50944,7 @@ function advGoTo(go) {
       if (row) { row.open = true; uiRevealEl(row); }
       return true;
     }
-    case 'prodLines': prodSetTab('lines'); _prodLine = PROD_LINES.indexOf(go.line) >= 0 || go.line === 'pickling' ? go.line : 'vat-a1'; _prodDay = go.day || null; _prodView = 'main';
+    case 'prodLines': prodSetTab('lines'); _prodLine = PROD_LINES.indexOf(go.line) >= 0 || go.line === 'pickling' ? go.line : 'vat-a1'; _prodDay = go.day || null; _prodDayPicked = !!go.day; _prodView = 'main';
       switchTab('pageProduction'); return true;
     case 'createFor': createForClient(go.clientId, go.ims); return true;
     // Prospects (prospects.js): the list, or one prospect's form.
@@ -56095,6 +56095,7 @@ var _prodPhoto = null;           // the photo being checked: {file, name, bytes,
 var _prodPhotoQueue = [];        // photos picked or handed over, read one at a time
 var _prodLine = 'vat-a1';        // Lines: which line
 var _prodDay = null;             // Lines: which day (null = the last recorded)
+var _prodDayPicked = false;      // the day was chosen (‹ ›, a day card, Floor's day), not fallen back to: Enter by hand starts on it
 var _prodFilter = { kind: '', flag: '', client: '' };
 var _prodPlantClient = '';
 
@@ -56568,7 +56569,7 @@ function prodLinesLastDay(line) {
 function prodLinesDay() { return _prodDay || prodLinesLastDay(_prodLine) || localDateStr(); }
 /* A run or a load corrected or voided from Lines keeps the day on screen: with none stepped to, Lines shows the last recorded
    day, and the void of its only run (or a date corrected) moved it to another without a word. */
-function prodPinDay() { if (_prodTab === 'lines' && _prodView === 'main' && !_prodDay) _prodDay = prodLinesDay(); }
+function prodPinDay() { if (_prodTab === 'lines' && _prodView === 'main' && !_prodDay) { _prodDay = prodLinesDay(); _prodDayPicked = false; } }
 /* Lines (the tab map, TM4c): the line's verdict for the day (its efficiency, judged as Floor's line card judges it; the plated,
    pieces, rounds and cuts its factors, and how the efficiency splits under them), one toolbar row (the day, what comes in, More),
    the line's switch; plated by line over four weeks at the head, shut; the day's runs; the week, each day in its efficiency's tone;
@@ -57475,8 +57476,10 @@ function prodSavePhoto() {
   saveState();
   try { localStorage.removeItem(PROD_DRAFT_KEY); } catch (e) { /* a convenience only */ }
   prodPhotoDrop();
+  // Lines opens on the page's day and line, so where the runs went is seen (it had stayed on the day it showed before).
+  if (rd.page !== 'power' && date) { _prodDay = date; _prodDayPicked = true; if (PROD_LINES.indexOf(line) >= 0) _prodLine = line; prodSetTab('lines'); }
   prodSetView('main');
-  showToast(rd.page === 'power' ? todoPlural(n, 'power cut') + ' saved from the register' : todoPlural(n, 'run') + ' saved from the register', 'success');
+  showToast((rd.page === 'power' ? todoPlural(n, 'power cut') : todoPlural(n, 'run')) + ' saved from the register' + (date ? ', ' + formatDate(date) : ''), 'success');
   if (_prodPhotoQueue.length) prodPhotoNext();
 }
 
@@ -57496,8 +57499,10 @@ function prodHandBlank(fromLines) {
   // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
   // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's. Said by the
   // door that opens it: Power's Enter a cut and Add's by hand open on today, though Lines' day and line outlive a visit to Lines.
+  // A day Lines only fell back to (the last recorded, kept over a Correct or a Void, or Home's last day plated) is not one
+  // stepped to: an entry typed there had gone to that day (owner, 3 Nov 2026: the 3 Nov page went to 26 Oct).
   if (fromLines) {
-    if (_prodDay) f.date = _prodDay;
+    if (_prodDay && _prodDayPicked) f.date = _prodDay;
     if (_prodLine === 'pickling') f.kind = 'pickled'; else if (PROD_LINES.indexOf(_prodLine) >= 0) f.line = _prodLine;
   }
   return f;
@@ -57510,6 +57515,8 @@ function prodHandHtml() {
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+  // A day not today is said above the fields, so an entry is never filed on an old day unseen.
+  if (!f.replaces && f.date && f.date !== localDateStr()) h += '<div class="inv-callout inv-callout-warning" data-prod-hand-past>Dated ' + escHtml(formatDate(f.date)) + ', not today. Change the date if this is today\u2019s work.</div>';
   h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '" max="' + localDateStr() + '">') +
     field('prodHandTime', f.kind === 'downtime' ? 'Power cut at' : 'Time', '<input type="time" id="prodHandTime" class="inv-input" data-prod-hand="time" value="' + escHtml(f.time) + '">');
   if (f.kind === 'downtime') h += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
@@ -57705,7 +57712,7 @@ function prodAction(action, btn) {
       // From the day card (Production, Floor, Pulse): Lines on the line and the day it shows.
       var dl = btn.dataset.line;
       _prodLine = PROD_LINES.indexOf(dl) >= 0 ? dl : _prodLine || 'vat-a1';
-      if (btn.dataset.day) _prodDay = btn.dataset.day;
+      if (btn.dataset.day) { _prodDay = btn.dataset.day; _prodDayPicked = true; }
       _prodView = 'main';
       prodSetTab('lines');
       if (navPageOf() === 'pageProduction') renderProduction(); else switchTab('pageProduction');
@@ -57725,10 +57732,10 @@ function prodAction(action, btn) {
     case 'invProdDay': {
       // From the day on screen: with none stepped to that is the last recorded day, not today. Never past today (Floor's rule).
       var base = prodLinesDay(), next = isoAddDays(base, +btn.dataset.step);
-      _prodDay = next > localDateStr() ? localDateStr() : next;
+      _prodDay = next > localDateStr() ? localDateStr() : next; _prodDayPicked = true;
       renderProduction(); return true;
     }
-    case 'invProdDayLast': _prodDay = null; renderProduction(); return true;
+    case 'invProdDayLast': _prodDay = null; _prodDayPicked = false; renderProduction(); return true;
     case 'invProdDayClear': _prodFilter = { kind: '', flag: '', client: _prodFilter.client || '', day: '' }; renderProduction(); return true;
     case 'invProdClientClear': {
       _prodFilter = Object.assign({}, _prodFilter, { client: '' });
@@ -58266,7 +58273,7 @@ function flrUnweighedHtml(day) {
 /* Production → Lines on the line and the day on screen (Pickling is Lines' fourth). */
 function flrOpenLine(line) {
   _prodLine = line === 'pickling' || PROD_LINES.indexOf(line) >= 0 ? line : 'vat-a1';
-  _prodDay = flrDayIso();
+  _prodDay = flrDayIso(); _prodDayPicked = true;
   _prodView = 'main';
   prodSetTab('lines');
   switchTab('pageProduction');
@@ -61783,7 +61790,7 @@ function wcProdWeighedHtml(pic) {
 wdgDefine({ id: 'prodday', title: 'Production, the last day', short: 'Production', q: 'What did we plate?', section: 'floor', type: 'plant', icon: 'vat', sizes: ['s', 'm', 'l'], trend: function(d) { return !d.o || !d.o.isToday; },
   needs: { page: 'pageProduction' },
   // Lines on the day it shows (the head is the door: Open the lines went, §24f).
-  go: function() { var day = homeLastPlatedDay(); _prodView = 'main'; prodSetTab('lines'); if (day) _prodDay = day; switchTab('pageProduction'); },
+  go: function() { var day = homeLastPlatedDay(); _prodView = 'main'; prodSetTab('lines'); if (day) { _prodDay = day; _prodDayPicked = false; } switchTab('pageProduction'); },
   choose: { def: 'all', label: 'Line', opts: function() { return WC_PROD_CHOOSE; } },
   data: function(ctx) {
     var day = homeLastPlatedDay();
@@ -77706,27 +77713,41 @@ function phSettingsBody() {
    wrote, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such. No client list
    is sent (the model would "correct" the floor's spellings to legal names), and the workers' box is not asked for. The shape
    is the one prodFromRegisterRead has always read (prodparse.js). */
-var PROD_REGISTER_PROMPT_VER = 'reg-c1';
+var PROD_REGISTER_PROMPT_VER = 'reg-c2';
 var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten registers of a zinc electroplating plant in India. The photo may be sideways or upside down: read it the way the writing runs.\n\n' +
   'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add up figures, do not add rows that are not written, do not invent anything.\n' +
   '- page: "production" if it lists batches plated (customer, part, times, figures); "power" if it is a log of power cuts and power coming back; "challan" if it is a customer\'s printed or handwritten delivery challan; "other" for anything else (a wages or hours sheet, a list of names).\n' +
-  '- date: the date written at the top, exactly as written (e.g. "24/09/26"), or null. weekday: the day name written at the top (e.g. "Thursday"), or null.\n' +
-  '- line: the line named at the top exactly as written (e.g. "VAT-A1", "VAT-A2", "BARREL"), or null.\n' +
+  '- date: the date written at the top, exactly as written (e.g. "24/09/26"), else "". weekday: the day name written at the top (e.g. "Thursday"), else "".\n' +
+  '- line: the line named at the top exactly as written (e.g. "VAT-A1", "VAT-A2", "BARREL"), else "".\n' +
   '- dayTotal: a day total written on the page, else null.\n' +
   '- rows: one per written row, top to bottom, skipping rows with nothing written but ditto marks. For each: time exactly as written without START or END (e.g. "9:45 AM", "3:00 PM"); ' +
-  'mark: "START" or "END" if the row says so, else null; customer and part as written (when a column holds only ditto marks, leave it null and set ditto true); dim (a size such as "35x6") if written; ' +
-  'qtyText: the figure written for the row, exactly as written with its signs (e.g. "72", "72+10", "98×8+1", "50+52+30", "3+4×156"), else null; when the only figure on the row is written in the part column (e.g. "(25 NOS) TINA"), put it in qtyText too; struck: true if the row or its figure is struck through; ' +
-  'over: what a correction was written over, as written; bracket: true if the row is inside a bracket carrying one total for several rows; legible: false if you cannot read the figure.\n' +
+  'mark: "START" or "END" if the row says so, else ""; customer and part as written (when a column holds only ditto marks, leave it "" and set ditto true); dim (a size such as "35x6") if written; ' +
+  'qtyText: the figure written for the row, exactly as written with its signs (e.g. "72", "72+10", "98×8+1", "50+52+30", "3+4×156"), else ""; when the only figure on the row is written in the part column (e.g. "(25 NOS) TINA"), put it in qtyText too; struck: true if the row or its figure is struck through; ' +
+  'over: what a correction was written over, as written; bracket: true if the row is inside a bracket carrying one total for several rows; ditto: true if the row\'s customer or part is only ditto marks; legible: false if you cannot read the figure, else true.\n' +
   '- On a power page, each row: date as written on the row, event "power cut" or "power in" (also "power on"), and time as written.\n' +
-  'Ignore any box of workers\' names. Fields that do not apply are null.';
+  'Ignore any box of workers\' names. A text field that is not written or does not apply is ""; struck, bracket and ditto are false unless the row shows them.';
+/* The API compiles a schema's union-typed fields (anyOf, a type array) at a cost that grows fast, and refuses more than 16 of them
+   (it refused the first register photo with 17, 3 Nov 2026). So a text not written is "" and a flag not set is false (legible
+   true), never null: the reader treats both as absent (phRegisterJson drops ""), and the day total alone may be null. */
+var PH_UNION_LIMIT = 16;
 var PROD_REGISTER_SCHEMA = phObj({
   page: { type: 'string', enum: ['production', 'power', 'challan', 'other'] },
-  date: phNull('string'), weekday: phNull('string'), line: phNull('string'), dayTotal: phNull('number'),
+  date: { type: 'string' }, weekday: { type: 'string' }, line: { type: 'string' }, dayTotal: phNull('number'),
   rows: { type: 'array', items: phObj({
-    time: phNull('string'), mark: phNull('string'), customer: phNull('string'), part: phNull('string'), dim: phNull('string'),
-    qtyText: phNull('string'), struck: phNull('boolean'), over: phNull('string'), bracket: phNull('boolean'), ditto: phNull('boolean'),
-    legible: phNull('boolean'), event: phNull('string'), date: phNull('string') }) }
+    time: { type: 'string' }, mark: { type: 'string', enum: ['START', 'END', ''] }, customer: { type: 'string' }, part: { type: 'string' },
+    dim: { type: 'string' }, qtyText: { type: 'string' }, struck: { type: 'boolean' }, over: { type: 'string' }, bracket: { type: 'boolean' },
+    ditto: { type: 'boolean' }, legible: { type: 'boolean' }, event: { type: 'string' }, date: { type: 'string' } }) }
 });
+/* The union-typed fields a schema holds, nested ones included: what PH_UNION_LIMIT counts. */
+function phUnionCount(sch) {
+  var n = 0, walk = function(x) {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    if (x.anyOf || Array.isArray(x.type)) n++;
+    Object.keys(x).forEach(function(k) { walk(x[k]); });
+  };
+  walk(sch); return n;
+}
 /* The reader's JSON as prodFromRegisterRead takes it: nulls left out, as the old reads were kept. */
 function phRegisterJson(j) {
   var clean = function(o) { var out = {}; Object.keys(o || {}).forEach(function(k) { if (o[k] != null && o[k] !== '') out[k] = o[k]; }); return out; };

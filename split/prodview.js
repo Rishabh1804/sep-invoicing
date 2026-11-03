@@ -18,6 +18,7 @@ var _prodPhoto = null;           // the photo being checked: {file, name, bytes,
 var _prodPhotoQueue = [];        // photos picked or handed over, read one at a time
 var _prodLine = 'vat-a1';        // Lines: which line
 var _prodDay = null;             // Lines: which day (null = the last recorded)
+var _prodDayPicked = false;      // the day was chosen (‹ ›, a day card, Floor's day), not fallen back to: Enter by hand starts on it
 var _prodFilter = { kind: '', flag: '', client: '' };
 var _prodPlantClient = '';
 
@@ -491,7 +492,7 @@ function prodLinesLastDay(line) {
 function prodLinesDay() { return _prodDay || prodLinesLastDay(_prodLine) || localDateStr(); }
 /* A run or a load corrected or voided from Lines keeps the day on screen: with none stepped to, Lines shows the last recorded
    day, and the void of its only run (or a date corrected) moved it to another without a word. */
-function prodPinDay() { if (_prodTab === 'lines' && _prodView === 'main' && !_prodDay) _prodDay = prodLinesDay(); }
+function prodPinDay() { if (_prodTab === 'lines' && _prodView === 'main' && !_prodDay) { _prodDay = prodLinesDay(); _prodDayPicked = false; } }
 /* Lines (the tab map, TM4c): the line's verdict for the day (its efficiency, judged as Floor's line card judges it; the plated,
    pieces, rounds and cuts its factors, and how the efficiency splits under them), one toolbar row (the day, what comes in, More),
    the line's switch; plated by line over four weeks at the head, shut; the day's runs; the week, each day in its efficiency's tone;
@@ -1398,8 +1399,10 @@ function prodSavePhoto() {
   saveState();
   try { localStorage.removeItem(PROD_DRAFT_KEY); } catch (e) { /* a convenience only */ }
   prodPhotoDrop();
+  // Lines opens on the page's day and line, so where the runs went is seen (it had stayed on the day it showed before).
+  if (rd.page !== 'power' && date) { _prodDay = date; _prodDayPicked = true; if (PROD_LINES.indexOf(line) >= 0) _prodLine = line; prodSetTab('lines'); }
   prodSetView('main');
-  showToast(rd.page === 'power' ? todoPlural(n, 'power cut') + ' saved from the register' : todoPlural(n, 'run') + ' saved from the register', 'success');
+  showToast((rd.page === 'power' ? todoPlural(n, 'power cut') : todoPlural(n, 'run')) + ' saved from the register' + (date ? ', ' + formatDate(date) : ''), 'success');
   if (_prodPhotoQueue.length) prodPhotoNext();
 }
 
@@ -1419,8 +1422,10 @@ function prodHandBlank(fromLines) {
   // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
   // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's. Said by the
   // door that opens it: Power's Enter a cut and Add's by hand open on today, though Lines' day and line outlive a visit to Lines.
+  // A day Lines only fell back to (the last recorded, kept over a Correct or a Void, or Home's last day plated) is not one
+  // stepped to: an entry typed there had gone to that day (owner, 3 Nov 2026: the 3 Nov page went to 26 Oct).
   if (fromLines) {
-    if (_prodDay) f.date = _prodDay;
+    if (_prodDay && _prodDayPicked) f.date = _prodDay;
     if (_prodLine === 'pickling') f.kind = 'pickled'; else if (PROD_LINES.indexOf(_prodLine) >= 0) f.line = _prodLine;
   }
   return f;
@@ -1433,6 +1438,8 @@ function prodHandHtml() {
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+  // A day not today is said above the fields, so an entry is never filed on an old day unseen.
+  if (!f.replaces && f.date && f.date !== localDateStr()) h += '<div class="inv-callout inv-callout-warning" data-prod-hand-past>Dated ' + escHtml(formatDate(f.date)) + ', not today. Change the date if this is today\u2019s work.</div>';
   h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '" max="' + localDateStr() + '">') +
     field('prodHandTime', f.kind === 'downtime' ? 'Power cut at' : 'Time', '<input type="time" id="prodHandTime" class="inv-input" data-prod-hand="time" value="' + escHtml(f.time) + '">');
   if (f.kind === 'downtime') h += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
@@ -1628,7 +1635,7 @@ function prodAction(action, btn) {
       // From the day card (Production, Floor, Pulse): Lines on the line and the day it shows.
       var dl = btn.dataset.line;
       _prodLine = PROD_LINES.indexOf(dl) >= 0 ? dl : _prodLine || 'vat-a1';
-      if (btn.dataset.day) _prodDay = btn.dataset.day;
+      if (btn.dataset.day) { _prodDay = btn.dataset.day; _prodDayPicked = true; }
       _prodView = 'main';
       prodSetTab('lines');
       if (navPageOf() === 'pageProduction') renderProduction(); else switchTab('pageProduction');
@@ -1648,10 +1655,10 @@ function prodAction(action, btn) {
     case 'invProdDay': {
       // From the day on screen: with none stepped to that is the last recorded day, not today. Never past today (Floor's rule).
       var base = prodLinesDay(), next = isoAddDays(base, +btn.dataset.step);
-      _prodDay = next > localDateStr() ? localDateStr() : next;
+      _prodDay = next > localDateStr() ? localDateStr() : next; _prodDayPicked = true;
       renderProduction(); return true;
     }
-    case 'invProdDayLast': _prodDay = null; renderProduction(); return true;
+    case 'invProdDayLast': _prodDay = null; _prodDayPicked = false; renderProduction(); return true;
     case 'invProdDayClear': _prodFilter = { kind: '', flag: '', client: _prodFilter.client || '', day: '' }; renderProduction(); return true;
     case 'invProdClientClear': {
       _prodFilter = Object.assign({}, _prodFilter, { client: '' });

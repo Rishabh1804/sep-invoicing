@@ -282,7 +282,7 @@ function mcSumText(list) {
 function mcBodyHtml() {
   var shown = mcShown(), held = _mc.list.filter(function(r) { return r.dup; });
   var h = '';
-  if (!_mc.list.length) return uiBlankHtml({ kind: 'empty', title: 'No new messages', body: 'Every message here is in the book already.' });
+  if (!_mc.list.length) return uiBlankHtml({ kind: 'empty', title: 'No new messages', body: 'Every message here is in the book already.' }) + mcPhotosHtml();
   // What the book holds already: left out, and said.
   if (held.length) {
     var hk = 'held';
@@ -311,9 +311,25 @@ function mcBodyHtml() {
     });
     h += '</section>';
   });
-  return h + mcRestHtml(rest);
+  return h + mcPhotosHtml() + mcRestHtml(rest);
 }
 /* What nothing here saves, one panel shut at the foot: each kind a group, each message with its day. */
+/* The export's photos (wazip.js, _wzPhotos): one row, read by Claude in Production's photo check only when tapped, each paid for
+   as it is reached. A photo is never in the book; the export picked again offers them again. */
+function mcPhotosHtml() {
+  var w = typeof _wzPhotos !== 'undefined' ? _wzPhotos : null;
+  if (!w || !_mc || !_mc.from || w.importId !== _mc.from.importId || !w.list.length) return '';
+  var by = {};
+  w.list.forEach(function(p) { by[p.sentBy || 'No sender'] = (by[p.sentBy || 'No sender'] || 0) + 1; });
+  var who = Object.keys(by).sort(function(a, b) { return by[b] - by[a]; }).map(function(k) { return k + ' ' + by[k]; }).join(' · ');
+  var days = w.list.map(function(p) { return p.sentOn; }).filter(Boolean).sort();
+  var span = days.length ? stockShortDate(days[0]) + (days[days.length - 1] !== days[0] ? ' – ' + stockShortDate(days[days.length - 1]) : '') : '';
+  var key = typeof phKey === 'function' && phKey();
+  return '<section class="inv-panel inv-panel-flush inv-mt-8" data-mc-photos="' + w.list.length + '"><div class="inv-row inv-row-2"><span class="inv-row-main">' +
+    '<span class="inv-row-title">' + escHtml(todoPlural(w.list.length, 'photo') + ' from the export') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml([span, who, key ? 'register pages, power logs and challans, read by Claude, about ' + phMoney(PH_EST_USD) + ' each' : 'a Claude key on this device reads them (Settings → Connections)'].filter(Boolean).join(' · ')) + '</span></span>' +
+    uiRowEndHtml('', null, '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMsgMcPhotos" data-mc-k="photos">' + (key ? 'Read them' : 'Set the key') + '</button>') + '</div></section>';
+}
 function mcRestHtml(rest) {
   if (!rest.length) return '';
   var key = 'rest', open = !!_mc.open[key];
@@ -460,6 +476,7 @@ function mcAction(action, btn) {
     case 'invMsgMcReview': if (r) mcLeave(function() { mcOpenReview(r); }); break;
     case 'invMsgMcSave': mcSave(); break;
     case 'invMsgMcDone': mcClose(); break;
+    case 'invMsgMcPhotos': mcLeave(function() { if (phKey()) wzPhotosRead(); else openSettings('claudeKey'); }); break;
     default: return false;
   }
   return true;
@@ -630,5 +647,5 @@ function mcDoneHtml() {
   if (o.left.length) h += '<div class="inv-panel inv-panel-flush" id="mcDoneLeft"><div class="inv-panel-head"><span class="inv-panel-title">Left to look at <span class="inv-panel-count">' + o.left.length + '</span></span></div>' +
     uiMoreHtml('mc-left', o.left.map(function(x) { return row(x, 'left'); }), { noun: 'messages' }) + '</div>';
   if (!o.saved.length && !o.skipped.length && !o.left.length) h += uiBlankHtml({ kind: 'empty', title: 'Nothing saved' });
-  return h;
+  return h + mcPhotosHtml();
 }

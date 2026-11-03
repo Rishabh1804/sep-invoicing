@@ -2188,6 +2188,9 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 .inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
 .inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
 
+/* A register photo on its check (Production → Read register photo): the picture as wide as the panel, never wider. */
+.inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-tile); }
+
 /* The day as a board (Staff → Day): a card per area, a line per hand. One column on the phone; on the desktop as many
    columns of --board-col as fit, so a day of twenty hands reads on one screen. */
 .inv-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; margin-bottom: var(--gap); }

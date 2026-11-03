@@ -2,8 +2,9 @@
  * Lines · In plant · Entries · Equipment, over one record (production.js). The tab map, TM4c: the Overview went (the day's
  * card and the week are Floor's Production card; the plant at a glance is the empty page's), and each view leads with its
  * verdict card and one toolbar row. What comes in is taken on Lines and Entries: Paste message the one primary, Enter by hand
- * (and Entries' files) behind More (§1a-12); the register's photo, read by Gemini, came out on 13 Oct 2026 (owner: *"it simply
- * never works"*). The sub-views (paste, review, hand) lead with a way back and end in the action bar, and draw no toolbar (DR-3).
+ * (and Entries' files) behind More (§1a-12), and More's first row the register's photo, read by Claude since 3 Nov 2026 (it was
+ * read by Gemini until 13 Oct 2026, owner: *"it simply never works"*). The sub-views (paste, review, photo, hand) lead with a way
+ * back and end in the action bar, and draw no toolbar (DR-3).
  */
 var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
 var PROD_TABS = [['lines', 'Lines'], ['plant', 'In plant'], ['entries', 'Entries'], ['equipment', 'Equipment']];
@@ -13,6 +14,8 @@ var _prodView = 'main';          // main · paste · review · hand
 var _prodPasteDraft = '';
 var _prodReview = null;          // {msgs, choices}
 var _prodHand = null;            // the hand form
+var _prodPhoto = null;           // the photo being checked: {file, name, bytes, url, sha, json, meta, choices, photoDate, sentBy, dupSha}
+var _prodPhotoQueue = [];        // photos picked or handed over, read one at a time
 var _prodLine = 'vat-a1';        // Lines: which line
 var _prodDay = null;             // Lines: which day (null = the last recorded)
 var _prodFilter = { kind: '', flag: '', client: '' };
@@ -37,8 +40,13 @@ function prodToolbarHtml(lead, more, filter) {
   var phone = !_isDesktop;
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
-    (filter || '') + uiToolbarMoreHtml([{ label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
+    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
+    '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
     ((more || []).some(function(m) { return m.action === 'invProdImport'; }) ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
+  // Photos waiting to be read (several picked, or a WhatsApp export's): a row, never a callout (the tab map, §3e).
+  if (_prodPhotoQueue.length) h += '<div class="inv-panel inv-panel-flush" id="prodPhotoWaiting"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
+    escHtml(todoPlural(_prodPhotoQueue.length, 'photo') + ' waiting to be read') + '</span><span class="inv-row-meta">' + escHtml('about ' + phMoney(PH_EST_USD) + ' each, read one at a time') + '</span></span>' +
+    uiRowEndHtml('', null, '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdPhotoNext">Read the next</button>') + '</div></div>';
   return h;
 }
 /* Nothing recorded yet: the card says so, the toolbar takes the first message (and the history the card names, behind More), and
@@ -57,6 +65,8 @@ function renderProduction() {
   if (_prodView === 'paste') h = prodPasteHtml();
   else if (_prodView === 'review' && _prodReview) h = prodReviewHtml();
   else if (_prodView === 'hand' && _prodHand) h = prodHandHtml();
+  else if (_prodView === 'photo' && _prodPhoto) h = prodPhotoHtml();
+  else if (_prodView === 'reading') h = prodBackBar('Reading the photo') + uiBlankHtml({ kind: 'loading', title: 'Claude is reading ' + (_prodPhotoBusy || 'the photo'), body: 'A page takes about half a minute. Nothing is saved until you have checked it.' });
   else {
     _prodView = 'main';
     if (!PROD_TABS.some(function(t) { return t[0] === _prodTab; })) _prodTab = 'lines';
@@ -1211,6 +1221,188 @@ function prodSaveReview() {
   showToast(todoPlural(n, 'entry', 'entries') + ' saved' + (closed ? ' · ' + todoPlural(closed, 'cut saved before', 'cuts saved before') + ' given its time back' : '') + (res.dup ? ' · ' + todoPlural(res.dup, 'message') + ' saved before, left out' : '') + (learnt ? ' · ' + todoPlural(learnt, 'spelling') + ' remembered' : ''), 'success');
 }
 
+/* ---------- Register photo (read by Claude) ----------
+   Owner, 3 Nov 2026: a photo of a VAT register page or its power log is read by Claude (photoread.js) and checked here before
+   anything is saved, as the Gemini reading was until it came out on 13 Oct. The reading is the photo's transcription; the runs,
+   the START rule, the gauge and part rules and the day's total are prodFromRegisterRead's, the same reader a page typed on Mine
+   goes through. A customer's challan is offered to the challan scanner; anything else is said and nothing is read from it. */
+var PROD_DRAFT_KEY = 'sep_inv_prod_photo_read';   // not Gemini's old key, which forgetGeminiKey drops at each start
+var _prodPhotoBusy = '';
+function prodPhotoPick() {
+  // The key is checked before the picker opens: an awaited step before click() loses the picker on iOS.
+  if (!phKey()) { phNoKey(); return; }
+  var inp = document.getElementById('prodPhotoInput');
+  if (!inp) return;
+  inp.value = '';
+  inp.click();
+}
+function prodPhotoSha(buf) {
+  if (!(window.crypto && crypto.subtle)) return Promise.resolve('n' + buf.byteLength);
+  return crypto.subtle.digest('SHA-256', buf).then(function(d) { return Array.from(new Uint8Array(d)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); });
+}
+/* Photos picked (or handed over from an export: each a File, its lastModified the minute it was sent, `sentBy` its sender) are
+   read one at a time: one failing does not stop the rest, and each read is paid for only when it is reached. */
+function prodPhotoFiles(files, opts) {
+  var list = Array.prototype.slice.call(files || []);
+  if (!list.length) return;
+  if (!phKey()) { phNoKey(); return; }
+  var go = function() {
+    _prodPhotoQueue = _prodPhotoQueue.concat(list);
+    if (typeof switchTab === 'function' && !document.querySelector('#pageProduction.inv-page-active')) switchTab('pageProduction');
+    if (!_prodPhoto && !_prodPhotoBusy) prodPhotoNext(); else renderProduction();
+  };
+  if (list.length > 5 && !(opts && opts.asked)) {
+    uiConfirm({ title: 'Read ' + todoPlural(list.length, 'photo') + '?', okLabel: 'Read them',
+      body: 'Each photo is read by Claude when it is reached, about ' + phMoney(PH_EST_USD) + ' a photo (about ' + phMoney(PH_EST_USD * list.length) + ' for all ' + list.length + '), and checked by you before anything is saved. ' + phSpentSay() + '.' })
+      .then(function(ok) { if (ok) go(); });
+    return;
+  }
+  go();
+}
+function prodPhotoDrop() {
+  if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
+}
+async function prodPhotoNext() {
+  var file = _prodPhotoQueue.shift();
+  if (!file) { if (_prodView === 'reading') prodSetView('main'); return; }
+  _prodPhotoBusy = file.name || 'the photo';
+  prodSetView('reading');
+  try {
+    var buf = await file.arrayBuffer(), sha = await prodPhotoSha(buf);
+    // Any copy of the photo with an entry still live, not the first saved: one voided and saved again is held by the second (P127).
+    var p = prodData(), seen = p.photos.filter(function(x) { return x.sha === sha; }).find(function(x) { return p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
+    // The day the photo was taken (or sent), on this device's clock (UTC would put an evening photo in India on the next day).
+    var lm = file.lastModified ? new Date(file.lastModified) : null;
+    var photoDate = lm ? lm.getFullYear() + '-' + String(lm.getMonth() + 1).padStart(2, '0') + '-' + String(lm.getDate()).padStart(2, '0') : null;
+    var draft = null;
+    try { draft = JSON.parse(localStorage.getItem(PROD_DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
+    var start = function(json, meta) {
+      _prodPhotoBusy = '';
+      _prodPhoto = { file: file, name: file.name || '', bytes: file.size, url: URL.createObjectURL(file), sha: sha, json: json, meta: meta || {}, choices: {}, photoDate: photoDate,
+        sentBy: file.sentBy || null, dupSha: seen || null };
+      try { localStorage.setItem(PROD_DRAFT_KEY, JSON.stringify({ sha: sha, json: json, name: file.name, at: Date.now() })); } catch (e) { /* a convenience only */ }
+      prodSetView('photo');
+    };
+    // A photo read before and not saved is not paid for twice.
+    if (draft && draft.sha === sha && draft.json) { start(draft.json, { draft: true }); return; }
+    var res = await phRead(file, PROD_REGISTER_PROMPT, PROD_REGISTER_SCHEMA);
+    if (res.ok) { start(phRegisterJson(res.json), res.meta); return; }
+    _prodPhotoBusy = '';
+    phSayFail('Register photo', res);
+    // A key refused or the credit used up stops the queue: every next photo would fail the same way.
+    if (res.code === 'key' || res.code === 'billing') { _prodPhotoQueue = []; prodSetView('main'); return; }
+    if (_prodPhotoQueue.length) prodPhotoNext(); else prodSetView('main');
+  } catch (err) {
+    _prodPhotoBusy = '';
+    uiNotice('Register photo: ' + ((err && err.message) || 'could not read the file'), 'error');
+    if (_prodPhotoQueue.length) prodPhotoNext(); else prodSetView('main');
+  }
+}
+function prodPhotoRead() { var ph = _prodPhoto; return prodRackCheck(prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices)); }
+function prodPhotoHtml() {
+  var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
+  var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
+  var date = ph.choices.date || rd.date;
+  var dupFp = p.photos.find(function(x) { return x.fp === rd.fp && p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
+  var red = rd.issues.filter(function(x) { return x.tone === 'red'; }).length, power = rd.page === 'power';
+  rd.rows.forEach(function(r) { r.issues.forEach(function(x) { if (x.tone === 'red') red++; }); });
+  rd.runs.forEach(function(e, i) { if (e.clientId == null && ph.choices['client' + i] === undefined) red++; });
+  var h = prodBackBar('Check the register');
+  h += '<div class="inv-panel"><div class="inv-scroll-x"><img class="inv-prod-photo" src="' + escHtml(ph.url) + '" alt="The register photo"></div>' +
+    '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodPhotoDate">Date on the page</label><input type="date" id="prodPhotoDate" class="inv-input" value="' + escHtml(date) + '"></div>' +
+    (power || rd.page === 'other' ? '' : '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
+      '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div>') + '</div>' +
+    '<div class="inv-note inv-mt-8">' + escHtml('Read by Claude' + (ph.meta.draft ? ' (kept from the last read of this photo)' : ph.meta.usd ? ' · ' + phMoney(ph.meta.usd) : '') + (ph.sentBy ? ' · sent by ' + ph.sentBy : '') + '. Check every row against the photo: nothing is saved until you do.') + '</div></div>';
+  // The page entered on Mine by the register clerk (faces.js, F4) for this day and line, whose runs are in the book.
+  var onMine = !power && line ? p.pages.find(function(x) { return !x.replacedBy && x.date === date && x.line === line && p.entries.some(function(e) { return e.pageId && e.date === x.date && e.line === x.line && !e.voidedAt; }); }) : null;
+  if (ph.dupSha) h += '<div class="inv-callout inv-callout-danger" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
+  else if (dupFp) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
+  else if (onMine) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup" data-prod-photo-mine>' + escHtml('The ' + PROD_LINE_LABEL[line] + ' page for this day was entered on Mine' + (onMine.by ? ' by ' + onMine.by : '') +
+    (onMine.fp === rd.fp ? ', with the same rounds' : '') + '. Saving the photo as well counts the day twice.') + '</div>';
+  rd.issues.forEach(function(x) { if (x.code === 'line' && line) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + '">' + escHtml(x.text) + '</div>'; });
+  if (power) {
+    // The register's power log: each cut with its return, as written.
+    h += '<div class="inv-panel inv-panel-flush" id="prodPhotoPower"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts read</span><span class="inv-panel-count">' + rd.downtime.length + '</span></div>' +
+      rd.downtime.map(function(x, i) {
+        var mins = x.to ? relayParseHhmm(x.to) - relayParseHhmm(x.time) : null;
+        return '<div class="inv-row inv-row-2" data-prod-cut="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(stockShortDate(x.date) + ' · ' + x.time + (x.to ? ' – ' + x.to : ', no return written')) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(x.raw.replace(/\n/g, ' / ')) + '</span></span><span class="inv-row-end inv-num">' + (mins != null ? escHtml(mins + ' min') : '&mdash;') + '</span></div>';
+      }).join('') + '<div class="inv-panel-body inv-note">A cut the pickling messages also reported is counted once: the two are joined when they overlap or begin within ten minutes.</div></div>';
+    return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Power cuts</div><div class="inv-actionbar-value">' + rd.downtime.length + '</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.downtime.length ? ' disabled' : '') + '>Save</button></div>';
+  }
+  if (rd.page === 'challan') h += '<div class="inv-panel"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invProdToScanner">Read it as a challan</button></div>';
+  if (rd.page === 'other' || rd.page === 'challan') return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Nothing to save</div><div class="inv-actionbar-value">0</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto" disabled>Save</button></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="prodPhotoRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs read</span><span class="inv-panel-count">' + rd.runs.length + '</span></div>';
+  rd.runs.forEach(function(e, i) {
+    var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
+    h += '<div class="inv-row inv-row-auto inv-row-top" data-prod-run="' + i + '"><div class="inv-row-main"><div class="inv-row-title">' + escHtml((cid != null ? prodClientName(cid) : e.client || 'No client') + (e.part ? ' · ' + e.part : '')) + '</div>';
+    e.rows.forEach(function(r) {
+      h += '<div class="inv-quote inv-mt-4">' + escHtml(r.raw || '(empty row)') + '</div>';
+      r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-4">' + escHtml(x.text) + '</div>'; });
+      if (r.struck) h += '<div class="inv-toolbar inv-mt-4" role="group" aria-label="Struck row">' + [['counted', 'Counted'], ['cancelled', 'Cancelled']].map(function(o) {
+        return '<button class="inv-chip" data-action="invProdStruck" data-i="' + r.i + '" data-v="' + o[0] + '" aria-pressed="' + (ph.choices['struck' + r.i] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    });
+    e.issues.forEach(function(x) { if (x.code === 'client' && cc !== undefined) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
+    // Every run's client can be changed, as on the paste check (P127): a run read exactly, one the ditto rule moved, one whose
+    // round the rules give to another client. The last two open on the picker.
+    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
+    if (!(e.clientId == null || cc !== undefined || moved || ph.choices['open' + i] || e.issues.some(function(x) { return x.code === 'readas'; })))
+      h += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRunClient" data-i="' + i + '">Change client</button></div>';
+    else {
+      var sel = cc !== undefined ? String(cc) : (e.clientId != null ? String(e.clientId) : '');
+      h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodRunClient' + i + '">Client</label><select id="prodRunClient' + i + '" class="inv-select" data-prod-run-client="' + i + '">' +
+        (sel === '' ? '<option value="" selected>Pick the client</option>' : '') + '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep as written</option>' +
+        (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
+    }
+    h += '</div><div class="inv-row-end"><span class="inv-num">' + escHtml(prodQtyText(e.qty, 'NOS')) + '</span></div></div>';
+  });
+  h += '</div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Counted</div><div class="inv-actionbar-value">' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
+  return h;
+}
+function prodSavePhoto() {
+  var ph = _prodPhoto;
+  if (!ph) return;
+  if (!grdGate('floor', 'save production', prodSavePhoto)) return;   // the guard (guard.js): a floor entry, never re-asked
+  var rd = prodPhotoRead(), p = prodData(), at = Date.now(), by = stockBy();
+  var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
+  var id = prodUid('PF'), n = 0;
+  if (rd.page === 'other' || rd.page === 'challan') return;
+  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, sentBy: ph.sentBy || null, usd: ph.meta.usd || null, w: ph.meta.w || 0, h: ph.meta.h || 0, model: ph.meta.model || PH_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
+    readDate: date, readLine: rd.page === 'power' ? null : line || null, page: rd.page, rows: rd.page === 'power' ? rd.downtime.length : rd.rows.length, fp: rd.fp });
+  rd.downtime.forEach(function(x) {
+    p.entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: x.date, time: x.time, to: x.to, downtime: { cause: 'power', open: !!x.open },
+      basis: 'register', src: 'photo', raw: x.raw, photoId: id, by: by, at: at }));
+    n++;
+  });
+  rd.runs.forEach(function(e, i) {
+    // A run every row of which was struck and cancelled was never plated.
+    if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
+    var cc = ph.choices['client' + i];
+    var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.readLine ? 'written' : 'set') : null,
+      clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
+    delete rec.rows; delete rec.issues; delete rec.clientName;
+    // A pick is learnt for the name only where the name was not read as a client (unknown, or read as one): a name read
+    // exactly, a customer carried from a ditto, or a round the rules give another client says whose the run is, not how
+    // the name is spelt (the paste check's rule, P127).
+    var named = e.issues.some(function(x) { return x.code === 'client' || x.code === 'readas'; });
+    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
+    if (cc !== undefined && cc !== 'asWritten' && e.client && named && !moved) p.learn.clients[relayKey(e.client)] = cc;
+    prodLearnAliases([rec]);
+    p.entries.push(prodSparse(rec));
+    n++;
+  });
+  prodTouch();
+  saveState();
+  try { localStorage.removeItem(PROD_DRAFT_KEY); } catch (e) { /* a convenience only */ }
+  prodPhotoDrop();
+  prodSetView('main');
+  showToast(rd.page === 'power' ? todoPlural(n, 'power cut') + ' saved from the register' : todoPlural(n, 'run') + ' saved from the register', 'success');
+  if (_prodPhotoQueue.length) prodPhotoNext();
+}
+
 /* ---------- By hand ---------- */
 function prodOpenHand(fromId, from, fromLines) {
   var src = fromId ? prodIndex().byId[fromId] : null;
@@ -1395,7 +1587,24 @@ function prodAction(action, btn) {
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
-    case 'invProdBack': _prodReview = null; _prodHand = null; prodSetView('main'); return true;
+    case 'invProdBack': {
+      _prodReview = null; _prodHand = null; prodPhotoDrop();
+      prodSetView('main');
+      return true;
+    }
+    case 'invProdPhoto': prodPhotoPick(); return true;
+    case 'invProdPhotoNext': prodPhotoNext(); return true;
+    case 'invProdRunClient': _prodPhoto.choices['open' + btn.dataset.i] = true; renderProduction(); return true;
+    case 'invProdStruck': _prodPhoto.choices['struck' + btn.dataset.i] = btn.dataset.v; renderProduction(); return true;
+    case 'invProdSavePhoto': prodSavePhoto(); return true;
+    case 'invProdToScanner': {
+      // A customer's challan read as a register page: the challan scanner reads the same photo (a second read).
+      var f = _prodPhoto && _prodPhoto.file;
+      prodPhotoDrop();
+      _prodView = 'main';
+      if (f) scanChallanFile(f);
+      return true;
+    }
     case 'invProdPaste': prodSetView('paste'); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
@@ -1475,6 +1684,10 @@ function prodAction(action, btn) {
   return false;
 }
 function prodOnChange(t) {
+  if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
+  if (_prodPhoto && t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }
+  if (_prodPhoto && t.id === 'prodPhotoLine') { _prodPhoto.choices.line = t.value; renderProduction(); return true; }
+  if (_prodPhoto && t.id === 'prodPhotoDate') { _prodPhoto.choices.date = t.value; renderProduction(); return true; }
   if (!t) return false;
   if (t.id === 'prodPlantClient') { _prodPlantClient = t.value; renderProduction(); return true; }
   if (t.id === 'prodEntriesDay') {

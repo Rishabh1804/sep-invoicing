@@ -112,15 +112,16 @@ test.describe('P193: Office in one look (phone)', () => {
     // The audit's count is on More (warning); the credit notes' (a count that waits on nothing) stays on its row.
     await expect(page.locator(bar + ' [data-action="invTbMore"] .inv-badge-warning')).toHaveText('1');
     expect(await toolbarMoreLabels(page)).toEqual(['Credit notes', 'Number audit', 'Sales register CSV', 'Sales register PDF', 'GSTR-1 CSV', 'Bulk mark filed']);
-    // The verdict leads: the invoices waiting on a step, by state and age, in the worst tone.
-    expect(await heroTone(page, '#regVerdict [data-verdict]')).toBe('danger');
-    await expect(page.locator('#regVerdict .inv-hero-title')).toContainText('created over');
     // The month on show is a token; tapped, it clears.
     const tokens = page.locator('#pageRegister .inv-tokens .inv-token');
     await expect(tokens).toHaveCount(1);
     await expect(tokens.first()).toContainText('Month');
     await tokens.first().click();
     await expect(tokens).toHaveCount(0);
+    // The verdict leads: the invoices waiting on a step, by state and age, in the worst tone. Read over every month: the verdict
+    // is of what the filter shows, and in a month's first days the oldest Created invoice is last month's (3 Nov 2026).
+    expect(await heroTone(page, '#regVerdict [data-verdict]')).toBe('danger');
+    await expect(page.locator('#regVerdict .inv-hero-title')).toContainText('created over');
     // Every filter, the range and the sort are behind Filter.
     await phoneFilter(page);
     for (const id of ['regClientFilter', 'regMonthFilter', 'regStateFilter', 'regDateFrom', 'regDateTo', 'regSort'])

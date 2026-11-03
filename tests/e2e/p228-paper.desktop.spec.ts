@@ -34,7 +34,9 @@ const DOCS: [string, string][] = [
   ['sales-register', `paperShow(buildSalesRegisterHtml({ invoices: S.invoices.filter(function(i) { return i.clientId === 1; }), fromSelection: true }))`],
   ['quotation', `qtPrint('Q2')`],
   ['statement', `paperShow(soaDocHtml(soaCompute((bankReceivables()[0] || { client: { id: 1 } }).client.id)))`],
-  ['pay-slips', `_attWeekStart = attWeekStartOf(${LASTWD}); paperShow(psSheetsHtml(psRows()))`],
+  // The slips of the last whole pay week, a week back: early in a week (or a month) the week on show held a day or two with no
+  // absent or half day, and the slips drew without the cells the record holds (3 Nov 2026, a Tuesday).
+  ['pay-slips', `_attWeekStart = attWeekStartOf(isoAddDays(localDateStr(), -7)); paperShow(psSheetsHtml(psRows()))`],
   ['attendance-sheets', `paperShow(attSheetShyamHtml(${LASTWD}, attSheetFillFor(${LASTWD}), '') + attSheetDeepakHtml(${LASTWD}, true))`],
   ['stock-sheets', `paperShow(stockSheetSupHtml(localDateStr(), false, '') + stockSheetDeepakHtml(localDateStr(), false))`],
   ['id-cards', `paperShow(idcSheetsHtml(S.staff.slice(0, 3).map(function(w, i) { return { w: w, card: 'SEP-000' + (i + 1) }; }), true))`],

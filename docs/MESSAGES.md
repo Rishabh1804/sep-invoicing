@@ -199,3 +199,18 @@ import; anything else may call it with the records' ids.
    on a private copy of the book (never in the repo): 341 messages, three senders, day-first, WhatsApp's narrow space before *pm*
    read; against the book of 31 Oct, 67 new, 274 older, 195 media lines not read.
 5. **The older messages are kept to learn from** (*"Yes"*): M3 above.
+
+## The export's photos, read by Claude (3 Nov 2026)
+
+The owner, at the merge gate: *"Let's add photos reader along with it, we have 100$ of claude API credit, so we should be able to
+use that rather than using google?"*; then the key on the owner's devices, Opus 5.5, and the VAT register's pages, its power log and
+client challans. CLAUDE.md, *Photos read by Claude*, has the reader; for the messages:
+
+- The chat's photo lines (`IMG-….jpg (file attached)`, `<attached: ….jpg>`) are kept with their sender and minute
+  (`wzParseChat`'s `photos`), and the zip's photos by name (`wzZipList`'s `images`).
+- Photos sent from the first new message on (all of them where the book held none) are offered; older ones are not, as messages
+  are cut. They are the session's (`_wzPhotos`), never in the book; the export picked again offers them again.
+- The confirmation screen draws them as one row (`data-mc-photos`) after the days and before *Nothing to save*, and on the screen
+  after the save. **Read them** leaves the screen (asking first if anything is ticked) and hands them to Production's check, each read
+  when it is reached; with no key it opens Settings on the key.
+- The import record gains `photos` (the count); `wzSaid` says *N photos to read* apart from the media not read.

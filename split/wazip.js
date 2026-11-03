@@ -24,6 +24,8 @@ var WZ_MEDIA_RE = /^(image|video|audio|sticker|gif|document|contact card) omitte
 // iPhone's marker opens the line, and what follows it is the caption ("<image omitted> 120 kg"), or a document's file name.
 var WZ_MEDIA_HEAD_RE = /^<\s*(media|image|video|audio|sticker|gif|document|contact card|voice message|video note|album message)(\s+omitted)?\s*>\s*(.*)$/i;
 var WZ_FILE_NAME_RE = /^\S.{0,160}\.(jpe?g|png|webp|gif|heic|mp4|3gp|mov|opus|ogg|m4a|mp3|aac|pdf|docx?|xlsx?|vcf|webm|zip|txt)$/i;
+var WZ_PHOTO_RE = /\.(jpe?g|png|webp)$/i;
+var WZ_PHOTO_NAME_RE = /([^\s<>:\/\\]+\.(?:jpe?g|png|webp))\b/i;
 var WZ_DELETED_RE = /^(this message was deleted|you deleted this message|null|waiting for this message[.\s\S]*)$/i;
 var WZ_SYSTEM_RE = /^(messages and calls are end-to-end encrypted|messages to this group are now secured|.{1,80}\s(created group|created this group|added|removed|left|joined using|changed the subject|changed this group|changed the group|changed their phone number|changed to|is now an admin|pinned a message|turned (on|off) disappearing)|you (created|were added|joined|left|added|removed)|missed (voice|video) call)/i;
 
@@ -32,13 +34,17 @@ var WZ_SYSTEM_RE = /^(messages and calls are end-to-end encrypted|messages to th
 function wzZipList(buf) {
   var dir;
   try { dir = _xlsxZipDir(buf); } catch (e) { throw new Error('The zip cannot be read: it is incomplete or damaged'); }
-  var out = { texts: [], media: 0, xlsx: !!dir['xl/workbook.xml'] };
+  var out = { texts: [], media: 0, images: [], xlsx: !!dir['xl/workbook.xml'] };
   Object.keys(dir).forEach(function(name) {
     var base = name.split('/').pop();
     if (!base || /\/$/.test(name) || /^__MACOSX\//.test(name) || /^\._/.test(base)) return;
     var e = dir[name];
     if (/\.(txt|md)$/i.test(base)) out.texts.push({ name: name, base: base, method: e.method, size: e.size, usize: e.usize, at: e.at });
-    else out.media++;
+    else {
+      out.media++;
+      // A photo is kept by name, so the chat's line for it can say who sent it and when (the photo reader, photoread.js).
+      if (WZ_PHOTO_RE.test(base)) out.images.push({ name: name, base: base, method: e.method, size: e.size, usize: e.usize, at: e.at });
+    }
   });
   return out;
 }
@@ -117,7 +123,7 @@ function wzParseChat(text) {
     // A line before the first message (an export's own head, "Messages and calls are end-to-end encrypted…") is WhatsApp's.
   });
   var ord = wzDateOrder(raw.map(function(r) { return r.h; })), dayFirst = ord.order === 'day-first';
-  var out = { msgs: [], order: ord.order, orderWhy: ord.why, system: 0, media: 0, deleted: 0, edited: 0, lines: lines.length };
+  var out = { msgs: [], photos: [], order: ord.order, orderWhy: ord.why, system: 0, media: 0, deleted: 0, edited: 0, lines: lines.length };
   raw.forEach(function(r) {
     // "Name: text". A line with no sender is WhatsApp's own (the chat made, someone added or gone, the subject changed), and
     // so is one whose "sender" holds a quote (Android's "Alfa changed the subject from "a: b"").
@@ -126,22 +132,23 @@ function wzParseChat(text) {
     var sentBy = sm[1].replace(WZ_BIDI_RE, '').trim(), firstText = sm[2];
     // On an iPhone, WhatsApp's own lines come under the group's name, their text opening on an unseen mark (U+200E).
     if (/^\s*\u200e/.test(firstText) && WZ_SYSTEM_RE.test(firstText.replace(WZ_BIDI_RE, '').trim())) { out.system++; return; }
-    var edited = false, media = 0;
+    var edited = false, media = 0, pics = [];
+    var sentOn = dayFirst ? isoFromDmy(r.h.a, r.h.b, r.h.y) : isoFromDmy(r.h.b, r.h.a, r.h.y);
     // A message forwarded from another chat says so first ("[Forwarded] …"); its words are what was sent, as a copy reads.
     var kept = [firstText.replace(/^(\s*\u200e)?\s*\[forwarded\]\s*/i, '')].concat(r.lines.slice(1)).map(function(l) {
       return l.replace(WZ_BIDI_RE, '').replace(/\s*<this message was edited>\s*$/i, function() { edited = true; return ''; });
     }).map(function(l) {
-      var t = l.trim(), mh = WZ_MEDIA_HEAD_RE.exec(t);
-      if (WZ_MEDIA_RE.test(t)) { media++; return null; }
+      var t = l.trim(), mh = WZ_MEDIA_HEAD_RE.exec(t), pn;
+      if (WZ_MEDIA_RE.test(t)) { media++; if ((pn = WZ_PHOTO_NAME_RE.exec(t))) pics.push(pn[1]); return null; }
       if (!mh) return l;
       media++;
       return mh[3] && !WZ_FILE_NAME_RE.test(mh[3].trim()) ? mh[3] : null;
     }).filter(function(l) { return l != null; });
     var body = kept.join('\n').trim();
+    pics.forEach(function(n) { out.photos.push({ name: n, sentBy: sentBy, sentOn: sentOn, sentAt: r.h.min }); });
     if (!body.trim()) { if (media) out.media++; else out.system++; return; }
     if (WZ_DELETED_RE.test(body.trim())) { out.deleted++; return; }
     if (edited) out.edited++;
-    var sentOn = dayFirst ? isoFromDmy(r.h.a, r.h.b, r.h.y) : isoFromDmy(r.h.b, r.h.a, r.h.y);
     out.msgs.push({ sentBy: sentBy, sentOn: sentOn, sentAt: r.h.min, text: body, edited: edited, wa: r.h.wa + sentBy + ': ' });
   });
   return out;
@@ -233,7 +240,7 @@ async function wzImportFile(file, opts) {
 async function wzImportBuf(src, name, opts) {
   opts = opts || {};
   if (!opts.guarded && typeof addFileGuardOk === 'function' && !(await addFileGuardOk('whatsapp'))) return null;
-  var text = '', chatName = '', media = 0;
+  var text = '', chatName = '', media = 0, images = [];
   var bytes = typeof src === 'string' ? null : src instanceof ArrayBuffer ? src : src && src.buffer ? src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength) : null;
   if (bytes && bytes.byteLength > WZ_MAX_BYTES) return wzRefuse('The export is too large', (name || 'The file') + ' is over 50 MB, which the app reads at most. In WhatsApp, export the chat again with Without media.');
   if (bytes && new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength)).join(',') === '80,75,3,4') {
@@ -242,7 +249,7 @@ async function wzImportBuf(src, name, opts) {
     var ent = l.xlsx ? null : wzChatEntry(l.texts);
     if (!ent) return wzRefuse('No chat in the zip', (name || 'The zip') + ' holds ' + (l.xlsx ? 'an Excel workbook' : l.media ? todoPlural(l.media, 'file') + ' and no chat text' : 'nothing') + '. WhatsApp’s export holds the chat as a .txt (Export chat in the group’s menu).');
     if ((ent.usize || 0) > WZ_MAX_BYTES) return wzRefuse('The chat is too large', ent.base + ' is over 50 MB, which the app reads at most.');
-    media = l.media;
+    media = l.media; images = l.images;
     try { text = new TextDecoder('utf-8').decode((await wzUnzip(bytes, [ent.name]))[0].bytes); } catch (e) { return wzRefuse('The chat could not be read', ent.base + ': ' + ((e && e.message) || 'it could not be opened') + '.'); }
     chatName = ent.base;
   } else {
@@ -252,17 +259,22 @@ async function wzImportBuf(src, name, opts) {
   var chat = wzParseChat(text);
   if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). In WhatsApp, open the group, open its menu and pick Export chat.');
   var cut = wzCut(chat.msgs), id = 'WZ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // The photos sent after the book's last production (wzPhotosNew), counted before the new messages are taken in: kept on this
+  // device for this session only, never in the book, and read by Claude only when the owner taps (the confirmation screen's Photos).
+  var photos = wzPhotosNew(chat.photos, images, cut, chat.msgs);
   var got = msgIngest(cut.fresh, 'zip', id), learnt = msgIngest(cut.old, 'zip', id, { learn: true }), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
   var rec = { id: id, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, file: name || '', chat: wzChatTitle(name, chatName),
     first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen, learned: learnt.added.length,
     skippedOld: cut.skippedOld, inBook: cut.inBook, media: media + chat.media, system: chat.system, deleted: chat.deleted,
     order: chat.order, orderWhy: chat.orderWhy, none: cut.none, kinds: cut.kinds };
+  rec.photos = photos.length;
+  _wzPhotos = photos.length ? { importId: id, bytes: bytes, list: photos } : null;
   msgImports().push(rec);
   var saved = typeof saveState === 'function' ? await saveState() : true;
   if (saved === false) return rec;
   // What the import took in is said either way; the confirmation screen then opens on the new messages.
-  if (rec.added) showToast(wzSaid(rec));
-  if (typeof mcOpen === 'function' && rec.added) mcOpen({ importId: id });
+  if (rec.added || rec.photos) showToast(wzSaid(rec));
+  if (typeof mcOpen === 'function' && (rec.added || rec.photos)) mcOpen({ importId: id });
   else uiAlert({ title: 'Nothing new in the export', body: wzSaid(rec) });
   return rec;
 }
@@ -278,8 +290,59 @@ function wzSaid(rec) {
   var learned = rec.learned || 0, old = rec.skippedOld + rec.inBook + rec.seen - learned;
   if (learned) bits.push(todoPlural(learned, 'older message') + ' kept to learn from');
   if (old > 0) bits.push(learned ? old + ' here already' : todoPlural(old, 'older message') + ' skipped');
-  if (rec.media) bits.push(todoPlural(rec.media, 'media file') + ' not read');
+  if (rec.photos) bits.push(todoPlural(rec.photos, 'photo') + ' to read');
+  if (rec.media - (rec.photos || 0) > 0) bits.push(todoPlural(rec.media - (rec.photos || 0), 'media file') + ' not read');
   return bits.join(' · ') + (rec.none ? ' · the book held no messages yet, so every one was taken' : '') + '.';
+}
+
+/* ---------- 4b. The export's photos ---------- */
+/* An export's photos waiting to be read: {importId, bytes, list}. In memory only: a photo is never in the book, and an export
+   picked again offers its photos again. */
+var _wzPhotos = null;
+/* The photos the chat names and the zip holds, sent after the last of the floor's production the book holds (a photo is a register
+   page, its power log or a challan, so production's record is where it is cut, as the messages are by their kind; a page older than
+   it is entered already, and reading it again would be paid for twice). With no production in the book, from the first new
+   message on; where the book held no message yet, every photo. */
+function wzPhotosNew(named, images, cut, msgs) {
+  if (!named || !named.length || !images || !images.length) return [];
+  var byBase = {};
+  images.forEach(function(e) { byBase[e.base.toLowerCase()] = e; });
+  var from = null, an = wzAnchors();
+  WZ_PROD_KINDS.forEach(function(k) { if (an[k] && (from == null || an[k].t > from)) from = an[k].t + 1; });
+  if (from == null && !cut.none) (cut.fresh || []).forEach(function(m) { var t = wzMoment(m.sentOn, m.sentAt); if (t != null && (from == null || t < from)) from = t; });
+  return named.filter(function(p) {
+    var e = byBase[String(p.name).toLowerCase()];
+    if (!e) return false;
+    if (cut.none) return true;
+    var t = wzMoment(p.sentOn, p.sentAt);
+    return from != null && t != null && t >= from;
+  }).map(function(p) { return Object.assign({ ent: byBase[String(p.name).toLowerCase()] }, p); });
+}
+/* The photos as files for Production's photo check, each carrying the minute it was sent (its lastModified, on the shop's clock)
+   and who sent it. */
+async function wzPhotoFiles(list) {
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var p = list[i];
+    try {
+      var b = await wzEntryBytes(_wzPhotos.bytes, p.ent), d = String(p.sentOn || '').split('-');
+      var lm = d.length === 3 ? new Date(+d[0], +d[1] - 1, +d[2], Math.floor((p.sentAt || 0) / 60), (p.sentAt || 0) % 60).getTime() : Date.now();
+      var type = /\.png$/i.test(p.name) ? 'image/png' : /\.webp$/i.test(p.name) ? 'image/webp' : 'image/jpeg';
+      var f = new File([b], p.ent.base, { type: type, lastModified: lm });
+      try { f.sentBy = p.sentBy; } catch (e) { /* the sender is a convenience */ }
+      out.push(f);
+    } catch (e) { /* a photo the zip cannot give is left out, and the count says so */ }
+  }
+  return out;
+}
+/* The confirmation screen's Read: the photos handed to Production's check, one at a time, each paid for when it is reached. */
+async function wzPhotosRead() {
+  if (!_wzPhotos || !_wzPhotos.list.length) return;
+  if (!phKey()) { phNoKey(); return; }
+  var files = await wzPhotoFiles(_wzPhotos.list);
+  if (files.length < _wzPhotos.list.length) showToast(todoPlural(_wzPhotos.list.length - files.length, 'photo') + ' could not be taken out of the zip', 'warning');
+  _wzPhotos = null;
+  prodPhotoFiles(files);
 }
 
 /* ---------- 5. Its own door ---------- */

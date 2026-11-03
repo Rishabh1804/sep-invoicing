@@ -4,7 +4,7 @@ import { loadAppWithState, switchTab, todayIso } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P210 on the desktop: the owner's rulings of 13 Oct 2026 (see the phone file). The desktop drew the photo doors as buttons
-// in the toolbar rather than under More.
+// in the toolbar rather than under More. Read by Claude since 3 Nov 2026 (P257), they came back under More alone.
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 

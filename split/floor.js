@@ -466,7 +466,7 @@ function flrUnweighedHtml(day) {
 /* Production → Lines on the line and the day on screen (Pickling is Lines' fourth). */
 function flrOpenLine(line) {
   _prodLine = line === 'pickling' || PROD_LINES.indexOf(line) >= 0 ? line : 'vat-a1';
-  _prodDay = flrDayIso();
+  _prodDay = flrDayIso(); _prodDayPicked = true;
   _prodView = 'main';
   prodSetTab('lines');
   switchTab('pageProduction');

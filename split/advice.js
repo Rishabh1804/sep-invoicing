@@ -927,7 +927,7 @@ function advGoTo(go) {
       if (row) { row.open = true; uiRevealEl(row); }
       return true;
     }
-    case 'prodLines': prodSetTab('lines'); _prodLine = PROD_LINES.indexOf(go.line) >= 0 || go.line === 'pickling' ? go.line : 'vat-a1'; _prodDay = go.day || null; _prodView = 'main';
+    case 'prodLines': prodSetTab('lines'); _prodLine = PROD_LINES.indexOf(go.line) >= 0 || go.line === 'pickling' ? go.line : 'vat-a1'; _prodDay = go.day || null; _prodDayPicked = !!go.day; _prodView = 'main';
       switchTab('pageProduction'); return true;
     case 'createFor': createForClient(go.clientId, go.ims); return true;
     // Prospects (prospects.js): the list, or one prospect's form.

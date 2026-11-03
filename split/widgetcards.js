@@ -1059,7 +1059,7 @@ function wcProdWeighedHtml(pic) {
 wdgDefine({ id: 'prodday', title: 'Production, the last day', short: 'Production', q: 'What did we plate?', section: 'floor', type: 'plant', icon: 'vat', sizes: ['s', 'm', 'l'], trend: function(d) { return !d.o || !d.o.isToday; },
   needs: { page: 'pageProduction' },
   // Lines on the day it shows (the head is the door: Open the lines went, §24f).
-  go: function() { var day = homeLastPlatedDay(); _prodView = 'main'; prodSetTab('lines'); if (day) _prodDay = day; switchTab('pageProduction'); },
+  go: function() { var day = homeLastPlatedDay(); _prodView = 'main'; prodSetTab('lines'); if (day) { _prodDay = day; _prodDayPicked = false; } switchTab('pageProduction'); },
   choose: { def: 'all', label: 'Line', opts: function() { return WC_PROD_CHOOSE; } },
   data: function(ctx) {
     var day = homeLastPlatedDay();

@@ -338,16 +338,17 @@ function renderIMToolbar() {
     opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>');
   var client = _imFilter.clientId ? S.clients.find(function(c) { return String(c.id) === String(_imFilter.clientId); }) : null;
   // Invoiced (the tab map, TM6f) is a month read back: its row is the month ‹ › (inside the row, as People's period), Filter and
-  // More, which holds Add challan there; the month's stepper had been a second toolbar under the row. The challan Scan is gone
-  // (owner, 13 Oct 2026: *"it simply never works"*).
+  // More, which holds Add challan there; the month's stepper had been a second toolbar under the row. The challan Scan went with
+  // Gemini (13 Oct 2026) and came back read by Claude (owner, 3 Nov 2026), behind More on both tabs (photoread.js, scanner.js).
+  var scan = { label: 'Scan a challan', action: 'invScanChallan' };
   var dupe = { label: 'Duplicate check', action: 'invRunDupeScan', attrs: ' id="imDupeCheck"', badge: dupeCount ? { n: dupeCount, tone: 'warning' } : null };
   var inv = _imTab === 'invoiced';
   area.innerHTML = imViewTabsHtml() + '<div id="imVerdict">' + imVerdictHtml() + '</div>' + '<div class="inv-toolbar" data-im-toolbar>' +
     (inv ? imMonthPagerHtml() : '') +
     uiFilterHtml({ key: 'im', count: (_imFilter.clientId ? 1 : 0) + (!inv && _imFilter.status ? 1 : 0), controls: filters }) +
-    (inv ? uiToolbarMoreHtml([{ label: 'Add challan', action: 'invShowAddChallan' }, dupe], { icon: !_isDesktop })
+    (inv ? uiToolbarMoreHtml([{ label: 'Add challan', action: 'invShowAddChallan' }, scan, dupe], { icon: !_isDesktop })
       : '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add challan</button>' +
-        uiToolbarMoreHtml([dupe], { icon: !_isDesktop })) +
+        uiToolbarMoreHtml([scan, dupe], { icon: !_isDesktop })) +
     '</div>' + uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invIMFilterClear', attrs: ' data-clear="client"' },
       { key: 'Status', value: !inv && _imFilter.status ? (IM_STATUS_UI[_imFilter.status] || {}).word : '', action: 'invIMFilterClear', attrs: ' data-clear="status"' }]);
   viewTabReveal(area.querySelector('.inv-viewtabs'));

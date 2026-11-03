@@ -17,7 +17,7 @@ var SETTINGS_GROUPS = [
   { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'shifts', 'labModel'] },
-  { key: 'connections', label: 'Connections', secs: ['metalsKey', 'sync'] },
+  { key: 'connections', label: 'Connections', secs: ['metalsKey', 'claudeKey', 'sync'] },
   // The guard (guard.js): users and roles; builder D's Devices joins this group.
   { key: 'access', label: 'Access', secs: ['users'] },
   { key: 'data', label: 'Data & device', secs: ['appearance', 'data'] }
@@ -435,6 +435,13 @@ var SETTINGS_SECS = {
     body: function() { return _sfg('API key', 'setMetalsKey', _sKey('setMetalsKey', getMetalsKey(), 'Paste key', 'invToggleMetalsKey', 'key')); },
     why: 'Free tier at metals.dev covers a daily refresh. The key stays on this device and is never included in an export. Leave it blank to enter the zinc rate by hand.',
     save: function() { setMetalsKey(_sVal('setMetalsKey').trim()); renderZincCard(); }
+  },
+  claudeKey: {
+    title: 'Photo reading (Claude)',
+    summary: function() { return (phKey() ? 'key saved on this device' : 'no key') + ' · ' + phSpentSay(); },
+    body: function() { return phSettingsBody(); },
+    why: 'Reads a photo of a VAT register page or its power log (Read register photo, under Production’s More; Add → Photo; a WhatsApp export’s photos) and a customer’s challan (Scan a challan, under Challans’ More) with Claude (' + PH_MODEL + '). The key is made at console.anthropic.com and stays on this device, never in a backup or on GitHub. A photo is sent to Anthropic as it is, the workers’ names box included; only what is read is kept here, never the image, and nothing is saved until you have checked it. A photo costs about 4–7¢ of the credit.',
+    save: function() { phKeySet(_sVal('setClaudeKey').trim()); }
   },
   sync: {
     title: 'GitHub sync',

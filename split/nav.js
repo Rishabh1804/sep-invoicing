@@ -70,6 +70,7 @@ function navLoc() {
     case 'pageFace': d = faceNavD(); if (_faceForm) { v = _faceForm.duty === 'vat' ? 'vat/' + _faceForm.line : _faceForm.duty; if (_faceForm.replaces) id = _faceForm.replaces; } break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
     case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
+    case 'pageMessages': if (_mvOpen) id = _mvOpen; break;
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
@@ -187,6 +188,7 @@ function navLabel(loc) {
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
     case 'pageKnow': { var kl = kbNavLabel(loc.v, loc.id); sub = sub.concat(kl.sub); rec = kl.rec; break; }
+    case 'pageMessages': if (loc.id && loc.id === _mvOpen && _mvOpenLabel) rec = _mvOpenLabel; break;
   }
   if (rec) sub.push(rec);
   // The page by its name in its workspace (Invoices, People, Money), with the workspace's.
@@ -266,6 +268,8 @@ function navApply(loc) {
       case 'pageFace': faceSetDay(loc && loc.d); faceFormFromNav(loc && loc.v, id); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
       case 'pageKnow': kbNavApply(loc && loc.v, id); break;
+      // A message by its id, on both layouts (the phone's sub-view, the desktop's pane); one not kept opens the list.
+      case 'pageMessages': _mvOpen = id && typeof msgById === 'function' && msgById(id) ? id : null; if (!_mvOpen) _mvEdit = null; break;
     }
     if (!same) switchTab(tab);
     else {
@@ -362,7 +366,7 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

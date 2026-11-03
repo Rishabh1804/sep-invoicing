@@ -352,7 +352,20 @@ function relayKind(text) {
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
   if (/pickling\s*time/i.test(text)) return 'material';
+  if (relayIsChemList(text)) return 'stock';
   return 'other';
+}
+/* A chemical use written with no head ("BRIGHTNER 5 LTR / NITRIC ACID 4 LTR"; the group's export of 16 Sep – 31 Oct 2026, profiled
+   for the Messages build, msgprofile.js): every line a figure in kilos or litres, a chemical named, no pieces and no clock time
+   (a pickling load and the barrel list carry those). Stock's own check reads it, and says what it could not place. */
+function relayIsChemList(text) {
+  var lines = String(text || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  if (lines.length < 2 || lines.length > 25) return false;
+  var unit = /\b\d+(?:\.\d+)?\s*(?:kgs?|ltrs?|litres?|liters?|l)\b/i;
+  if (!lines.every(function(l) { return unit.test(l); })) return false;
+  if (lines.some(function(l) { return /\b(?:nos|no|pcs?|pieces?)\b|\d{1,2}[:.]\d{2}|\d\s*[ap]\.?m\b/i.test(l); })) return false;
+  var chem = typeof PROD_CHEM_IN_RE !== 'undefined' ? PROD_CHEM_IN_RE : /c[ae]mical|chemical/i;
+  return lines.some(function(l) { return chem.test(l); });
 }
 
 /* The chemical stock written into a roll under its own heading, no date ("camical use camical stock"): the roll ends there
@@ -1009,7 +1022,14 @@ function relayPlan(rv) {
     var rows = [];
     Object.keys(t.people).forEach(function(id) {
       var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
-      if (prev && prev.src !== 'relay') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
+      // A mark typed by hand is kept unless the owner says to use the message (relayApplyPlan's `useMsg`): what the roll would
+      // write over it is worked out beside it (`roll`), read over the day as a mark the rolls wrote is, and a mark it would change
+      // is asked about hand by hand (`differs`; owner, 31 Oct 2026: "Use the message / Keep what was typed").
+      if (prev && prev.src !== 'relay') {
+        var roll = w ? relayRollOver(p, prev, w, t) : null;
+        rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept', hand: true, roll: roll, differs: !!roll && relayHandDiffers(prev, roll) });
+        return;
+      }
       // A night hand's mark the rolls wrote (in from 4 PM) is not taken back by an in-time roll pasted after it listing them absent:
       // they were absent from the 8:30 shift, not from the night (Castor M-1).
       if (prev && prev.src === 'relay' && prev.st === 'P' && Number(prev.inMin) >= 960 && p.st === 'A') { rows.push({ w: w, p: p, prev: prev, next: prev, change: 'kept' }); return; }
@@ -1118,6 +1138,66 @@ function relayPlan(rv) {
   issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else if (is.tone === 'amber') out.counts.amber++; });
   return out;
 }
+/* What a roll writes for a hand over the mark the day holds: the merge relayPlan makes over a mark the rolls wrote before (the
+   earlier in, an out the roll does not give, the general shift's area), so a roll that only gives the out does not move a typed
+   area. Used for a mark typed by hand, which is kept unless the message is used. */
+function relayRollOver(p, prev, w, t) {
+  var q = JSON.parse(JSON.stringify(p));
+  if (prev && prev.st !== 'A' && q.st === 'P') {
+    if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);
+    if (q.outExp == null && q.outSlot == null && prev.outMin != null && prev.outKnown) q.outExp = prev.outMin;
+    if (!q.generalArea && prev.area && (prev.area !== 'flex' || !q.areas)) q.areas = prev.area;
+  }
+  var n = relayPersonMark(q, w, t.restOut);
+  n.outKnown = n.outMin != null && (q.outExp != null || q.outSlot != null || t.restOut != null || t.kinds.indexOf('out') >= 0);
+  return n;
+}
+/* A mark the roll would change: present, half or absent, where, the hours or the overtime. A mark typed with no hours is not
+   said to differ on its hours. */
+function relayHandDiffers(prev, roll) {
+  if (prev.st !== roll.st) return true;
+  if (roll.st === 'A') return false;
+  if ((prev.area || 'flex') !== (roll.area || 'flex')) return true;
+  if (prev.hours != null && Number(prev.hours) !== Number(roll.hours)) return true;
+  return Number(prev.ot || 0) !== Number(roll.ot || 0);
+}
+/* The marks typed by hand a plan's rolls would change, a row each: { iso, id, w, prev, roll }. */
+function relayHandAsks(plan) {
+  var out = [];
+  (plan && plan.days || []).forEach(function(d) {
+    d.rows.forEach(function(r) { if (r.change === 'kept' && r.hand && r.differs && r.w) out.push({ iso: d.iso, id: r.w.id, w: r.w, prev: r.prev, roll: r.roll }); });
+  });
+  return out;
+}
+function relayHandKey(iso, id) { return iso + '|' + id; }
+/* The marks typed by hand replaced by the roll go to the log as they were, a day at a time, as a day read again from its rolls
+   goes (relayRereadBase, how 'reread'): History says what was replaced, and nothing typed is lost. */
+function relayHandLog(iso, old) {
+  var n = Object.keys(old).length;
+  if (!n) return null;
+  var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: iso, iso: iso,
+    reason: 'the roll used in place of what was typed by hand', how: 'override', at: Date.now(), marks: n, extra: 0, day: { marks: old } };
+  if (!Array.isArray(S.attendanceDeletes)) S.attendanceDeletes = [];
+  S.attendanceDeletes.push(entry);
+  return entry;
+}
+
+/* The two answers for one hand, and the callout over them all: the paste review's and the confirmation screen's (msgconfirm.js). */
+function relayHandSegHtml(action, iso, id, use) {
+  var b = function(v, label, on) {
+    return '<button type="button" class="inv-seg-btn" data-action="' + action + '" data-iso="' + escHtml(iso) + '" data-id="' + escHtml(String(id)) + '" data-use="' + v + '" aria-pressed="' + on + '">' + label + '</button>';
+  };
+  return '<div class="inv-mc-pick"><span class="inv-seg" role="group" aria-label="Which mark">' + b('1', 'Use the message', use) + b('0', 'Keep what was typed', !use) + '</span></div>';
+}
+function relayHandNoteHtml(asks, handUse, allAction) {
+  var used = asks.filter(function(a) { return handUse[relayHandKey(a.iso, a.id)]; }).length, all = used === asks.length;
+  return '<div class="inv-callout inv-callout-warning inv-mb-8" id="relayHandNote" data-hand-asks="' + asks.length + '"><div>' +
+    todoPlural(asks.length, 'mark typed by hand differs', 'marks typed by hand differ') + ' from the message. Each is kept as typed unless you use the message' +
+    (used ? ' (' + used + ' of ' + asks.length + ' set to the message)' : '') + '.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="' + allAction + '" data-use="' + (all ? '0' : '1') + '">' +
+    (all ? 'Keep what was typed for all ' + asks.length : 'Use the message for all ' + asks.length) + '</button></div>';
+}
+
 /* The slot an EXTRA row books in: a general-shift row by its area, a block by its times as the roll read them. A block
    corrected by hand kept a new key, so a roll pasted again neither kept nor replaced it and added the block a second
    time, its hours counted twice (the QA sweep's review, 30 Sep 2026). */
@@ -1203,6 +1283,8 @@ function relayRead() {
   var text = ta ? ta.value : _relayDraft;
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
+  // Every message pasted is kept (msgview.js: the Messages screen), whatever is read and saved from here.
+  if (typeof mvKeepPaste === 'function') mvKeepPaste(text);
   var msgs = relaySplit(text);
   var rolls = [], stock = [], other = [], checkins = 0;
   msgs.forEach(function(m) {
@@ -1300,6 +1382,9 @@ function relayRenderReview() {
     h += '</div>';
   }
 
+  // The marks typed by hand the rolls would change, asked hand by hand: Keep what was typed unless the message is used.
+  var handUse = rv.handUse || (rv.handUse = {}), asks = relayHandAsks(plan);
+  if (asks.length) h += relayHandNoteHtml(asks, handUse, 'invRelayHandAll');
   var marks = 0, extras = 0;
   plan.days.forEach(function(d) {
     var rec = S.attendance && S.attendance[d.iso];
@@ -1310,16 +1395,21 @@ function relayRenderReview() {
     if (d.holiday) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning">Holiday: ' + escHtml(d.holiday) + '</div></div>';
     if (d.provisional) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-info" data-issue="info">No out-time roll yet: present hands are read as out at 5 PM (the gate at 7 PM). Paste the out-time roll when it comes and the hours update.</div></div>';
     d.rows.forEach(function(r) {
-      var ch = RELAY_CHANGE[r.change] || RELAY_CHANGE.same;
-      var was = r.change === 'kept' ? 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.'
+      var ask = r.change === 'kept' && r.hand && r.differs && r.w, use = ask && !!handUse[relayHandKey(d.iso, r.w.id)];
+      var ch = use ? ['info', 'From the message'] : RELAY_CHANGE[r.change] || RELAY_CHANGE.same;
+      var was = ask ? 'Typed by hand: ' + relayMarkText(r.prev) + '. The message reads ' + (r.roll.st === 'A' ? 'Absent' : areaLabel(r.roll.area) + ', ' + relayMarkText(r.roll)) + '.'
+        : r.change === 'kept' ? 'Entered by hand as ' + relayMarkText(r.prev) + '; left as it is.'
         : r.change === 'updated' ? 'Was ' + relayMarkText(r.prev) : '';
-      if (r.change === 'new' || r.change === 'updated') marks++;
-      var absent = r.next.st === 'A';
-      h += '<div class="inv-row inv-row-2" data-relay-row data-st="' + escHtml(r.next.st) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
-        '<span class="inv-row-meta">' + (absent ? '<span class="inv-dot inv-dot-danger">Absent</span>' : escHtml(areaLabel(r.next.area))) + '</span>' +
-        (was ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(was) + '</span>' : '') + '</span>' +
-        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
-        '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
+      if (r.change === 'new' || r.change === 'updated' || use) marks++;
+      var shown = use ? r.roll : r.next, absent = shown.st === 'A';
+      h += '<div class="inv-row inv-row-2" data-relay-row data-st="' + escHtml(shown.st) + '"' + (ask ? ' data-relay-hand="' + escHtml(relayHandKey(d.iso, r.w.id)) + '" data-use="' + (use ? '1' : '0') + '"' : '') +
+        '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
+        '<span class="inv-row-meta">' + (absent ? '<span class="inv-dot inv-dot-danger">Absent</span>' : escHtml(areaLabel(shown.area))) + '</span>' +
+        (was ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(was) + '</span>' : '') +
+        '</span>' +
+        '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(shown)) + '</span>' +
+        '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>' +
+        (ask ? relayHandSegHtml('invRelayHand', d.iso, r.w.id, use) : '');
     });
     // Read again: a mark the rolls wrote before and no longer read goes on Save.
     (d.removed || []).forEach(function(r) {
@@ -1380,11 +1470,19 @@ function relayParseHhmm(s) {
    paste's Save and a person's own screen (faces.js, `o.face`: who entered it there, kept on the roll) both write through here. */
 function relayApplyPlan(rv, plan, o) {
   o = o || {};
-  var marks = 0, extras = 0;
+  // `useMsg`: the marks typed by hand the owner chose the message over, keyed relayHandKey(iso, id). Keep is the default.
+  var marks = 0, extras = 0, overrides = 0, useMsg = o.useMsg || {};
   plan.days.forEach(function(d) {
     // Read again, the day is rebuilt: it goes to the log as it was, and starts over from what was entered by hand.
-    var rec = rv.reread ? relayRereadBase(d.iso, rv.rereadWhy) : attDay(d.iso, true);
+    var rec = rv.reread ? relayRereadBase(d.iso, rv.rereadWhy) : attDay(d.iso, true), old = {};
     d.rows.forEach(function(r) {
+      if (r.change === 'kept' && r.hand && r.differs && r.roll && r.w && useMsg[relayHandKey(d.iso, r.w.id)]) {
+        var u = r.roll;
+        old[r.w.id] = JSON.parse(JSON.stringify(rec.marks[r.w.id] || r.prev));
+        rec.marks[r.w.id] = { st: u.st, ot: u.ot, hours: u.hours, area: u.area, inMin: u.inMin, outMin: u.outMin, outKnown: !!u.outKnown, src: 'relay' };
+        marks++; overrides++;
+        return;
+      }
       if (r.change === 'kept' || (r.change === 'same' && !rv.reread)) return;
       var n = r.next;
       rec.marks[r.w.id] = { st: n.st, ot: n.ot, hours: n.hours, area: n.area, inMin: n.inMin, outMin: n.outMin, outKnown: !!n.outKnown, src: 'relay' };
@@ -1395,6 +1493,7 @@ function relayApplyPlan(rv, plan, o) {
     // The hands' own slot picks stand over the roll's crews: put on the roll's block of their slot and area, or kept on
     // the block made for them. Crew the roll named for a hand with no pick is as the roll wrote it.
     attSlotsApply(rec);
+    relayHandLog(d.iso, old);
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));
@@ -1417,8 +1516,11 @@ function relayApplyPlan(rv, plan, o) {
     if (o.face) rp.face = o.face;
     relayPastes().push(rp);
     ids.push(rp.id);
+    m.rpId = rp.id;   // the roll's record, for the message it came from (msgconfirm.js marks it saved)
   });
-  return { marks: marks, extras: extras, ids: ids };
+  // The messages these rolls were (msgview.js): marked saved, whoever saved them (the review, the confirmation screen, a face).
+  if (typeof mvSavedFrom === 'function') mvSavedFrom('relayPastes', relayPastes().filter(function(p) { return ids.indexOf(p.id) >= 0; }));
+  return { marks: marks, extras: extras, ids: ids, overrides: overrides };
 }
 function relaySave() {
   var rv = _relay;
@@ -1432,7 +1534,7 @@ function relaySave() {
   plan.issues.forEach(function(is) {
     if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
   });
-  var done = relayApplyPlan(rv, plan), marks = done.marks, extras = done.extras;
+  var done = relayApplyPlan(rv, plan, { useMsg: rv.handUse || {} }), marks = done.marks, extras = done.extras;
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
   _relay = null; _relayView = 'paste';
@@ -1441,7 +1543,7 @@ function relaySave() {
   renderAttendance();
   viewTop();
   showToast((reread ? 'Read again: ' : 'Saved ' + todoPlural(plan.days.length, 'day') + ': ') + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row') +
-    (reread ? '; the day as it was is in the log' : ''));
+    (reread ? '; the day as it was is in the log' : '') + (done.overrides ? '; ' + todoPlural(done.overrides, 'mark typed by hand', 'marks typed by hand') + ' replaced by the message, the old in the log' : ''));
 }
 
 /* ===== Read the rolls again (Staff → Day) =====
@@ -1539,6 +1641,13 @@ function relayAction(action, btn) {
     // Back from a day's rolls read again is back to the day, and the reading is dropped: Paste message opens empty.
     case 'invRelayRereadBack': _relay = null; _relayView = 'paste'; _attView = 'day'; renderAttendance(); viewTop(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
+    // A mark typed by hand the roll would change: use the message, or keep what was typed (the default), one hand or all.
+    case 'invRelayHand': if (_relay) { (_relay.handUse = _relay.handUse || {})[relayHandKey(btn.dataset.iso, btn.dataset.id)] = btn.dataset.use === '1'; renderAttendance(); } break;
+    case 'invRelayHandAll': if (_relay) {
+      var hu = _relay.handUse = _relay.handUse || {};
+      relayHandAsks(relayPlan(_relay)).forEach(function(a) { hu[relayHandKey(a.iso, a.id)] = btn.dataset.use === '1'; });
+      renderAttendance();
+    } break;
     case 'invRelayForget': {
       var L = relayLearnData();
       if (L[btn.dataset.kind]) { delete L[btn.dataset.kind][btn.dataset.key]; saveState(); showToast('Forgotten'); renderAttendance(); }

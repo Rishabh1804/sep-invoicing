@@ -61,7 +61,7 @@ test.describe('P184: the tab map on the desktop', () => {
   test('History and Knowledge are the top bar’s: no door lit, no row; Ctrl+click opens History in a new window', async ({ page }) => {
     await loadAppWithState(page, book());
     const tools = page.locator('.inv-topbar .inv-btn-ghost:visible');
-    expect(await tools.evaluateAll(els => els.map(e => (e as HTMLElement).dataset.action))).toEqual(['invGoHistory', 'invKbHelp', 'invNewWindow']);
+    expect(await tools.evaluateAll(els => els.map(e => (e as HTMLElement).dataset.action))).toEqual(['invGoHistory', 'invMsgGo', 'invKbHelp', 'invNewWindow']);   // Messages beside History since 31 Oct 2026 (msgview.js)
     await rail(page, 'money').click();
     await page.locator('.inv-topbar [data-action="invGoHistory"]:visible').click();
     await expect(page.locator('#pageHistory')).toHaveClass(/inv-page-active/);

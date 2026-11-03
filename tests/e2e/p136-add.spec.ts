@@ -85,12 +85,12 @@ const tapOutside = (page: Page) => page.locator('.inv-scrim-dialog').last().clic
 const lastToast = (page: Page) => page.locator('.inv-toast').last();
 
 test.describe('P136: Add, the one door', () => {
-  test('the sheet draws its four doors in order, one primary, and saves nothing itself; back closes it', async ({ page }) => {
+  test('the sheet draws its five doors in order, one primary, and saves nothing itself; back closes it', async ({ page }) => {
     await load(page);
     await openAdd(page);
     const sheet = page.locator('[data-add-sheet]');
     await expect(sheet.locator('.inv-dialog-title')).toHaveText('Add');
-    expect(await sheet.locator('[data-add-sec]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.addSec))).toEqual(['paste', 'clipboard', 'file', 'hand']);
+    expect(await sheet.locator('[data-add-sec]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.addSec))).toEqual(['paste', 'clipboard', 'photo', 'file', 'hand']);
     await expect(sheet.locator('label[for="addPasteText"]')).toHaveText('Rolls, stock, pickling loads, production, power cuts');
     expect(await sheet.locator('[data-action="invAddHand"]').evaluateAll(els => els.map(e => (e as HTMLElement).innerText.trim())))
       .toEqual(['Challan', 'Invoice', 'Quotation', 'Stock entry', 'Production', 'Power cut', 'Attendance', 'Payment', 'Cheque', 'Bill', 'Task']);
@@ -323,15 +323,16 @@ test.describe('P136: Add, the one door', () => {
     await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
   });
 
-  test('no photo: the sheet has no Photo row, and a photo picked as a file is named as one', async ({ page }) => {
-    // The challan scan and the register photo, read by Gemini, came out (owner, 13 Oct 2026: "it simply never works").
+  test('a photo: the sheet has a Photo row read by Claude, and a photo picked as a file goes the same way, asking for the key where none is set', async ({ page }) => {
+    // The challan scan and the register photo, read by Gemini, came out (owner, 13 Oct 2026: "it simply never works"); read by
+    // Claude on the device's own key, they came back (owner, 3 Nov 2026; P257 reads the photo itself).
     await load(page);
     await openAdd(page);
-    await expect(page.locator('[data-add-sec="photo"]')).toHaveCount(0);
-    await expect(page.locator('#addPhotoInput')).toHaveCount(0);
+    await expect(page.locator('[data-add-sec="photo"]')).toContainText('read by Claude');
+    await expect(page.locator('#addPhotoInput')).toHaveCount(1);
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-add-sec="file"]').click()]);
     await chooser.setFiles({ name: 'paper.png', mimeType: 'image/png', buffer: PNG });
-    expect(await answerAsk(page, 'ok')).toContain('A photo is not read');
+    expect(await answerAsk(page, 'cancel')).toContain('Claude key needed');
     await expect(page.locator('#pageProduction')).not.toHaveClass(/inv-page-active/);
   });
 });

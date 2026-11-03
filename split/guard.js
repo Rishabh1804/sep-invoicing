@@ -769,6 +769,8 @@ function grdApplyDoors() {
   if (!grdCan('settings')) document.querySelectorAll('.inv-topbar [data-action="invOpenSettings"], #invSidebar [data-action="invOpenSettings"]').forEach(off);
   // History is a tool in the top bar (the tab map): its door goes with the page.
   if (!grdSees('pageHistory')) document.querySelectorAll('.inv-topbar [data-action="invGoHistory"]').forEach(off);
+  // Messages (msgview.js) is the owner's: it holds every message pasted, cash paid out among them. Its door goes with the page.
+  if (!grdSees('pageMessages')) document.querySelectorAll('.inv-topbar [data-action="invMsgGo"]').forEach(off);
 }
 var _grdDoorsQueued = false;
 function grdApplyDoorsSoon() {

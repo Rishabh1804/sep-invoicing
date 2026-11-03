@@ -21,6 +21,10 @@
   <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
     <span data-icon="history"></span>
   </button>
+  <!-- Messages (msgview.js): every WhatsApp message kept, beside what the app read it as. A tool, like History. -->
+  <button class="inv-topbar-btn" data-action="invMsgGo" aria-label="Messages" title="Messages">
+    <span data-icon="message"></span>
+  </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <span data-icon="book"></span>
@@ -29,6 +33,9 @@
        had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
     <span data-icon="history"></span>
+  </button>
+  <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invMsgGo" aria-label="Messages" title="Messages">
+    <span data-icon="message"></span>
   </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <span data-icon="book"></span>
@@ -132,6 +139,11 @@
 <div id="pageHistory" class="inv-page">
   <div id="historyToolbar"></div>
   <div id="historyList"></div>
+</div>
+
+<!-- Messages (msgview.js): the verdict, the toolbar, the list by day; the message open beside it on the desktop. -->
+<div id="pageMessages" class="inv-page">
+  <div id="msgViewArea"></div>
 </div>
 
 <!-- BOTTOM BAR (phone and tablet): Today · Office · Add · Floor · Money, drawn from the workspaces' map (workspace.js). -->

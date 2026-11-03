@@ -165,10 +165,14 @@ function _xlsxZipDir(buf) {
   for (var k = 0; k < count; k++) {
     if (off + 46 > n || dv.getUint32(off, true) !== 0x02014B50) throw new Error('Not an Excel workbook: its list of parts cannot be read');
     var nl = dv.getUint16(off + 28, true), xl = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true);
-    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), at: dv.getUint32(off + 42, true) };
+    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), usize: dv.getUint32(off + 24, true), at: dv.getUint32(off + 42, true) };
     off += 46 + nl + xl + cl;
   }
   return dir;
+}
+/* A deflated zip entry's bytes, inflated by the browser (the WhatsApp export's reader, wazip.js, reads its chat with it too). */
+function _xlsxInflate(raw) {
+  return new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b) { return new Uint8Array(b); });
 }
 /* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
 function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
@@ -182,7 +186,7 @@ async function _xlsxPart(buf, dir, name) {
   var raw = new Uint8Array(buf, start, e.size), bytes = raw;
   if (e.method === 8) {
     if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open an .xlsx: import the statement as the .xls the bank exports');
-    bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    bytes = await _xlsxInflate(raw);
   } else if (e.method !== 0) throw new Error('The workbook is packed in a way the app does not read (method ' + e.method + ')');
   return new TextDecoder('utf-8').decode(bytes);
 }

@@ -1298,6 +1298,9 @@ function pushFloorEvents(events) {
       // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
       text: x.how === 'reread'
         ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
+        // Marks typed by hand replaced by a roll (relay.js, relayHandLog): the marks as they were, in the log.
+        : x.how === 'override'
+        ? 'Marks typed by hand replaced by the roll \u2014 ' + formatDate(x.iso) + ', ' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ' as typed kept in the log'
         : 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') + what +
           (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
     });
@@ -1534,7 +1537,7 @@ var HISTORY_REMOVALS = { void: 1, attDelete: 1, cancel: 1, quoteVoid: 1 };
    is its tombstone and the invoice removed; a day deleted takes its rolls). */
 function historyRemovals(list) {
   var acts = list.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; });
-  var audit = acts.filter(function(ev) { return !(ev.kind === 'attDelete' && ev.how === 'reread') && !(ev.kind === 'void' && ev.source === 'reconciled'); });
+  var audit = acts.filter(function(ev) { return !(ev.kind === 'attDelete' && (ev.how === 'reread' || ev.how === 'override')) && !(ev.kind === 'void' && ev.source === 'reconciled'); });
   var chg = list.filter(function(ev) {
     return ev.kind === 'chg' && /^(removed|voided|cancelled)$/.test(ev.act || '') && !acts.some(function(a) { return Math.abs((a.ts || 0) - (ev.ts || 0)) <= CHG_MATCH_MS; });
   });

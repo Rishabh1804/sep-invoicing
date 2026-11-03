@@ -210,6 +210,11 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
     const tool = page.locator('.inv-topbar [data-action="invGoHistory"]:visible');
     if (await tool.count()) { await tool.first().click(); await active.waitFor(); return; }
   }
+  // Messages is the top bar's too (msgview.js), beside History.
+  if (tabId === 'pageMessages' && !(await active.count())) {
+    const tool = page.locator('.inv-topbar [data-action="invMsgGo"]:visible');
+    if (await tool.count()) { await tool.first().click(); await active.waitFor(); return; }
+  }
   let opened = false;
   if ((await door().count()) === 0) {
     // None on screen: open the page's workspace (its bar item on the phone, its head in the sidebar), whose tab row then

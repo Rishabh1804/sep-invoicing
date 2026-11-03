@@ -6,8 +6,9 @@ import { sweepState } from './sweep-fixture';
 // P210: the owner's rulings of 13 Oct 2026. Made-up names; dates from today.
 // - Challans waiting to be invoiced are amber at 3 days and red at 6 (*"B"*); a book still on 5 moves to 3 once.
 // - The challan Scan and every photo read by Gemini come out (*"it simply never works, so it's better we take that off"*):
-//   no Scan on Challans, no Photo on Add, no register photo on Production, Floor or Today, no page photo on the monthly
-//   register, no Gemini key in Settings, and the key, its model and the last read kept as a draft are forgotten on the device.
+//   no Gemini key in Settings, and the key, its model and the last read kept as a draft are forgotten on the device. The photo
+//   reading came back read by Claude (owner, 3 Nov 2026; P257): the challan Scan and the register photo stand behind More, never
+//   a toolbar button, and Today, Floor and the monthly register keep their hand doors with no photo.
 // - The three cards that made their screens longer (Challans → Invoiced, Knowledge → Training and Troubleshoot) fold shut
 //   on the phone (*"B"*), their facts under the line.
 // - Contract labour is fixed (*"Fixed"*): the contribution counts all labour as fixed, and no move asks the question.
@@ -20,23 +21,24 @@ async function sweepBook(page: Page) {
 }
 
 test.describe('P210: the photo reading came out (phone)', () => {
-  test('no Scan on either Challans list, and nothing left to scan with', async ({ page }) => {
+  test('no Scan button on either Challans list: the scan, read by Claude since 3 Nov 2026, is under More, and nothing of Gemini is left', async ({ page }) => {
     await sweepBook(page);
     await switchTab(page, 'pageIM');
     await expect(page.locator('#pageIM [data-action="invShowAddChallan"]')).toBeVisible();
-    await expect(page.locator('[data-action="invScanChallan"]')).toHaveCount(0);
-    expect(await toolbarMoreLabels(page)).not.toContain('Scan a challan');
+    await expect(page.locator('#pageIM .inv-toolbar [data-action="invScanChallan"]')).toHaveCount(0);
+    expect(await toolbarMoreLabels(page)).toEqual(['Scan a challan', 'Duplicate check']);
     await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
-    expect(await toolbarMoreLabels(page)).toEqual(['Add challan', 'Duplicate check']);
-    expect(await g(page, 'typeof scanChallan + "," + typeof geminiReadImage + "," + typeof getApiKey')).toBe('undefined,undefined,undefined');
+    expect(await toolbarMoreLabels(page)).toEqual(['Add challan', 'Scan a challan', 'Duplicate check']);
+    expect(await g(page, 'typeof scanChallan + "," + typeof geminiReadImage + "," + typeof getApiKey')).toBe('function,undefined,undefined');
   });
 
   test('Production, Floor and Today take the register page by hand, on the line and the day', async ({ page }) => {
     await sweepBook(page);
     await switchTab(page, 'pageProduction');
     await expect(page.locator('#pageProduction [data-action="invProdPaste"]')).toBeVisible();
-    await expect(page.locator('[data-action="invProdPhoto"], #prodPhotoInput')).toHaveCount(0);
-    expect(await toolbarMoreLabels(page)).toContain('Enter by hand');
+    // The register photo (Claude, since 3 Nov 2026) is More's, never a toolbar button.
+    await expect(page.locator('#pageProduction .inv-toolbar > [data-action="invProdPhoto"]')).toHaveCount(0);
+    expect(await toolbarMoreLabels(page)).toEqual(expect.arrayContaining(['Read register photo', 'Enter by hand']));
     // Today's day's inputs: the production records' step opens the hand form on the first VAT line with no record.
     await g(page, `navOpen({ tab: 'pageHome', v: 'needs', id: '' })`);
     const step = page.locator('[data-tdy-input="production"]');
@@ -77,6 +79,8 @@ test.describe('P210: the photo reading came out (phone)', () => {
     await expect(page.locator('#settingsScrim details[data-sec="metalsKey"]')).toBeVisible();
     await expect(page.locator('#settingsScrim [data-sec="geminiKey"]')).toHaveCount(0);
     await expect(page.locator('#settingsScrim')).not.toContainText('Gemini');
+    // The key photos are read with now is Claude's, on the device (P257).
+    await expect(page.locator('#settingsScrim details[data-sec="claudeKey"]')).toContainText('Photo reading (Claude)');
   });
 });
 

@@ -162,7 +162,8 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
     await paste(page, IN());
     const chand = page.locator('[data-relay-row]').filter({ hasText: 'Chand' });
     await expect(chand).toContainText('Kept');
-    await expect(chand).toContainText('Entered by hand as Half day');
+    // The hand-by-hand question (M5): what was typed, then what the roll reads; kept unless the message is used.
+    await expect(chand).toContainText('Typed by hand: Half day');
     await page.locator('[data-action="invRelaySave"]').click();
     expect((await readStoredState(page)).attendance[iso()].marks.W3).toEqual({ st: 'H', ot: 0, hours: 4, area: 'vat-a2' });
   });

@@ -440,7 +440,7 @@ var SETTINGS_SECS = {
     title: 'Photo reading (Claude)',
     summary: function() { return (phKey() ? 'key saved on this device' : 'no key') + ' · ' + phSpentSay(); },
     body: function() { return phSettingsBody(); },
-    why: 'Reads a photo of a VAT register page or its power log (Production → Read photo, Add → Photo, a WhatsApp export’s photos) and a customer’s challan (Challans → More → Scan a challan) with Claude (' + PH_MODEL + '). The key is made at console.anthropic.com and stays on this device, never in a backup or on GitHub. A photo is sent to Anthropic as it is, the workers’ names box included; only what is read is kept here, never the image, and nothing is saved until you have checked it. A photo costs about 4–7¢ of the credit.',
+    why: 'Reads a photo of a VAT register page or its power log (Read register photo, under Production’s More; Add → Photo; a WhatsApp export’s photos) and a customer’s challan (Scan a challan, under Challans’ More) with Claude (' + PH_MODEL + '). The key is made at console.anthropic.com and stays on this device, never in a backup or on GitHub. A photo is sent to Anthropic as it is, the workers’ names box included; only what is read is kept here, never the image, and nothing is saved until you have checked it. A photo costs about 4–7¢ of the credit.',
     save: function() { phKeySet(_sVal('setClaudeKey').trim()); }
   },
   sync: {

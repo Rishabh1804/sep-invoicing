@@ -4826,8 +4826,8 @@ works"*) is replaced; what the app does with a reading is the reader it always h
   of the book's own (matched only where one fits), every rate the client's own record. The old scanner's client map is gone with it.
 - **Photos picked several at once** (Production's picker, Add → Photo, a file that is a photo) wait in Production and are read one at a
   time, each paid for when it is reached; over five asks first with what they come to.
-- **An export's photos** (wazip.js): the chat's photo lines say who sent each and when; the zip's photos sent from the first new message
-  on (every one where the book held none) are kept for the session only (`_wzPhotos`), never in the book, and the confirmation screen
+- **An export's photos** (wazip.js): the chat's photo lines say who sent each and when; the zip's photos sent after the book's last
+  production record (else from the first new message on, every one where the book held none) are kept for the session only (`_wzPhotos`), never in the book, and the confirmation screen
   offers them as one row (`data-mc-photos`, its senders and days), **Read them** handing them to Production's check with their sender and
   minute. The import's record gains `photos`, the count.
 - **A data flow changed**: the requests to `api.anthropic.com`, carrying the photo alone; `production.photos` gains `sentBy` and `usd`.

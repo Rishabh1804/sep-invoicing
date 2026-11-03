@@ -208,8 +208,8 @@ client challans. CLAUDE.md, *Photos read by Claude*, has the reader; for the mes
 
 - The chat's photo lines (`IMG-….jpg (file attached)`, `<attached: ….jpg>`) are kept with their sender and minute
   (`wzParseChat`'s `photos`), and the zip's photos by name (`wzZipList`'s `images`).
-- Photos sent from the first new message on (all of them where the book held none) are offered; older ones are not, as messages
-  are cut. They are the session's (`_wzPhotos`), never in the book; the export picked again offers them again.
+- Photos sent after the book's last production record are offered (a register page is production); where the book holds none,
+  those from the first new message on, and every one where the book held nothing; older ones are not. They are the session's (`_wzPhotos`), never in the book; the export picked again offers them again.
 - The confirmation screen draws them as one row (`data-mc-photos`) after the days and before *Nothing to save*, and on the screen
   after the save. **Read them** leaves the screen (asking first if anything is ticked) and hands them to Production's check, each read
   when it is reached; with no key it opens Settings on the key.

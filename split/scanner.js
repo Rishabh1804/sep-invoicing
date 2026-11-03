@@ -1,5 +1,5 @@
 /* ===== CHALLAN SCANNER (read by Claude) =====
-   Challans → More → Scan a challan, and a challan reached through Production's photo reader ("Read it as a challan"). The photo
+   Scan a challan, under Challans' More, and a challan reached through Production's photo reader ("Read it as a challan"). The photo
    is read by Claude (photoread.js, SCAN_PROMPT): the challan's number, date, client and vehicle and its lines as written. The
    form then opens filled, and nothing is saved until the challan is checked and saved there, as any challan typed by hand.
    It came back on 3 Nov 2026 (owner) after Gemini's reading was taken out on 13 Oct; the build carries no client's name or rate

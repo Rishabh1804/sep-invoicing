@@ -45,6 +45,23 @@ async function openMessages(page: Page) {
 }
 
 test.describe('P255: the Messages screen (phone)', () => {
+  test('an export’s older message is kept to learn from: off the list until its status is picked, never offered to its reader', async ({ page }) => {
+    // Owner, 3 Nov 2026 ("Yes"): the messages older than the last of each kind the book holds are kept, only to learn how each
+    // sender writes.
+    await loadAppWithState(page, book({ messages: [rec('MSG-A', 'in', ROLL), rec('MSG-L', 'in', ROLL.replace('ALFA', 'ALFA 9:00 AM'), { status: 'learn', src: 'zip', sentOn: shift(DAY, -7) })] }));
+    await openMessages(page);
+    await expect(page.locator('#pageMessages [data-mv-row]')).toHaveCount(1);
+    await expect(page.locator('[data-mv-verdict]')).toContainText('1 older message kept to learn from');
+    await setFilter(page, '#mvStatus', 'learn');
+    await expect(page.locator('#pageMessages [data-mv-row]')).toHaveCount(1);
+    await expect(page.locator('[data-mv-row="MSG-L"]')).toContainText('Kept to learn from');
+    await page.locator('[data-mv-row="MSG-L"]').click();
+    await expect(page.locator('[data-mv-status="learn"]')).toContainText('never saved');
+    await expect(page.locator('[data-action="invMsgHandoff"]')).toHaveCount(0);
+    // Still read line by line, so how it was read can be looked at.
+    await expect(page.locator('[data-mv-lines] [data-mv-line]').first()).toContainText('IN TIME');
+  });
+
   test('every paste is kept, and marked saved once its reader saves it', async ({ page }) => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pageStaff');

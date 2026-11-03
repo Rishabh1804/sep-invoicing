@@ -27,7 +27,7 @@ var _mvCtx = { key: null };   // the readers' contexts (Production's, the roster
 
 var MV_STATUS = {
   'new': ['info', 'Not saved'], saved: ['ok', 'Saved'], skipped: ['neutral', 'Not a report'],
-  notread: ['warning', 'Not read'], dup: ['neutral', 'Repeat']
+  notread: ['warning', 'Not read'], dup: ['neutral', 'Repeat'], learn: ['neutral', 'Kept to learn from']
 };
 function mvStatusOf(r) { var s = MV_STATUS[r && r.status] || MV_STATUS['new']; return { tone: s[0], word: s[1] }; }
 
@@ -220,7 +220,7 @@ function mvReading(r) {
 /* Whether a message holds a question that stops its save (a red one), read as its reader reads it. Worked out lazily and kept with
    the reading: a message with no reader asks nothing here. */
 function mvAsks(r) {
-  if (!mvReaderOf(r.kind) || r.status === 'saved' || r.status === 'skipped' || r.status === 'dup') return false;
+  if (!mvReaderOf(r.kind) || r.status === 'saved' || r.status === 'skipped' || r.status === 'dup' || r.status === 'learn') return false;
   return mvReading(r).issues.some(function(x) { return x.tone === 'danger'; });
 }
 
@@ -300,6 +300,8 @@ function mvFiltered() {
     if (_mvKind && r.kind !== _mvKind) return false;
     if (_mvSender && String(r.sentBy || '') !== _mvSender) return false;
     if (_mvStatus && r.status !== _mvStatus) return false;
+    // An export's older messages, kept only to learn from, are listed when that status is picked.
+    if (!_mvStatus && r.status === 'learn') return false;
     if (_mvDay && mvDayOf(r) !== _mvDay) return false;
     if (q && String(r.text || '').toUpperCase().indexOf(q) < 0 && String(r.sentBy || '').toUpperCase().indexOf(q) < 0) return false;
     return true;
@@ -308,7 +310,8 @@ function mvFiltered() {
   });
 }
 function mvVerdictHtml(list, filtered) {
-  var all = msgStore(), shown = filtered ? list : all;
+  var all = msgStore(), live = all.filter(function(r) { return r.status !== 'learn'; }), shown = filtered ? list : live;
+  var learnN = all.length - live.length;
   var notread = shown.filter(function(r) { return r.status === 'notread'; }).length;
   var saved = shown.filter(function(r) { return r.status === 'saved'; }).length;
   var asks = shown.filter(mvAsks).length;
@@ -324,6 +327,8 @@ function mvVerdictHtml(list, filtered) {
       { label: 'Not read', fig: String(notread), tone: notread ? 'warning' : 'ok' },
       { label: 'A red question', fig: String(asks), tone: asks ? 'danger' : 'ok' },
       { label: 'Saved', fig: String(saved), tone: saved ? 'ok' : 'neutral' }],
+    // An export's older messages: kept only to learn how each sender writes, listed under their status.
+    facts: learnN ? [todoPlural(learnN, 'older message') + ' kept to learn from'] : [],
     body: mvConfRowsHtml(), attrs: ' data-mv-verdict data-mv-asks="' + asks + '"' });
 }
 function mvToolbarHtml() {
@@ -446,10 +451,11 @@ function mvMessageHtml(r, phone) {
       // How the sender sends messages (msgprofile.js): their card in a dialog, a fact about them and not about this message.
       actions: r.sentBy && typeof mpAction === 'function' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgProfile" data-sender="' + escHtml(r.sentBy) + '">Sender’s card</button>' : '' }) +
     uiFactRowHtml({ label: 'Kind', value: msgKindLabel(r.kind), sub: (r.fix ? 'set by hand' : (r.why || 'sorted')) + (conf && !r.fix ? ', ' + conf + ' sure' : '') + (mvLike(r) ? ', looks like ' + msgKindLabel(mvLike(r)).toLowerCase() : ''), attrs: ' data-mv-kind-now="' + escHtml(r.kind) + '"' }) +
-    uiFactRowHtml({ label: 'Status', value: st.word, sub: r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
+    uiFactRowHtml({ label: 'Status', value: st.word, sub: r.status === 'learn' ? 'older than what the book holds, never saved' : r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
     '</div>';
   if (_mvEdit && _mvEdit.id === r.id) h += mvEditHtml(r);
-  else if (reader && r.status !== 'skipped') {
+  // An export's older message is kept to learn how its sender writes: its reader is never offered it.
+  else if (reader && r.status !== 'skipped' && r.status !== 'learn') {
     h += '<div class="inv-panel" data-mv-handoff><button class="inv-btn inv-btn-primary inv-btn-block" data-action="invMsgHandoff" data-id="' + escHtml(r.id) + '">' +
       (r.status === 'saved' ? 'Read again in ' : 'Read in ') + escHtml(where) + '</button>' +
       '<div class="inv-note inv-mt-8">' + (r.status === 'saved' ? 'Its reader’s own check shows what reading it again would change, and nothing changes until you save there.' : 'Its reader’s own check, where it is saved.') + '</div></div>';

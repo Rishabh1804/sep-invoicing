@@ -4785,7 +4785,8 @@ the last message of each kind the book holds). P253–P256.
   later, spellings. A kind's confidence is the lower of the sorter's and the sender's record (`mpKindConf`); a drawing path never writes
   it (`msgOtherSort`).
 - **An export** (wazip.js, Add → File, a `.zip` or the chat's `.txt`): unpacked in the app, split by WhatsApp's lines, taken in from the
-  last message of each kind the book holds, then **the confirmation screen** (msgconfirm.js, `mcOpen`): the new messages by day and kind
+  last message of each kind the book holds (the older ones kept only to learn how each sender writes: status `learn`, never offered
+  to save, off the list until picked; owner, 3 Nov 2026), then **the confirmation screen** (msgconfirm.js, `mcOpen`): the new messages by day and kind
   in the floor's order, what each would write, read by its own reader without saving. Rolls, stock and cash at 90% or more with no red
   question come ticked; **production always waits**, with a tick for a day's group and for every message like one, and the arrows and
   space on the desktop. A mark typed by hand the rolls disagree with is kept unless the message is used, hand by hand or for all (the

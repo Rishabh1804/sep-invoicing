@@ -13,7 +13,8 @@
      sentBy, sentOn (iso or null), sentAt (the minute on sentOn as relaySplit and wazip give it, or epoch ms; or null), text, edited
      src: 'paste' | 'zip', importId (S.msgImports id or null), seenIn (the exports that held it again, ids)
      kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
-     status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
+     status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup' | 'learn' (an export's older message, kept only to learn how its
+       sender writes: never read by a reader, never offered to save; owner, 3 Nov 2026)
      saved: [{ store, id }]                        the records it made, where the reader's save says
      textWas: [{ text, at, by }]                   each edit of its text, the text before
      fix: { kind, at, by } | null                  the owner's word on its kind, which wins over the sorter
@@ -117,8 +118,10 @@ function msgOtherSort(text, first) {
 }
 
 /* Take messages in (relaySplit's shape: sentBy, sentOn, sentAt, text, edited). Each new one is sorted and kept; one the
-   book holds already is counted, not added. Writes nothing to disk: the caller saves. Returns { added: [records], seen }. */
-function msgIngest(list, src, importId) {
+   book holds already is counted, not added. `opts.learn`: kept only to learn how its sender writes (status 'learn'). Writes
+   nothing to disk: the caller saves. Returns { added: [records], seen }. */
+function msgIngest(list, src, importId, opts) {
+  var learn = !!(opts && opts.learn);
   var have = {}, out = { added: [], seen: 0 };
   msgStore().forEach(function(r) { have[r.key] = r; });
   var by = typeof grdUserId === 'function' ? grdUserId() : null, at = Date.now();
@@ -138,6 +141,7 @@ function msgIngest(list, src, importId) {
     var s = msgSort(r);
     r.kind = s.kind; r.conf = s.conf; r.why = s.why;
     if (r.kind === 'other') r.status = 'notread';
+    if (learn) r.status = 'learn';
     have[key] = r;
     msgStore().push(r);
     out.added.push(r);

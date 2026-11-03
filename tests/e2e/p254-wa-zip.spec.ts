@@ -170,14 +170,14 @@ test.describe('P254: the WhatsApp export', () => {
     expect(inner.msgs[0].text).toBe('power\n28/10/26 10:30 power cut');
   });
 
-  test('Add → File takes the zip: only the messages after the book’s last of their kind are taken in, the import recorded; the same zip again adds nothing', async ({ page }) => {
+  test('Add → File takes the zip: only the messages after the book’s last of their kind are taken in, the older kept to learn from, the import recorded; the same zip again adds nothing', async ({ page }) => {
     await loadAppWithState(page, book());
     await addFile(page, { name: 'WhatsApp Chat - Floor.zip', mimeType: 'application/zip', buffer: iosZip() });
-    await expect(page.locator('.inv-toast').last()).toContainText('4 new messages taken in · 3 older messages skipped · 3 media files not read');
+    await expect(page.locator('.inv-toast').last()).toContainText('4 new messages taken in · 3 older messages kept to learn from · 3 media files not read');
     const st: any = await readStoredState(page);
     expect(st.msgImports).toHaveLength(1);
     const rec = st.msgImports[0];
-    expect(rec).toMatchObject({ file: 'WhatsApp Chat - Floor.zip', first: D3, last: D1, total: 7, added: 4, seen: 0, skippedOld: 3, inBook: 0,
+    expect(rec).toMatchObject({ file: 'WhatsApp Chat - Floor.zip', first: D3, last: D1, total: 7, added: 4, seen: 0, learned: 3, skippedOld: 3, inBook: 0,
       media: 3, system: 2, deleted: 1, order: 'month-first', none: false });
     expect(rec.id).toMatch(/^WZ-/);
     // The in-time roll of D3, and D2's sent at the very minute of the book's last, are older; D1's is new. Stock is known by
@@ -185,15 +185,22 @@ test.describe('P254: the WhatsApp export', () => {
     expect(rec.kinds.in).toMatchObject({ taken: 1, skipped: 2, from: D2, src: 'rolls' });
     expect(rec.kinds.stock).toMatchObject({ taken: 1, skipped: 1, from: D2, src: 'stock' });
     expect(rec.kinds.other).toMatchObject({ taken: 2, skipped: 0, from: null });
-    expect(st.messages).toHaveLength(4);
+    // The older ones (owner, 3 Nov 2026: "Yes") are kept only to learn how each sender writes: status learn, never offered to save.
+    const live = st.messages.filter((m: any) => m.status !== 'learn'), learn = st.messages.filter((m: any) => m.status === 'learn');
+    expect(live).toHaveLength(4);
+    expect(learn).toHaveLength(3);
     expect(st.messages.every((m: any) => m.src === 'zip' && m.importId === rec.id)).toBe(true);
-    expect(st.messages.map((m: any) => [m.sentOn, m.kind]).sort()).toEqual([[D1, 'in'], [D1, 'other'], [D2, 'stock'], [D3, 'other']].sort());
-    expect(st.messages.find((m: any) => m.kind === 'in').text).toBe(ROLL(D1));
+    expect(live.map((m: any) => [m.sentOn, m.kind]).sort()).toEqual([[D1, 'in'], [D1, 'other'], [D2, 'stock'], [D3, 'other']].sort());
+    expect(live.find((m: any) => m.kind === 'in').text).toBe(ROLL(D1));
+    expect(learn.map((m: any) => m.kind).sort()).toEqual(['in', 'in', 'stock']);
+    // The sender's habits are learnt from them too; the confirmation screen and its count leave them out.
+    expect(await ev(page, `mpLearn().n`)).toBe(7);
+    expect(await ev(page, `mcRecords({ importId: ${JSON.stringify(rec.id)} }).length`)).toBe(4);
     // The same export again: every message is now the book's, so nothing is added and it says so.
     await addFile(page, { name: 'WhatsApp Chat - Floor.zip', mimeType: 'application/zip', buffer: iosZip() });
     expect(await answerAsk(page, 'ok')).toContain('No new message · 7 older messages skipped');
     const st2: any = await readStoredState(page);
-    expect(st2.messages).toHaveLength(4);
+    expect(st2.messages).toHaveLength(7);
     expect(st2.msgImports).toHaveLength(2);
     expect(st2.msgImports[1]).toMatchObject({ added: 0, total: 7 });
   });

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="9a170c33">
+<meta name="app-build" content="aa6b3402">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -41583,7 +41583,8 @@ document.addEventListener('keydown', function(e) {
      sentBy, sentOn (iso or null), sentAt (the minute on sentOn as relaySplit and wazip give it, or epoch ms; or null), text, edited
      src: 'paste' | 'zip', importId (S.msgImports id or null), seenIn (the exports that held it again, ids)
      kind: MSG_KINDS id, conf: 0..1, why: words   what the sorter said (msgSort), kept as of the last read
-     status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup'
+     status: 'new' | 'saved' | 'skipped' | 'notread' | 'dup' | 'learn' (an export's older message, kept only to learn how its
+       sender writes: never read by a reader, never offered to save; owner, 3 Nov 2026)
      saved: [{ store, id }]                        the records it made, where the reader's save says
      textWas: [{ text, at, by }]                   each edit of its text, the text before
      fix: { kind, at, by } | null                  the owner's word on its kind, which wins over the sorter
@@ -41687,8 +41688,10 @@ function msgOtherSort(text, first) {
 }
 
 /* Take messages in (relaySplit's shape: sentBy, sentOn, sentAt, text, edited). Each new one is sorted and kept; one the
-   book holds already is counted, not added. Writes nothing to disk: the caller saves. Returns { added: [records], seen }. */
-function msgIngest(list, src, importId) {
+   book holds already is counted, not added. `opts.learn`: kept only to learn how its sender writes (status 'learn'). Writes
+   nothing to disk: the caller saves. Returns { added: [records], seen }. */
+function msgIngest(list, src, importId, opts) {
+  var learn = !!(opts && opts.learn);
   var have = {}, out = { added: [], seen: 0 };
   msgStore().forEach(function(r) { have[r.key] = r; });
   var by = typeof grdUserId === 'function' ? grdUserId() : null, at = Date.now();
@@ -41708,6 +41711,7 @@ function msgIngest(list, src, importId) {
     var s = msgSort(r);
     r.kind = s.kind; r.conf = s.conf; r.why = s.why;
     if (r.kind === 'other') r.status = 'notread';
+    if (learn) r.status = 'learn';
     have[key] = r;
     msgStore().push(r);
     out.added.push(r);
@@ -42231,14 +42235,15 @@ function wzBookTexts() {
   return seen;
 }
 /* The messages cut to the new ones: each sorted (msgSort), new when sent after the last of its kind the book holds. A kind the
-   book holds none of is taken whole. Returns { fresh, skippedOld, inBook, kinds: { kind: { taken, skipped, from, src } }, none }. */
+   book holds none of is taken whole. The older ones are `old`: kept to learn how each sender writes, never offered to save (owner,
+   3 Nov 2026). Returns { fresh, old, skippedOld, inBook, kinds: { kind: { taken, skipped, from, src } }, none }. */
 function wzCut(msgs) {
-  var a = wzAnchors(), texts = wzBookTexts(), out = { fresh: [], skippedOld: 0, inBook: 0, kinds: {}, none: !Object.keys(a).length };
+  var a = wzAnchors(), texts = wzBookTexts(), out = { fresh: [], old: [], skippedOld: 0, inBook: 0, kinds: {}, none: !Object.keys(a).length };
   msgs.forEach(function(m) {
     var kind = msgSort(m).kind, an = a[kind], t = wzMoment(m.sentOn, m.sentAt);
     var k = out.kinds[kind] || (out.kinds[kind] = { taken: 0, skipped: 0, from: an ? an.iso : null, src: an ? an.src : null });
-    if (an && (t == null || t <= an.t)) { k.skipped++; out.skippedOld++; return; }
-    if (texts[relayHash(m.text)]) { k.skipped++; out.inBook++; return; }
+    if (an && (t == null || t <= an.t)) { k.skipped++; out.skippedOld++; out.old.push(m); return; }
+    if (texts[relayHash(m.text)]) { k.skipped++; out.inBook++; out.old.push(m); return; }
     k.taken++;
     out.fresh.push(m);
   });
@@ -42281,9 +42286,9 @@ async function wzImportBuf(src, name, opts) {
   var chat = wzParseChat(text);
   if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). In WhatsApp, open the group, open its menu and pick Export chat.');
   var cut = wzCut(chat.msgs), id = 'WZ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  var got = msgIngest(cut.fresh, 'zip', id), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
+  var got = msgIngest(cut.fresh, 'zip', id), learnt = msgIngest(cut.old, 'zip', id, { learn: true }), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
   var rec = { id: id, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, file: name || '', chat: wzChatTitle(name, chatName),
-    first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen,
+    first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen, learned: learnt.added.length,
     skippedOld: cut.skippedOld, inBook: cut.inBook, media: media + chat.media, system: chat.system, deleted: chat.deleted,
     order: chat.order, orderWhy: chat.orderWhy, none: cut.none, kinds: cut.kinds };
   msgImports().push(rec);
@@ -42303,8 +42308,10 @@ function wzChatTitle(file, entry) {
 /* What an import did, in a line. */
 function wzSaid(rec) {
   var bits = [rec.added ? todoPlural(rec.added, 'new message') + ' taken in' : 'No new message'];
-  var old = rec.skippedOld + rec.inBook + rec.seen;
-  if (old) bits.push(todoPlural(old, 'older message') + ' skipped');
+  // The older ones are kept to learn how each sender writes (status 'learn'); the rest were here already.
+  var learned = rec.learned || 0, old = rec.skippedOld + rec.inBook + rec.seen - learned;
+  if (learned) bits.push(todoPlural(learned, 'older message') + ' kept to learn from');
+  if (old > 0) bits.push(learned ? old + ' here already' : todoPlural(old, 'older message') + ' skipped');
   if (rec.media) bits.push(todoPlural(rec.media, 'media file') + ' not read');
   return bits.join(' · ') + (rec.none ? ' · the book held no messages yet, so every one was taken' : '') + '.';
 }
@@ -42356,7 +42363,7 @@ var _mvCtx = { key: null };   // the readers' contexts (Production's, the roster
 
 var MV_STATUS = {
   'new': ['info', 'Not saved'], saved: ['ok', 'Saved'], skipped: ['neutral', 'Not a report'],
-  notread: ['warning', 'Not read'], dup: ['neutral', 'Repeat']
+  notread: ['warning', 'Not read'], dup: ['neutral', 'Repeat'], learn: ['neutral', 'Kept to learn from']
 };
 function mvStatusOf(r) { var s = MV_STATUS[r && r.status] || MV_STATUS['new']; return { tone: s[0], word: s[1] }; }
 
@@ -42549,7 +42556,7 @@ function mvReading(r) {
 /* Whether a message holds a question that stops its save (a red one), read as its reader reads it. Worked out lazily and kept with
    the reading: a message with no reader asks nothing here. */
 function mvAsks(r) {
-  if (!mvReaderOf(r.kind) || r.status === 'saved' || r.status === 'skipped' || r.status === 'dup') return false;
+  if (!mvReaderOf(r.kind) || r.status === 'saved' || r.status === 'skipped' || r.status === 'dup' || r.status === 'learn') return false;
   return mvReading(r).issues.some(function(x) { return x.tone === 'danger'; });
 }
 
@@ -42629,6 +42636,8 @@ function mvFiltered() {
     if (_mvKind && r.kind !== _mvKind) return false;
     if (_mvSender && String(r.sentBy || '') !== _mvSender) return false;
     if (_mvStatus && r.status !== _mvStatus) return false;
+    // An export's older messages, kept only to learn from, are listed when that status is picked.
+    if (!_mvStatus && r.status === 'learn') return false;
     if (_mvDay && mvDayOf(r) !== _mvDay) return false;
     if (q && String(r.text || '').toUpperCase().indexOf(q) < 0 && String(r.sentBy || '').toUpperCase().indexOf(q) < 0) return false;
     return true;
@@ -42637,7 +42646,8 @@ function mvFiltered() {
   });
 }
 function mvVerdictHtml(list, filtered) {
-  var all = msgStore(), shown = filtered ? list : all;
+  var all = msgStore(), live = all.filter(function(r) { return r.status !== 'learn'; }), shown = filtered ? list : live;
+  var learnN = all.length - live.length;
   var notread = shown.filter(function(r) { return r.status === 'notread'; }).length;
   var saved = shown.filter(function(r) { return r.status === 'saved'; }).length;
   var asks = shown.filter(mvAsks).length;
@@ -42653,6 +42663,8 @@ function mvVerdictHtml(list, filtered) {
       { label: 'Not read', fig: String(notread), tone: notread ? 'warning' : 'ok' },
       { label: 'A red question', fig: String(asks), tone: asks ? 'danger' : 'ok' },
       { label: 'Saved', fig: String(saved), tone: saved ? 'ok' : 'neutral' }],
+    // An export's older messages: kept only to learn how each sender writes, listed under their status.
+    facts: learnN ? [todoPlural(learnN, 'older message') + ' kept to learn from'] : [],
     body: mvConfRowsHtml(), attrs: ' data-mv-verdict data-mv-asks="' + asks + '"' });
 }
 function mvToolbarHtml() {
@@ -42775,10 +42787,11 @@ function mvMessageHtml(r, phone) {
       // How the sender sends messages (msgprofile.js): their card in a dialog, a fact about them and not about this message.
       actions: r.sentBy && typeof mpAction === 'function' ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invMsgProfile" data-sender="' + escHtml(r.sentBy) + '">Sender’s card</button>' : '' }) +
     uiFactRowHtml({ label: 'Kind', value: msgKindLabel(r.kind), sub: (r.fix ? 'set by hand' : (r.why || 'sorted')) + (conf && !r.fix ? ', ' + conf + ' sure' : '') + (mvLike(r) ? ', looks like ' + msgKindLabel(mvLike(r)).toLowerCase() : ''), attrs: ' data-mv-kind-now="' + escHtml(r.kind) + '"' }) +
-    uiFactRowHtml({ label: 'Status', value: st.word, sub: r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
+    uiFactRowHtml({ label: 'Status', value: st.word, sub: r.status === 'learn' ? 'older than what the book holds, never saved' : r.src === 'zip' ? 'from a WhatsApp export' : 'pasted' + (r.at ? ' ' + formatTimestamp(r.at) : ''), attrs: ' data-mv-status="' + escHtml(r.status) + '"' }) +
     '</div>';
   if (_mvEdit && _mvEdit.id === r.id) h += mvEditHtml(r);
-  else if (reader && r.status !== 'skipped') {
+  // An export's older message is kept to learn how its sender writes: its reader is never offered it.
+  else if (reader && r.status !== 'skipped' && r.status !== 'learn') {
     h += '<div class="inv-panel" data-mv-handoff><button class="inv-btn inv-btn-primary inv-btn-block" data-action="invMsgHandoff" data-id="' + escHtml(r.id) + '">' +
       (r.status === 'saved' ? 'Read again in ' : 'Read in ') + escHtml(where) + '</button>' +
       '<div class="inv-note inv-mt-8">' + (r.status === 'saved' ? 'Its reader’s own check shows what reading it again would change, and nothing changes until you save there.' : 'Its reader’s own check, where it is saved.') + '</div></div>';
@@ -43179,7 +43192,8 @@ function mcReadCash(rec, o) {
 /* ---------- The set on screen ---------- */
 function mcRecords(o) {
   o = o || {};
-  if (o.importId) return msgStore().filter(function(r) { return r.importId === o.importId || (r.seenIn || []).indexOf(o.importId) >= 0; });
+  // An export's older messages are kept only to learn from (status 'learn'): never on this screen.
+  if (o.importId) return msgStore().filter(function(r) { return r.status !== 'learn' && (r.importId === o.importId || (r.seenIn || []).indexOf(o.importId) >= 0); });
   return (o.ids || []).map(msgById).filter(Boolean);
 }
 function mcSortKey(r) {

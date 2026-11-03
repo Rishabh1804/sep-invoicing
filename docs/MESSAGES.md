@@ -85,9 +85,13 @@ last message of each kind the book already holds"*. P254.
   `S.stock.pastes` (the message's window); cash, `S.cashPastes`. **A record that keeps only its day counts from that day's start**,
   so the whole day is read again rather than a message lost to a guessed minute; and a message whose words a store already holds
   is skipped as already in the book (`inBook`). A kind the book holds none of is taken whole, and the import says when the book
-  held no message at all. Older messages are skipped and counted, per kind (`kinds`).
+  held no message at all. Older messages are counted per kind (`kinds`) and **kept to learn from** (owner, 3 Nov 2026: *"Yes"*,
+  to keeping them only for learning how each sender writes): taken in with `msgIngest(old, 'zip', id, { learn: true })`, status
+  `learn`, they feed the profile (M2) and nothing else: never on the confirmation screen, never offered to a reader, off the Messages
+  list until their status is picked, and the verdict counts them apart. The import records them (`learned`), and its line says so
+  (*274 older messages kept to learn from*).
 - **Taken in** with `msgIngest(fresh, 'zip', id)`, the import recorded in `S.msgImports`
-  (`{ id: 'WZ-…', at, by, file, chat, first, last, total, added, seen, skippedOld, inBook, media, system, deleted, order, orderWhy,
+  (`{ id: 'WZ-…', at, by, file, chat, first, last, total, added, seen, learned, skippedOld, inBook, media, system, deleted, order, orderWhy,
   none, kinds }`) and saved; then the confirmation screen, `mcOpen({ importId })` where M5 is loaded, else a toast with the count.
   Nothing new is said in a dialog. **The same zip twice adds nothing**: its messages are the book's by then.
 - **The gate** is the floor's imports' (`ADD_FILE_GUARD.whatsapp`, `grp: 'imports'`), asked before anything is read.
@@ -186,3 +190,12 @@ import; anything else may call it with the records' ids.
   production and stock entries, cash lines).
 - **The same as the paste boxes**: P256 saves a made-up chat of two days (rolls, pickling loads, stock, cash) here and through the
   four paste boxes, and the books are the same.
+
+## The owner's answers at the merge gate (3 Nov 2026)
+1. **Stock stays at the 90% bar** (*"Leave it"*): a stock message read under it waits for a tick.
+2. **A mark typed by hand stays as typed unless the message is used** (*"Yes"*), hand by hand or for all, as built.
+3. **Messages is the owner's alone** (*"Only me"*).
+4. **A native export from the phone** (Android, `DOC-…-WA….zip`: the chat's `.txt` deflated beside 93 photos, 16 MB) reads as built
+   on a private copy of the book (never in the repo): 341 messages, three senders, day-first, WhatsApp's narrow space before *pm*
+   read; against the book of 31 Oct, 67 new, 274 older, 195 media lines not read.
+5. **The older messages are kept to learn from** (*"Yes"*): M3 above.

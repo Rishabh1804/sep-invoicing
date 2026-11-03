@@ -201,14 +201,15 @@ function wzBookTexts() {
   return seen;
 }
 /* The messages cut to the new ones: each sorted (msgSort), new when sent after the last of its kind the book holds. A kind the
-   book holds none of is taken whole. Returns { fresh, skippedOld, inBook, kinds: { kind: { taken, skipped, from, src } }, none }. */
+   book holds none of is taken whole. The older ones are `old`: kept to learn how each sender writes, never offered to save (owner,
+   3 Nov 2026). Returns { fresh, old, skippedOld, inBook, kinds: { kind: { taken, skipped, from, src } }, none }. */
 function wzCut(msgs) {
-  var a = wzAnchors(), texts = wzBookTexts(), out = { fresh: [], skippedOld: 0, inBook: 0, kinds: {}, none: !Object.keys(a).length };
+  var a = wzAnchors(), texts = wzBookTexts(), out = { fresh: [], old: [], skippedOld: 0, inBook: 0, kinds: {}, none: !Object.keys(a).length };
   msgs.forEach(function(m) {
     var kind = msgSort(m).kind, an = a[kind], t = wzMoment(m.sentOn, m.sentAt);
     var k = out.kinds[kind] || (out.kinds[kind] = { taken: 0, skipped: 0, from: an ? an.iso : null, src: an ? an.src : null });
-    if (an && (t == null || t <= an.t)) { k.skipped++; out.skippedOld++; return; }
-    if (texts[relayHash(m.text)]) { k.skipped++; out.inBook++; return; }
+    if (an && (t == null || t <= an.t)) { k.skipped++; out.skippedOld++; out.old.push(m); return; }
+    if (texts[relayHash(m.text)]) { k.skipped++; out.inBook++; out.old.push(m); return; }
     k.taken++;
     out.fresh.push(m);
   });
@@ -251,9 +252,9 @@ async function wzImportBuf(src, name, opts) {
   var chat = wzParseChat(text);
   if (!chat.msgs.length) return wzRefuse('No WhatsApp messages in it', (chatName || name || 'The file') + ' has no line WhatsApp writes for a message (its date, time and sender). In WhatsApp, open the group, open its menu and pick Export chat.');
   var cut = wzCut(chat.msgs), id = 'WZ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  var got = msgIngest(cut.fresh, 'zip', id), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
+  var got = msgIngest(cut.fresh, 'zip', id), learnt = msgIngest(cut.old, 'zip', id, { learn: true }), on = chat.msgs.map(function(m) { return m.sentOn; }).filter(Boolean).sort();
   var rec = { id: id, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null, file: name || '', chat: wzChatTitle(name, chatName),
-    first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen,
+    first: on[0] || null, last: on[on.length - 1] || null, total: chat.msgs.length, added: got.added.length, seen: got.seen, learned: learnt.added.length,
     skippedOld: cut.skippedOld, inBook: cut.inBook, media: media + chat.media, system: chat.system, deleted: chat.deleted,
     order: chat.order, orderWhy: chat.orderWhy, none: cut.none, kinds: cut.kinds };
   msgImports().push(rec);
@@ -273,8 +274,10 @@ function wzChatTitle(file, entry) {
 /* What an import did, in a line. */
 function wzSaid(rec) {
   var bits = [rec.added ? todoPlural(rec.added, 'new message') + ' taken in' : 'No new message'];
-  var old = rec.skippedOld + rec.inBook + rec.seen;
-  if (old) bits.push(todoPlural(old, 'older message') + ' skipped');
+  // The older ones are kept to learn how each sender writes (status 'learn'); the rest were here already.
+  var learned = rec.learned || 0, old = rec.skippedOld + rec.inBook + rec.seen - learned;
+  if (learned) bits.push(todoPlural(learned, 'older message') + ' kept to learn from');
+  if (old > 0) bits.push(learned ? old + ' here already' : todoPlural(old, 'older message') + ' skipped');
   if (rec.media) bits.push(todoPlural(rec.media, 'media file') + ' not read');
   return bits.join(' · ') + (rec.none ? ' · the book held no messages yet, so every one was taken' : '') + '.';
 }

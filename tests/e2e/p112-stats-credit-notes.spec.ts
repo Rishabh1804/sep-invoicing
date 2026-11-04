@@ -60,5 +60,5 @@ test('the trend shades the chosen period on its longer history, and says what it
   await expect(card.locator('.inv-widget-src')).toContainText('the shaded part is MTD');
   await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
   await expect(page.locator('#statsBoard .inv-widget[data-w="trend"] [data-span]')).toHaveCount(0);
-  await expect(page.locator('#statsBoard .inv-widget[data-w="trend"] .inv-widget-src')).toContainText('All covers all of it');
+  await expect(page.locator('#statsBoard .inv-widget[data-w="trend"] .inv-widget-src')).toContainText('All time covers all of it');
 });

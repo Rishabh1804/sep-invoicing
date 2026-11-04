@@ -228,7 +228,7 @@ test.describe('P139: keys and new windows on the desktop', () => {
     await page.locator('.inv-topbar [data-action="invNewWindow"]').click();
     expect(await opened(page)).toEqual([
       ['pageFloor', '', '', '_blank'], ['pageRegister', '', '', '_blank'], ['pageClients', 'clients', '', '_blank'], ['pageHistory', '', '', '_blank'],
-      ['pageStats', 'cost', '', '_blank'], ['pageRegister', '', 'INV-900', '_blank'], ['pageIM', 'awaiting', 'IM-8341', '_blank'],
+      ['pageStats', 'tables', '', '_blank'], ['pageRegister', '', 'INV-900', '_blank'], ['pageIM', 'awaiting', 'IM-8341', '_blank'],
       ['pageIM', 'awaiting', '', '_blank'],
     ]);
     // A plain click still does what it always did.

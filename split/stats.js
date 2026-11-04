@@ -730,7 +730,9 @@ function statsTableViewHtml(t, pa) {
   var model = statsTableModel(t, pa);
   if (!model) return '';
   return statsPanel('table-' + t, escHtml(model.title), model.note || '', { wide: true, id: 'statsTable' }) +
-    (model.rows.length ? statsTableHtml(model) : uiBlankHtml({ kind: 'empty', title: model.empty || 'Nothing in this period' })) + (model.after || '') + '</div>';
+    (model.rows.length ? statsTableHtml(model) : uiBlankHtml({ kind: 'empty', title: model.empty || 'Nothing in this period',
+      // An empty period's by client or by part says what fills it, and opens the way there.
+      action: t === 'client' || t === 'part' ? '<button type="button" class="inv-btn inv-btn-tint" data-action="invCreateNew">Create an invoice</button>' : '' })) + (model.after || '') + '</div>';
 }
 function statsTableModel(t, pa) {
   if (t === 'client') return statsClientTable(pa);

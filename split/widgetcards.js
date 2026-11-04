@@ -1956,14 +1956,16 @@ wdgDefine({ id: 'share', title: 'Who fills the plant, who pays for it', q: 'Is o
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), rev = sumTaxable(a.filtered), kg = a.tonnage.kg;
     var ranked = wdgMemo('rollup:' + ctx.period, function() { return buildClientRollup(a.filtered); });
-    if (!ranked.length || !(rev > 0)) return { state: 'empty', title: 'No invoices in this period', body: 'Each client’s share of the tonnes and of the revenue, once the period has invoices.' };
+    if (!ranked.length || !(rev > 0)) return { state: 'empty', title: 'No invoices in this period', body: 'Each client’s share of the tonnes and of the revenue, once the period has invoices.',
+      act: { label: 'Create an invoice', action: 'invCreateNew' } };
     var list = ranked.filter(function(r) { return r.comparable && kg > 0; }).map(function(r) { return { id: r.clientId, name: r.name, rev: r.total / rev * 100, kg: r.kg / kg * 100 }; })
       .sort(function(x, y) { return y.kg - x.kg; });
     if (!list.length) return { state: 'early', title: 'Nothing weighed enough to share out', body: 'A client’s share of the tonnes needs 90% of its revenue weighed (Clients → Parts).' };
     var top = list[0], heavy = top.kg - top.rev > 10, tone = heavy ? 'warning' : 'ok';
     var top3 = ranked.slice(0, 3).reduce(function(s, r) { return s + r.total; }, 0) / rev * 100, apart = ranked.length - list.length;
     return { state: 'ok', tone: tone, list: list, top: top, fig: wcFigUnit(Math.round(top.kg) + '%', 'of the tonnes'),
-      say: wcClientShort(top.name) + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: tone,
+      // The client named where its short name is short; a long one is the chart's to name (a sentence stays one line's worth).
+      say: (wcClientShort(top.name).length <= 28 ? wcClientShort(top.name) : 'The largest') + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: tone,
       detail: 'The top three bill ' + Math.round(top3) + '% of the revenue' + (apart ? ' · ' + apart + ' not weighed enough to share out' : ''), detailAttrs: ' data-wdg-opt' };
   },
   draw: function() { return ''; },
@@ -2040,16 +2042,22 @@ wdgDefine({ id: 'trend', title: 'Revenue, tonnage and incoming', q: 'Did we bill
     var unit = TREND_SERIES_UNIT[series] || 'money', cur = data[i], prev = data[i - 1];
     var pct = prev.value > 0 ? (cur.value - prev.value) / prev.value * 100 : null, flat = pct == null || Math.abs(pct) <= FIG_FLAT_PCT;
     var fig = unit === 'money' ? inrFigHtml(cur.value) : wcFigUnit(formatNum(cur.value / 1000, 1), 't');
+    // The trend keeps its own reach whatever the period, and shades the period on it (owner, 30 Sep 2026): on the Dashboard, Stats'.
+    var rg = statsRangeIso(ctx.period), lo = rg.from.slice(0, 7), hi = rg.to.slice(0, 7), span = null;
+    data.forEach(function(x, k) { if (x.key < lo || x.key > hi) return; if (!span) span = { i0: k, i1: k }; else span.i1 = k; });
+    var spanAll = !!span && span.i0 === 0 && span.i1 === data.length - 1;
     return { state: 'ok', tone: flat ? 'neutral' : pct > 0 ? 'ok' : 'warning', data: data, td: td, series: series, unit: unit, fig: fig,
+      span: spanAll ? null : span, spanSay: spanAll ? (PERIOD_LABELS[ctx.period] || 'The period') + ' covers all of it' : span ? 'the shaded part is ' + (PERIOD_LABELS[ctx.period] || 'the period') : '',
       say: WC_TREND_WORDS[series] + ' in ' + cur.label + (pct == null ? '' : flat ? ', level with ' + prev.label : ', ' + formatNum(Math.abs(pct), 1) + '% ' + (pct > 0 ? 'up on ' : 'down on ') + prev.label),
       sayTone: flat ? 'neutral' : pct > 0 ? 'ok' : 'warning', detail: series === 'im' ? 'What arrives here bills later' : '', detailAttrs: ' data-wdg-opt' };
   },
   draw: function() { return ''; },
   viz: function(d, size, box) {
     return chartBars(d.data.map(function(x) { return { label: x.label, value: x.value }; }), { unit: d.unit, toDate: d.td, labelHead: 'Month',
-      ariaLabel: WC_TREND_WORDS[d.series] + ', twelve months', maxLabels: size === 'l' ? 12 : 6, bare: true, w: box.w, h: box.h });
+      ariaLabel: WC_TREND_WORDS[d.series] + ', twelve months', maxLabels: size === 'l' ? 12 : 6, span: d.span, bare: true, w: box.w, h: box.h });
   },
-  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : 'Invoices by invoice date, net of credit notes', 'twelve months'] }; } });
+  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : 'Invoices by invoice date, net of credit notes', 'twelve months whatever the period']
+    .concat(d.spanSay ? [d.spanSay] : []) }; } });
 
 /* Top parts (§10 `topitems`, Trends' top items): the period's parts ranked by what they billed, their tonnes or their price a kilo
    (its Choose; buildTopItems, the Tables' By part's), as ranked bars, bare; by the price the mark is the live cost, short of it in the

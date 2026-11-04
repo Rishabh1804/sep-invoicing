@@ -1159,6 +1159,7 @@ function stockManualNew() {
 function stockOpenManual() {
   _stockManual = stockManualNew();
   stockSetView('manual');
+  uiFlowFocusNext(document.getElementById('stockContent') || document);
 }
 // A figure typed on the hand form and not yet saved (what repeats, the company and the invoice, is not work to lose).
 function stockManualTyped() {
@@ -1166,37 +1167,99 @@ function stockManualTyped() {
   return !!m && Object.keys(m.vals).some(function(id) { var v = m.vals[id]; return (v.qty != null && v.qty !== '') || (v.price != null && v.price !== ''); });
 }
 
+/* Enter by hand as a guided flow (UI pass 3 §11a): What · When (the bill for a delivery) · Which lines and how much · Who. The preview
+   says each line's level before and after and the checks the app makes of an entry, worked out on the entry as it would be saved. */
+var STOCK_KINDS = [
+  { value: 'count', icon: 'clipboardCheck', word: 'Count', line: 'What is on the shelf now' },
+  { value: 'received', icon: 'boxPlus', word: 'Received', line: 'A delivery came in' },
+  { value: 'used', icon: 'box', word: 'Used', line: 'Taken from the shelf' },
+  { value: 'charged', icon: 'flask', word: 'Charged', line: 'Put into a bath' }
+];
+function stockManualFilled(m) {
+  var out = [];
+  Object.keys(m.vals).forEach(function(id) {
+    var v = m.vals[id], q = parseFloat(v.qty), it = stockItem(id);
+    if (!it || v.qty === '' || v.qty == null || isNaN(q) || q < 0) return;
+    var pr = parseFloat(v.price);
+    out.push({ it: it, qty: q, price: v.price !== '' && v.price != null && pr > 0 ? pr : null });
+  });
+  return out;
+}
+/* The checks the app makes of a saved entry (stockEntryChecks), made of this one before it is saved: the entry is put in the book
+   for the reading and taken out again at once, nothing saved. */
+function stockPreviewChecks(m, f) {
+  var st = stockData(), id = '_flow_preview', rec = { id: id, itemId: f.it.id, kind: m.mode, qty: f.qty, date: m.date, seq: STOCK_KIND_RANK[m.mode], at: Date.now(), source: 'manual' };
+  if (m.mode === 'used' || m.mode === 'charged') { rec.days = 1; rec.from = m.date; }
+  st.entries.push(rec);
+  try { return (_stockEntryChecks(f.it.id)[id] || []).map(function(c) { return c.text; }); }
+  catch (e) { return []; }
+  finally { var i = st.entries.indexOf(rec); if (i >= 0) st.entries.splice(i, 1); }
+}
+function stockManualModel() {
+  var m = _stockManual;
+  if (!m) return null;
+  var filled = stockManualFilled(m), kind = STOCK_KINDS.filter(function(k) { return k.value === m.mode; })[0] || STOCK_KINDS[0];
+  var unitQ = function(it, v) { return stockFmtQty(v) + (it.unit ? ' ' + it.unit : ''); };
+  var day = m.date ? stockShortDate(m.date) : '';
+  var whenDone = !!m.date && (m.mode !== 'received' || (!!m.supplier && !!m.billNo));
+  var lines = [], checks = [];
+  filled.forEach(function(f) {
+    var it = f.it, lvl = m.mode === 'count' ? stockReplay(it.id, isoAddDays(m.date, 1)).level : stockReplay(it.id, m.date ? isoAddDays(m.date, 1) : null).level, after = lvl;
+    if (m.mode === 'count') after = f.qty;
+    else if (m.mode === 'received') after = (lvl || 0) + f.qty;
+    else if (lvl != null) after = stockRound(lvl - f.qty);
+    var what = m.mode === 'count' ? 'Counted ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) :
+      m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
+        (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
+        (f.price != null ? ', ' + escHtml(formatCurrency(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST' : '') :
+      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.bath ? ' into ' + escHtml(m.bath) : '');
+    var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
+      ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
+    lines.push(what + (day ? ' on ' + escHtml(day) : '') + shelf);
+    stockPreviewChecks(m, f).forEach(function(t) { checks.push({ tone: 'warning', text: it.name + ': ' + t }); });
+    if (m.mode === 'received' && f.price == null) checks.push({ tone: 'info', text: it.name + ': no price. The live cost goes on the last price paid until one is added.' });
+  });
+  var bySays = stockBy();
+  var steps = [
+    { key: 'what', title: 'What are you entering?', help: 'Pick one. Each line below is then entered as this.', guide: ['app-stock', 'by hand'], done: true, says: kind.word,
+      body: uiKindTilesHtml(STOCK_KINDS, { action: 'invStockMode', cur: m.mode, label: 'What is entered' }) },
+    { key: 'when', title: m.mode === 'received' ? 'When, and on which bill?' : 'When?', help: m.mode === 'received' ? 'The company, the invoice and its date: the price and the buying pattern are read from them.' :
+      m.mode === 'count' ? 'The day counted. The app sets it against its own level at the end of that day.' : 'The day it was taken.',
+      done: whenDone, says: day + (m.mode === 'received' && m.billNo ? ' · bill ' + m.billNo + (m.supplier ? ' · ' + m.supplier : '') : ''), body: '' },
+    { key: 'lines', title: m.mode === 'count' ? 'What is on the shelf?' : m.mode === 'received' ? 'What came in, and at what price?' : m.mode === 'used' ? 'What was used?' : 'What went into the bath?',
+      help: 'Fill only the lines that changed.' + (m.mode === 'charged' || m.mode === 'used' ? ' Into names the bath, so the line’s use is set against it.' : ''),
+      done: filled.length > 0, says: filled.length ? (filled.length === 1 ? filled[0].it.name + ' · ' + unitQ(filled[0].it, filled[0].qty) : filled.length + ' lines') : '', body: '' },
+    { key: 'who', title: 'Who is entering it?', help: 'Kept on this device for the next time.', done: !!bySays, says: bySays, body: '' }
+  ];
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Fill a line and this says what Save records and where each line’s level goes.' } };
+}
+uiFlowDefine('stockManual', stockManualModel);
 function renderStockManual() {
   var m = _stockManual, st = stockData();
   var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
-  var h = stockBackBar('Stock', 'Enter by hand');
-  h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">';
-  [['count', 'Count'], ['received', 'Received'], ['used', 'Used'], ['charged', 'Charged']].forEach(function(o) {
-    h += '<button type="button" class="inv-seg-btn" data-action="invStockMode" data-mode="' + o[0] + '" aria-pressed="' + (m.mode === o[0]) + '">' + o[1] + '</button>';
-  });
-  h += '</div><div class="inv-panel"><div class="inv-fields">' +
-    field('stockManDate', 'Date', '<input type="date" id="stockManDate" class="inv-input" value="' + escHtml(m.date) + '">');
+  var model = stockManualModel(), body = {};
+  // When: the day, and for a delivery its bill.
+  var when = '<div class="inv-fields">' + field('stockManDate', 'Date', '<input type="date" id="stockManDate" class="inv-input" value="' + escHtml(m.date) + '">');
   if (m.mode === 'received') {
-    h += field('stockManSupplier', 'Company', '<input id="stockManSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it" autocomplete="off">') +
+    when += field('stockManSupplier', 'Company', '<input id="stockManSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it" autocomplete="off">') +
       field('stockManBill', 'Invoice no.', '<input id="stockManBill" class="inv-input" value="' + escHtml(m.billNo) + '" autocomplete="off">') +
       field('stockManBillDate', 'Invoice date', '<input type="date" id="stockManBillDate" class="inv-input" value="' + escHtml(m.billDate || m.date) + '">') +
       stockSupplierDatalist();
   }
+  body.when = when + '</div>';
+  // Which lines, and how much.
+  var lines = '';
   if (m.mode === 'charged' || m.mode === 'used') {
-    h += field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">');
+    lines += '<div class="inv-fields">' + field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">') + '</div>';
   }
-  h += field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">') + '</div>';
-  var hints = { count: 'What is on the shelf now. The app compares it with its own level.', received: 'A delivery, with its bill. The price per unit is what the live cost is worked out at.',
-    used: 'Drawn from stock. Sets the daily rate.', charged: 'Put into a bath, e.g. zinc or salts.' };
-  h += '<div class="inv-note">' + hints[m.mode] + ' Fill only the lines that changed.</div></div>';
-  h += '<div class="inv-panel inv-panel-flush" id="stockManualList"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span></div>';
-  if (m.mode === 'received') h += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
+  lines += '<div class="inv-panel inv-panel-flush" id="stockManualList">';
+  if (m.mode === 'received') lines += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
   // A count is set against the level at the end of its own day, the figure Save compares it with; it said today's level
   // whatever day was picked.
   var today = localDateStr(), past = m.mode === 'count' && m.date && m.date !== today;
-  st.items.filter(function(i) { return i.active !== false; }).forEach(function(i) {
+  st.items.filter(function(i) { return i.active !== false && !i.mergedInto; }).forEach(function(i) {
     var v = m.vals[i.id] || {}, lv = m.mode === 'count' && m.date ? stockReplay(i.id, isoAddDays(m.date, 1)).level : stockReplay(i.id).level;
-    h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
+    lines += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
       '<span class="inv-row-meta">' + (m.mode === 'count' ? (past ? 'app had ' : 'app has ') : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') +
       (past ? ' on ' + escHtml(stockDayLabel(m.date)) : '') + '</span></span>' +
       '<span class="inv-row-end"><input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
@@ -1204,11 +1267,18 @@ function renderStockManual() {
       (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
       '</span></div>';
   });
-  h += '<div class="inv-panel-body"><div class="inv-field-label">Add a line</div><div class="inv-toolbar inv-toolbar-flush">' +
+  lines += '<div class="inv-panel-body"><div class="inv-field-label">Add a line</div><div class="inv-toolbar inv-toolbar-flush">' +
     '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
     '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
-  h += stockDayEntriesHtml(m.date);
+  body.lines = lines;
+  body.who = field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">');
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
+  var h = uiFlowHtml('stockManual', model, {
+    before: stockBackBar('Stock', 'Enter by hand'),
+    receipt: m.saved && m.saved.date === m.date ? uiFlowReceiptHtml(m.saved) : '',
+    after: stockDayEntriesHtml(m.date)
+  });
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
     '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
@@ -1284,10 +1354,14 @@ function stockSaveManual() {
     n++;
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
+  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, kept on the form until the next save.
+  var said = stockManualModel().preview.lines.slice(0, 6);
   saveState();
   // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
   // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
   m.vals = {};
+  m.saved = { date: m.date, title: 'Saved: ' + n + (n === 1 ? ' entry' : ' entries') + ' · ' + STOCK_KIND_LABEL[m.mode] + ' on ' + stockShortDate(m.date),
+    lines: said.map(function(l) { return l.split(' · ')[0]; }).concat(n > said.length ? [(n - said.length) + ' more'] : []).concat(['Each is listed under Entered for ' + escHtml(stockShortDate(m.date)) + ', with Correct and Void.']) };
   _pageTyped = false;
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');

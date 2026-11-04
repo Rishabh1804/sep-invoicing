@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="43797494">
+<meta name="app-build" content="24cecfd3">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -179,7 +179,7 @@
   --lane-h: 0.75rem; --lane-gap: var(--sp-6); --lane-top: 0.875rem; --lane-lab-w: 2.5rem; --plant-eff-w: 6rem; --plant-row-h: 2.5rem; --brief-row-h: 2.5rem;
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --flow-pv-w: 20rem; --pane-list-narrow: 18rem; --scroll-max: 55vh; --board-col: 17rem;
   --kb-measure: 42rem; --kb-ico: 2rem; --kb-ico-sm: 1.5rem; --kb-glance-k: 6.5rem; --kb-big-h: 3.125rem; --kb-card-w: 15rem; --kb-lib-w: 17.5rem; --kb-ctx-w: 20rem; --kb-rail-w: 4rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
@@ -3766,6 +3766,101 @@ body.inv-desktop .inv-mc-count { flex: 0 1 auto; margin-right: auto; }
 /* A mark typed by hand that a roll would change: its two answers under its row, the row's width. */
 .inv-mc-pick { padding: 0 var(--pad-x) var(--sp-8); }
 .inv-mc-pick > .inv-seg { width: 100%; }
+
+/* ===== A guided flow (state.js uiFlowHtml; UI pass 3 §11a; design §6.37) =====
+   Numbered steps that lead without hiding: every step open and fillable in any order, the first not done marked Next, a done step
+   ticked with what it holds in its head. The progress line over them, the preview beside them on a wide screen (kept in view) and
+   under them on a narrow one. Kinds are tiles; the receipt follows a save. */
+.inv-flow { container-type: inline-size; container-name: flow; min-width: 0; }
+.inv-flow-progress { display: flex; align-items: center; gap: var(--sp-12); margin: 0 0 var(--sp-12); }
+.inv-flow-count { flex: none; font-size: var(--fs-13); color: var(--text-2); }
+.inv-flow-count b { color: var(--text-1); font-weight: 600; }
+.inv-flow-meter { flex: 1 1 auto; display: flex; gap: var(--sp-4); height: var(--meter-h); padding: 0; min-width: 0; }
+.inv-flow-seg { flex: 1 1 0; border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-1); }
+.inv-flow-seg[data-done] { background: var(--ok); box-shadow: none; }
+.inv-flow-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; }
+.inv-flow-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+.inv-flow-step {
+  --tone: var(--border); --tone-bg: var(--surface);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-1);
+  padding: var(--sp-12) var(--pad-x) var(--sp-4); min-width: 0;
+}
+.inv-flow-step[data-state="next"] { --tone: var(--accent); box-shadow: var(--lift-1), inset 0 var(--sp-2) 0 var(--accent); }
+.inv-flow-step[data-state="done"] { --tone: var(--ok); }
+.inv-flow-head { display: grid; grid-template-columns: var(--step-node) minmax(0, 1fr) auto auto; column-gap: var(--sp-12); align-items: center; min-height: var(--touch); }
+.inv-flow-node {
+  display: grid; place-items: center; width: var(--step-node); height: var(--step-node); border-radius: var(--r-full);
+  border: var(--rule) solid color-mix(in oklab, var(--tone) 55%, var(--border)); background: var(--well); color: var(--text-2);
+  font-family: var(--ff-num); font-size: var(--fs-12); font-weight: 600;
+}
+.inv-flow-node svg { display: none; width: var(--sp-12); height: var(--sp-12); }
+.inv-flow-step[data-state="next"] .inv-flow-node { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.inv-flow-step[data-state="done"] .inv-flow-node { border-color: var(--ok); background: var(--ok); color: var(--on-accent); }
+.inv-flow-step[data-state="done"] .inv-flow-num { display: none; }
+.inv-flow-step[data-state="done"] .inv-flow-node svg { display: block; }
+.inv-flow-step[data-state="opt"] .inv-flow-node { border-style: dashed; }
+.inv-flow-q { display: flex; flex-direction: column; min-width: 0; }
+.inv-flow-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-1); }
+.inv-flow-says { font-size: var(--fs-13); color: var(--ok); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-flow-says:empty { display: none; }
+.inv-flow-tag { font-size: var(--fs-12); font-weight: 600; color: var(--accent); white-space: nowrap; }
+.inv-flow-tag:empty { display: none; }
+.inv-flow-step[data-state="opt"] .inv-flow-tag { color: var(--text-3); font-weight: 400; }
+.inv-flow-guide {
+  display: inline-flex; align-items: center; justify-content: center; width: var(--touch); height: var(--touch); margin-right: calc(var(--sp-8) * -1);
+  border: none; background: none; color: var(--text-3); border-radius: var(--r-ctl); cursor: pointer;
+}
+.inv-flow-guide:hover { color: var(--accent); }
+.inv-flow-guide:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-flow-guide svg { width: var(--sp-20); height: var(--sp-20); }
+.inv-flow-help { margin: 0 0 var(--sp-8) calc(var(--step-node) + var(--sp-12)); font-size: var(--fs-13); color: var(--text-2); }
+.inv-flow-body { min-width: 0; padding-top: var(--sp-4); }
+.inv-flow-body > .inv-panel-flush { margin: 0 calc(var(--pad-x) * -1) var(--sp-8); border: none; border-radius: 0; box-shadow: none; background: none; }
+.inv-flow-body > .inv-fields:last-child, .inv-flow-body > .inv-field:last-child { margin-bottom: var(--sp-8); }
+.inv-flow-preview {
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-1);
+  padding: var(--sp-12) var(--pad-x); min-width: 0;
+}
+.inv-flow-pv-head { display: flex; align-items: center; gap: var(--sp-8); font-size: var(--fs-12); font-weight: 600; color: var(--text-2); margin-bottom: var(--sp-8); }
+.inv-flow-pv-head svg { width: var(--sp-16); height: var(--sp-16); color: var(--accent); }
+.inv-flow-pv-empty { margin: 0; font-size: var(--fs-13); color: var(--text-3); }
+.inv-flow-pv-lines { display: flex; flex-direction: column; gap: var(--sp-6); }
+.inv-flow-pv-line { margin: 0; font-size: var(--fs-14); color: var(--text-1); overflow-wrap: anywhere; }
+.inv-flow-pv-checks { display: flex; flex-direction: column; gap: var(--sp-4); margin-top: var(--sp-10); padding-top: var(--sp-8); border-top: var(--hair) solid var(--border); }
+.inv-flow-pv-check .inv-dot { white-space: normal; align-items: baseline; }
+.inv-flow-pv-check .inv-dot::before { flex: none; transform: translateY(calc(var(--sp-2) * -1)); }
+@container flow (min-width: 52rem) {
+  .inv-flow-main { grid-template-columns: minmax(0, 1fr) var(--flow-pv-w); }
+  .inv-flow-preview { position: sticky; top: var(--sp-12); }
+}
+.inv-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--sp-8); }
+@container flow (min-width: 36rem) { .inv-kinds { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.inv-kind {
+  display: flex; align-items: flex-start; gap: var(--sp-8); min-height: var(--touch); min-width: 0; padding: var(--sp-10) var(--sp-12);
+  background: var(--well); border: var(--hair) solid var(--edge); border-radius: var(--r-tile); box-shadow: var(--press-2);
+  font: inherit; color: var(--text-1); text-align: left; cursor: pointer;
+}
+.inv-kind:hover { border-color: color-mix(in oklab, var(--accent) 40%, var(--edge)); }
+.inv-kind:focus-visible { box-shadow: var(--press-2), var(--focus-ring); outline: none; }
+.inv-kind[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: none; }
+.inv-kind-ico { flex: none; display: inline-flex; color: var(--text-2); }
+.inv-kind-ico svg { width: var(--sp-20); height: var(--sp-20); }
+.inv-kind[aria-pressed="true"] .inv-kind-ico { color: var(--accent); }
+.inv-kind-text { display: flex; flex-direction: column; min-width: 0; }
+.inv-kind-word { font-size: var(--fs-14); font-weight: 600; }
+.inv-kind-line { font-size: var(--fs-12); color: var(--text-2); }
+.inv-kind[aria-pressed="true"] .inv-kind-word { color: var(--accent-soft-text); }
+.inv-flow-receipt {
+  display: flex; align-items: flex-start; gap: var(--sp-12); margin-bottom: var(--gap); padding: var(--sp-12) var(--pad-x);
+  background: color-mix(in oklab, var(--ok-bg) 70%, var(--surface)); border: var(--hair) solid color-mix(in oklab, var(--ok) 35%, var(--edge));
+  border-radius: var(--r-card); box-shadow: var(--lift-1);
+}
+.inv-flow-receipt-ico { flex: none; display: inline-flex; color: var(--ok); }
+.inv-flow-receipt-ico svg { width: var(--sp-20); height: var(--sp-20); }
+.inv-flow-receipt-text { flex: 1 1 auto; min-width: 0; }
+.inv-flow-receipt-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-flow-receipt-line { margin: var(--sp-2) 0 0; font-size: var(--fs-13); color: var(--text-2); overflow-wrap: anywhere; }
+.inv-flow-receipt-acts { flex: none; display: flex; gap: var(--sp-8); }
 </style>
 </head>
 <body>
@@ -4902,6 +4997,164 @@ function uiBlankHtml(o) {
     (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : '') +
     (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : '') + '</div>' +
     (o.action ? '<div class="inv-blank-act">' + o.action + '</div>' : '') + '</div>';
+}
+/* ===== A GUIDED FLOW (docs/UI_PASS_3.md §11a, §26b; design §6.37) =====
+   The owner, 15 Oct 2026: "The Enter by hand screen is primitive in design, and doesn't engage or leads the user, increases the
+   learning curve." Every form a person fills by hand is cut into numbered steps that lead without hiding: each step its number in
+   a node, its title a question, its fields, a line of help and a book to its guide; done when its required fields hold a value (the
+   node ticks and the head says what it holds); the first step not done is Next. Every step stays open and fillable in any order.
+   Over the steps a progress line; beside them (the desktop) or under them (the phone) the preview, *What Save records*, saying in
+   words and figures what Save writes and the checks the app makes. Save stays in the action bar; after it a receipt.
+
+   A flow is a model its form works out from its own state (`uiFlowDefine(name, fn)`; fn returns {steps, preview}), drawn once by
+   `uiFlowHtml(name, model, o)` and kept in step as it is typed by `uiFlowSync()` (events.js, after every input, change and click),
+   which touches the steps' state, their heads and the preview, never a field. A step: {key, title, help, guide: [articleId,
+   section title], body (HTML), done, says (text: what it holds once done), optional}. The preview: {lines: [HTML], checks: [{tone,
+   text}], empty (text, while nothing is filled)}. Nothing a test or the keyboard reads changes: the forms' own ids, data-action and
+   data-change stay on their fields. */
+var UI_FLOWS = {};
+function uiFlowDefine(name, fn) { UI_FLOWS[name] = fn; }
+function uiFlowNext(steps) {
+  for (var i = 0; i < steps.length; i++) if (!steps[i].done && !steps[i].optional) return i;
+  return -1;
+}
+function uiFlowState(s, i, next) { return s.done ? 'done' : i === next ? 'next' : s.optional ? 'opt' : 'todo'; }
+function uiFlowCount(steps) {
+  var req = steps.filter(function(s) { return !s.optional; });
+  return { done: req.filter(function(s) { return s.done; }).length, of: req.length };
+}
+function uiFlowProgressInner(steps) {
+  var c = uiFlowCount(steps), segs = '';
+  steps.forEach(function(s) { if (!s.optional) segs += '<span class="inv-flow-seg"' + (s.done ? ' data-done=""' : '') + '></span>'; });
+  return '<span class="inv-flow-count">' + (c.done === c.of ? 'Ready to save' : '<b class="inv-num">' + c.done + '</b> of ' + c.of + ' done') + '</span>' +
+    '<span class="inv-flow-meter" role="meter" aria-label="Steps done" aria-valuemin="0" aria-valuemax="' + c.of + '" aria-valuenow="' + c.done + '">' + segs + '</span>';
+}
+function uiFlowPreviewInner(p) {
+  p = p || {};
+  var lines = (p.lines || []).filter(Boolean), checks = (p.checks || []).filter(Boolean);
+  var h = '<div class="inv-flow-pv-head">' + (typeof iconSvg === 'function' ? iconSvg('clipboardCheck') : '') + '<span>' + escHtml(p.title || 'What Save records') + '</span></div>';
+  if (!lines.length) h += '<p class="inv-flow-pv-empty">' + escHtml(p.empty || 'Fill in the steps and this says what will be saved.') + '</p>';
+  else h += '<div class="inv-flow-pv-lines">' + lines.map(function(l) { return '<p class="inv-flow-pv-line">' + l + '</p>'; }).join('') + '</div>';
+  if (checks.length) {
+    h += '<div class="inv-flow-pv-checks">' + checks.map(function(c) {
+      var tone = ['ok', 'warning', 'danger', 'info', 'neutral'].indexOf(c.tone) >= 0 ? c.tone : 'warning';
+      return '<div class="inv-flow-pv-check" data-tone="' + tone + '"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(c.text) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  return h;
+}
+function uiFlowGuideBtn(g) {
+  if (!g || !g[0] || typeof kbFind !== 'function') return '';
+  var a = kbFind(g[0]);
+  if (!a || (typeof kbCanRead === 'function' && !kbCanRead(a))) return '';
+  return '<button type="button" class="inv-flow-guide" data-action="invFlowGuide" data-id="' + escHtml(g[0]) + '" data-sec="' + escHtml(g[1] || '') + '"' +
+    ' aria-label="The guide: ' + escHtml(a.title + (g[1] ? ', ' + g[1] : '')) + '" title="The guide: ' + escHtml(g[1] || a.title) + '">' + iconSvg('book') + '</button>';
+}
+function uiFlowStepHtml(s, i, next) {
+  var st = uiFlowState(s, i, next);
+  return '<li class="inv-flow-step" data-flow-step="' + escHtml(s.key) + '" data-state="' + st + '">' +
+    '<div class="inv-flow-head"><span class="inv-flow-node" aria-hidden="true"><span class="inv-flow-num">' + (i + 1) + '</span>' + iconSvg('check') + '</span>' +
+    '<span class="inv-flow-q"><span class="inv-flow-title">' + escHtml(s.title) + '</span>' +
+    '<span class="inv-flow-says" data-flow-says>' + escHtml(s.done ? s.says || '' : '') + '</span></span>' +
+    '<span class="inv-flow-tag" data-flow-tag>' + (st === 'next' ? 'Next' : st === 'opt' ? 'If needed' : '') + '</span>' + uiFlowGuideBtn(s.guide) + '</div>' +
+    (s.help ? '<p class="inv-flow-help">' + escHtml(s.help) + '</p>' : '') +
+    '<div class="inv-flow-body">' + (s.body || '') + '</div></li>';
+}
+/* o: before (HTML over the steps: a back bar, a notice), after (HTML under the preview: the day's list), receipt (HTML: the
+   last save's card, uiFlowReceiptHtml), cls (more classes on the flow). */
+function uiFlowHtml(name, m, o) {
+  o = o || {};
+  var steps = m.steps || [], next = uiFlowNext(steps);
+  return '<div class="inv-flow' + (o.cls ? ' ' + o.cls : '') + '" data-flow="' + escHtml(name) + '">' + (o.before || '') +
+    (o.receipt || '') +
+    '<div class="inv-flow-progress" data-flow-progress>' + uiFlowProgressInner(steps) + '</div>' +
+    '<div class="inv-flow-main"><ol class="inv-flow-steps">' + steps.map(function(s, i) { return uiFlowStepHtml(s, i, next); }).join('') + '</ol>' +
+    '<aside class="inv-flow-preview" data-flow-preview aria-live="polite">' + uiFlowPreviewInner(m.preview) + '</aside></div>' +
+    (o.after || '') + '</div>';
+}
+/* The flows on screen kept in step with what is typed: the steps' state and heads, the progress and the preview. A field is never
+   replaced, so the cursor and the keyboard stay where they are. */
+function uiFlowSync(root) {
+  var els = (root || document).querySelectorAll ? (root || document).querySelectorAll('[data-flow]') : [];
+  for (var k = 0; k < els.length; k++) {
+    var el = els[k], fn = UI_FLOWS[el.getAttribute('data-flow')], m = null;
+    if (!fn) continue;
+    try { m = fn(); } catch (e) { m = null; }
+    if (!m || !m.steps) continue;
+    var next = uiFlowNext(m.steps);
+    m.steps.forEach(function(s, i) {
+      var li = el.querySelector('[data-flow-step="' + (window.CSS && CSS.escape ? CSS.escape(s.key) : s.key) + '"]');
+      if (!li) return;
+      var st = uiFlowState(s, i, next);
+      if (li.getAttribute('data-state') !== st) li.setAttribute('data-state', st);
+      var says = li.querySelector('[data-flow-says]'), tag = li.querySelector('[data-flow-tag]');
+      var sv = s.done ? s.says || '' : '', tv = st === 'next' ? 'Next' : st === 'opt' ? 'If needed' : '';
+      if (says && says.textContent !== sv) says.textContent = sv;
+      if (tag && tag.textContent !== tv) tag.textContent = tv;
+    });
+    var pr = el.querySelector('[data-flow-progress]'), ph = uiFlowProgressInner(m.steps);
+    if (pr && pr.innerHTML !== ph) pr.innerHTML = ph;
+    var pv = el.querySelector('[data-flow-preview]'), vh = uiFlowPreviewInner(m.preview);
+    if (pv && pv._flowHtml !== vh) { pv.innerHTML = vh; pv._flowHtml = vh; }
+  }
+}
+/* The first field of the step Next: focused when a form opens (never on a touch screen, which would raise the keyboard over it),
+   and when Enter finishes the step before it. */
+function uiFlowFirstField(li) {
+  return li ? li.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])') : null;
+}
+function uiFlowFocusNext(root) {
+  if (touchScreen()) return;
+  var flow = (root || document).querySelector ? (root || document).querySelector('[data-flow]') : null;
+  var li = flow ? flow.querySelector('[data-flow-step][data-state="next"]') : null;
+  var f = uiFlowFirstField(li);
+  if (f) focusSoon(f);
+}
+function uiFlowEnter(e) {
+  if (e.key !== 'Enter' || e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing) return;
+  var t = e.target;
+  if (!t || t.tagName !== 'INPUT' || /^(button|submit|checkbox|radio)$/.test(t.type)) return;
+  var li = t.closest && t.closest('[data-flow-step]'), flow = li && li.closest('[data-flow]');
+  if (!flow || flow.hasAttribute('data-flow-ownkeys')) return;
+  uiFlowSync(flow);
+  if (li.getAttribute('data-state') !== 'done') return;
+  var nx = flow.querySelector('[data-flow-step][data-state="next"]'), f = uiFlowFirstField(nx);
+  if (!f || f === t) return;
+  e.preventDefault();
+  f.focus();
+}
+/* A kind is a row of tiles (§11a): each its icon, its word and a line, pressed when chosen. `kinds`: [{value, icon, word, line}];
+   `o`: action (data-action), attr (the data attribute naming the value, 'mode' by default), cur, label (the group's name), more
+   (more attributes on each tile). */
+function uiKindTilesHtml(kinds, o) {
+  o = o || {};
+  var attr = o.attr || 'mode';
+  return '<div class="inv-kinds" role="group" aria-label="' + escHtml(o.label || 'What is entered') + '">' + kinds.map(function(k) {
+    return '<button type="button" class="inv-kind" data-action="' + escHtml(o.action) + '" data-' + attr + '="' + escHtml(k.value) + '"' + (o.more || '') +
+      ' aria-pressed="' + (String(o.cur) === String(k.value)) + '"><span class="inv-kind-ico">' + iconSvg(k.icon || 'note') + '</span>' +
+      '<span class="inv-kind-text"><span class="inv-kind-word">' + escHtml(k.word) + '</span>' + (k.line ? '<span class="inv-kind-line">' + escHtml(k.line) + '</span>' : '') + '</span></button>';
+  }).join('') + '</div>';
+}
+/* The receipt after a save: what was recorded, in words, and the form's own actions (Correct, Void) where it has them. */
+function uiFlowReceiptHtml(o) {
+  if (!o) return '';
+  return '<div class="inv-flow-receipt" data-flow-receipt role="status"><span class="inv-flow-receipt-ico">' + iconSvg('done') + '</span>' +
+    '<div class="inv-flow-receipt-text"><p class="inv-flow-receipt-title">' + escHtml(o.title || 'Saved') + '</p>' +
+    (o.lines || []).filter(Boolean).map(function(l) { return '<p class="inv-flow-receipt-line">' + l + '</p>'; }).join('') + '</div>' +
+    (o.actions ? '<div class="inv-flow-receipt-acts">' + o.actions + '</div>' : '') + '</div>';
+}
+/* A step's book: the guide opened at the section it names (the Reader at that section, kbread.js). */
+function uiFlowGuideGo(id, sec) {
+  var a = typeof kbFind === 'function' ? kbFind(id) : null;
+  if (!a) return;
+  var i = 0;
+  if (sec && typeof kbParse === 'function') {
+    var want = String(sec).toLowerCase();
+    kbParse(a.body).some(function(s, k) { if (s.title && s.title.toLowerCase().indexOf(want) >= 0) { i = k; return true; } return false; });
+  }
+  if (dialogsTypedAsk(function() { uiFlowGuideGo(id, sec); })) return;
+  var loc = { tab: 'pageKnow', v: kbTabFor(a.kind), id: a.id };
+  kbGo(loc, function() { _kbMode = 'read'; _kbSec = i; loc.v = kbTabFor(a.kind) + kbModeV(a); });
 }
 /* ===== ONE LOOK'S PIECES (docs/TAB_MAP.md §3e; design §6.28, §6.6, §6.7) =====
    The owner, 9 Oct 2026: "UI still feels inconsistent to me". The components were alike everywhere; how each screen was put
@@ -30399,6 +30652,7 @@ function stockManualNew() {
 function stockOpenManual() {
   _stockManual = stockManualNew();
   stockSetView('manual');
+  uiFlowFocusNext(document.getElementById('stockContent') || document);
 }
 // A figure typed on the hand form and not yet saved (what repeats, the company and the invoice, is not work to lose).
 function stockManualTyped() {
@@ -30406,37 +30660,99 @@ function stockManualTyped() {
   return !!m && Object.keys(m.vals).some(function(id) { var v = m.vals[id]; return (v.qty != null && v.qty !== '') || (v.price != null && v.price !== ''); });
 }
 
+/* Enter by hand as a guided flow (UI pass 3 §11a): What · When (the bill for a delivery) · Which lines and how much · Who. The preview
+   says each line's level before and after and the checks the app makes of an entry, worked out on the entry as it would be saved. */
+var STOCK_KINDS = [
+  { value: 'count', icon: 'clipboardCheck', word: 'Count', line: 'What is on the shelf now' },
+  { value: 'received', icon: 'boxPlus', word: 'Received', line: 'A delivery came in' },
+  { value: 'used', icon: 'box', word: 'Used', line: 'Taken from the shelf' },
+  { value: 'charged', icon: 'flask', word: 'Charged', line: 'Put into a bath' }
+];
+function stockManualFilled(m) {
+  var out = [];
+  Object.keys(m.vals).forEach(function(id) {
+    var v = m.vals[id], q = parseFloat(v.qty), it = stockItem(id);
+    if (!it || v.qty === '' || v.qty == null || isNaN(q) || q < 0) return;
+    var pr = parseFloat(v.price);
+    out.push({ it: it, qty: q, price: v.price !== '' && v.price != null && pr > 0 ? pr : null });
+  });
+  return out;
+}
+/* The checks the app makes of a saved entry (stockEntryChecks), made of this one before it is saved: the entry is put in the book
+   for the reading and taken out again at once, nothing saved. */
+function stockPreviewChecks(m, f) {
+  var st = stockData(), id = '_flow_preview', rec = { id: id, itemId: f.it.id, kind: m.mode, qty: f.qty, date: m.date, seq: STOCK_KIND_RANK[m.mode], at: Date.now(), source: 'manual' };
+  if (m.mode === 'used' || m.mode === 'charged') { rec.days = 1; rec.from = m.date; }
+  st.entries.push(rec);
+  try { return (_stockEntryChecks(f.it.id)[id] || []).map(function(c) { return c.text; }); }
+  catch (e) { return []; }
+  finally { var i = st.entries.indexOf(rec); if (i >= 0) st.entries.splice(i, 1); }
+}
+function stockManualModel() {
+  var m = _stockManual;
+  if (!m) return null;
+  var filled = stockManualFilled(m), kind = STOCK_KINDS.filter(function(k) { return k.value === m.mode; })[0] || STOCK_KINDS[0];
+  var unitQ = function(it, v) { return stockFmtQty(v) + (it.unit ? ' ' + it.unit : ''); };
+  var day = m.date ? stockShortDate(m.date) : '';
+  var whenDone = !!m.date && (m.mode !== 'received' || (!!m.supplier && !!m.billNo));
+  var lines = [], checks = [];
+  filled.forEach(function(f) {
+    var it = f.it, lvl = m.mode === 'count' ? stockReplay(it.id, isoAddDays(m.date, 1)).level : stockReplay(it.id, m.date ? isoAddDays(m.date, 1) : null).level, after = lvl;
+    if (m.mode === 'count') after = f.qty;
+    else if (m.mode === 'received') after = (lvl || 0) + f.qty;
+    else if (lvl != null) after = stockRound(lvl - f.qty);
+    var what = m.mode === 'count' ? 'Counted ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) :
+      m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
+        (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
+        (f.price != null ? ', ' + escHtml(formatCurrency(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST' : '') :
+      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.bath ? ' into ' + escHtml(m.bath) : '');
+    var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
+      ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
+    lines.push(what + (day ? ' on ' + escHtml(day) : '') + shelf);
+    stockPreviewChecks(m, f).forEach(function(t) { checks.push({ tone: 'warning', text: it.name + ': ' + t }); });
+    if (m.mode === 'received' && f.price == null) checks.push({ tone: 'info', text: it.name + ': no price. The live cost goes on the last price paid until one is added.' });
+  });
+  var bySays = stockBy();
+  var steps = [
+    { key: 'what', title: 'What are you entering?', help: 'Pick one. Each line below is then entered as this.', guide: ['app-stock', 'by hand'], done: true, says: kind.word,
+      body: uiKindTilesHtml(STOCK_KINDS, { action: 'invStockMode', cur: m.mode, label: 'What is entered' }) },
+    { key: 'when', title: m.mode === 'received' ? 'When, and on which bill?' : 'When?', help: m.mode === 'received' ? 'The company, the invoice and its date: the price and the buying pattern are read from them.' :
+      m.mode === 'count' ? 'The day counted. The app sets it against its own level at the end of that day.' : 'The day it was taken.',
+      done: whenDone, says: day + (m.mode === 'received' && m.billNo ? ' · bill ' + m.billNo + (m.supplier ? ' · ' + m.supplier : '') : ''), body: '' },
+    { key: 'lines', title: m.mode === 'count' ? 'What is on the shelf?' : m.mode === 'received' ? 'What came in, and at what price?' : m.mode === 'used' ? 'What was used?' : 'What went into the bath?',
+      help: 'Fill only the lines that changed.' + (m.mode === 'charged' || m.mode === 'used' ? ' Into names the bath, so the line’s use is set against it.' : ''),
+      done: filled.length > 0, says: filled.length ? (filled.length === 1 ? filled[0].it.name + ' · ' + unitQ(filled[0].it, filled[0].qty) : filled.length + ' lines') : '', body: '' },
+    { key: 'who', title: 'Who is entering it?', help: 'Kept on this device for the next time.', done: !!bySays, says: bySays, body: '' }
+  ];
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Fill a line and this says what Save records and where each line’s level goes.' } };
+}
+uiFlowDefine('stockManual', stockManualModel);
 function renderStockManual() {
   var m = _stockManual, st = stockData();
   var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
-  var h = stockBackBar('Stock', 'Enter by hand');
-  h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">';
-  [['count', 'Count'], ['received', 'Received'], ['used', 'Used'], ['charged', 'Charged']].forEach(function(o) {
-    h += '<button type="button" class="inv-seg-btn" data-action="invStockMode" data-mode="' + o[0] + '" aria-pressed="' + (m.mode === o[0]) + '">' + o[1] + '</button>';
-  });
-  h += '</div><div class="inv-panel"><div class="inv-fields">' +
-    field('stockManDate', 'Date', '<input type="date" id="stockManDate" class="inv-input" value="' + escHtml(m.date) + '">');
+  var model = stockManualModel(), body = {};
+  // When: the day, and for a delivery its bill.
+  var when = '<div class="inv-fields">' + field('stockManDate', 'Date', '<input type="date" id="stockManDate" class="inv-input" value="' + escHtml(m.date) + '">');
   if (m.mode === 'received') {
-    h += field('stockManSupplier', 'Company', '<input id="stockManSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it" autocomplete="off">') +
+    when += field('stockManSupplier', 'Company', '<input id="stockManSupplier" class="inv-input" list="stockSupplierList" value="' + escHtml(m.supplier) + '" placeholder="Who billed it" autocomplete="off">') +
       field('stockManBill', 'Invoice no.', '<input id="stockManBill" class="inv-input" value="' + escHtml(m.billNo) + '" autocomplete="off">') +
       field('stockManBillDate', 'Invoice date', '<input type="date" id="stockManBillDate" class="inv-input" value="' + escHtml(m.billDate || m.date) + '">') +
       stockSupplierDatalist();
   }
+  body.when = when + '</div>';
+  // Which lines, and how much.
+  var lines = '';
   if (m.mode === 'charged' || m.mode === 'used') {
-    h += field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">');
+    lines += '<div class="inv-fields">' + field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">') + '</div>';
   }
-  h += field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">') + '</div>';
-  var hints = { count: 'What is on the shelf now. The app compares it with its own level.', received: 'A delivery, with its bill. The price per unit is what the live cost is worked out at.',
-    used: 'Drawn from stock. Sets the daily rate.', charged: 'Put into a bath, e.g. zinc or salts.' };
-  h += '<div class="inv-note">' + hints[m.mode] + ' Fill only the lines that changed.</div></div>';
-  h += '<div class="inv-panel inv-panel-flush" id="stockManualList"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span></div>';
-  if (m.mode === 'received') h += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
+  lines += '<div class="inv-panel inv-panel-flush" id="stockManualList">';
+  if (m.mode === 'received') lines += '<div class="inv-row-group"><span>Line</span><span>Quantity · &#8377; per unit, before GST</span></div>';
   // A count is set against the level at the end of its own day, the figure Save compares it with; it said today's level
   // whatever day was picked.
   var today = localDateStr(), past = m.mode === 'count' && m.date && m.date !== today;
-  st.items.filter(function(i) { return i.active !== false; }).forEach(function(i) {
+  st.items.filter(function(i) { return i.active !== false && !i.mergedInto; }).forEach(function(i) {
     var v = m.vals[i.id] || {}, lv = m.mode === 'count' && m.date ? stockReplay(i.id, isoAddDays(m.date, 1)).level : stockReplay(i.id).level;
-    h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
+    lines += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(i.name) + '</span>' +
       '<span class="inv-row-meta">' + (m.mode === 'count' ? (past ? 'app had ' : 'app has ') : 'now ') + escHtml(stockFmtQty(lv)) + ' ' + escHtml(i.unit || '') +
       (past ? ' on ' + escHtml(stockDayLabel(m.date)) : '') + '</span></span>' +
       '<span class="inv-row-end"><input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-qty="' + escHtml(i.id) + '" value="' + escHtml(v.qty != null ? v.qty : '') + '" aria-label="' + escHtml(i.name) + ' quantity">' +
@@ -30444,11 +30760,18 @@ function renderStockManual() {
       (m.mode === 'received' ? '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-price="' + escHtml(i.id) + '" value="' + escHtml(v.price != null ? v.price : '') + '" placeholder="₹/' + escHtml(i.unit || 'unit') + '" aria-label="' + escHtml(i.name) + ' price per unit">' : '') +
       '</span></div>';
   });
-  h += '<div class="inv-panel-body"><div class="inv-field-label">Add a line</div><div class="inv-toolbar inv-toolbar-flush">' +
+  lines += '<div class="inv-panel-body"><div class="inv-field-label">Add a line</div><div class="inv-toolbar inv-toolbar-flush">' +
     '<input id="stockNewName" class="inv-input inv-toolbar-item" placeholder="Name, e.g. Chromic acid" aria-label="New line name" autocomplete="off">' +
     '<select id="stockNewUnit" class="inv-select inv-select-sm" aria-label="Unit"><option value="kg">kg</option><option value="L">L</option><option value="nos">nos</option></select>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockAddLine">Add</button></div></div></div>';
-  h += stockDayEntriesHtml(m.date);
+  body.lines = lines;
+  body.who = field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">');
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
+  var h = uiFlowHtml('stockManual', model, {
+    before: stockBackBar('Stock', 'Enter by hand'),
+    receipt: m.saved && m.saved.date === m.date ? uiFlowReceiptHtml(m.saved) : '',
+    after: stockDayEntriesHtml(m.date)
+  });
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(STOCK_KIND_LABEL[m.mode]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(m.date)) + '</div></div>' +
     '<button class="inv-btn inv-btn-primary" data-action="invStockSaveManual">Save</button></div>';
@@ -30524,10 +30847,14 @@ function stockSaveManual() {
     n++;
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
+  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, kept on the form until the next save.
+  var said = stockManualModel().preview.lines.slice(0, 6);
   saveState();
   // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
   // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
   m.vals = {};
+  m.saved = { date: m.date, title: 'Saved: ' + n + (n === 1 ? ' entry' : ' entries') + ' · ' + STOCK_KIND_LABEL[m.mode] + ' on ' + stockShortDate(m.date),
+    lines: said.map(function(l) { return l.split(' · ')[0]; }).concat(n > said.length ? [(n - said.length) + ' more'] : []).concat(['Each is listed under Entered for ' + escHtml(stockShortDate(m.date)) + ', with Correct and Void.']) };
   _pageTyped = false;
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');
@@ -78216,6 +78543,8 @@ function onDocClick(e) {
   switch(action) {
     // A workspace tab naming one of a page's own views (Today's) carries data-v (workspace.js).
     case 'invSwitchTab': wsSwitchTab(btn.dataset.tab, btn.dataset.v); break;
+    // A guided flow's step opens its guide at the section it names (state.js uiFlowGuideGo).
+    case 'invFlowGuide': uiFlowGuideGo(btn.dataset.id, btn.dataset.sec); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
@@ -79290,6 +79619,14 @@ document.addEventListener('focusout', function(e) {
   }, 200);
 });
 
+
+/* The guided flows (state.js, UI pass 3 §11a) kept in step with what is typed: after every input, change and click has been
+   handled (these listeners are the last registered), the steps' state, the progress and the preview are worked out again. Enter
+   in a field of a step it finishes goes on to the first field of the step Next. */
+['input', 'change', 'click'].forEach(function(t) {
+  document.addEventListener(t, function() { if (document.querySelector('[data-flow]')) uiFlowSync(); });
+});
+document.addEventListener('keydown', uiFlowEnter);
 /* ===== WORKSPACES: THE SHELL OF DIRECTION B =====
    Owner, 1 Oct 2026 (docs/DIRECTION_B.md): the phone bar is Today · Office · Add · Floor · Money, with no More; the
    desktop sidebar is Add · Search · each workspace with its views · Settings. Most of the day is entering things and
@@ -80091,7 +80428,7 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

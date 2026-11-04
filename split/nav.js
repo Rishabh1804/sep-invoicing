@@ -370,7 +370,7 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

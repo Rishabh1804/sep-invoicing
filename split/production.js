@@ -797,10 +797,15 @@ function prodRegisterTwins(counted, byId) {
   });
   var clock = function(t) { var m = t ? _hhmm(t) : null; return m == null ? null : m < PROD_DAY_START ? m + 1440 : m; };
   var span = function(e) { var a = clock(e.time), b = clock(e.to); if (a == null) a = b; if (b == null) b = a; return a == null ? null : [a, b < a ? b + 1440 : b]; };
-  var root = function(e) { var n = 0; while (e && e.replaces && byId && byId[e.replaces] && n++ < 20) e = byId[e.replaces]; return e; };
+  var root = function(e) { return prodRoot(e, byId); };
   var src = function(e) { var r = root(e) || e; return r.pageId ? 'page:' + r.pageId : r.photoId ? 'photo:' + r.photoId : r.importId ? 'imp:' + r.importId : r.msgHash ? 'msg:' + r.msgHash : 'id:' + r.id; };
   var meet = function(a, b) { var sa = span(a), sb = span(b); if (!sa || !sb) return false; return Math.max(sa[0], sb[0]) < Math.min(sa[1], sb[1]) || (sa[0] === sb[0] && sa[1] === sb[1]); };
-  var kept = function(a, b) { return prodTwinOkIds(a).indexOf(b.id) >= 0 || prodTwinOkIds(b).indexOf(a.id) >= 0; };
+  // Kept apart by the owner, compared root to root: a correction of either run keeps the word (Cipher M-1). The word is read off
+  // the run and its root alike, since a correction may carry it.
+  var kept = function(a, b) {
+    var ra = root(a) || a, rb = root(b) || b, oka = prodTwinOkIds(a).concat(prodTwinOkIds(ra)), okb = prodTwinOkIds(b).concat(prodTwinOkIds(rb));
+    return oka.indexOf(rb.id) >= 0 || oka.indexOf(b.id) >= 0 || okb.indexOf(ra.id) >= 0 || okb.indexOf(a.id) >= 0;
+  };
   Object.keys(by).forEach(function(k) {
     var g = by[k];
     if (g.length < 2) return;
@@ -816,11 +821,15 @@ function prodRegisterTwins(counted, byId) {
       if (seen[e.id]) return;
       var stack = [e.id], cl = [];
       while (stack.length) { var id = stack.pop(); if (seen[id]) continue; seen[id] = true; cl.push(id); (twin[id] || []).forEach(function(o) { if (!seen[o]) stack.push(o); }); }
-      cl.forEach(function(id) { if (id !== e.id) skip[id] = true; });
+      // A copy is a run of another source than the first saved: two runs of one photo joined through a third are two runs (Cipher L-7).
+      var first = src(e);
+      cl.forEach(function(id) { if (id !== e.id && byId && byId[id] && src(byId[id]) !== first) skip[id] = true; });
     });
   });
   return { twin: twin, skip: skip };
 }
+/* An entry's first record: a correction followed back to the run it corrects. */
+function prodRoot(e, byId) { var n = 0; while (e && e.replaces && byId && byId[e.replaces] && n++ < 20) e = byId[e.replaces]; return e; }
 /* The runs an entry was kept apart from (`twinOk: {ids, at, by}`; an older `id` read as one). */
 function prodTwinOkIds(e) { var t = e && e.twinOk; return !t ? [] : Array.isArray(t.ids) ? t.ids : t.id ? [t.id] : []; }
 function prodTwinOf(e, idx) { idx = idx || prodIndex(); var t = idx.twin[e.id]; return t && t.length ? idx.byId[t[0]] || null : null; }
@@ -834,7 +843,9 @@ async function prodTwinOk(id) {
   if (!e) return;
   // This run is kept apart from every copy it was paired with; the copies left may still be one run saved twice, and stay paired.
   var at = Date.now(), who = stockBy();
-  e.twinOk = { ids: prodTwinOkIds(e).concat(os.map(function(o) { return o.id; })).filter(function(id, i, a) { return a.indexOf(id) === i; }), at: at, by: who };
+  // Written as roots: the word holds when either run is corrected (Cipher M-1).
+  var byId = prodIndex().byId;
+  e.twinOk = { ids: prodTwinOkIds(e).concat(os.map(function(o) { return (prodRoot(o, byId) || o).id; })).filter(function(id, i, a) { return a.indexOf(id) === i; }), at: at, by: who };
   prodTouch();
   saveState();
   renderProduction();
@@ -1977,7 +1988,7 @@ TODO_RULE_FNS.prodUnweighed = function() {
 };
 
 /* A register run saved twice from two sources (prodRegisterTwins), one task a day, the newest first: both count until the copy is
-   voided, so the day's plating and the line's efficiency read high by it. Amber; a floor task (the one who saved the pages). */
+   voided, so the day's plating and the line's efficiency read high by it. Amber; the owner's. */
 // The owner's: Void and Two runs, keep both need the voids permission (Vulcanus L-7). The last 30 days only, as the other rules.
 TODO_RULE_NEED.prodTwice = 'owner';
 TODO_RULE_FNS.prodTwice = function() {
@@ -1985,17 +1996,17 @@ TODO_RULE_FNS.prodTwice = function() {
   Object.keys(idx.twin || {}).forEach(function(id) {
     var e = idx.byId[id];
     if (!e || e.voidedAt || e.date < since) return;
-    var d = days[e.date] || (days[e.date] = { runs: 0, extra: 0, copies: 0, ids: [], lines: {} });
+    var d = days[e.date] || (days[e.date] = { runs: 0, extra: {}, copies: 0, ids: [], lines: {} });
     d.runs++; d.ids.push(id); d.lines[e.line || '-'] = true;
     // A copy after the first saved is what is counted twice (a cluster of three counts two extra).
-    if (idx.twinSkip[id]) { d.copies++; if (e.unit === 'NOS' && e.qty) d.extra += e.qty; }
+    if (idx.twinSkip[id]) { d.copies++; if (e.qty) d.extra[e.unit || 'NOS'] = (d.extra[e.unit || 'NOS'] || 0) + e.qty; }
   });
   return Object.keys(days).sort().reverse().map(function(day) {
     var d = days[day], pairs = d.copies, lines = Object.keys(d.lines).map(function(l) { return l === '-' ? 'line unknown' : PROD_LINE_LABEL[l] || l; });
     return { key: 'prodTwice:' + day, rule: 'prodTwice', tone: 'amber',
       title: formatDate(day) + ': ' + todoPlural(pairs, 'register run') + ' saved twice',
       sub: lines.join(', '), why: 'Production · the same run from two register sources (a photo and a page, or two photos of one page)',
-      facts: [['Day', formatDate(day)], ['Copies', String(pairs)], ['Pieces counted twice', d.extra ? Math.round(d.extra).toLocaleString('en-IN') : '–']],
+      facts: [['Day', formatDate(day)], ['Copies', String(pairs)], ['Counted twice', Object.keys(d.extra).map(function(u) { return prodQtyText(Math.round(d.extra[u] * 100) / 100, u); }).join(' + ') || '–']],
       clears: 'Void the copy of each pair, or Two runs, keep both where they are two runs. Until then the day’s plating and the line’s efficiency read high.',
       go: prodGo('entries', { flag: 'twice', day: day }), goLabel: 'Open the pairs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
   });

@@ -755,6 +755,8 @@ function chgHealthText() {
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
 var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
   orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
+  // Production's count (P258): a run counted or left out by hand, a run kept apart from its copies.
+  countSet: 'counted by hand', 'countSet.how': 'counted by hand', twinOk: 'kept as two runs', 'twinOk.ids': 'kept as two runs',
   voidReason: 'reason', cancelReason: 'reason', voidBy: 'by',
   // The flow thread's targets and terms (flow.js): the plant's in Settings, a client's own on the client.
   turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms',

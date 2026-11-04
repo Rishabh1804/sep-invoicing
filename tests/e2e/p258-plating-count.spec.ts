@@ -112,17 +112,18 @@ test.describe('P258: what counts in a day’s plating', () => {
     const t = await g(page, `(function(){ var t = TODO_RULE_FNS.prodTwice(); return t.map(function(x){ return [x.title, x.facts[2][1]]; }); })()`);
     expect(t.length).toBe(1);
     expect(t[0][0]).toContain('2 register runs saved twice');
-    expect(t[0][1]).toBe('840');
+    expect(t[0][1]).toBe('840 NOS');
     await openLines(page);
     await expect(runRow(page, 'A1').locator('[data-prod-twin-badge]')).toBeVisible();
     await expect(runRow(page, 'C1').locator('[data-prod-twin-badge]')).toHaveCount(0);
     const a1 = await openRow(page, 'A1');
-    await expect(a1.locator('[data-prod-twin]')).toContainText('came from the page typed on Mine');
-    await expect(a1.locator('[data-prod-twin]')).toContainText('this one from a register photo');
+    await expect(a1.locator('[data-prod-twin-run]')).toContainText('also came from the page typed on Mine');
+    await expect(a1.locator('[data-prod-twin-run]')).toContainText('this one from a register photo');
     // Entries: the flag lists the four.
     await g(page, `(function(){ _prodFilter = { kind: '', flag: 'twice', client: '', day: '' }; prodSetTab('entries'); renderProduction(); })()`);
     await expect(page.locator('#prodEntries [data-prod-entry]')).toHaveCount(4);
-    await expect(page.locator('#prodEntriesVerdict')).toContainText('4 saved twice');
+    // The flag lists the four rows; the verdict counts the copies to settle, as Lines and the task do (Cipher M-2).
+    await expect(page.locator('#prodEntriesVerdict')).toContainText('2 copies to settle');
     // Void one copy: the pair goes. Keep both on the other: it goes too, and stays apart.
     await g(page, `(function(){ var e = prodIndex().byId.B1; e.voidedAt = Date.now(); e.voidReason = 'saved twice'; prodTouch(); saveState(); })()`);
     expect(await g(page, `prodIndex().twin`)).toEqual({ A2: ['B2'], B2: ['A2'] });
@@ -177,11 +178,11 @@ test.describe('P258: what counts in a day’s plating', () => {
     expect(tw.twin.C1.sort()).toEqual(['C2', 'C3']);
     expect(tw.skip).toEqual(['C2', 'C3']);
     const t = await g(page, `TODO_RULE_FNS.prodTwice().map(function(x){ return [x.title, x.facts[2][1]]; })`);
-    expect(t).toEqual([[expect.stringContaining('2 register runs saved twice'), '140']]);
+    expect(t).toEqual([[expect.stringContaining('2 register runs saved twice'), '140 NOS']]);
     // Keep both on one run keeps it apart from each copy it was paired with; the two left may still be one run, and stay paired
     // until they are settled too.
     await openLines(page);
-    await (await openRow(page, 'C1')).locator('[data-prod-twin]').waitFor();
+    await (await openRow(page, 'C1')).locator('[data-prod-twin-run]').waitFor();
     await expect(page.locator('[data-prod-twin-note]')).toContainText('2 runs saved twice');
     await (await openRow(page, 'C1')).locator('[data-action="invProdTwinOk"]').click();
     expect(await g(page, `prodIndex().twin`)).toEqual({ C2: ['C3'], C3: ['C2'] });
@@ -189,5 +190,28 @@ test.describe('P258: what counts in a day’s plating', () => {
     expect(await g(page, `prodIndex().twin`)).toEqual({});
     const ok = (await readStoredState(page)).production.entries.filter((e: any) => e.twinOk).map((e: any) => [e.id, e.twinOk.ids.sort()]);
     expect(ok).toEqual([['C1', ['C2', 'C3']], ['C2', ['C3']]]);
+  });
+
+  test('Cipher’s cases: a word to keep two runs apart survives a correction; two runs of one photo joined through a third stay in the measures', async ({ page }) => {
+    const L = (o: any) => E({ unit: 'NOS', ...o });
+    await load(page, [
+      L({ id: 'P1', clientId: 11, qty: 70, time: '09:00', to: '09:40', photoId: 'PH1', at: 1 }),
+      L({ id: 'P2', clientId: 11, qty: 70, time: '09:00', to: '09:40', pageId: 'PG1', src: 'face', at: 2 }),
+      // One photo's two runs (Q1, Q2) both overlapping a page's run (Q3): Q2 is not a copy of Q1, though the three cluster.
+      L({ id: 'Q1', clientId: 12, qty: 50, time: '10:00', to: '10:40', photoId: 'PH1', at: 1 }),
+      L({ id: 'Q2', clientId: 12, qty: 50, time: '10:30', to: '11:10', photoId: 'PH1', at: 2 }),
+      L({ id: 'Q3', clientId: 12, qty: 50, time: '10:20', to: '11:00', pageId: 'PG1', src: 'face', at: 3 }),
+    ]);
+    expect(await g(page, `Object.keys(prodIndex().twinSkip).sort()`)).toEqual(['P2', 'Q3']);
+    await openLines(page);
+    await (await openRow(page, 'P1')).locator('[data-action="invProdTwinOk"]').click();
+    expect(Object.keys(await g(page, `prodIndex().twin`)).sort()).toEqual(['Q1', 'Q2', 'Q3']);
+    // P2 corrected (its time): the pair stays kept apart.
+    await g(page, `prodOpenHand('P2')`);
+    await page.locator('#prodHandTime').fill('09:05');
+    await page.locator('[data-action="invProdSaveHand"]').click();
+    expect(Object.keys(await g(page, `prodIndex().twin`)).sort()).toEqual(['Q1', 'Q2', 'Q3']);
+    // History names the word in words.
+    expect(await g(page, `CHG_FIELD_WORDS.twinOk + ' / ' + CHG_FIELD_WORDS.countSet`)).toBe('kept as two runs / counted by hand');
   });
 });

@@ -2445,7 +2445,8 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   **A hand run of a client the day's register never names on its line is other work and counts beside it** (owner, 4 Nov 2026: a
   client typed by hand sat under *Also reported, not added* on a shift whose register page never named it, and could not be moved;
   `prodCountPlated`, P258). The clients named are the day's and the line's, over both slots and the barrel's day list (a register run is
-  split at 5 PM), matched by id and by name (`prodCountNameKey`: a firm held twice, a run read under another record). A hand run of a
+  split at 5 PM), matched by id and by name (`prodCountNameKey`: a firm held twice, a run read under another record); a shift that
+  no register or message covers is filled by its hand runs, as before, whatever clients the day names. A hand run of a
   client named stays also reported (the same work told twice); so does one naming no client, and one beside a register run read with
   no client of the book (*unsure*: it may be that work). A correction of a hand run is judged as the run it replaces. **The owner's
   word on any run wins**: **Count it**, **Leave it out**, **Back to the rule** (`countSet: {how, at, by}`, `prodCountSet`, the voids
@@ -2457,7 +2458,9 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   three); *saved twice?* on each row, Entries' *Saved twice* flag, Lines' note that the figure and efficiency read high, To-do
   `prodTwice` (the owner's, 30 days, a day a task, the pieces counted twice). Until settled the copies after the first saved are left
   out of the 60-day measures (the pace, a tank's load: `twinSkip`), never out of the day's figure. Void the copy, or **Two runs, keep
-  both** (`twinOk: {ids, at, by}`: kept apart from each copy it was paired with).
+  both** (`twinOk: {ids, at, by}`: kept apart from each copy it was paired with, written as roots so a correction keeps it; Cipher's
+  Edict V). History names both words (*counted by hand*, *kept as two runs*). **A data flow changed**: `countSet` and `twinOk` travel
+  on the entries in the `sep-production` export (NEXT_SESSION).
 - **A pickling message never names the line.** A load's line is read from the plating it became (the same part, the
   same day from half an hour before, or the next working day before noon), shown and **never stored**; a load with no
   plating offers the part's **usual line** (5+ days at 80%+, learnt only from lines written or set, so the pattern

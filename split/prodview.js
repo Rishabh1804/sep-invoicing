@@ -708,7 +708,9 @@ function prodEntriesHtml() {
   PROD_ENTRY_KINDS.forEach(function(c) { kindN[c[0]] = recent.filter(function(e) { return !c[0] || e.kind === c[0]; }).length; });
   PROD_ENTRY_FLAGS.forEach(function(c) { flagN[c[0]] = all.filter(function(e) { return prodEntryFlagged(e, c[0], idx); }).length; });
   var openCuts = recent.filter(function(e) { return e.kind === 'downtime' && !e.voidedAt && e.downtime && e.downtime.open; }).length;
-  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + flagN.twice;
+  // The copies to settle, one fact everywhere (Lines' note, the task): a pair is one copy, though the flag lists both rows (Cipher M-2).
+  var copies = Object.keys(idx.twinSkip || {}).filter(function(id) { var x = idx.byId[id]; return x && !x.voidedAt; }).length;
+  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + copies;
   // The four flags that need a look are the card's factors, and filter the list as Stock's status tiles do; the kinds (and No client)
   // are the toolbar's chips, behind Filter on the phone with the flags beside them.
   var flagTile = function(flag, label, sub) {
@@ -716,7 +718,7 @@ function prodEntriesHtml() {
   };
   var h = uiVerdictHtml({ screen: 'Entries · 60 days', verdict: todoPlural(recent.length, 'entry', 'entries') + ' in 60 days' + (look ? ', ' + look + ' to look at' : ''),
     tone: !recent.length ? 'neutral' : look ? 'warning' : 'ok',
-    facts: [flagN.twice ? flagN.twice + ' saved twice' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
+    facts: [copies ? todoPlural(copies, 'copy', 'copies') + ' to settle' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
       flagN.unknown ? flagN.unknown + ' with the line unknown' : ''].filter(Boolean).slice(0, 3),
     factors: [flagTile('unweighed', 'Not weighed', 'runs in pieces, every date'), flagTile('unknown', 'Line unknown', 'pickled loads'),
       flagTile('nochallan', 'No challan', 'loads, 30 days'), flagTile('gauge', 'Gauge unknown', 'a round no rule names')],
@@ -833,7 +835,7 @@ function prodEntryMoreHtml(e, idx) {
   var cw = prodCountWhyText(e, idx);
   if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
   var tws = prodTwinsOf(e, idx);
-  if (tws.length) h += '<div class="inv-callout inv-callout-warning" data-prod-twin>' + escHtml('Saved twice? The same run (' + prodQtyText(e.qty, e.unit) + ') also came from ' +
+  if (tws.length) h += '<div class="inv-callout inv-callout-warning" data-prod-twin-run>' + escHtml('Saved twice? The same run (' + prodQtyText(e.qty, e.unit) + ') also came from ' +
     tws.map(function(tw) { return prodTwinSrc(tw) + ' (' + (tw.time || '') + (tw.to && tw.to !== tw.time ? '–' + tw.to : '') + ')'; }).join(' and ') +
     ', and this one from ' + prodTwinSrc(e) + '. All count now: void the copy, or keep both if they are two runs.') + '</div>';
   var rounds = e.rounds || [];
@@ -1772,7 +1774,7 @@ async function prodSaveHand() {
     // names) goes with it while the part and the client are as they were; the entry corrected is then no longer flagged.
     if (src) {
       if (f.kind === 'plated' && src.to) e.to = src.to;
-      ['rounds', 'qty2', 'unit2', 'set', 'barrels', 'countSet'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+      ['rounds', 'qty2', 'unit2', 'set', 'barrels', 'countSet', 'twinOk'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
       if (f.kind !== 'plated' && src.line) { e.line = src.line; e.lineSrc = src.lineSrc || null; if (src.setAt) { e.setAt = src.setAt; e.setBy = src.setBy; } }
       if (src.qtySrc && e.qty === src.qty) e.qtySrc = src.qtySrc;
       if (e.part === String(src.part || '').trim() && String(e.clientId) === String(src.clientId)) {

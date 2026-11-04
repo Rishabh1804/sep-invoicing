@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="9f0b2323">
+<meta name="app-build" content="6e89990e">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -14234,6 +14234,8 @@ async function saveSettingsSection(key) {
   document.querySelectorAll('#settingsScrim [data-sum]').forEach(function(el) {
     el.innerHTML = SETTINGS_SECS[el.dataset.sum].summary();
   });
+  // A flow in the section (a line's shift) redrawn by its save reads its new fields (Castor M-1).
+  if (typeof uiFlowSync === 'function') uiFlowSync();
   showToast(s.title + ' saved');
 }
 
@@ -24725,7 +24727,7 @@ function attEditModel() {
   var lines = [];
   if (st) {
     lines.push(escHtml(w.name) + ' · ' + escHtml(ATT_STATE_LABELS[st]) + ' on ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + (live ? ', on ' + escHtml(areaLabel(area)) : ''));
-    if (live) lines.push(escHtml((times || 'The shift, 8:30 AM to 5:00 PM') + ': ' + hrs + (times ? ', worked out from the times' : '')));
+    if (live) lines.push(escHtml((times ? times + ': ' : 'No times typed: ') + hrs + (times ? ', worked out from the times' : ', as recorded')));
     slots.forEach(function(s) { lines.push(escHtml(s) + ', on that slot’s OT crew'); });
   }
   return {
@@ -29074,11 +29076,20 @@ function payFormModel() {
   var lines = [], checks = [];
   if (r) {
     var period = r.weekly ? 'the week to Sat ' + formatDate(d.sat) : _monthLabel(r.from.slice(0, 7));
-    if (amount > 0) lines.push((kind === 'advance' ? 'An advance of ' : 'A payment of ') + payMoney(amount) + ' to ' + escHtml(r.w.name) + (okDate ? ' on ' + escHtml(formatDate(date)) : ''));
-    var after = gstRound(r.due - amount);
-    lines.push('Due for ' + escHtml(period) + ': ' + payMoney(r.due) + (amount > 0 ? ' → ' + (after < 0 ? payMoney(-after) + ' advanced, to work off' : payMoney(after)) : ''));
-    if (amount > 0 && r.due > 0 && amount > r.due) checks.push({ tone: 'warning', text: 'More than is due: ' + formatCurrency(gstRound(amount - r.due)) + ' over, carried as an advance.' });
-    if (okDate && (date < r.from || date > r.to) && !(r.weekly === false && date > r.to && date <= isoAddDays(r.to, 20))) checks.push({ tone: 'info', text: 'Dated outside ' + period + ': it counts in the period it is dated in.' });
+    // Which period it pays is Pay's own rule (payPaymentsFor): a monthly hand's payment dated by the 20th pays the month before,
+    // an advance the month it is dated in; a weekly hand's, the week it is dated in.
+    var paysMonth = !r.weekly && okDate ? payMonthPaidFor({ date: date, kind: kind }) : '';
+    if (amount > 0) lines.push((kind === 'advance' ? 'An advance of ' : 'A payment of ') + payMoney(amount) + ' to ' + escHtml(r.w.name) + (okDate ? ' on ' + escHtml(formatDate(date)) : '') +
+      (paysMonth ? ', for ' + escHtml(_monthLabel(paysMonth.slice(0, 7))) : ''));
+    // What is due after it is Pay's own row worked out with the payment in the book (put in for one reading, taken straight out):
+    // never a second arithmetic (Castor H-1, U4's QA chain: a salary dated the 14th pays the month before, which a subtraction missed).
+    var after = amount > 0 && okDate ? payDueAfter(d, r.w, { staffId: r.w.id, date: date, amount: amount, kind: kind }) : null;
+    lines.push('Due ' + (r.weekly ? 'for ' : 'with ') + escHtml(period) + (r.weekly ? '' : ' and what it carries') + ': ' + payMoney(r.due) +
+      (after != null ? ' → ' + (after < 0 ? payMoney(-after) + ' advanced, to work off' : payMoney(after)) : ''));
+    if (paysMonth && paysMonth.slice(0, 7) !== r.from.slice(0, 7)) {
+      checks.push({ tone: 'info', text: 'It pays ' + _monthLabel(paysMonth.slice(0, 7)) + (kind === 'advance' ? ', the month it is dated in.' : ': a payment dated by the ' + PAY_SALARY_BY_DAY + 'th pays the month before.') });
+    } else if (r.weekly && okDate && (date < r.from || date > r.to)) checks.push({ tone: 'info', text: 'Dated outside ' + period + ': it counts in the week it is dated in.' });
+    if (after != null && after < 0 && r.due >= 0) checks.push({ tone: 'warning', text: 'More than is due: ' + formatCurrency(-after) + ' over, carried as an advance.' });
   }
   return {
     steps: [
@@ -29090,6 +29101,22 @@ function payFormModel() {
   };
 }
 uiFlowDefine('payForm', payFormModel);
+/* The hand's due in the period on screen with this payment recorded: Pay's own row (payDue) worked out with the payment in the book
+   for one reading and taken straight out. Kept per book, form and figures, so a keystroke does not work the week out twice. */
+var _payDueAfterMemo = null;
+function payDueAfter(d, w, p) {
+  var key = [typeof _bookWrites !== 'undefined' ? _bookWrites : '', d.weekStart, w.id, p.date, p.amount, p.kind].join('|');
+  if (_payDueAfterMemo && _payDueAfterMemo.key === key) return _payDueAfterMemo.v;
+  var list = staffPayments(), rec = Object.assign({ id: '_flow_preview', note: '', at: Date.now() }, p), v = null;
+  list.push(rec);
+  try {
+    var row = payDue(d.weekStart).rows.find(function(x) { return String(x.w.id) === String(w.id); });
+    v = row ? row.due : null;
+  } catch (e) { v = null; }
+  finally { var i = list.indexOf(rec); if (i >= 0) list.splice(i, 1); }
+  _payDueAfterMemo = { key: key, v: v };
+  return v;
+}
 function _payFormHtml(d) {
   _payFlowD = d;
   var today = localDateStr();
@@ -29451,6 +29478,8 @@ function paySave() {
     lines: [escHtml(formatDate(date)) + ' · listed under Payments in these periods, with Void'] } };
   saveState();
   renderAttendance();
+  // A save the PIN held came back after the click's own sync: the new form's preview is worked out from it (Castor M-1).
+  uiFlowSync();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);
 }
 async function payVoid(id) {
@@ -30131,6 +30160,33 @@ function stockCfg() {
 }
 function stockUid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function stockItem(id) { return stockData().items.find(function(i) { return i.id === id; }) || null; }
+/* A line as it stands now: a line merged into another (UI pass 3 §11c) is the line it was merged into, followed to the end. Read where
+   an id comes from outside this book's own entries (a choice stored on a message, a file, a position, another device's entry). */
+function stockLive(id) {
+  var it = stockItem(id), seen = {};
+  while (it && it.mergedInto && !seen[it.id]) { seen[it.id] = 1; it = stockItem(it.mergedInto) || it; if (seen[it.id]) break; }
+  return it;
+}
+/* Entries and prices quoted that name a retired line, moved to the line kept (each entry keeps mergedFrom). True when it moved any. */
+function stockMergedRepoint() {
+  if (!S || !S.stock || !Array.isArray(S.stock.items) || !S.stock.items.some(function(i) { return i && i.mergedInto; })) return false;
+  var moved = 0;
+  (S.stock.entries || []).forEach(function(e) {
+    var it = e && stockItem(e.itemId);
+    if (!it || !it.mergedInto) return;
+    var live = stockLive(it.id);
+    if (!live || live.id === it.id) return;
+    if (!e.mergedFrom) e.mergedFrom = it.id;
+    e.itemId = live.id; moved++;
+  });
+  (S.suppliers || []).forEach(function(r) {
+    (r && Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) {
+      var it = q && stockItem(q.itemId), live = it && it.mergedInto ? stockLive(it.id) : null;
+      if (live && live.id !== it.id) { q.itemId = live.id; moved++; }
+    });
+  });
+  return moved > 0;
+}
 // Days in a window, Sundays out — the shop's own divisor (16–22 Sep is "6 day").
 // The one counter is statsWorkingDays; a window here is never under a day.
 function stockWorkingDays(from, to) {
@@ -30268,7 +30324,10 @@ function stockFindByLead(key) {
   return hits.length === 1 ? hits[0] : null;
 }
 function stockFindByPos(n) {
-  return stockData().items.find(function(i) { return i.lastPos === n; }) || null;
+  // The position the supervisor numbered a line by: a line merged keeps its number, found as the line kept.
+  var hit = stockData().items.filter(function(i) { return i.lastPos === n; });
+  var live = hit.filter(function(i) { return !i.mergedInto; })[0];
+  return live || (hit[0] ? stockLive(hit[0].id) : null);
 }
 function stockGuessBasis(key) { return key === 'ZINC' ? 'charge' : 'draw'; }
 
@@ -30293,7 +30352,7 @@ function resolveStockParse(parsed, choices) {
       var already = stockFindByKey(mapKey);
       if (already) { r.item = already; r.via = 'chosen'; } else { r.via = 'new'; }
     }
-    else if (mapChoice && mapChoice !== 'new') { r.item = stockItem(mapChoice); r.via = 'chosen'; }
+    else if (mapChoice && mapChoice !== 'new') { r.item = stockLive(mapChoice); r.via = 'chosen'; }
     else if (mapChoice === 'new' && l.key) { r.via = 'new'; }
     else if (byKey) { r.item = byKey; r.via = 'name'; }
     else if (stockFindByLead(l.key)) {
@@ -30869,6 +30928,9 @@ function stockManualModel() {
   var day = m.date ? stockShortDate(m.date) : '';
   var whenDone = !!m.date && (m.mode !== 'received' || (!!m.supplier && !!m.billNo));
   var lines = [], checks = [];
+  // The baths Save records (stockBathsIn): what was typed in Into, read as the stock-by-line figures read it (Vulcanus L-2).
+  var baths = (m.mode === 'used' || m.mode === 'charged') && m.bath ? stockBathsIn(m.bath) : [];
+  if ((m.mode === 'used' || m.mode === 'charged') && m.bath && !baths.length && filled.length) checks.push({ tone: 'warning', text: 'Into: no bath read from "' + m.bath + '". It is saved as a note, and its use counts for the plant, not a line.' });
   filled.forEach(function(f) {
     var it = f.it, lvl = m.mode === 'count' ? stockReplay(it.id, isoAddDays(m.date, 1)).level : stockReplay(it.id, m.date ? isoAddDays(m.date, 1) : null).level, after = lvl;
     if (m.mode === 'count') after = f.qty;
@@ -30878,7 +30940,7 @@ function stockManualModel() {
       m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
         (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
         (f.price != null ? ', ' + escHtml(formatCurrency(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST' : '') :
-      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.bath ? ' into ' + escHtml(m.bath) : '');
+      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
     var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
       ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
     lines.push(what + (day ? ' on ' + escHtml(day) : '') + shelf);
@@ -30990,6 +31052,8 @@ function stockSaveManual() {
     if (!m.supplier) { showToast('Enter the company that billed it', 'error'); return; }
     if (!m.billNo) { showToast('Enter the invoice number', 'error'); return; }
   }
+  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, worked out before the entries go in (Vulcanus L-1).
+  var said = stockManualModel().preview.lines.slice(0, 6);
   var st = stockData(), at = Date.now(), by = stockBy(), n = 0, gaps = 0, unpriced = 0, ids = [];
   Object.keys(m.vals).forEach(function(id) {
     var v = m.vals[id], q = parseFloat(v.qty);
@@ -31020,8 +31084,6 @@ function stockSaveManual() {
     n++;
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
-  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, kept on the form until the next save.
-  var said = stockManualModel().preview.lines.slice(0, 6);
   saveState();
   // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
   // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
@@ -31065,8 +31127,18 @@ function stockTwinWhy(a, b) {
   if (diff < 0) return '';
   var x = wa[diff], y = wb[diff];
   if (Math.min(x.length, y.length) < 4 || /\d/.test(x + y)) return '';
+  // A first letter changed is another name (NITRIC, CITRIC), and so is a chemical's ending (NITRATE, NITRITE; CHLORATE, CHLORITE):
+  // real, different salts the plating line uses side by side (Vulcanus M-3, U4's QA chain).
+  if (x[0] !== y[0]) return '';
+  var ends = /(ATE|ITE|IDE|IC|OUS)$/;
+  if (ends.test(x) && ends.test(y) && x.replace(ends, '') === y.replace(ends, '')) return '';
+  if (x.length === y.length && x.slice(-3) !== y.slice(-3) && ends.test(x) && ends.test(y)) return '';
   return stockOneLetter(x, y) ? 'one letter apart' : '';
 }
+/* Two lines the owner said are different (a pair from the To-do or the merge): never raised again. Kept in the book as the pair's
+   ids, sorted. */
+function stockTwinKey(a, b) { return [String(a), String(b)].sort().join('|'); }
+function stockNotTwins() { var st = stockData(); if (!Array.isArray(st.notTwins)) st.notTwins = []; return st.notTwins; }
 /* One letter added, dropped or changed. */
 function stockOneLetter(x, y) {
   if (Math.abs(x.length - y.length) > 1) return false;
@@ -31084,7 +31156,7 @@ function stockTwins() {
   var count = function(id) { return stockData().entries.filter(function(e) { return e.itemId === id && !e.voided; }).length; };
   for (var i = 0; i < items.length; i++) for (var j = i + 1; j < items.length; j++) {
     var why = stockTwinWhy(items[i], items[j]);
-    if (!why) continue;
+    if (!why || stockNotTwins().indexOf(stockTwinKey(items[i].id, items[j].id)) >= 0) continue;
     var ni = count(items[i].id), nj = count(items[j].id);
     // The line with fewer entries is merged; of two alike, the one made later.
     var from = ni < nj || (ni === nj && (items[i].createdAt || 0) > (items[j].createdAt || 0)) ? items[i] : items[j], into = from === items[i] ? items[j] : items[i];
@@ -31109,8 +31181,20 @@ function stockMergeOpen(itemId, intoId) {
       return '<option value="' + escHtml(t.id) + '"' + (t.id === into ? ' selected' : '') + '>' + escHtml(t.name + (t.unit ? ' (' + t.unit + ')' : '') + (why ? ' · ' + why : '')) + '</option>';
     }).join('') + '</select></label></div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    // The To-do's pair may be two different chemicals: said once, it is never raised again.
+    (intoId && stockTwinWhy(it, stockItem(into) || {}) ? '<button class="inv-btn inv-btn-ghost" data-action="invStockNotTwins" data-id="' + escHtml(it.id) + '" data-into="' + escHtml(into) + '">They are different</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invStockMergeDo">Merge</button></div></div>';
   dialogOpen(html, { dismiss: true });
+}
+function stockNotTwinsSay(a, b) {
+  if (!grdGate('settings', 'say two stock lines are different', function() { stockNotTwinsSay(a, b); })) return;
+  var k = stockTwinKey(a, b), list = stockNotTwins();
+  if (list.indexOf(k) < 0) list.push(k);
+  saveState();
+  var scrim = document.querySelector('[data-stock-merge]');
+  if (scrim && scrim.closest('.inv-scrim-dialog')) dialogCloseScrim(scrim.closest('.inv-scrim-dialog'));
+  var x = stockItem(a), y = stockItem(b);
+  showToast((x && y ? x.name + ' and ' + y.name : 'The two lines') + ' are kept apart, and not asked about again');
 }
 async function stockMergeDo() {
   var m = _stockMergeFor, sel = document.getElementById('stockMergeInto');
@@ -31133,10 +31217,12 @@ async function stockMergeDo() {
   (into.mergedFrom = Array.isArray(into.mergedFrom) ? into.mergedFrom : []).push(from.id);
   if (into.lastPos == null && from.lastPos != null) into.lastPos = from.lastPos;
   if (!into.orderFrom && from.orderFrom) into.orderFrom = from.orderFrom;
+  // Prices quoted for the line given up are the line kept's (Iuno M-1); its number on the supervisor's sheet stays its own, found
+  // as the line kept (stockFindByPos), so a nameless line at that number is never asked again (Vulcanus L-6).
+  (S.suppliers || []).forEach(function(r) { (r && Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) { if (q && q.itemId === from.id) q.itemId = into.id; }); });
   from.mergedInto = into.id;
   from.retiredAt = at;
   from.active = false;
-  delete from.lastPos;
   _stockMergeFor = null;
   saveState();
   var scrim = document.querySelector('[data-stock-merge]');
@@ -31335,7 +31421,8 @@ var _stockChecksMemo = null;
 function stockEntryChecks(itemId) {
   var st = stockData(), parts = [localDateStr()];
   st.items.forEach(function(i) { parts.push(i.id + ':' + i.basis); });
-  st.entries.forEach(function(e) { parts.push(e.id + ':' + e.qty + ':' + e.date + ':' + e.kind + ':' + (e.voided ? 1 : 0) + (e.checkOk ? 1 : 0)); });
+  // The line an entry is on is in the key: a merge moves entries and changes nothing else (Vulcanus M-2, U4's QA chain).
+  st.entries.forEach(function(e) { parts.push(e.id + ':' + e.itemId + ':' + e.qty + ':' + e.date + ':' + e.kind + ':' + (e.voided ? 1 : 0) + (e.checkOk ? 1 : 0)); });
   var key = parts.join('|');
   if (!_stockChecksMemo || _stockChecksMemo.st !== st || _stockChecksMemo.key !== key) _stockChecksMemo = { st: st, key: key, by: {} };
   if (!_stockChecksMemo.by[itemId]) _stockChecksMemo.by[itemId] = _stockEntryChecks(itemId);
@@ -31634,7 +31721,7 @@ function stockMergeImport(src) {
   var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
   src.items.forEach(function(it) {
     if (!it || !it.id || typeof it.name !== 'string' || !it.name.trim()) return;
-    var mine = stockItem(it.id) || stockFindByKey(it.key || stockKey(it.name));
+    var mine = stockLive(it.id) || stockFindByKey(it.key || stockKey(it.name));
     if (mine) { idMap[it.id] = mine.id; return; }
     var copy = JSON.parse(JSON.stringify(it));
     copy.key = copy.key || stockKey(copy.name);
@@ -31684,7 +31771,7 @@ function stockMergeImport(src) {
   suppData().forEach(function(x) { if (x && x.id) spKeep(x); });
   var spQuotes = function(rec, r) {
     (Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) {
-      var itemId = q && (idMap[q.itemId] || (stockItem(q.itemId) ? q.itemId : null));
+      var itemId = q && (idMap[q.itemId] || (stockItem(q.itemId) ? stockLive(q.itemId).id : null));
       if (!itemId || typeof q.id !== 'string' || !num(q.price) || !(q.price > 0) || !day(q.date)) return;
       rec.quotes = Array.isArray(rec.quotes) ? rec.quotes : [];
       if (rec.quotes.some(function(x) { return x && x.id === q.id; })) return;
@@ -31760,6 +31847,7 @@ function stockAction(action, btn) {
     case 'invStockPaneClose': stockSetView('list'); break;
     case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;
     case 'invStockMergeDo': stockMergeDo(); break;
+    case 'invStockNotTwins': stockNotTwinsSay(btn.dataset.id, btn.dataset.into); break;
     // The desktop's Spend and prices: the pane beside the list, in place of an open line (a second press shuts it).
     // Spend and prices (§11b): an address of its own (v=spend); pressed again on the desktop it gives the room back to the list.
     case 'invStockSpend': stockSetView(_isDesktop && _stockView === 'spend' ? 'list' : 'spend'); break;
@@ -38075,9 +38163,9 @@ function cashReviewModel() {
   if (r.seen) checks.push({ tone: 'danger', text: 'Saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.' });
   if (live.length) {
     lines.push(live.length + (live.length === 1 ? ' line' : ' lines') + ' of cash paid out, ' + escHtml(formatCurrency(sum)) + ', paid back with the payout of Sat ' + escHtml(stockShortDate(sat)));
-    if (typeof grdSeesWages !== 'function' || grdSeesWages()) {
-      if (r.payoutBefore == null) { try { r.payoutBefore = payWeek(r.week).total; } catch (e) { r.payoutBefore = null; } }
-      if (r.payoutBefore != null) lines.push('The week’s payout: ' + escHtml(formatCurrency(r.payoutBefore)) + ' → ' + escHtml(formatCurrency(gstRound(r.payoutBefore + sum))));
+    if (!r.seen && (typeof grdSeesWages !== 'function' || grdSeesWages())) {
+      if (r.payoutBefore === undefined) { try { r.payoutBefore = payWeek(r.week).total; } catch (e) { r.payoutBefore = null; } }
+      if (r.payoutBefore != null) lines.push('The week’s payout so far: ' + escHtml(formatCurrency(r.payoutBefore)) + ' → ' + escHtml(formatCurrency(gstRound(r.payoutBefore + sum))));
     }
   }
   if (p.total != null && Math.abs(p.total - sum) >= 0.5) checks.push({ tone: 'danger', text: 'The message says ' + formatCurrency(p.total) + '; the lines come to ' + formatCurrency(sum) + '.' });
@@ -38348,12 +38436,12 @@ var TODO_RULE_FNS = {
   // on the line with fewer entries.
   stockTwins: function() {
     return stockTwins().map(function(p) {
-      return { key: 'stockTwins:' + p.from.id + '|' + p.into.id, rule: 'stockTwins', tone: 'info',
+      return { key: 'stockTwins:' + stockTwinKey(p.from.id, p.into.id), rule: 'stockTwins', tone: 'info',
         title: 'Merge ' + p.from.name + ' into ' + p.into.name + '?', sub: p.why + ' · ' + todoPlural(p.nFrom, 'entry', 'entries') + ' against ' + p.nInto,
         why: 'Stock · one chemical written two ways keeps half its record on each line',
         facts: [['Line to merge', p.from.name + ' (' + todoPlural(p.nFrom, 'entry', 'entries') + ')'], ['Line to keep', p.into.name + ' (' + todoPlural(p.nInto, 'entry', 'entries') + ')'], ['Why', p.why]],
-        clears: 'Clears itself when the two are merged, or one is renamed.',
-        go: { kind: 'stockMerge', id: p.from.id, into: p.into.id }, goLabel: 'Merge them', sig: p.from.name + '|' + p.into.name };
+        clears: 'Clears itself when the two are merged, or said to be different, or one is renamed.',
+        go: { kind: 'stockMerge', id: p.from.id, into: p.into.id }, goLabel: 'Merge them', sig: [p.from.name, p.into.name].sort().join('|') };
     });
   },
   paste: function() {
@@ -50481,7 +50569,7 @@ function _shiftRowModel(i, x) {
   var crewN = function(s) { var n = Number(s); return s === '' || !isFinite(n) ? 0 : Math.max(0, Math.round(n)); };
   var n = vat ? shiftNightOf({ line: t.line, start: t.start, end: t.end, stop: t.stop, breakMin: t.breakMin, crew: (function() { var c = {}; if (crewN(t.crewL)) c[t.line] = crewN(t.crewL); if (crewN(t.crewP)) c['pickling-vat'] = crewN(t.crewP); return c; })(), spare: t.spare }, t.from || localDateStr()) : null;
   if (n) {
-    lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(formatNum(n.paidMin / 60, 1)) + ' h' +
+    lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(String(Math.floor(n.paidMin / 60))) + ' h as pay counts it' +
       (n.stop < n.end ? '; plating stops ' + escHtml(hm(n.stop)) : '') + '; plating time ' + escHtml(formatNum(n.plateMin / 60, 1)) + ' h after the ' + n.breakMin + '-minute break');
     lines.push(n.need ? 'Its crew: ' + n.need + (n.spare ? ' and ' + n.spare + ' spare, who books no shortfall' : '') : 'No crew set: a night short of its crew is not asked.');
   } else if (vat && (t.start || t.end)) checks.push({ tone: 'warning', text: 'Set when the night starts and ends.' });
@@ -67580,15 +67668,23 @@ function faceRollBlockProblem(f, b, i) {
   var night = b.from === '20:00' && (relayParseHhmm(b.out) - RELAY_GENERAL_OUT + 1440) % 1440 <= 180;
   if ((b.crew || []).length) {
     if (!faceBlockHead(b.areas)) return 'Block ' + (i + 1) + ': tick the line it ran on.';
+    // The roll leaves a hand marked absent off every block (faceRollText): a 6 AM block whose crew are all absent would go, and its
+    // EXTRA with it, unsaid (Castor M-2, U4's QA chain).
+    if (faceRollBlockAllAbsent(f, b)) return 'Block ' + (i + 1) + ': its crew are all marked absent. Put the hands who stood it on it, or take it off.';
     if (night) return 'Block ' + (i + 1) + ' ends before the night hold begins at 8 PM.';
     return '';
   }
   return (b.areas || []).length || parseFloat(b.extra) > 0 ? 'Block ' + (i + 1) + ': put its crew on it, or take it off.' : '';
 }
+function faceRollBlockAllAbsent(f, b) {
+  return f.duty === 'roll-in' && (b.crew || []).length > 0 && (b.crew || []).every(function(id) { return f.place[String(id)] === 'absent'; });
+}
 function faceRollBlockLine(f, b, i) {
   var read = faceBlockReads(b.areas || []), h = parseFloat(b.extra);
+  // The hands the roll writes on it: on the in-time roll, those on site (faceRollText leaves the absent off every block).
+  var crew = f.duty === 'roll-in' ? (b.crew || []).filter(function(id) { return f.place[String(id)] !== 'absent'; }) : (b.crew || []);
   var when = f.duty === 'roll-out' ? faceFlowClock(b.from || '17:00') + ' to ' + faceFlowClock(b.out) : '6:00 AM';
-  return escHtml(when + (read.length ? ' on ' + read.map(relayAreaName).join(' + ') : '') + ': ' + todoPlural((b.crew || []).length, 'hand') + (h > 0 ? ', EXTRA ' + (+h.toFixed(2)) + ' h' : ''));
+  return escHtml(when + (read.length ? ' on ' + read.map(relayAreaName).join(' + ') : '') + ': ' + todoPlural(crew.length, 'hand') + (h > 0 ? ', EXTRA ' + (+h.toFixed(2)) + ' h' : ''));
 }
 function faceRollRead(f) {
   var roster = faceRollRoster(f.date), counts = {}, unmarked = 0, kept = 0;
@@ -67712,10 +67808,11 @@ async function faceRollSave() {
   if (!grdOk('floor') && !(await guardAsk('floor', 'save the roll'))) return;
   if (_faceForm !== f) return;
   var night = function(b) { return b.from === '20:00' && (relayParseHhmm(b.out) - RELAY_GENERAL_OUT + 1440) % 1440 <= 180; };   // a night hold over by eight
-  var bad = (f.blocks || []).findIndex(function(b) { return (b.crew || []).length ? !faceBlockHead(b.areas) || night(b) : (b.areas || []).length || parseFloat(b.extra) > 0; });
+  var bad = (f.blocks || []).findIndex(function(b) { return (b.crew || []).length ? !faceBlockHead(b.areas) || night(b) || faceRollBlockAllAbsent(f, b) : (b.areas || []).length || parseFloat(b.extra) > 0; });
   if (bad >= 0) {
     var bb = f.blocks[bad];
     showToast(!(bb.crew || []).length ? 'Put the crew on block ' + (bad + 1) + ', or take it off' : night(bb) ? 'Block ' + (bad + 1) + ' ends before the night hold begins at 8 PM'
+      : faceRollBlockAllAbsent(f, bb) ? 'Block ' + (bad + 1) + '’s crew are all marked absent: put the hands who stood it on it, or take it off'
       : 'Tick the line block ' + (bad + 1) + ' ran on', 'error');
     var el = document.querySelector('[data-face-block="' + bad + '"]'); if (el) uiRevealEl(el);
     return;
@@ -83089,6 +83186,9 @@ if (!S._staffComp1) {
   saveJSON(STORAGE_KEY, S);
   if (_sc > 0) console.log('Staff: migrated ' + _sc + ' worker' + (_sc === 1 ? '' : 's') + ' to the tiered comp model');
 }
+// Two stock lines merged into one (UI pass 3 §11c): an entry or a quote that came in naming the retired line (another device that
+// had not merged, a file) is moved to the line kept. Structural and idempotent: it runs after a load, a pull, a merge and an import.
+if (typeof stockMergedRepoint === 'function' && stockMergedRepoint()) saveJSON(STORAGE_KEY, S);
 
 /* Area ids realigned to the shop's own staffing units.
 

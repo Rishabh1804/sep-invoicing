@@ -302,18 +302,15 @@ function onDocClick(e) {
     case 'invAdvanceState': advanceInvoiceState(btn.dataset.id, btn.dataset.state); break;
     case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
-    // Phase 7: Stats period chips
-    // One period for Stats and Home's board (the tab map, TM2b; UI pass 3 §8c): a change redraws whichever is on screen.
-    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; if (navPageOf() === 'pageHome') renderHome(); else renderStats(); break;
+    // Stats' period (UI pass 3, U3): its own, read by its board's widgets (wdgPeriod('stats')); Home reads this month (§25f).
+    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
-    // P9: Trend granularity chips (day/week/month)
-    case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
-    // Chart controls: what the trend plots, how it is drawn, and how the
-    // composition and top-item cards are ranked
-    case 'invStatsTrendSeries': _statsTrendSeries = btn.dataset.series; renderStats(); break;
-    case 'invStatsTrendType': _statsTrendType = btn.dataset.type; renderStats(); break;
-    case 'invStatsClientChart': _statsClientChart = btn.dataset.chart; renderStats(); break;
-    case 'invStatsTopBy': _statsTopBy = btn.dataset.by; renderStats(); break;
+    // The Tables' switch, a head's sort, the board's foot and the exports (stats.js).
+    case 'invStatsTable': statsSetTable(btn.dataset.table); renderStats(); viewTop(); break;
+    case 'invStatsTables': statsOpen('tables'); break;
+    case 'invStatsSort': statsSortBy(btn.dataset.table, btn.dataset.col); break;
+    case 'invStatsExportCsv': statsExportCsv(); break;
+    case 'invStatsExportXlsx': statsExportXlsx(); break;
     // Client performance sub-view
     case 'invPerfSeries': _cpSeries = btn.dataset.series; renderClientsPage(); break;
     case 'invCpPeriod': _cpPeriod = btn.dataset.p; renderClientsPage(); break;

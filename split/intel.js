@@ -19,22 +19,41 @@
    kilo; one between it and the full cost contributes toward the labour without
    paying its share of it. */
 
-/* Three tabs since the tab map (TM2b, 9 Oct 2026): Overview's questions, why it moved, the period in one line and the month's
-   pace are Home's widgets (Pulse's until UI pass 3); Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
-   (overview, billing) opens By client (docs/TAB_MAP.md §5). */
-var STATS_TABS = [['clients', 'By client'], ['cost', 'Cost'], ['trends', 'Trends']];
+/* Two views since UI pass 3 (U3, §10): the Dashboard, a board of widgets, and the Tables. Three tabs before it (the tab map, TM2b):
+   By client, Cost and Trends, each of whose cards is a widget or a table now. A tab remembered from before lands where its cards
+   went (§18): By client on the Tables by client, Cost on the Tables' cost, Trends (and Overview, Billing before them) on the Dashboard. */
+var STATS_TABS = [['board', 'Dashboard'], ['tables', 'Tables']];
 var STATS_TAB_KEY = 'sep_inv_stats_tab';
+var STATS_TAB_OLD = { clients: ['tables', 'client'], cost: ['tables', 'cost'], trends: ['board'], overview: ['board'], billing: ['board'] };
 var STATS_CAPACITY_KG_DAY = 4000; // ~2 t per 8-hour shift, two shifts (CLAUDE.md § Key Business Data)
 
 function statsTab() {
   var t = null;
   try { t = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
-  return STATS_TABS.some(function(x) { return x[0] === t; }) ? t : 'clients';
+  var to = STATS_TAB_OLD[t];
+  if (to) { statsPlace(to[0], to[1]); t = to[0]; }
+  return t === 'tables' ? 'tables' : 'board';
+}
+/* The view (and the Tables' table) on screen, kept on the device: an old tab's name is read as the place it went. */
+function statsPlace(v, table) {
+  var to = STATS_TAB_OLD[v];
+  if (to) { v = to[0]; if (!table) table = to[1]; }
+  if (v !== 'tables') v = 'board';
+  try { localStorage.setItem(STATS_TAB_KEY, v); } catch (e) { /* per-device convenience only */ }
+  if (v === 'tables' && table && typeof statsSetTable === 'function') statsSetTable(table);
+  return v;
 }
 function statsSetTab(t) {
-  try { localStorage.setItem(STATS_TAB_KEY, t); } catch (e) { /* per-device convenience only */ }
+  if (t !== 'board' && typeof statsLeave === 'function') statsLeave();
+  statsPlace(t);
   renderStats();
   viewTop();   // another view tab: a navigation
+}
+/* Stats opened on a place: a view, a table, or an old tab's name (a task saved before U3: {kind: 'stats', tab: 'clients'}). */
+function statsOpen(v, table) {
+  statsPlace(v || 'board', table);
+  switchTab('pageStats');
+  if (navPageOf() === 'pageStats') { renderStats(); viewTop(); }
 }
 function statsTabsHtml() {
   var cur = statsTab();
@@ -135,37 +154,6 @@ function statsSignedCell(v, text) {
   return '<td class="inv-num' + (v == null ? '' : v >= 0 ? ' inv-num-pos' : ' inv-num-neg') + '">' + text + '</td>';
 }
 
-/* ---------- Overview: six months side by side ---------- */
-function statsMonthsHtml() {
-  var today = localDateStr(), rows = [];
-  var active = statsInvoices().filter(function(i) { return i.date; });
-  for (var k = 5; k >= 0; k--) {
-    var d = new Date(today + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - k);
-    var from = isoOf(d), to = payMonthEnd(from);
-    if (to > today) to = today;
-    var inv = active.filter(function(i) { return i.date >= from && i.date <= to; });
-    var w = weighLines(inv), c = liveCost(from, to, w.kg);
-    var real = w.kg > 0 ? w.revKnown / w.kg : null;
-    var lab = c.rows.find(function(x) { return x.key === 'labour'; });
-    // The app's short month names (insMonthLabel): the browser's en-IN writes "Sept".
-    rows.push({ label: insMonthLabel(from) + (to === today ? ' to date' : ''), real: real, cost: c.perKg, kg: w.kg,
-      contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? Math.max(lab.coverage || 0, lab.bankShare || 0) : 0, measured: c.measuredShare });
-  }
-  if (!rows.some(function(r) { return r.kg > 0; })) return '';
-  var h = statsPanel('months', 'Six months', 'each at its own live cost', { wide: true, id: 'statsMonths' }) +
-    '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">t</th><th class="inv-num">₹/kg</th><th class="inv-num">Cost</th>' +
-    '<th class="inv-num">Contrib.</th><th class="inv-num">Labour</th><th class="inv-num">Measured</th></tr></thead><tbody>';
-  rows.forEach(function(r) {
-    h += '<tr><td class="inv-nowrap">' + escHtml(r.label) + '</td><td class="inv-num">' + formatNum(r.kg / 1000, 1) + '</td><td class="inv-num">' + (r.real != null ? formatNum(r.real, 2) : '&mdash;') + '</td>' +
-      '<td class="inv-num">' + (r.cost != null ? formatNum(r.cost, 2) : '&mdash;') + '</td>' +
-      statsSignedCell(r.contrib, r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') +
-      '<td class="inv-num">' + (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td class="inv-num">' + statsPctOf(r.measured) + '%</td></tr>';
-  });
-  // One line (the tab map, TM2b); why a month's labour is withheld is the guide's (kbguides.js, Reading Stats).
-  h += '</tbody></table></div>' + statsBody(statsNote('₹ per kg. Labour only where 90% of the month is recorded; measured is the cost from records.')) + '</div>';
-  return h;
-}
-
 /* ---------- Clients: contribution by client ---------- */
 function statsClientMargins(period, filtered, tonnage, range) {
   var r = range || statsRangeIso(period), c = liveCost(r.from, r.to, tonnage.kg);
@@ -188,66 +176,6 @@ function statsClientMargins(period, filtered, tonnage, range) {
   return { c: c, varKg: varKg, fullKg: fullKg, labKg: labAmt / tonnage.kg, kg: tonnage.kg, rev: filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0),
     ranked: rows.filter(function(x) { return x.comparable; }).sort(function(a, b) { return a.vsFull - b.vsFull; }),
     apart: rows.filter(function(x) { return !x.comparable; }) };
-}
-
-function statsMarginHtml(period, filtered, tonnage) {
-  var m = statsClientMargins(period, filtered, tonnage);
-  var h = statsPanel('margin', escHtml(PERIOD_LABELS[period] || '') + ' contribution by client', 'worst first, at the live cost', { wide: true, id: 'statsMargin' });
-  if (!m) return h + statsCallout('No weighed tonnage in this period, so no margin to work out.') + '</div>';
-  // The two costs the columns are read against, in a line (§3c); why labour is fixed, and that cost is spread per kilo, is the
-  // guide's (kbguides.js, Reading Stats).
-  var weighed = statsCostWeighedShort(tonnage);
-  // That labour is left out of the variable cost is a badge (§3b-11: a third fact is a badge, never a clause).
-  h += statsBody(statsNote('Variable cost ' + statsMoney(m.varKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg' +
-      ' <span class="inv-badge inv-badge-info" data-margin-split>labour fixed</span>') +
-    (weighed ? statsNote(weighed) : ''));
-  // Owed and days to pay beside the margin: a client below cost that also pays in 120 days is two problems.
-  var money = {};
-  if (finHasBank()) {
-    var mh = bankPayHistory(finCtx().recv());
-    finCtx().recv().forEach(function(r) { var d = bankDaysToPay(r.client.id, mh); money[String(r.client.id)] = { owed: r.owed, oldest: r.oldestDays, days: d && d.median != null ? Math.round(d.median) : null }; });
-  }
-  h += '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Client</th><th class="inv-num">₹/kg</th><th class="inv-num">t</th><th class="inv-num">vs var.</th>' +
-    '<th class="inv-num">vs full</th><th class="inv-num">₹ on period</th></tr></thead><tbody>';
-  // The worst ten; the rest one tap away (UX overhaul 2, step 6).
-  h += uiMoreHtml('stats-margin', m.ranked.map(function(x) {
-    var sign = function(v) { return (v >= 0 ? '+' : '&minus;') + formatNum(Math.abs(v), 2); };
-    return '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
-      (x.cn ? '<div class="inv-row-meta">net of ' + statsMoney(x.cn) + ' credit notes</div>' : '') +
-      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + figHtml(statsMoney(Math.max(0, money[String(x.id)].owed)), money[String(x.id)].owed > 0.005 ? finOwedTone(money[String(x.id)].oldest) : null) +
-        (money[String(x.id)].days != null ? ' · pays in ' + figHtml(money[String(x.id)].days + ' d', figTonePaysIn(money[String(x.id)].days)) : '') + '</div>' : '') + '</td>' +
-      // A client's realisation against the live cost, in the tone it takes on every screen (figToneAgainst at 5%, TM6a).
-      '<td class="inv-num" data-margin-net>' + figHtml(formatNum(x.net, 2), figToneAgainst(x.net, m.fullKg, 5)) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
-      statsSignedCell(x.vsVar, x.vsVar != null ? sign(x.vsVar) : '&mdash;') + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
-  }), { n: 10, noun: 'clients', tr: 6 });
-  h += '</tbody></table></div>';
-  // A client under 90% weighed is not ranked: counted here, listed by name under Realisation by client.
-  if (m.apart.length) h += uiFactRowHtml({ label: 'Listed apart, not ranked', sub: 'under 90% of revenue weighed: ' + m.apart.slice(0, 2).map(function(x) { return x.name; }).join(', ') +
-    (m.apart.length > 2 ? ' and ' + (m.apart.length - 2) + ' more' : ''), value: m.apart.length, attrs: ' data-margin-apart' });
-
-  // The worst-placed large account, settled on the live cost with labour fixed (owner, 13 Oct 2026; §3c): what a kilo of it
-  // leaves, what it lacks of the full cost and where it would pay its share, as tiles; the working folded.
-  var worst = m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0];
-  if (worst && worst.vsFull < 0) {
-    var perKg = '<span class="inv-tile-of">/kg</span>', leaves = worst.vsVar >= 0, onVar = gstRound(worst.vsVar * worst.kg);
-    h += '<div id="statsWorst"><div class="inv-row-group"><span><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</span></div>' +
-      statsTiles(
-        statsTile('contrib', leaves ? 'Contributes' : 'Below its variable cost', statsSigned(worst.vsVar) + perKg,
-          statsTileSub(leaves ? statsMoney(onVar) + ' toward labour on the period' : statsSigned(onVar) + ' on the period'), leaves ? 'ok' : 'danger') +
-        statsTile('full', 'Against the full cost', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger') +
-        statsTile('even', 'Pays its share at', statsMoney(m.fullKg) + perKg, statsTileSub('the full cost; ' + escHtml(formatCurrency(m.varKg)) + ' variable'))) +
-      uiWorkingHtml('stats-worst', [
-        { label: 'Its price', sub: 'realised on the period', value: formatCurrency(worst.net) + '/kg' },
-        { label: 'Variable cost', sub: 'everything but labour', value: formatCurrency(m.varKg) + '/kg' },
-        { label: 'Labour', sub: 'fixed, spread per kilo', value: formatCurrency(m.labKg) + '/kg' },
-        { label: 'Full cost', value: formatCurrency(m.fullKg) + '/kg' },
-        { label: 'Share of the plant’s tonnage', value: Math.round(worst.kg / m.kg * 100) + '%' },
-        { label: 'Share of the revenue', value: (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%' }]) +
-      // One line under 120 characters (P195's block): the price it pays its share at is the tile beside it.
-      statsBody(statsNote((leaves ? 'Labour is fixed, so it contributes; it pays its share only at ' + formatCurrency(m.fullKg) + '/kg'
-        : 'Below its variable cost: it loses money on every kilo even with labour fixed') + ', if its parts cost what the rest do.')) + '</div>';
-  }
-  return h + '</div>';
 }
 
 /* ---------- The questions, each answered as a story ----------

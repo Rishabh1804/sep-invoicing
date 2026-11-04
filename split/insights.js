@@ -199,7 +199,7 @@ var INSIGHT_RULES = [
 ];
 INSIGHT_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 
-function insGo(tab) { return { kind: 'stats', tab: tab }; }
+function insGo(tab, table) { return { kind: 'stats', tab: tab, table: table }; }
 
 TODO_RULE_FNS.insQuiet = function() {
   var months = insMonthsBack(3), mm = insMonthly(months), bookRev = 0;
@@ -241,7 +241,7 @@ TODO_RULE_FNS.insRealLow = function() {
     title: insMonthLabel(cur) + ' is realising ₹' + formatNum(now.real, 2) + '/kg, the lowest in ' + (reals.length + 1) + ' months',
     // One fact on the row (the tab map, TM6: two at most, and an early month adds its own); whose share moved is in the figures.
     sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2),
-    why: 'Money · this month', go: insGo('trends'), goLabel: 'Open Trends',
+    why: 'Money · this month', go: insGo('board'), goLabel: 'Open Stats',
     facts: [['This month', '₹' + formatNum(now.real, 2) + '/kg'], ['Lowest before', '₹' + formatNum(Math.min.apply(null, reals), 2)], ['Median before', '₹' + formatNum(med, 2)]]
       .concat(moved && Math.abs(moved.d) >= 0.05 ? [['Share moved most', moved.name + ': ' + Math.round(moved.a * 100) + '% of revenue, was ' + Math.round(moved.b * 100) + '%']] : []),
     // Snoozed against the month alone: every invoice moves the realisation, and "until the figures change" came back with each.
@@ -307,7 +307,7 @@ TODO_RULE_FNS.insBelowVar = function() {
       sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable' +
         (!firm ? '' : ' · loses ' + (least < most ? formatCurrency(least) + ' to ' + formatCurrency(most) : formatCurrency(most)) + ' with labour fixed'),
       conf: firm ? null : { level: 'partial', say: 'below this month\'s cost only, ' + measured + '% of it measured' },
-      why: 'Money · margin', go: insGo('clients'), goLabel: 'Open contribution by client',
+      why: 'Money · margin', go: insGo('tables', 'client'), goLabel: 'Open Stats by client',
       facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%'],
         ['Loss with labour fixed', firm && least < most ? 'at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most) : formatCurrency(most)]],
       clears: 'Clears itself when a month realises above the variable cost.', sig: last };
@@ -375,19 +375,3 @@ function paceCardOpts() {
     body: body, facts: facts, attrs: ' id="statsPace" data-card="pace"', pace: p };
 }
 
-function nextChallanCardHtml() {
-  // Every client with a rhythm, most overdue first; uiMoreHtml shows the first ten. Cut to the twelve busiest
-  // before sorting, a late small client never appeared and the count was wrong. A client set inactive has left.
-  var list = predCadence().filter(function(c) { return c.median != null && c.count >= 3 && insClientActive(c.id); });
-  if (!list.length) return '';
-  var today = localDateStr();
-  var h = statsPanel('next', 'Next challan expected', 'from each client&rsquo;s own rhythm', { id: 'statsNextChallan' });
-  // The ten most overdue; the rest one tap away (UX overhaul 2, step 6).
-  h += uiMoreHtml('stats-next', list.sort(function(a, b) { return (b.late - a.late) || (a.next < b.next ? -1 : 1); }).map(function(c) {
-    var when = c.quiet ? uiDot('danger', c.late + ' days late · quiet') : c.late ? uiDot('warning', c.late + ' day' + (c.late === 1 ? '' : 's') + ' late')
-      : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
-    return statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
-  }), { n: 10, noun: 'clients' });
-  // One line (the tab map, TM2b); how late and quiet are judged is the guide's (kbguides.js, Reading Stats).
-  return h + statsBody(statsNote('From each client&rsquo;s median gap between challans, counted from its last one.')) + '</div>';
-}

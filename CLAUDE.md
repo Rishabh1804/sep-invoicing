@@ -67,7 +67,8 @@ lead the same day** (*UI pass 3: Home leads* below, `docs/UI_PASS_3.md` §25): t
 cards as tall as they need, edges only for today, the news and the weather straight from their sources, a day the plant is shut, Needs
 you's count a badge. **The owner looked: *"Home screen test - pass"* (4 Nov 2026)**, and U3–U9 were refreshed against the code the
 same day (`docs/UI_PASS_3.md` §26: Stats' presets and period, the forms built since §11a, People's night and cash paid out, the
-screens U7 reaches, the PIN and icons as they are, one PR a step). **U3 is next.**
+screens U7 reaches, the PIN and icons as they are, one PR a step). **U3 is built** (4 Nov 2026; *UI pass 3: Stats as a dashboard*
+below): Stats is a Dashboard of widgets and its Tables. **U4 is next.**
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -202,8 +203,8 @@ split/
 ├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, by hand (~600 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
-├── stats.js           ← Stats' panels (By client, Cost, Trends) + History, the audit trail in the top bar, led by its card (~1,630 lines)
-├── intel.js           ← Stats' three tabs; the questions' stories and The period in figures for Home's widgets; six months; contribution by client (~230 lines)
+├── stats.js           ← Stats: the Dashboard (a board of widgets) and the Tables (By client · By part · By month · Cost, sorted by a head, exported to CSV and Excel), one verdict leading both; History, the audit trail in the top bar, led by its card (~1,690 lines)
+├── intel.js           ← Stats' two views and where an old tab lands (`statsPlace`, `statsOpen`); the questions' stories and The period in figures for Home's widgets; contribution by client (~440 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: thirteen bank To-do rules, days to pay, the cash forecast (~520 lines)
@@ -1065,6 +1066,50 @@ facts. **The build stops again for the owner to look.**
 - **A data flow changed**: `flowCfg.shutWhy` in the book (backups, GitHub, the merge; the change log reads it as days and reasons,
   `chgFlowProj`); on the device only, the address placed and whether the Worker answered; new requests from the device to Nominatim,
   GDELT and MET Norway, each naming the site's origin, none carrying the book.
+
+### UI pass 3: Stats as a dashboard (U3)
+`docs/UI_PASS_3.md` §10, §26a (owner, 15 Oct 2026: *"The stats page doesn't look like a stats page at all, we have stored and displayed
+our data on tables essentially"*; Home passed on 4 Nov 2026, *"Home screen test - pass"*, and U3 started). P229; the Stats specs
+rewritten to the same facts where they now live (§21), never weakened.
+- **Two views** (`STATS_TABS`, intel.js): **Dashboard** (`?tab=pageStats&v=board`, the default) and **Tables**
+  (`v=tables/<client|part|month|cost>`). One verdict leads both (`statsVerdictHtml(pa)`, `#statsVerdict`): the period's price against
+  its live cost (*₹0.62 a kilo over the live cost*), in the one judge's tone (`figToneAgainst` at 5%); its facts the invoices, the
+  large accounts below the cost (By client's verdict until now) and the share measured; its four factors Revenue (net of notes, its
+  change), Plated and billed (the share weighed, of two shifts), Realisation and Left after the full cost. Then one toolbar row
+  (`[data-stats-toolbar]`): the period (`_statsPeriod`, Stats' own), Customise on the Dashboard, and More (*Make a report*, *Export this
+  table (CSV)*, *Export the tables (Excel)*, *Reset Stats*). On the Tables the switch stands under the row (`[data-stats-table]`, as
+  Attendance's Day · Week · Month).
+- **The Dashboard** is a board of the card family (`wdgBoardDraw(#statsBoard, 'stats')`; `WDG_BOARDS.stats`, `wdgBoardSeen`: a role
+  that opens Stats), its own layout per person and layout (`stats` in `sep_inv_layout`), Customise as Home's (arranging ends when Stats is
+  left, `statsLeave`), its foot *The tables behind these* and *Add a widget*. **Its widgets read Stats' period** (`wdgPeriod('stats')`
+  returns `_statsPeriod`; Home's stays this month, and changing the period no longer redraws Home). **The owner's preset**
+  (`WDG_PRESETS.owner.stats`): Price against cost (L), A kilo's cost, Who fills the plant, What each client pays a kilo (L), Turnaround,
+  Days to pay, Owed and Labour a kilo as four Smalls, then Does one move the other and Plated each day (L) on the desktop; on the phone
+  seven cards, Owed at Medium (an entry marked `phone` is the phone's alone). Each packs with no hole. The office's, for a role given
+  Stats, in pairs; the supervisor and the floor have none.
+- **The seven U3 widgets** (widgetcards.js, Ledgers and trends, each on Home's gallery too): `pricecost` (six months, realised against
+  the live cost as two lines, the gap as `chartDiverging` at Large), `share` (each client's share of the tonnes against the revenue, a
+  dumbbell), `labour` (labour a kilo against the model, withheld by the labour card's own rule; wages), `months` (each month at its own
+  cost), `trend` (twelve months; its Choose ₹ · Tonnes · Incoming), `topitems` (its Choose ₹ · Tonnes · ₹/kg), `costcheck` (recorded
+  against paid). `clientprice`, `kilo`, `figures` and `why` open the Tables or the Dashboard.
+- **The Tables** (stats.js `statsTableModel`: a model a table, which draws it and fills its export): **By client** (every client of the
+  period: revenue and its share, tonnes and their share, ₹/kg, against the variable and the full cost, ₹ on the period, the next
+  challan by its rhythm; owed and days to pay under the name; the worst large account settled under the table, `#statsWorst`); **By
+  part** (every part, one client's a row, `buildTopItems(…, Infinity)`); **By month** (six months, `statsMonthsData`, the widgets'
+  rows too); **Cost** (the labour card and the live cost as Stats → Cost drew them). A head tapped sorts (`invStatsSort`, `aria-sort`,
+  ▲ ▼), again the other way; its default is the table's own order (By client worst priced first). The CSV is the table on show, the
+  workbook every table (`xlsxBuild`), each in the order on screen.
+- **Where an old place lands** (`NAV_REDIRECTS`, `STATS_TAB_OLD`): `clients` → Tables by client, `cost` → Tables' Cost, `trends` →
+  the Dashboard, for an address, the device's remembered tab, a saved task's `{kind: 'stats', tab}` (`statsOpen`) and its label
+  (*Open Trends* reads *Open Stats*). The live cost's move opens the Tables' Cost on its part. The trend's and Top parts' controls and the
+  realisation, concentration, revenue-by-client and next-challan cards went: each is a widget or a table's column (§10's table).
+- **Measured** (phone screens, the long book): By client 2.18, Cost 2.82, Trends 1.89 → the Dashboard 2.94, the Tables by client
+  1.57, by part 1.35, by month 1.29, Cost 2.90; P195's budgets set at each measure, the next half screen up (3, 2, 1.5, 1.5, 3), none
+  over the three tabs' (3.5, 3, 2). The walk (`walkMap`) steps through the Tables' switch as it does Attendance's. The guide *Reading
+  Stats* is version 5.
+- **The breakdown under By client** (the worst large account settled on the live cost) is a coded block (`inv-coded`,
+  `[data-worst-tiles]`): its judged tiles wells of their tones, *Pays its share at* plain (owner, 4 Nov 2026, on the tiles drawn grey).
+- **A data flow**: none. The book does not change; a board's layout is the device's (`sep_inv_layout`), at S1 the person's `prefs`.
 
 ## Business Domain
 
@@ -3886,10 +3931,9 @@ build: the people are the book's.
   compile). A PIN, a token or a key never does.
 
 ### Stats in tabs, and the questions on Home
-Stats is three tabs over one period chip row since the tab map (TM2b, 9 Oct 2026; five from 25 Sep 2026, owner: *"break up the stats
-page into multiple grouped tabs"*): **By client** (contribution by client, the next challans, revenue, realisation, concentration),
-**Cost** (labour, live cost) and **Trends** (the headline, six months, the trend chart, top items), each led by its verdict card. The
-open tab is remembered on the device; `renderStats()` draws the open tab's cards.
+Stats was three tabs over one period chip row from the tab map (TM2b, 9 Oct 2026; five from 25 Sep 2026, owner: *"break up the stats
+page into multiple grouped tabs"*) to UI pass 3's U3 (4 Nov 2026), when it became a Dashboard and its Tables (*UI pass 3: Stats as a
+dashboard*, above).
 
 - **The owner's questions, each a story, are Home's question widgets** (Today → Pulse's until UI pass 3; owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
   and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoryCards`, intel.js;

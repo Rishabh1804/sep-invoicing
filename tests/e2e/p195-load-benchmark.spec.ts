@@ -33,9 +33,14 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // screen should not feel heavy"; P241): about seven cards on the phone, each as tall as what it holds, the board's tools in the
   // masthead, 2.38.
   'Home › Home': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  // U3 (4 Nov 2026): Stats' three tabs (By client 3.5, Cost 3, Trends 2) are the Dashboard and the Tables, each set at its measure
+  // on the long book, the next half screen up (Dashboard 2.94, by client 1.57, by part 1.35, by month 1.29, Cost 2.90), none over
+  // the three tabs' worst (I10).
+  'Home › Stats › Dashboard': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › Tables': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › Tables › By part': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › Tables › By month': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › Tables › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 2 },
   'Home › Planner › Play': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -105,8 +110,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
 /* The screens §3d marks *verdict*: a [data-verdict] in the first phone screen. Each joins in the step that builds its verdict. */
 const VERDICT: string[] = [
   // TM2
-  'Home › Stats › By client', 'Home › Stats › Cost', 'Home › Stats › Trends',
   'Home › Planner › Play', 'Home › Planner › Ledger', 'Home › Planner › A day', 'Home › Planner › Moves',
+  // U3: Stats' two views and each of its tables.
+  'Home › Stats › Dashboard', 'Home › Stats › Tables', 'Home › Stats › Tables › By part', 'Home › Stats › Tables › By month', 'Home › Stats › Tables › Cost',
   // TM3: Money's five (the Overview's first hero carries its verdict).
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
   // TM4: Floor's (the Overview's People card carries its verdict; the case is a document, with none).

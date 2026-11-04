@@ -920,9 +920,9 @@ function advGoTo(go) {
     case 'areas': _attView = 'areas'; _attDate = localDateStr(); switchTab('pageStaff'); return true;
     case 'payWeek': _attView = 'pay'; _attDate = go.day || localDateStr(); switchTab('pageStaff'); return true;
     case 'liveCost': {
-      try { localStorage.setItem(STATS_TAB_KEY, 'cost'); } catch (e) { /* per-device */ }
+      // The live cost's parts are the Tables' Cost since U3 (§10).
       if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
-      switchTab('pageStats');
+      statsOpen('tables', 'cost');
       var row = document.querySelector('#statsContent details[data-cost="' + String(go.key || '').replace(/[^a-z]/gi, '') + '"]');
       if (row) { row.open = true; uiRevealEl(row); }
       return true;

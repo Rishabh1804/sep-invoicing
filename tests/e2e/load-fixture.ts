@@ -159,7 +159,8 @@ export async function settle(page: Page): Promise<void> {
 export async function walkMap(page: Page, at: (name: string) => Promise<void>): Promise<void> {
   const own = () => page.locator('.inv-page-active .inv-viewtabs:not(#wsTabs) .inv-viewtab:visible');
   const switchWalk = async (base: string) => {
-    const sw = () => page.locator('.inv-page-active [data-att-period] .inv-seg-btn:visible');
+    // A view's own switch under its toolbar: Attendance's Day · Week · Month, Stats' Tables (U3: By client · By part · By month · Cost).
+    const sw = () => page.locator('.inv-page-active [data-att-period] .inv-seg-btn:visible, .inv-page-active [data-stats-table] .inv-seg-btn:visible');
     const k = await sw().count();
     const first = await sw().evaluateAll(els => els.findIndex(e => e.getAttribute('aria-pressed') === 'true'));
     for (let i = 0; i < k; i++) {
@@ -393,9 +394,10 @@ export const LOOKS: string[] = [
 
 /* The screens assembled to one look, by the place walkMap names them; each joins in the step that assembles it (TM1: none). */
 export const ONE_LOOK: string[] = [
-  // TM2: Today's two views, Stats' three tabs and the Planner's four views (Moves on the kind it opens on).
+  // TM2: Today's two views and the Planner's four views (Moves on the kind it opens on); Stats' since U3.
   'Home › Needs you', 'Home › Home',
-  'Home › Stats › By client', 'Home › Stats › Cost', 'Home › Stats › Trends',
+  // U3: Stats' two views, the Tables by each of its four (the Dashboard and the Tables in place of TM2's three tabs).
+  'Home › Stats › Dashboard', 'Home › Stats › Tables', 'Home › Stats › Tables › By part', 'Home › Stats › Tables › By month', 'Home › Stats › Tables › Cost',
   'Home › Planner › Play', 'Home › Planner › Ledger', 'Home › Planner › A day', 'Home › Planner › Moves',
   // TM3: Money's five.
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',

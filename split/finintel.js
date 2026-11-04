@@ -540,7 +540,7 @@ TODO_RULE_FNS.costGap = function() {
     return { key: 'costGap:' + r.key, rule: 'costGap', tone: 'amber', title: r.label + ': recorded and paid are ' + (r.pct != null ? Math.round(Math.abs(r.pct) * 100) + '%' : 'far') + ' apart',
       sub: 'Recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' over ' + r.months.map(billsMonthLabel).join(', '),
       why: 'Live cost · recorded against paid', facts: [['Recorded', formatCurrency(r.recorded)], ['Paid', formatCurrency(r.paid)], ['Reads', r.why]],
-      clears: 'Clears itself when the two are within 10%; snooze it once the reason is known.', go: { kind: 'stats', tab: 'cost' }, goLabel: 'Open Live cost', sig: r.key + '|' + (r.pct != null ? Math.round(r.pct * 100) : '') };
+      clears: 'Clears itself when the two are within 10%; snooze it once the reason is known.', go: { kind: 'stats', tab: 'tables', table: 'cost' }, goLabel: 'Open Live cost', sig: r.key + '|' + (r.pct != null ? Math.round(r.pct * 100) : '') };
   });
 };
 TODO_RULE_FNS.bankBounce = function() {

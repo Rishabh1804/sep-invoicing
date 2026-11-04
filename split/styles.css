@@ -3470,7 +3470,7 @@ body.inv-desktop .inv-gallery { --wdg-row: var(--wdg-row-wide); --wdg-gap: var(-
    gallery, centred under the widgets. */
 [data-home-toolbar]:not([data-arranging]) { justify-content: flex-end; }
 [data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
-.inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
+.inv-wboard-foot { display: flex; flex-wrap: wrap; justify-content: center; column-gap: var(--sp-16); padding: 0 0 var(--sp-16); }
 /* Home's masthead (§24j): its verdict drawn flat under the top bar, no fill, no edge, no lift, a hairline under it; never folded.
    On the desktop the date, the sentence, the facts and the act down its left and the clock at its right over the shift and a track
    of the shift gone (148px tall); on the phone the clock at the sentence's right and the rest at the masthead's width. */

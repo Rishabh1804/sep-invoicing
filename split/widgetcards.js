@@ -1861,7 +1861,7 @@ wdgDefine({ id: 'corr', title: 'Does one move the other?', q: 'Pick two figures;
    variable cost (labour is fixed: everything but labour, statsClientMargins), the ranked bars bare, each row opening its client.
    Coded by the large accounts (10% of the tonnes or more) under the cost, as Stats' By client is. */
 wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who clears the cost, who does not?', section: 'analysis', type: 'ledger', sizes: ['l', 'm'], trend: true,
-  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'clients' }, card: 'clientprice',
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/client' }, card: 'clientprice',
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), m = wdgMemo('margins:' + ctx.period, function() { return statsClientMargins(ctx.period, a.filtered, a.tonnage); });
     if (!m || !m.ranked.length) return { state: 'empty', title: 'No weighed tonnage in this period', body: 'A client’s price a kilo needs its invoices weighed: Parts holds the weights.' };
@@ -1893,7 +1893,7 @@ wdgDefine({ id: 'clientprice', title: 'What each client pays a kilo', q: 'Who cl
    part's ₹ a kilo as statement lines adding up to it. Coded by the share measured, as Stats' Cost is. */
 var WC_KILO_TONE = function(share) { return share >= 0.9 ? 'ok' : share >= 0.5 ? 'warning' : 'danger'; };
 wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s cost', q: 'Which part of the cost is moving?', section: 'analysis', type: 'ledger', sizes: ['m', 's', 'l'], trend: true,
-  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'cost' }, card: 'kilo',
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/cost' }, card: 'kilo',
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), kg = a.tonnage ? a.tonnage.kg : 0;
     if (!(kg > 0)) return { state: 'empty', title: 'No weighed tonnage in this period', body: 'A kilo’s cost is the period’s cost over the kilos plated and billed.' };
@@ -1913,6 +1913,195 @@ wdgDefine({ id: 'kilo', title: 'Where a kilo’s cost goes', short: 'A kilo’s 
     }), { label: 'A kilo', amt: gstRound(c.perKg, 2) }, { rate: true, unit: '/kg', noun: 'part', attrs: ' data-kilo-parts' });
   },
   source: function(d, size, ctx) { return { facts: ['Live cost ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), Math.round(d.c.measuredShare * 100) + '% measured'] }; } });
+
+/* ---------- Stats' own (UI pass 3, U3; docs/UI_PASS_3.md §10, §26a): seven Ledgers, each reading the function the Tables draw
+   with (I8), on Home's gallery as every widget is. On Stats' board they read Stats' period (wdgPeriod('stats')); each is a period's
+   answer or a record of months, so each is a trend, never edged (§25i). ---------- */
+
+/* Price against cost, month by month (§10 `pricecost`): six months, each at its own live cost (statsMonthsData, the Tables' By
+   month), realised and the cost as two lines, bare; at Large the gap as bars from zero under them (chartDiverging). The figure is
+   the latest month's gap, judged as every price against the cost is (figToneAgainst at 5%). */
+wdgDefine({ id: 'pricecost', title: 'Price against cost, month by month', q: 'Are we under the cost, and by how much?', section: 'analysis', type: 'ledger', icon: 'chart', sizes: ['l', 'm'], trend: true,
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/month' }, card: 'pricecost',
+  data: function() {
+    var rows = statsMonthsData(), known = rows.filter(function(r) { return r.real != null && r.cost != null; });
+    if (!known.length) return { state: 'empty', title: 'No month priced yet', body: 'A month’s price needs its invoices weighed, its cost the live cost (Stats → Tables → Cost).' };
+    if (known.length < 2) return { state: 'early', title: 'Not enough yet: one month priced', body: 'Two months with weighed invoices draw the line.' };
+    var last = known[known.length - 1], gap = last.real - last.cost, tone = figToneAgainst(last.real, last.cost, 5) || 'ok';
+    var under = known.filter(function(r) { return r.real < r.cost - 0.005; }).length;
+    return { state: 'ok', tone: tone, rows: rows, last: last, fig: wcFigUnit((gap >= 0 ? '+' : '−') + formatCurrency(Math.abs(gap)), '/kg', tone),
+      say: (Math.abs(gap) < 0.005 ? 'At the live cost' : formatCurrency(Math.abs(gap)) + ' a kilo ' + (gap > 0 ? 'over' : 'under') + ' the live cost') + ' in ' + last.label, sayTone: tone,
+      detail: under + ' of ' + known.length + ' months under the cost', detailAttrs: ' data-wdg-opt' };
+  },
+  draw: function() { return ''; },
+  viz: function(d, size, box) {
+    var rows = d.rows, labels = rows.map(function(r) { return r.short; }), td = rows.length && rows[rows.length - 1].toDate ? rows.length - 1 : null;
+    var lines = function(h) {
+      return chartLines(labels, [{ label: 'Realised', values: rows.map(function(r) { return r.real; }), slot: 1 },
+        { label: 'Live cost', values: rows.map(function(r) { return r.cost; }), tone: 'neutral', dashed: true }],
+        { unit: 'rate', fit: true, toDate: td, keyPlain: true, ariaLabel: 'Realised against the live cost, six months', bare: true, w: box.w, h: h });
+    };
+    if (size !== 'l' || box.h < 220) return lines(box.h);
+    var hl = Math.round(box.h * 0.6);
+    return lines(hl) + chartDiverging(rows.map(function(r) { return { key: r.month, label: r.short, value: r.contrib == null ? null : Math.round(r.contrib * 100) / 100 }; }),
+      { unit: 'rate', posLabel: 'Over the cost', negLabel: 'Under the cost', toDate: td, ariaLabel: 'Over and under the live cost, each month', bare: true, w: box.w, h: box.h - hl });
+  },
+  source: function() { return { facts: ['Invoices, six months, net of credit notes', 'each month at its own live cost'] }; } });
+
+/* Who fills the plant, who pays for it (§10 `share`, Concentration's and Revenue by client's): each client's share of the tonnes
+   against its share of the revenue, as a dumbbell, bare, the clients taking most of the plant first. A client under 90% weighed has
+   no share of the tonnes to show (unknown, not small) and is counted apart. */
+wdgDefine({ id: 'share', title: 'Who fills the plant, who pays for it', q: 'Is our biggest account our best?', section: 'analysis', type: 'ledger', icon: 'scale', sizes: ['m', 'l'], trend: true,
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/client' }, card: 'share',
+  data: function(ctx) {
+    var a = wcPulseArgs(ctx.period), rev = sumTaxable(a.filtered), kg = a.tonnage.kg;
+    var ranked = wdgMemo('rollup:' + ctx.period, function() { return buildClientRollup(a.filtered); });
+    if (!ranked.length || !(rev > 0)) return { state: 'empty', title: 'No invoices in this period', body: 'Each client’s share of the tonnes and of the revenue, once the period has invoices.' };
+    var list = ranked.filter(function(r) { return r.comparable && kg > 0; }).map(function(r) { return { id: r.clientId, name: r.name, rev: r.total / rev * 100, kg: r.kg / kg * 100 }; })
+      .sort(function(x, y) { return y.kg - x.kg; });
+    if (!list.length) return { state: 'early', title: 'Nothing weighed enough to share out', body: 'A client’s share of the tonnes needs 90% of its revenue weighed (Clients → Parts).' };
+    var top = list[0], heavy = top.kg - top.rev > 10, tone = heavy ? 'warning' : 'ok';
+    var top3 = ranked.slice(0, 3).reduce(function(s, r) { return s + r.total; }, 0) / rev * 100, apart = ranked.length - list.length;
+    return { state: 'ok', tone: tone, list: list, top: top, fig: wcFigUnit(Math.round(top.kg) + '%', 'of the tonnes'),
+      say: wcClientShort(top.name) + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: tone,
+      detail: 'The top three bill ' + Math.round(top3) + '% of the revenue' + (apart ? ' · ' + apart + ' not weighed enough to share out' : ''), detailAttrs: ' data-wdg-opt' };
+  },
+  draw: function() { return ''; },
+  viz: function(d, size, box) {
+    return chartDumbbell(d.list.slice(0, size === 'l' ? 10 : 6).map(function(x) {
+      return { key: String(x.id), label: x.name, a: Math.round(x.rev * 10) / 10, b: Math.round(x.kg * 10) / 10, tone: x.kg - x.rev > 10 ? 'warning' : 'neutral' };
+    }), { aLabel: 'Of revenue', bLabel: 'Of tonnes', labelHead: 'Client', unit: 'pct', ariaLabel: 'Each client’s share of the tonnes against its share of the revenue', bare: true, w: box.w, h: box.h });
+  },
+  source: function(d, size, ctx) { return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'weighed lines only'] }; } });
+
+/* Labour a kilo (§10 `labour`, Stats' labour card's): the period's labour over the kilos billed in it (labourForRange,
+   labourPerKgVerdict, the card's own rule: withheld under a fortnight or 90% of the days recorded), against the ₹ a kilo modelled; at
+   Medium its fixed and variable parts as a ledger adding up to it. Wages, so a role that sees them. */
+wdgDefine({ id: 'labour', title: 'Labour a kilo', short: 'Labour a kilo', q: 'Is labour moving with the work?', section: 'analysis', type: 'ledger', icon: 'wages', sizes: ['s', 'm'], trend: true,
+  needs: { page: 'pageStats', wages: true }, go: { tab: 'pageStats', v: 'tables/cost' }, card: 'labour-kg',
+  data: function(ctx) {
+    if (!(S.staff || []).length) return { state: 'empty', title: 'Nobody on the roster', body: 'Labour is read off the roster and the days marked (People → Roster).' };
+    var a = wcPulseArgs(ctx.period), r = labourRangeForPeriod(ctx.period);
+    if (!r) return { state: 'empty', title: 'No attendance recorded', body: 'A day is marked on People → Attendance, or read from the rolls.' };
+    var tonnage = ctx.period === 'all' ? weighLines(a.filtered.filter(function(i) { return i.date >= r.from && i.date <= r.to; })) : a.tonnage;
+    var lab = wdgMemo('labour:' + ctx.period, function() { return labourForRange(r.from, r.to); }), v = labourPerKgVerdict(lab, tonnage.kg), cfg = labourCfg();
+    if (!v.ok) return { state: 'early', title: 'Labour a kilo is withheld', body: wcCap(wdgUnEsc(String(v.why || ''))) + '.' };
+    var model = cfg.modelPerKg > 0 ? cfg.modelPerKg : null, gap = model != null ? v.perKg - model : null;
+    var tone = gap == null ? 'neutral' : gap > model * 0.2 ? 'warning' : 'ok';
+    return { state: 'ok', tone: tone, lab: lab, fig: wcFigUnit(formatCurrency(v.perKg), '/kg', tone === 'warning' ? tone : null),
+      say: gap == null ? 'No model to set it against' : Math.abs(gap) < 0.005 ? 'As modelled, ' + formatCurrency(model) + '/kg'
+        : formatCurrency(Math.abs(gap)) + ' ' + (gap > 0 ? 'over' : 'under') + ' the ' + formatCurrency(model) + ' modelled', sayTone: tone,
+      detail: lab.daysRecorded + ' of ' + lab.workingDays + ' working days recorded', detailNotSmall: true };
+  },
+  draw: function(d, size) {
+    if (size === 's') return '';
+    return wdgLedgerHtml([{ label: 'Fixed', meta: 'the monthly tier, its days and rest', amt: d.lab.fixed, attrs: ' data-lab-part="fixed"' },
+      { label: 'Variable', meta: 'hourly, daily, OT and extra', amt: d.lab.variable, attrs: ' data-lab-part="variable"' }], { label: 'Labour', amt: d.lab.total }, { noun: 'part' });
+  },
+  source: function(d, size, ctx) { return { facts: ['Attendance ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the tonnage billed in it'] }; } });
+
+/* Six months (§10 `months`, Trends' six months): each month at its own live cost (statsMonthsData), a row each as the Tables' By
+   month: its ₹ a kilo, its cost and what it left, in their tones; at Large the tonnes and how much of the cost is measured too. */
+wdgDefine({ id: 'months', title: 'Six months', q: 'Each month at its own cost', section: 'analysis', type: 'ledger', icon: 'calendar', sizes: ['l', 'm'], trend: true,
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/month' }, card: 'months',
+  data: function() {
+    var rows = statsMonthsData(), known = rows.filter(function(r) { return r.kg > 0; });
+    if (!known.length) return { state: 'empty', title: 'No weighed month yet', body: 'Six months, each at its own live cost, once invoices are weighed.' };
+    var priced = known.filter(function(r) { return r.contrib != null; }), under = priced.filter(function(r) { return r.contrib < -0.005; });
+    var last = priced[priced.length - 1], tone = last ? figToneAgainst(last.real, last.cost, 5) || 'ok' : 'neutral';
+    var kg = known.reduce(function(s, r) { return s + r.kg; }, 0);
+    return { state: 'ok', tone: tone, rows: rows, fig: wcFigUnit(formatNum(kg / 1000, 1), 't in six months'),
+      say: !priced.length ? 'No month has a cost to judge by' : under.length ? under.length + ' of ' + priced.length + ' months under the live cost' : 'Every month over the live cost',
+      sayTone: under.length ? (under.length * 2 >= priced.length ? 'danger' : 'warning') : priced.length ? 'ok' : 'neutral' };
+  },
+  draw: function(d, size) {
+    var large = size === 'l', n2 = function(v) { return v == null ? '—' : formatNum(v, 2); };
+    var head = large ? ['Month', 't', '₹/kg', 'Cost', 'Left', 'Measured'] : ['Month', '₹/kg', 'Cost', 'Left'];
+    var rows = d.rows.slice().reverse().map(function(r) {
+      var left = r.contrib == null ? '—' : { text: (r.contrib >= 0 ? '+' : '−') + formatNum(Math.abs(r.contrib), 2), tone: figToneAgainst(r.real, r.cost, 5) || 'ok' };
+      return large ? [r.label, formatNum(r.kg / 1000, 1), n2(r.real), n2(r.cost), left, Math.round((r.measured || 0) * 100) + '%'] : [r.label, n2(r.real), n2(r.cost), left];
+    });
+    return wdgTableHtml(head, rows, ' data-wc-months');
+  },
+  source: function() { return { facts: ['₹ a kilo', 'each month at its own live cost', 'the latest first'] }; } });
+
+/* Revenue, tonnage and incoming (§10 `trend`, Trends' chart): twelve months of what was billed, plated and billed, or what arrived on
+   challans (buildTrendSeries, by month), as bars, bare, the month to date hatched; its Choose the series. The figure is the last
+   whole month, against the one before. Incoming material leads the other two: what arrives bills later. */
+var WC_TREND_WORDS = { revenue: 'Billed', tonnage: 'Plated and billed', im: 'Arrived on challans' };
+wdgDefine({ id: 'trend', title: 'Revenue, tonnage and incoming', q: 'Did we bill more, plate more, and what is coming?', section: 'analysis', type: 'ledger', icon: 'activity', sizes: ['l', 'm'], trend: true,
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/month' }, card: 'trend',
+  choose: { def: 'revenue', label: 'Series', opts: function() { return [{ v: 'revenue', label: '₹' }, { v: 'tonnage', label: 'Tonnes' }, { v: 'im', label: 'Incoming' }]; } },
+  data: function(ctx) {
+    var series = WC_TREND_WORDS[ctx.choose] ? ctx.choose : 'revenue', data = wdgMemo('trend:' + series, function() { return buildTrendSeries('month', series); });
+    if (!data.length) return { state: 'empty', title: series === 'im' ? 'No challan weighed yet' : 'No invoices yet', body: 'Twelve months of it, once there is something to plot.' };
+    var td = chartToDateAt(data.map(function(x) { return x.key; }), localDateStr().slice(0, 7)), i = td != null ? td - 1 : data.length - 1;
+    if (i < 1) return { state: 'early', title: 'Not enough yet: one whole month', body: 'Two whole months draw the trend.' };
+    var unit = TREND_SERIES_UNIT[series] || 'money', cur = data[i], prev = data[i - 1];
+    var pct = prev.value > 0 ? (cur.value - prev.value) / prev.value * 100 : null, flat = pct == null || Math.abs(pct) <= FIG_FLAT_PCT;
+    var fig = unit === 'money' ? inrFigHtml(cur.value) : wcFigUnit(formatNum(cur.value / 1000, 1), 't');
+    return { state: 'ok', tone: flat ? 'neutral' : pct > 0 ? 'ok' : 'warning', data: data, td: td, series: series, unit: unit, fig: fig,
+      say: WC_TREND_WORDS[series] + ' in ' + cur.label + (pct == null ? '' : flat ? ', level with ' + prev.label : ', ' + formatNum(Math.abs(pct), 1) + '% ' + (pct > 0 ? 'up on ' : 'down on ') + prev.label),
+      sayTone: flat ? 'neutral' : pct > 0 ? 'ok' : 'warning', detail: series === 'im' ? 'What arrives here bills later' : '', detailAttrs: ' data-wdg-opt' };
+  },
+  draw: function() { return ''; },
+  viz: function(d, size, box) {
+    return chartBars(d.data.map(function(x) { return { label: x.label, value: x.value }; }), { unit: d.unit, toDate: d.td, labelHead: 'Month',
+      ariaLabel: WC_TREND_WORDS[d.series] + ', twelve months', maxLabels: size === 'l' ? 12 : 6, bare: true, w: box.w, h: box.h });
+  },
+  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : 'Invoices by invoice date, net of credit notes', 'twelve months'] }; } });
+
+/* Top parts (§10 `topitems`, Trends' top items): the period's parts ranked by what they billed, their tonnes or their price a kilo
+   (its Choose; buildTopItems, the Tables' By part's), as ranked bars, bare; by the price the mark is the live cost, short of it in the
+   danger's colour. A ranking by weight leaves out the parts with none, and says how many. */
+wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, which pay for it?', section: 'analysis', type: 'ledger', icon: 'box', sizes: ['m', 'l'], trend: true,
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/part' }, card: 'topitems',
+  choose: { def: 'value', label: 'Rank by', opts: function() { return [{ v: 'value', label: '₹' }, { v: 'tonnage', label: 'Tonnes' }, { v: 'rate', label: '₹/kg' }]; } },
+  data: function(ctx) {
+    var by = { value: 1, tonnage: 1, rate: 1 }[ctx.choose] ? ctx.choose : 'value', a = wcPulseArgs(ctx.period);
+    var top = wdgMemo('top:' + ctx.period + ':' + by, function() { return buildTopItems(a.filtered, by); }), cost = a.periodCost.perKg;
+    if (!top.total) return { state: 'empty', title: 'No part billed in this period', body: 'The parts the period billed, once it has invoices.' };
+    if (!top.rows.length) return { state: 'early', title: 'No part in this period has a known weight', body: 'A part’s weight is set on Clients → Parts.' };
+    var first = top.rows[0], name = first.part + (first.gauge && rateKey(first.part).indexOf(rateKey(first.gauge)) < 0 ? ' (' + first.gauge + ')' : '');
+    var below = by === 'rate' && cost > 0 ? top.rows.filter(function(r) { return r.perKg < cost; }).length : 0;
+    var fig = by === 'tonnage' ? wcFigUnit(formatNum(first.kg, 0), 'kg') : by === 'rate' ? wcFigUnit(formatCurrency(first.perKg), '/kg', cost > 0 ? figToneAgainst(first.perKg, cost, 5) : null) : inrFigHtml(first.amount);
+    return { state: 'ok', tone: below ? 'warning' : 'neutral', top: top, by: by, cost: cost, fig: fig,
+      say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: below ? 'warning' : 'neutral',
+      detail: by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
+        : top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : todoPlural(top.total, 'part') + ' billed', detailAttrs: ' data-wdg-opt' };
+  },
+  draw: function(d) {
+    var by = d.by, rows = d.top.rows, cost = d.cost;
+    var max = by === 'rate' ? Math.max.apply(null, rows.map(function(r) { return r.perKg; }).concat([cost || 0])) : 0;
+    return '<div data-wdg-list data-noun="part">' + chartRankedBars(rows.map(function(r) {
+      var value = by === 'tonnage' ? r.kg : by === 'rate' ? r.perKg : r.amount;
+      return { label: r.part, value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
+        sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown'),
+        tone: by === 'rate' && cost > 0 ? (r.perKg < cost ? 'danger' : 'good') : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
+    }), { unit: by === 'tonnage' ? 'kg' : by === 'rate' ? 'rate' : 'money', max: max, labelHead: 'Part', ariaLabel: 'Top parts', bare: true }) + '</div>';
+  },
+  source: function(d, size, ctx) { return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'one client’s part a row'] }; } });
+
+/* Recorded against paid (§10 `costcheck`, the live cost's check): the app's own record of a cost beside what the bank paid for it,
+   over only the months both cover (liveCostPaidCheck), a line each with the gap, signed; a gap over 10% in the warning's tone. Chemicals
+   and zinc compare use with purchases, which differ by design, so that line is never flagged. */
+wdgDefine({ id: 'costcheck', title: 'Recorded against paid', q: 'Does the book agree with the bank?', section: 'analysis', type: 'ledger', icon: 'bank', sizes: ['m'], trend: true,
+  needs: { page: 'pageStats', money: true }, go: { tab: 'pageStats', v: 'tables/cost' }, card: 'costcheck',
+  data: function(ctx) {
+    if (!finHasBank()) return wcNoBank('what the bank paid is');
+    var r = statsRangeIso(ctx.period), chk = wdgMemo('costcheck:' + ctx.period, function() { return liveCostPaidCheck(r.from, r.to); });
+    var comp = chk.filter(function(x) { return x.recorded != null; });
+    if (!comp.length) return { state: 'early', title: 'Nothing to compare in this period', body: chk.length ? wcCap(String(chk[0].note || '')) : 'The statement and the record have no month in common.' };
+    var flagged = comp.filter(function(x) { return x.flag; }), tone = flagged.length ? 'warning' : 'ok';
+    return { state: 'ok', tone: tone, comp: comp, fig: wcFigUnit(flagged.length + ' of ' + comp.length, 'over 10% apart'),
+      say: flagged.length ? flagged[0].label + ': paid ' + wcRs(flagged[0].paid) + ', recorded ' + wcRs(flagged[0].recorded) : 'Within 10% on every cost compared', sayTone: tone };
+  },
+  draw: function(d) {
+    return wdgLedgerHtml(d.comp.map(function(x) {
+      return { label: x.label, meta: 'recorded ' + wcRs(x.recorded) + ' · paid ' + wcRs(x.paid), amt: x.delta, tone: x.flag ? 'warning' : null, attrs: ' data-paid="' + escHtml(x.key) + '"' };
+    }), null, { signed: true, noun: 'cost' });
+  },
+  source: function() { return { facts: [wcBankSrc(), 'the months both cover'] }; } });
 
 /* ---------- The questions (Briefing: a briefing note on the desk at nine; Pulse's, folded into Home: §8c) ----------
    Each question a widget: Small its answer as a sentence, its key figure in its tone, with its picture; Medium the story's sentences,
@@ -2067,7 +2256,7 @@ function wcWhyVs(period) {
   return period === 'qtd' ? 'last quarter' : period === 'ytd' ? 'last year' : 'the period before';
 }
 wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against the period before?', section: 'questions', type: 'brief', sizes: ['m', 'l'], trend: true,
-  needs: { money: true }, go: { tab: 'pageStats', v: 'trends' },
+  needs: { money: true }, go: { tab: 'pageStats', v: 'board' },
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), o = whyHeroOpts(ctx.period, a.filtered, a.prior, 'real');
     if (!o) return { state: 'early', title: ctx.period === 'all' ? 'All has no period before it' : 'Nothing to compare yet',
@@ -2100,7 +2289,7 @@ wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against
 /* The period in figures (statsOverviewOpts, the panel Stats → Overview drew): what a kilo left after the live cost, its four factors
    as tiles, and the plated tonnage as a row opening Production. */
 wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, contribution, capacity', section: 'questions', type: 'ledger', sizes: ['m', 'l'], trend: true,
-  needs: { money: true }, go: { tab: 'pageStats', v: 'cost' },
+  needs: { money: true }, go: { tab: 'pageStats', v: 'tables/cost' },
   data: function(ctx) {
     var a = wcPulseArgs(ctx.period), o = statsOverviewOpts(ctx.period, a.filtered, a.tonnage);
     // Its detail (the period's sum) is what it lets go of first; the plated row a line of its own.

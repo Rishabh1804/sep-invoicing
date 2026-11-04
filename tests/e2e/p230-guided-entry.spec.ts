@@ -166,6 +166,37 @@ test.describe('P230 Stock: Spend and prices, and two lines that are one', () => 
     await expect(page.locator('#stockContent')).toContainText('Nitric acid');
   });
 
+  test('the QA chain: real, different salts are never raised as one; a pair said to differ stays apart; a late entry on a retired line moves', async ({ page }) => {
+    const s: any = stockBook();
+    s.stock.items.push({ id: 'SN1', name: 'Sodium nitrate', key: 'SODIUM NITRATE', aliases: [], unit: 'kg', active: true, createdAt: 2 },
+      { id: 'SN2', name: 'Sodium nitrite', key: 'SODIUM NITRITE', aliases: [], unit: 'kg', active: true, createdAt: 3 },
+      { id: 'CA', name: 'Citric acid', key: 'CITRIC ACID', aliases: [], unit: 'L', active: true, createdAt: 4 },
+      { id: 'BR', name: 'Brightner', key: 'BRIGHTNER', aliases: [], unit: 'L', active: true, createdAt: 5 },
+      { id: 'BR2', name: 'Brigthner', key: 'BRIGTHNER', aliases: [], unit: 'L', active: true, createdAt: 6 });
+    await loadAppWithState(page, s);
+    const pairs: string[] = await g(page, `stockTwins().map(function (p) { return p.from.name + '|' + p.into.name; })`);
+    // Nitrate/nitrite and nitric/citric are other chemicals (Vulcanus M-3); a transposed pair is not one letter either.
+    expect(pairs.filter(p => /nitr|citric/i.test(p))).toEqual([]);
+    // A pair the owner says differs is kept apart, its task gone.
+    await g(page, `stockData().items.push({ id: 'NA', name: 'Nitric acd', key: 'NITRIC ACD', aliases: [], unit: 'L', active: true, createdAt: 7 })`);
+    expect(await g(page, `todoAppAll().filter(function (t) { return t.rule === 'stockTwins'; }).length`)).toBe(1);
+    await g(page, `stockMergeOpen('NA', 'N')`);
+    await page.locator('[data-action="invStockNotTwins"]').click();
+    expect(await g(page, `todoAppAll().filter(function (t) { return t.rule === 'stockTwins'; }).length`)).toBe(0);
+    expect((await readStoredState(page)).stock.notTwins).toEqual(['N|NA']);
+    // A merge done here, then an entry from a device that had not merged naming the retired line: moved to the line kept on the
+    // next load (migrateState), keeping where it came from (Vulcanus H-1); and the line's checks see it (the memo's key).
+    await g(page, `(function () { var st = stockData(), f = stockItem('NA'), t = stockItem('N'); f.mergedInto = 'N'; f.active = false; f.retiredAt = 1;
+      st.entries.push({ id: 'LATE', itemId: 'NA', kind: 'used', qty: 500, date: '${todayIso()}', seq: 2, at: Date.now(), source: 'manual', by: 'B' }); saveState(); })()`);
+    await page.reload();
+    await page.locator('body.inv-booted').waitFor();
+    const late = (await readStoredState(page)).stock.entries.find((e: any) => e.id === 'LATE');
+    expect(late).toMatchObject({ itemId: 'N', mergedFrom: 'NA' });
+    expect(await g(page, `Object.keys(stockEntryChecks('N')).indexOf('LATE') >= 0`)).toBe(true);
+    // A stored choice and a file's line follow the merge to the line kept.
+    expect(await g(page, `stockLive('NA').id`)).toBe('N');
+  });
+
   test('lines of two units are not merged: a figure in litres would read as kilograms', async ({ page }) => {
     const s: any = guardBook();
     s.stock.items.push({ id: 'NK', name: 'Nitric acid', key: 'NITRIC ACID', unit: 'kg', active: true });

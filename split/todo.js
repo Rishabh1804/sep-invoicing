@@ -149,12 +149,12 @@ var TODO_RULE_FNS = {
   // on the line with fewer entries.
   stockTwins: function() {
     return stockTwins().map(function(p) {
-      return { key: 'stockTwins:' + p.from.id + '|' + p.into.id, rule: 'stockTwins', tone: 'info',
+      return { key: 'stockTwins:' + stockTwinKey(p.from.id, p.into.id), rule: 'stockTwins', tone: 'info',
         title: 'Merge ' + p.from.name + ' into ' + p.into.name + '?', sub: p.why + ' · ' + todoPlural(p.nFrom, 'entry', 'entries') + ' against ' + p.nInto,
         why: 'Stock · one chemical written two ways keeps half its record on each line',
         facts: [['Line to merge', p.from.name + ' (' + todoPlural(p.nFrom, 'entry', 'entries') + ')'], ['Line to keep', p.into.name + ' (' + todoPlural(p.nInto, 'entry', 'entries') + ')'], ['Why', p.why]],
-        clears: 'Clears itself when the two are merged, or one is renamed.',
-        go: { kind: 'stockMerge', id: p.from.id, into: p.into.id }, goLabel: 'Merge them', sig: p.from.name + '|' + p.into.name };
+        clears: 'Clears itself when the two are merged, or said to be different, or one is renamed.',
+        go: { kind: 'stockMerge', id: p.from.id, into: p.into.id }, goLabel: 'Merge them', sig: [p.from.name, p.into.name].sort().join('|') };
     });
   },
   paste: function() {

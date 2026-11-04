@@ -477,6 +477,33 @@ function stockCfg() {
 }
 function stockUid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function stockItem(id) { return stockData().items.find(function(i) { return i.id === id; }) || null; }
+/* A line as it stands now: a line merged into another (UI pass 3 §11c) is the line it was merged into, followed to the end. Read where
+   an id comes from outside this book's own entries (a choice stored on a message, a file, a position, another device's entry). */
+function stockLive(id) {
+  var it = stockItem(id), seen = {};
+  while (it && it.mergedInto && !seen[it.id]) { seen[it.id] = 1; it = stockItem(it.mergedInto) || it; if (seen[it.id]) break; }
+  return it;
+}
+/* Entries and prices quoted that name a retired line, moved to the line kept (each entry keeps mergedFrom). True when it moved any. */
+function stockMergedRepoint() {
+  if (!S || !S.stock || !Array.isArray(S.stock.items) || !S.stock.items.some(function(i) { return i && i.mergedInto; })) return false;
+  var moved = 0;
+  (S.stock.entries || []).forEach(function(e) {
+    var it = e && stockItem(e.itemId);
+    if (!it || !it.mergedInto) return;
+    var live = stockLive(it.id);
+    if (!live || live.id === it.id) return;
+    if (!e.mergedFrom) e.mergedFrom = it.id;
+    e.itemId = live.id; moved++;
+  });
+  (S.suppliers || []).forEach(function(r) {
+    (r && Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) {
+      var it = q && stockItem(q.itemId), live = it && it.mergedInto ? stockLive(it.id) : null;
+      if (live && live.id !== it.id) { q.itemId = live.id; moved++; }
+    });
+  });
+  return moved > 0;
+}
 // Days in a window, Sundays out — the shop's own divisor (16–22 Sep is "6 day").
 // The one counter is statsWorkingDays; a window here is never under a day.
 function stockWorkingDays(from, to) {
@@ -614,7 +641,10 @@ function stockFindByLead(key) {
   return hits.length === 1 ? hits[0] : null;
 }
 function stockFindByPos(n) {
-  return stockData().items.find(function(i) { return i.lastPos === n; }) || null;
+  // The position the supervisor numbered a line by: a line merged keeps its number, found as the line kept.
+  var hit = stockData().items.filter(function(i) { return i.lastPos === n; });
+  var live = hit.filter(function(i) { return !i.mergedInto; })[0];
+  return live || (hit[0] ? stockLive(hit[0].id) : null);
 }
 function stockGuessBasis(key) { return key === 'ZINC' ? 'charge' : 'draw'; }
 
@@ -639,7 +669,7 @@ function resolveStockParse(parsed, choices) {
       var already = stockFindByKey(mapKey);
       if (already) { r.item = already; r.via = 'chosen'; } else { r.via = 'new'; }
     }
-    else if (mapChoice && mapChoice !== 'new') { r.item = stockItem(mapChoice); r.via = 'chosen'; }
+    else if (mapChoice && mapChoice !== 'new') { r.item = stockLive(mapChoice); r.via = 'chosen'; }
     else if (mapChoice === 'new' && l.key) { r.via = 'new'; }
     else if (byKey) { r.item = byKey; r.via = 'name'; }
     else if (stockFindByLead(l.key)) {
@@ -1215,6 +1245,9 @@ function stockManualModel() {
   var day = m.date ? stockShortDate(m.date) : '';
   var whenDone = !!m.date && (m.mode !== 'received' || (!!m.supplier && !!m.billNo));
   var lines = [], checks = [];
+  // The baths Save records (stockBathsIn): what was typed in Into, read as the stock-by-line figures read it (Vulcanus L-2).
+  var baths = (m.mode === 'used' || m.mode === 'charged') && m.bath ? stockBathsIn(m.bath) : [];
+  if ((m.mode === 'used' || m.mode === 'charged') && m.bath && !baths.length && filled.length) checks.push({ tone: 'warning', text: 'Into: no bath read from "' + m.bath + '". It is saved as a note, and its use counts for the plant, not a line.' });
   filled.forEach(function(f) {
     var it = f.it, lvl = m.mode === 'count' ? stockReplay(it.id, isoAddDays(m.date, 1)).level : stockReplay(it.id, m.date ? isoAddDays(m.date, 1) : null).level, after = lvl;
     if (m.mode === 'count') after = f.qty;
@@ -1224,7 +1257,7 @@ function stockManualModel() {
       m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
         (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
         (f.price != null ? ', ' + escHtml(formatCurrency(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST' : '') :
-      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.bath ? ' into ' + escHtml(m.bath) : '');
+      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
     var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
       ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
     lines.push(what + (day ? ' on ' + escHtml(day) : '') + shelf);
@@ -1336,6 +1369,8 @@ function stockSaveManual() {
     if (!m.supplier) { showToast('Enter the company that billed it', 'error'); return; }
     if (!m.billNo) { showToast('Enter the invoice number', 'error'); return; }
   }
+  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, worked out before the entries go in (Vulcanus L-1).
+  var said = stockManualModel().preview.lines.slice(0, 6);
   var st = stockData(), at = Date.now(), by = stockBy(), n = 0, gaps = 0, unpriced = 0, ids = [];
   Object.keys(m.vals).forEach(function(id) {
     var v = m.vals[id], q = parseFloat(v.qty);
@@ -1366,8 +1401,6 @@ function stockSaveManual() {
     n++;
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
-  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, kept on the form until the next save.
-  var said = stockManualModel().preview.lines.slice(0, 6);
   saveState();
   // The form stays on the day, with what was saved listed under it: several entries go in at a sitting, and each is
   // checked where it was made (it went to the list of lines before, and nothing showed what had been entered).
@@ -1411,8 +1444,18 @@ function stockTwinWhy(a, b) {
   if (diff < 0) return '';
   var x = wa[diff], y = wb[diff];
   if (Math.min(x.length, y.length) < 4 || /\d/.test(x + y)) return '';
+  // A first letter changed is another name (NITRIC, CITRIC), and so is a chemical's ending (NITRATE, NITRITE; CHLORATE, CHLORITE):
+  // real, different salts the plating line uses side by side (Vulcanus M-3, U4's QA chain).
+  if (x[0] !== y[0]) return '';
+  var ends = /(ATE|ITE|IDE|IC|OUS)$/;
+  if (ends.test(x) && ends.test(y) && x.replace(ends, '') === y.replace(ends, '')) return '';
+  if (x.length === y.length && x.slice(-3) !== y.slice(-3) && ends.test(x) && ends.test(y)) return '';
   return stockOneLetter(x, y) ? 'one letter apart' : '';
 }
+/* Two lines the owner said are different (a pair from the To-do or the merge): never raised again. Kept in the book as the pair's
+   ids, sorted. */
+function stockTwinKey(a, b) { return [String(a), String(b)].sort().join('|'); }
+function stockNotTwins() { var st = stockData(); if (!Array.isArray(st.notTwins)) st.notTwins = []; return st.notTwins; }
 /* One letter added, dropped or changed. */
 function stockOneLetter(x, y) {
   if (Math.abs(x.length - y.length) > 1) return false;
@@ -1430,7 +1473,7 @@ function stockTwins() {
   var count = function(id) { return stockData().entries.filter(function(e) { return e.itemId === id && !e.voided; }).length; };
   for (var i = 0; i < items.length; i++) for (var j = i + 1; j < items.length; j++) {
     var why = stockTwinWhy(items[i], items[j]);
-    if (!why) continue;
+    if (!why || stockNotTwins().indexOf(stockTwinKey(items[i].id, items[j].id)) >= 0) continue;
     var ni = count(items[i].id), nj = count(items[j].id);
     // The line with fewer entries is merged; of two alike, the one made later.
     var from = ni < nj || (ni === nj && (items[i].createdAt || 0) > (items[j].createdAt || 0)) ? items[i] : items[j], into = from === items[i] ? items[j] : items[i];
@@ -1455,8 +1498,20 @@ function stockMergeOpen(itemId, intoId) {
       return '<option value="' + escHtml(t.id) + '"' + (t.id === into ? ' selected' : '') + '>' + escHtml(t.name + (t.unit ? ' (' + t.unit + ')' : '') + (why ? ' · ' + why : '')) + '</option>';
     }).join('') + '</select></label></div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    // The To-do's pair may be two different chemicals: said once, it is never raised again.
+    (intoId && stockTwinWhy(it, stockItem(into) || {}) ? '<button class="inv-btn inv-btn-ghost" data-action="invStockNotTwins" data-id="' + escHtml(it.id) + '" data-into="' + escHtml(into) + '">They are different</button>' : '') +
     '<button class="inv-btn inv-btn-primary" data-action="invStockMergeDo">Merge</button></div></div>';
   dialogOpen(html, { dismiss: true });
+}
+function stockNotTwinsSay(a, b) {
+  if (!grdGate('settings', 'say two stock lines are different', function() { stockNotTwinsSay(a, b); })) return;
+  var k = stockTwinKey(a, b), list = stockNotTwins();
+  if (list.indexOf(k) < 0) list.push(k);
+  saveState();
+  var scrim = document.querySelector('[data-stock-merge]');
+  if (scrim && scrim.closest('.inv-scrim-dialog')) dialogCloseScrim(scrim.closest('.inv-scrim-dialog'));
+  var x = stockItem(a), y = stockItem(b);
+  showToast((x && y ? x.name + ' and ' + y.name : 'The two lines') + ' are kept apart, and not asked about again');
 }
 async function stockMergeDo() {
   var m = _stockMergeFor, sel = document.getElementById('stockMergeInto');
@@ -1479,10 +1534,12 @@ async function stockMergeDo() {
   (into.mergedFrom = Array.isArray(into.mergedFrom) ? into.mergedFrom : []).push(from.id);
   if (into.lastPos == null && from.lastPos != null) into.lastPos = from.lastPos;
   if (!into.orderFrom && from.orderFrom) into.orderFrom = from.orderFrom;
+  // Prices quoted for the line given up are the line kept's (Iuno M-1); its number on the supervisor's sheet stays its own, found
+  // as the line kept (stockFindByPos), so a nameless line at that number is never asked again (Vulcanus L-6).
+  (S.suppliers || []).forEach(function(r) { (r && Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) { if (q && q.itemId === from.id) q.itemId = into.id; }); });
   from.mergedInto = into.id;
   from.retiredAt = at;
   from.active = false;
-  delete from.lastPos;
   _stockMergeFor = null;
   saveState();
   var scrim = document.querySelector('[data-stock-merge]');
@@ -1681,7 +1738,8 @@ var _stockChecksMemo = null;
 function stockEntryChecks(itemId) {
   var st = stockData(), parts = [localDateStr()];
   st.items.forEach(function(i) { parts.push(i.id + ':' + i.basis); });
-  st.entries.forEach(function(e) { parts.push(e.id + ':' + e.qty + ':' + e.date + ':' + e.kind + ':' + (e.voided ? 1 : 0) + (e.checkOk ? 1 : 0)); });
+  // The line an entry is on is in the key: a merge moves entries and changes nothing else (Vulcanus M-2, U4's QA chain).
+  st.entries.forEach(function(e) { parts.push(e.id + ':' + e.itemId + ':' + e.qty + ':' + e.date + ':' + e.kind + ':' + (e.voided ? 1 : 0) + (e.checkOk ? 1 : 0)); });
   var key = parts.join('|');
   if (!_stockChecksMemo || _stockChecksMemo.st !== st || _stockChecksMemo.key !== key) _stockChecksMemo = { st: st, key: key, by: {} };
   if (!_stockChecksMemo.by[itemId]) _stockChecksMemo.by[itemId] = _stockEntryChecks(itemId);
@@ -1980,7 +2038,7 @@ function stockMergeImport(src) {
   var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
   src.items.forEach(function(it) {
     if (!it || !it.id || typeof it.name !== 'string' || !it.name.trim()) return;
-    var mine = stockItem(it.id) || stockFindByKey(it.key || stockKey(it.name));
+    var mine = stockLive(it.id) || stockFindByKey(it.key || stockKey(it.name));
     if (mine) { idMap[it.id] = mine.id; return; }
     var copy = JSON.parse(JSON.stringify(it));
     copy.key = copy.key || stockKey(copy.name);
@@ -2030,7 +2088,7 @@ function stockMergeImport(src) {
   suppData().forEach(function(x) { if (x && x.id) spKeep(x); });
   var spQuotes = function(rec, r) {
     (Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) {
-      var itemId = q && (idMap[q.itemId] || (stockItem(q.itemId) ? q.itemId : null));
+      var itemId = q && (idMap[q.itemId] || (stockItem(q.itemId) ? stockLive(q.itemId).id : null));
       if (!itemId || typeof q.id !== 'string' || !num(q.price) || !(q.price > 0) || !day(q.date)) return;
       rec.quotes = Array.isArray(rec.quotes) ? rec.quotes : [];
       if (rec.quotes.some(function(x) { return x && x.id === q.id; })) return;
@@ -2106,6 +2164,7 @@ function stockAction(action, btn) {
     case 'invStockPaneClose': stockSetView('list'); break;
     case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;
     case 'invStockMergeDo': stockMergeDo(); break;
+    case 'invStockNotTwins': stockNotTwinsSay(btn.dataset.id, btn.dataset.into); break;
     // The desktop's Spend and prices: the pane beside the list, in place of an open line (a second press shuts it).
     // Spend and prices (§11b): an address of its own (v=spend); pressed again on the desktop it gives the room back to the list.
     case 'invStockSpend': stockSetView(_isDesktop && _stockView === 'spend' ? 'list' : 'spend'); break;

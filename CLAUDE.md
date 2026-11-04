@@ -2442,6 +2442,15 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   different way. On a day with the supervisor's whole-day barrel list, the roll's barrel OT blocks are *also reported*
   beside it (the owner could not say which the list covers: recorded as unknown, and kept so on 13 Oct 2026: *"This issue
   should be resolved once we have separate apps for everyone on the floor"*).
+  **A hand run of a client the shift's register never names is other work and counts beside it** (owner, 4 Nov 2026: a client
+  typed by hand sat under *Also reported, not added* on a shift whose register page never named it, and could not be moved;
+  `prodCountPlated`, P258); one of a client the register names stays also reported (the same work told twice), and so does one
+  naming no client. A correction of a hand run is judged as the run it replaces. **The owner's word on a run wins**: **Count it**,
+  **Leave it out** and **Back to the rule** (`countSet: {how, at, by}`, `prodCountSet`, the voids permission, kept by a correction);
+  the run's fold and pane say why it counts or not (`prodCountWhyText`). **A register run saved from two sources is flagged, never
+  dropped** (`prodRegisterTwins`: one day, line and client, the same figure and unit, times that meet, two different pages, photos or
+  messages): *saved twice?* on both rows, Entries' *Saved twice* flag, To-do `prodTwice` (a floor task, a day a task); void the copy,
+  or **Two runs, keep both** (`twinOk`, naming the other).
 - **A pickling message never names the line.** A load's line is read from the plating it became (the same part, the
   same day from half an hour before, or the next working day before noon), shown and **never stored**; a load with no
   plating offers the part's **usual line** (5+ days at 80%+, learnt only from lines written or set, so the pattern

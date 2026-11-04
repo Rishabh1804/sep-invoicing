@@ -911,7 +911,7 @@ function todoGo(go) {
       // A jump shows what it names: an entry left open in the desktop's pane would take the list's place below ~1100px (QA1-6).
       prodSetTab(go.tab || 'lines'); _prodView = 'main'; _prodEntryOpen = null;
       if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
-      else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
+      else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '', day: go.day || '' };
       switchTab('pageProduction');
       break;
     case 'finance':

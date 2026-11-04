@@ -671,6 +671,7 @@ function prodRunRowHtml(e, muted) {
   // The run opens to what it holds, its Correct and its Void (prodEntryFoldRowHtml): a past day is corrected where it is checked.
   return prodEntryFoldRowHtml(e, prodIndex(), '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta"><span class="inv-badge inv-badge-neutral" data-prod-src>' + prodSrcBadge(e) + '</span>' + (e.rework ? ' <span class="inv-badge inv-badge-info">rework</span>' : '') +
+    (prodTwinOf(e) ? ' <span class="inv-badge inv-badge-warning" data-prod-twin-badge>saved twice?</span>' : '') +
     (meta ? ' ' + escHtml(meta) : '') + '</span>', '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
     (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span>', muted);
 }
@@ -678,7 +679,7 @@ function prodRunRowHtml(e, muted) {
 /* ---------- Entries ---------- */
 var PROD_ENTRY_KINDS = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
 var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed'],
-  ['check', 'To check']];
+  ['check', 'To check'], ['twice', 'Saved twice']];
 /* Whether an entry carries a flag: the To-do counts every date, so a flag lists every date too (P127). */
 function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
@@ -688,6 +689,8 @@ function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unweighed') return prodIsUnweighed(e, idx);
   // A face's entry the data it links to does not bear out, or a run no load of a face's day became (faces.js).
   if (flag === 'check') return faceCheckOf(e).length > 0;
+  // A register run saved from two sources (a photo and a page, two photos of one page): both count until one is voided.
+  if (flag === 'twice') return !!prodTwinOf(e, idx);
   return false;
 }
 /* Entries (the tab map, TM4c): its verdict (the record's 60 days, and what needs a look: pieces not weighed, loads with the line
@@ -702,7 +705,7 @@ function prodEntriesHtml() {
   PROD_ENTRY_KINDS.forEach(function(c) { kindN[c[0]] = recent.filter(function(e) { return !c[0] || e.kind === c[0]; }).length; });
   PROD_ENTRY_FLAGS.forEach(function(c) { flagN[c[0]] = all.filter(function(e) { return prodEntryFlagged(e, c[0], idx); }).length; });
   var openCuts = recent.filter(function(e) { return e.kind === 'downtime' && !e.voidedAt && e.downtime && e.downtime.open; }).length;
-  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check;
+  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + flagN.twice;
   // The four flags that need a look are the card's factors, and filter the list as Stock's status tiles do; the kinds (and No client)
   // are the toolbar's chips, behind Filter on the phone with the flags beside them.
   var flagTile = function(flag, label, sub) {
@@ -710,7 +713,7 @@ function prodEntriesHtml() {
   };
   var h = uiVerdictHtml({ screen: 'Entries · 60 days', verdict: todoPlural(recent.length, 'entry', 'entries') + ' in 60 days' + (look ? ', ' + look + ' to look at' : ''),
     tone: !recent.length ? 'neutral' : look ? 'warning' : 'ok',
-    facts: [flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
+    facts: [flagN.twice ? flagN.twice + ' saved twice' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
       flagN.unknown ? flagN.unknown + ' with the line unknown' : ''].filter(Boolean).slice(0, 3),
     factors: [flagTile('unweighed', 'Not weighed', 'runs in pieces, every date'), flagTile('unknown', 'Line unknown', 'pickled loads'),
       flagTile('nochallan', 'No challan', 'loads, 30 days'), flagTile('gauge', 'Gauge unknown', 'a round no rule names')],
@@ -719,7 +722,7 @@ function prodEntriesHtml() {
     return '<button class="inv-chip" data-action="invProdFilter" ' + attr + '="' + val + '" aria-pressed="' + on + '">' + label + ' <span class="inv-panel-count">' + n + '</span></button>';
   };
   var chips = PROD_ENTRY_KINDS.map(function(c) { return chip('data-kind', c[0], c[1], kindN[c[0]], f.kind === c[0] && !f.flag); }).join('') +
-    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || (c[0] === 'check' && (flagN.check || f.flag === 'check')); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
+    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || ((c[0] === 'check' || c[0] === 'twice') && (flagN[c[0]] || f.flag === c[0])); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
   var on = f.flag ? (PROD_ENTRY_FLAGS.find(function(c) { return c[0] === f.flag; }) || [])[1] : f.kind ? (PROD_ENTRY_KINDS.find(function(c) { return c[0] === f.kind; }) || [])[1] : '';
   // A day: every entry of it, whatever its kind (owner, 10 Oct 2026: a past day's records, to check and correct).
   var dayField = '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">A day</span><input type="date" id="prodEntriesDay" class="inv-input" max="' + today + '" value="' + escHtml(f.day || '') + '" aria-label="A day"></label>';
@@ -822,6 +825,13 @@ function prodEntryMoreHtml(e, idx) {
   if (by) h += '<div class="inv-callout inv-callout-info">Corrected by the entry of ' + escHtml(formatDate(by.date)) + ': ' + escHtml(prodQtyText(by.qty, by.unit)) + '.</div>';
   if (e.replaces) h += '<div class="inv-note">This entry corrects an earlier one.</div>';
   h += faceCheckCalloutsHtml(e);
+  // Whether the run counts in the day's plating, and why (owner, 4 Nov 2026: a run also reported could not be moved, nor its
+  // reason seen).
+  var cw = prodCountWhyText(e, idx);
+  if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
+  var tw = prodTwinOf(e, idx);
+  if (tw) h += '<div class="inv-callout inv-callout-warning" data-prod-twin>' + escHtml('Saved twice? The same run (' + prodQtyText(tw.qty, tw.unit) + ', ' + (tw.time || '') + (tw.to && tw.to !== tw.time ? '–' + tw.to : '') +
+    ') came from ' + prodTwinSrc(tw) + ', and this one from ' + prodTwinSrc(e) + '. Both count now: void the copy, or keep both if they are two runs.') + '</div>';
   var rounds = e.rounds || [];
   if (rounds.length) {
     h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Rounds <span class="inv-panel-count">' + rounds.length + '</span></span></div>' +
@@ -834,6 +844,13 @@ function prodEntryMoreHtml(e, idx) {
   if (crew) h += '<div class="inv-note" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</div>';
   if (e.raw) h += '<div class="inv-field"><span class="inv-field-label">As written</span><div class="inv-quote">' + escHtml(e.raw) + '</div></div>';
   return h;
+}
+/* Where a register run came from, in words, so a pair saved twice can be told apart. */
+function prodTwinSrc(e) {
+  if (e.pageId) return 'the page typed on Mine' + (e.by ? ' by ' + e.by : '');
+  if (e.photoId) return 'a register photo';
+  if (e.msgHash) return 'a message';
+  return e.src === 'import' ? 'a file' : 'the register';
 }
 /* An entry's one action at its row's end (§1a-11): a cut is completed or given its reason, any other entry corrected; a void entry or
    one already corrected takes none. The rest are in the row's fold (phone) or the pane (desktop). */
@@ -869,6 +886,7 @@ function prodEntryRowHtml(e, idx, fold) {
   else if (e.kind === 'pickled' && prodLoadNoChallan(e, idx)) badges.push(['warning', 'no challan']);
   if (prodGaugeFlagged(e)) badges.push(['warning', 'gauge unknown']);
   if (faceCheckOf(e).length) badges.push(['warning', 'to check']);
+  if (prodTwinOf(e, idx)) badges.push(['warning', 'saved twice?']);
   if (e.rework) badges.push(['info', 'rework']);
   if (idx.replaced[e.id]) badges.push(['neutral', 'corrected']);
   else if (e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt) badges.push(['neutral', 'also reported']);
@@ -900,6 +918,14 @@ function prodEntryActionsHtml(e, idx, omit) {
     if (!(alias && !alias.pn && !alias.generic)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
     h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdWeighSet" data-id="' + escHtml(e.id) + '">Set its weight</button>';
   }
+  // Whether it counts: added where it was left out, left out where the rule added it beside the register, or put back to the rule.
+  var cw = e.kind === 'plated' ? (idx.countWhy || {})[e.id] : null;
+  if (cw && !idx.replaced[e.id]) {
+    if (cw.how === 'set') h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCountRule" data-id="' + escHtml(e.id) + '">Back to the rule</button>';
+    else if (!idx.countedSet[e.id]) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdCountIt" data-id="' + escHtml(e.id) + '">Count it</button>';
+    else if (cw.how === 'other') h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
+  }
+  if (prodTwinOf(e, idx)) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdTwinOk" data-id="' + escHtml(e.id) + '">Two runs, keep both</button>';
   var one = prodEntryOneAction(e, idx);
   if (one && one !== omit) h += one;
   return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
@@ -1742,7 +1768,7 @@ async function prodSaveHand() {
     // names) goes with it while the part and the client are as they were; the entry corrected is then no longer flagged.
     if (src) {
       if (f.kind === 'plated' && src.to) e.to = src.to;
-      ['rounds', 'qty2', 'unit2', 'set', 'barrels'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+      ['rounds', 'qty2', 'unit2', 'set', 'barrels', 'countSet'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
       if (f.kind !== 'plated' && src.line) { e.line = src.line; e.lineSrc = src.lineSrc || null; if (src.setAt) { e.setAt = src.setAt; e.setBy = src.setBy; } }
       if (src.qtySrc && e.qty === src.qty) e.qtySrc = src.qtySrc;
       if (e.part === String(src.part || '').trim() && String(e.clientId) === String(src.clientId)) {
@@ -1871,6 +1897,10 @@ function prodAction(action, btn) {
     case 'invProdHand': prodOpenHand(null, null, _prodTab === 'lines' && _prodView === 'main'); return true;
     case 'invProdCorrect': prodPinDay(); prodOpenHand(btn.dataset.id); return true;
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
+    case 'invProdCountIt': prodCountSet(btn.dataset.id, 'count'); return true;
+    case 'invProdLeaveOut': prodCountSet(btn.dataset.id, 'leave'); return true;
+    case 'invProdCountRule': prodCountSet(btn.dataset.id, null); return true;
+    case 'invProdTwinOk': prodTwinOk(btn.dataset.id); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdAlias': prodAliasOpen(btn.dataset.id); return true;

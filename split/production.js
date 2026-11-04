@@ -668,7 +668,8 @@ function prodIndex() {
   var byId = {};
   p.entries.forEach(function(e) { byId[e.id] = e; });
   var counted = prodCountPlated(live, replaced, byId);
-  var idx = { ver: _prodVer, store: p, n: p.entries.length, live: live, byId: byId, replaced: replaced, counted: counted.counted, also: counted.also, countedSet: counted.set };
+  var idx = { ver: _prodVer, store: p, n: p.entries.length, live: live, byId: byId, replaced: replaced, counted: counted.counted, also: counted.also, countedSet: counted.set, countWhy: counted.why };
+  idx.twin = prodRegisterTwins(counted.counted);
   idx.usual = prodUsualLines(idx);
   idx.racks = prodRackSizes(idx);
   idx.match = prodMatchAll(idx);
@@ -677,33 +678,122 @@ function prodIndex() {
 }
 
 /* Which plated entries measure a line's output. Per (date, line, general|ot) the complete records are ranked
-   register → relay; a standalone hand entry fills only a slot neither covers, and a hand entry that `replaces`
+   register → relay; a standalone hand entry fills a slot neither covers, and a hand entry that `replaces`
    one takes that record's basis and place. The others are ALSO REPORTED: shown, never added or netted — the
    register is one row per jig load on one line, the relay one figure per block, and they measure different
    populations. On a day with the supervisor's whole-day barrel list, an in-roll barrel OT block is also reported
-   beside it (the owner could not say which the list covers, 28 Sep 2026). */
+   beside it (the owner could not say which the list covers, 28 Sep 2026).
+
+   A standalone hand entry of a client the slot's register (or relay) holds no run of is other work, and counts beside it
+   (owner, 4 Nov 2026: a client typed by hand on a shift whose register page never named it had been left out, and could not
+   be moved). Where the client is on the register, it is the same work told twice, and stays also reported. The owner's own
+   word on an entry wins either way (`countSet: {how: 'count' | 'leave', at, by}`, prodCountSet). `why` says which rule
+   placed each entry, for the row that explains it (prodCountWhyText). */
 function prodCountPlated(live, replaced, byId) {
-  var groups = {}, counted = [], also = [], set = {};
+  var groups = {}, counted = [], also = [], set = {}, why = {};
   live.forEach(function(e) {
     if (e.kind !== 'plated' || replaced[e.id]) return;
     var basis = e.replaces && byId[e.replaces] ? (byId[e.replaces].basis || 'hand') : (e.basis || 'hand');
     var sg = e.slot === 'ot' ? 'ot' : 'general';
     var k = e.date + '|' + (e.line || '-') + '|' + sg;
-    (groups[k] = groups[k] || []).push({ e: e, basis: basis, standalone: basis === 'hand' && !e.replaces });
+    // A correction of a hand entry is a hand entry still: judged by its client as the run it replaces was (a correction of a run
+    // counted beside the register had fallen out of the count).
+    (groups[k] = groups[k] || []).push({ e: e, basis: basis, standalone: basis === 'hand' });
   });
   var barrelDay = {};
   live.forEach(function(e) { if (e.kind === 'plated' && e.line === 'barrel' && e.slot === 'day' && !replaced[e.id]) barrelDay[e.date] = true; });
   Object.keys(groups).forEach(function(k) {
-    var g = groups[k], best = 0;
+    var g = groups[k], best = 0, ranked = {};
     g.forEach(function(x) { if (!x.standalone) best = Math.max(best, PROD_BASIS_RANK[x.basis] || 1); });
+    // The clients the slot's counted records hold: a hand entry of one of them is the same work; of another, other work.
+    g.forEach(function(x) { if (!x.standalone && (PROD_BASIS_RANK[x.basis] || 1) === best && x.e.clientId != null) ranked[String(x.e.clientId)] = true; });
     var parts = k.split('|');
     g.forEach(function(x) {
-      var keep = best ? (!x.standalone && (PROD_BASIS_RANK[x.basis] || 1) === best) : true;
-      if (keep && parts[1] === 'barrel' && parts[2] === 'ot' && barrelDay[parts[0]] && x.basis === 'relay') keep = false;
+      var keep, w;
+      if (!best) { keep = true; w = 'only'; }
+      else if (!x.standalone) { keep = (PROD_BASIS_RANK[x.basis] || 1) === best; w = keep ? 'rank' : 'outranked'; }
+      else if (x.e.clientId != null && !ranked[String(x.e.clientId)]) { keep = true; w = 'other'; }
+      else { keep = false; w = x.e.clientId == null ? 'noclient' : 'same'; }
+      if (keep && parts[1] === 'barrel' && parts[2] === 'ot' && barrelDay[parts[0]] && x.basis === 'relay') { keep = false; w = 'barrelday'; }
+      var cs = x.e.countSet;
+      if (cs && (cs.how === 'count' || cs.how === 'leave')) { keep = cs.how === 'count'; w = 'set'; }
+      why[x.e.id] = { how: w, basis: x.basis, best: best };
       if (keep) { counted.push(x.e); set[x.e.id] = true; } else also.push(x.e);
     });
   });
-  return { counted: counted, also: also, set: set };
+  return { counted: counted, also: also, set: set, why: why };
+}
+/* What placed an entry in or out of the count, in words (the row's fold and the pane). */
+var PROD_BASIS_WORD = { 3: 'the register', 2: 'the supervisor’s message', 1: 'an entry by hand' };
+function prodCountWhyText(e, idx) {
+  var w = idx.countWhy && idx.countWhy[e.id];
+  if (!w || e.voidedAt || e.kind !== 'plated') return null;
+  var by = PROD_BASIS_WORD[w.best] || 'another record', counted = !!idx.countedSet[e.id];
+  if (w.how === 'set') {
+    var cs = e.countSet || {};
+    return { counted: counted, set: true, text: (counted ? 'Added: set by hand' : 'Left out: set by hand') + (cs.by ? ', ' + cs.by : '') + (cs.at ? ', ' + formatDate(isoOf(new Date(cs.at))) : '') + '. The rule no longer decides it.' };
+  }
+  if (w.how === 'other') return { counted: true, text: 'Added beside ' + by + ': it holds no run of this client on this shift.' };
+  if (w.how === 'same') return { counted: false, text: 'Not added: ' + by + ' counts this shift and holds a run of this client, so this is taken as the same work.' };
+  if (w.how === 'noclient') return { counted: false, text: 'Not added: ' + by + ' counts this shift, and this run names no client.' };
+  if (w.how === 'outranked') return { counted: false, text: 'Not added: ' + by + ' counts this shift.' };
+  if (w.how === 'barrelday') return { counted: false, text: 'Not added: the supervisor’s barrel list counts the whole day.' };
+  return null;
+}
+/* The owner's word on whether a run counts: 'count', 'leave', or null to put it back to the rule. */
+async function prodCountSet(id, how) {
+  var e = prodIndex().byId[id];
+  if (!e || e.kind !== 'plated' || e.voidedAt) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', how ? (how === 'count' ? 'count a run' : 'leave a run out') : 'put a run back to the rule'))) return;
+  e = prodIndex().byId[id];
+  if (!e || e.voidedAt) return;
+  if (how) e.countSet = { how: how, at: Date.now(), by: stockBy() }; else delete e.countSet;
+  prodTouch();
+  saveState();
+  renderProduction();
+  showToast(how === 'count' ? 'Added to the day’s plating' : how === 'leave' ? 'Left out of the day’s plating' : 'Counted by the rule again', 'success');
+}
+
+/* One run saved twice from two register sources (owner, 4 Nov 2026: two photos of one page, or a photo and the page typed on
+   Mine, both count, and the day read double). Two counted register runs of one day, line and client, the same figure in the same
+   unit, whose times meet, from two different pages, photos or messages, are a pair: said on both, never one dropped (which is
+   the owner's: void one). `twin[id]` is the other's id; a pair the owner said is two runs (`twinOk` on either, naming the other)
+   is not raised. */
+function prodRegisterTwins(counted) {
+  var by = {}, twin = {};
+  counted.forEach(function(e) {
+    if (e.basis !== 'register' || e.qty == null || e.clientId == null || e.voidedAt) return;
+    var k = e.date + '|' + (e.line || '-') + '|' + String(e.clientId) + '|' + e.qty + '|' + (e.unit || '');
+    (by[k] = by[k] || []).push(e);
+  });
+  var span = function(e) { var a = e.time ? _hhmm(e.time) : null, b = e.to ? _hhmm(e.to) : a; if (a == null) a = b; return a == null ? null : [a, b < a ? b + 1440 : b]; };
+  var src = function(e) { return e.pageId ? 'page:' + e.pageId : e.photoId ? 'photo:' + e.photoId : e.msgHash ? 'msg:' + e.msgHash : 'id:' + e.id; };
+  Object.keys(by).forEach(function(k) {
+    var g = by[k];
+    for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
+      var a = g[i], b = g[j];
+      if (twin[a.id] || twin[b.id] || src(a) === src(b)) continue;
+      if ((a.twinOk && a.twinOk.id === b.id) || (b.twinOk && b.twinOk.id === a.id)) continue;
+      var sa = span(a), sb = span(b);
+      if (!sa || !sb || sa[0] > sb[1] || sb[0] > sa[1]) continue;
+      twin[a.id] = b.id; twin[b.id] = a.id;
+    }
+  });
+  return twin;
+}
+function prodTwinOf(e, idx) { var t = (idx || prodIndex()).twin[e.id]; return t ? (idx || prodIndex()).byId[t] || null : null; }
+/* Two runs the check paired that are two runs (the same figure of one client twice on a shift): kept apart for good. */
+async function prodTwinOk(id) {
+  var idx = prodIndex(), e = idx.byId[id], o = e && prodTwinOf(e, idx);
+  if (!e || !o) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'keep two runs'))) return;
+  e = prodIndex().byId[id];
+  if (!e) return;
+  e.twinOk = { id: o.id, at: Date.now(), by: stockBy() };
+  prodTouch();
+  saveState();
+  renderProduction();
+  showToast('Kept as two runs', 'success');
 }
 
 /* The usual line of a part: distinct days on each line, from plated entries whose line was WRITTEN or SET — never
@@ -1709,7 +1799,7 @@ function prodLabourByLine(from, to) {
    flood on the first day), leave rework out (replating is not billed twice), and carry the tone in their sig so a
    snoozed amber task comes back when it turns red. */
 var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan'], ['prodGaugeUnknown', 'Production: a round no gauge rule names'],
-  ['prodUnweighed', 'Production: pieces plated with no weight']];
+  ['prodUnweighed', 'Production: pieces plated with no weight'], ['prodTwice', 'Production: a register run saved twice']];
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
@@ -1836,6 +1926,29 @@ TODO_RULE_FNS.prodUnweighed = function() {
       facts: [['Pieces, 30 days', Math.round(c.pieces).toLocaleString('en-IN')], ['Names', names.join(', ')]],
       clears: 'Which part? reads the floor’s name as one of the client’s parts; Set its weight puts a kg a piece on the client’s card. Until then the day’s weight and the line’s efficiency read low.',
       go: prodGo('entries', { client: cid, flag: 'unweighed' }), goLabel: 'Open the runs', sig: 'amber|' + cid + '|' + names.join('|') };
+  });
+};
+
+/* A register run saved twice from two sources (prodRegisterTwins), one task a day, the newest first: both count until the copy is
+   voided, so the day's plating and the line's efficiency read high by it. Amber; a floor task (the one who saved the pages). */
+TODO_RULE_NEED.prodTwice = 'floor';
+TODO_RULE_FNS.prodTwice = function() {
+  var idx = prodIndex(), days = {};
+  Object.keys(idx.twin || {}).forEach(function(id) {
+    var e = idx.byId[id];
+    if (!e || e.voidedAt) return;
+    var d = days[e.date] || (days[e.date] = { runs: 0, pieces: 0, ids: [], lines: {} });
+    d.runs++; d.ids.push(id); d.lines[e.line || '-'] = true;
+    if (e.unit === 'NOS' && e.qty) d.pieces += e.qty;
+  });
+  return Object.keys(days).sort().reverse().map(function(day) {
+    var d = days[day], pairs = d.runs / 2, lines = Object.keys(d.lines).map(function(l) { return l === '-' ? 'line unknown' : PROD_LINE_LABEL[l] || l; });
+    return { key: 'prodTwice:' + day, rule: 'prodTwice', tone: 'amber',
+      title: formatDate(day) + ': ' + todoPlural(pairs, 'register run') + ' saved twice',
+      sub: lines.join(', '), why: 'Production · the same run from two register sources (a photo and a page, or two photos of one page)',
+      facts: [['Day', formatDate(day)], ['Pairs', String(pairs)], ['Pieces counted twice', d.pieces ? Math.round(d.pieces / 2).toLocaleString('en-IN') : '–']],
+      clears: 'Void the copy of each pair, or Two runs, keep both where they are two runs. Until then the day’s plating and the line’s efficiency read high.',
+      go: prodGo('entries', { flag: 'twice', day: day }), goLabel: 'Open the pairs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
   });
 };
 

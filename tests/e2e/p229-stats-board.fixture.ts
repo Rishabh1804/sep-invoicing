@@ -217,7 +217,7 @@ export async function exportsWork(page: Page) {
   const lines = text.split('\n');
   expect(lines[0]).toBe('Client,Revenue,Of revenue,t,Weighed,Of tonnes,₹/kg,vs var.,vs full,₹ on period,Next challan');
   // A client's figures in the file are its row's on screen (Iuno): its revenue to the paisa.
-  const first = await page.locator('#statsTable tbody tr[data-client-row]').first().locator('td').nth(1).innerText();
+  const first = await page.locator('#statsTable tbody tr[data-client-row]').first().locator('td[data-col="rev"]').innerText();
   expect(Number(lines[1].split(',')[1])).toBe(Number(first.replace(/[^\d.]/g, '')));
   expect(lines.slice(1).map(l => l.split(',')[0].replace(/^"|"$/g, ''))).toEqual(names);
   const [xl] = await Promise.all([page.waitForEvent('download'), toolbarMore(page, 'Export the tables (Excel)')]);
@@ -311,7 +311,8 @@ export async function qaChain(page: Page) {
   // Left after the full cost: the period's revenue less its whole cost, at the cost the verdict judges by (YTD).
   await page.locator('[data-action="invStatsPeriod"][data-period="ytd"]').click();
   const want = await g(page, `(function(){ var a = statsPulseArgs('ytd'); return gstRound(sumTaxable(a.filtered) - a.periodCost.perKg * a.tonnage.kg); })()`) as number;
-  const tile = (await page.locator('#statsVerdict [data-tile="margin"] .inv-tile-value').innerText()).replace(/\u2212/g, '-').replace(/[^\d.-]/g, '');
+  // textContent: the verdict starts shut on the phone.
+  const tile = ((await page.locator('#statsVerdict [data-tile="margin"] .inv-tile-value').textContent()) || '').replace(/\u2212/g, '-').replace(/[^\d.-]/g, '');
   expect(tile.length).toBeGreaterThan(0);
   expect(Number(tile)).toBeCloseTo(want, 2);
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();

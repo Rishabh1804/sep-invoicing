@@ -332,14 +332,14 @@ test('S20: a part is its client\'s part at its gauge, and its row names the clie
   await expect(rows).toHaveCount(4);
   const plate = rows.filter({ hasText: 'BASE PLATE' });
   await expect(plate).toHaveCount(2);
-  const beta = plate.filter({ has: page.locator('td:nth-child(2)', { hasText: 'BETA CLAMPS' }) });
-  const alpha = plate.filter({ has: page.locator('td:nth-child(2)', { hasText: 'ALPHA WORKS' }) });
-  await expect(beta.locator('td').nth(4)).toHaveText('20.00');
-  await expect(alpha.locator('td').nth(4)).toHaveText('10.00');
+  const beta = plate.filter({ has: page.locator('td[data-col="client"]', { hasText: 'BETA CLAMPS' }) });
+  const alpha = plate.filter({ has: page.locator('td[data-col="client"]', { hasText: 'ALPHA WORKS' }) });
+  await expect(beta.locator('td[data-col="perKg"]')).toHaveText('20.00');
+  await expect(alpha.locator('td[data-col="perKg"]')).toHaveText('10.00');
   // A code both clients send says so on each row, counted apart (P118), naming the other.
   await expect(alpha).toContainText('code also sent by BETA CLAMPS, counted apart');
-  await expect(rows.filter({ hasText: '35X6' }).locator('td').nth(4)).toHaveText('12.00');
-  await expect(rows.filter({ hasText: '40X6' }).locator('td').nth(4)).toHaveText('14.00');
+  await expect(rows.filter({ hasText: '35X6' }).locator('td[data-col="perKg"]')).toHaveText('12.00');
+  await expect(rows.filter({ hasText: '40X6' }).locator('td[data-col="perKg"]')).toHaveText('14.00');
 });
 
 test('SB1: where a line has no weight, the live cost per kg says it divides by the weighed tonnage alone', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { emptyState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, recentTs, switchTab, todayIso, type SepState, openStockSpend } from './fixtures';
 import { newsAnswer } from './feeds-fixture';
 
 // The whole-app sweep for P76 (design system step 4): a book with something on every screen, a walker that opens
@@ -452,17 +452,12 @@ export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
   }
 }
 
-/* Stock's price trend on Zinc (Spend and prices since the tab map, TM4d: the fold at the list's foot on the phone, the pane beside it
-   on the desktop): the market against the bills, which the page opens on another line. Drawn as it opens, then with a supplier's
+/* Stock's price trend on Zinc (Spend and prices since the tab map, TM4d; UI pass 3 §11b: a screen of its own on the phone, the wide
+   pane on the desktop): the market against the bills, which the page opens on another line. Drawn as it opens, then with a supplier's
    bills listed under it. */
 export async function walkZinc(page: Page, tag: string, stops: Stop[]) {
   await switchTab(page, 'pageStock');
-  const spend = page.locator('#pageStock [data-action="invStockSpend"]');
-  if (await spend.count()) { if ((await spend.getAttribute('aria-pressed')) !== 'true') await spend.click(); }
-  else {
-    const fold = page.locator('#pageStock details[data-fold="stock-spend"]');
-    if (!(await fold.evaluate(el => (el as HTMLDetailsElement).open))) await fold.locator(':scope > summary').click();
-  }
+  await openStockSpend(page);
   await page.locator('#dashPriceLine').selectOption('ZN');
   await expect(page.locator('#dashPrice [data-zinc-suppliers]')).toBeVisible();
   stops.push(await sweep(page, 'pageStock › zinc market'));

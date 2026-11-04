@@ -18,11 +18,12 @@
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, stockTwins: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 3, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
   ['stockCheck', 'A stock entry does not fit the record, or a message reads differently now'],
+  ['stockTwins', 'Two stock lines look like one'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
   ['cnMatch', 'A credit note does not match its invoice'],
@@ -143,6 +144,18 @@ var TODO_RULE_FNS = {
       facts: [['Messages read differently', String(c.messages)], ['Entries to check', String(c.entries)]],
       clears: 'Clears itself when each is corrected, voided, read again or marked right.',
       go: { kind: 'stockCheck' }, goLabel: 'Check them', sig: c.entries + '|' + c.messages }];
+  },
+  // Two lines that are one (UI pass 3 §11c): names that fold to one, or one letter apart in a long word. The owner's; it opens the merge
+  // on the line with fewer entries.
+  stockTwins: function() {
+    return stockTwins().map(function(p) {
+      return { key: 'stockTwins:' + p.from.id + '|' + p.into.id, rule: 'stockTwins', tone: 'info',
+        title: 'Merge ' + p.from.name + ' into ' + p.into.name + '?', sub: p.why + ' · ' + todoPlural(p.nFrom, 'entry', 'entries') + ' against ' + p.nInto,
+        why: 'Stock · one chemical written two ways keeps half its record on each line',
+        facts: [['Line to merge', p.from.name + ' (' + todoPlural(p.nFrom, 'entry', 'entries') + ')'], ['Line to keep', p.into.name + ' (' + todoPlural(p.nInto, 'entry', 'entries') + ')'], ['Why', p.why]],
+        clears: 'Clears itself when the two are merged, or one is renamed.',
+        go: { kind: 'stockMerge', id: p.from.id, into: p.into.id }, goLabel: 'Merge them', sig: p.from.name + '|' + p.into.name };
+    });
   },
   paste: function() {
     var st = stockData();
@@ -316,7 +329,7 @@ var TODO_RULE_FNS = {
    the statement's); the insights' (insights.js) are named here. With the guard off, every task is everyone's; while
    nobody is signed in, none is (nothing a role decides is drawn under the lock, guard.js grdHeld). The book's own list
    (todoAppAll) is unfiltered: snoozes are kept against it, and the Windows widget reads it. */
-var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', insClientDown: 'money', insLeak: 'money', insBelowVar: 'money', insLabour: 'money' };
+var TODO_RULE_NEED = { stockTwins: 'owner', zinc: 'money', insQuiet: 'money', insRealLow: 'money', insClientDown: 'money', insLeak: 'money', insBelowVar: 'money', insLabour: 'money' };
 // Moves that open Staff → Pay, which a role opens only with the wages (staff.js).
 var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
 // A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
@@ -863,6 +876,8 @@ function todoGo(go) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;
+    // Two lines that are one (UI pass 3 §11c): the line to merge open, its merge asked over it.
+    case 'stockMerge': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); stockMergeOpen(go.id, go.into); break;
     case 'bills':
       // A bill is entered on Money → Payments (the tab map, TM3a; a task saved before still names `bills`), the form open on the
       // month it names, the bills panel in sight.

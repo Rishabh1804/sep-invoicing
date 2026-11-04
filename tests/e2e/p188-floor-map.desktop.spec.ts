@@ -45,7 +45,7 @@ test.describe('P188: Floor’s map on the desktop', () => {
     await expect(page.locator('#productionContent .inv-btn-primary')).toHaveCount(0);
   });
 
-  test('Stock: Spend and prices opens in the pane beside the list and shuts on a second press', async ({ page }) => {
+  test('Stock: Spend and prices takes the room beside a narrow list and gives it back on a second press', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageStock');
     await expect(page.locator('#stockVerdict')).toHaveAttribute('open', '');
@@ -55,6 +55,11 @@ test.describe('P188: Floor’s map on the desktop', () => {
     await expect(page.locator('#stockMasterDetail')).toHaveClass(/inv-pane-open/);
     await expect(page.locator('#stockMasterDetail #stockSpend #dashSupplier')).toBeVisible();
     await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    // The list narrows to a line's name and its status, the pane takes the rest (UI pass 3 §11b).
+    await expect(page.locator('#stockMasterDetail')).toHaveAttribute('data-wide-pane', '');
+    await expect(page.locator('#stockLines thead th')).toHaveCount(2);
+    const w = await page.evaluate(() => [document.getElementById('stockLines')!.getBoundingClientRect().width, document.getElementById('stockDetail')!.getBoundingClientRect().width]);
+    expect(w[1]).toBeGreaterThan(w[0] * 2);
     await btn.click();
     await expect(page.locator('#stockMasterDetail')).not.toHaveClass(/inv-pane-open/);
   });

@@ -181,7 +181,7 @@ function navLabel(loc) {
       if (sw) rec = sw.name;
       break;
     case 'pageStock':
-      sub.push({ paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
+      sub.push({ paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check', spend: 'Spend and prices' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
@@ -256,7 +256,7 @@ function navApply(loc) {
         if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
         break;
       case 'pageStock':
-        var sv = /^(list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'list';
+        var sv = /^(list|item|paste|manual|reorder|check|spend)$/.test(parts[0]) ? parts[0] : 'list';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
         if (sv === 'item') _stockItemId = id;
         // Enter by hand and the reorder list are drawn from their own state: opened by an address it is made here, the

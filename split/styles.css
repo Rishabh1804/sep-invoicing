@@ -3839,3 +3839,12 @@ body.inv-desktop .inv-mc-count { flex: 0 1 auto; margin-right: auto; }
 .inv-flow-receipt-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-flow-receipt-line { margin: var(--sp-2) 0 0; font-size: var(--fs-13); color: var(--text-2); overflow-wrap: anywhere; }
 .inv-flow-receipt-acts { flex: none; display: flex; gap: var(--sp-8); }
+
+/* Stock → Spend and prices takes the room (UI pass 3 §11b): on the desktop the list narrows to a line's name and its status and the
+   pane takes the rest; the cards are a small board, two across where the room holds them, one under another on the phone. */
+body.inv-desktop .inv-pane-host[data-wide-pane] > .inv-pane-list { flex: 0 0 var(--pane-list-narrow); }
+body.inv-desktop .inv-pane-host[data-wide-pane].inv-pane-open > .inv-pane { flex: 1 1 auto; }
+.inv-spend-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; flex-shrink: 0; }
+.inv-spend-board > .inv-panel { margin-bottom: 0; }
+body.inv-desktop .inv-spend-board { grid-template-columns: repeat(auto-fit, minmax(var(--board-col), 1fr)); }
+body.inv-desktop .inv-spend-board > #dashPrice { grid-column: 1 / -1; }

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse, openStockSpend } from './fixtures';
 
 // P65: Staff and Stock opened on an Overview (docs/FINANCE_INTELLIGENCE_SPEC.md, 7a and 7b); the tab map (TM4b, TM4d) took the
 // Overviews away and put each chart on the view it explains: attendance by week on Attendance → Week, OT by area on Areas, the
@@ -125,8 +125,8 @@ test('Stock is one screen: a line opens from its group, a supplier lists its bil
   await page.locator('[data-action="invStockBack"]').click();
   await expect(page.locator('#stockVerdict')).toBeVisible();
 
-  // Spend and prices, folded at the list's foot on the phone.
-  await page.locator('#stockContent details[data-fold="stock-spend"] > summary').click();
+  // Spend and prices, a screen of its own on the phone (UI pass 3 §11b).
+  await openStockSpend(page);
   await page.locator('#dashSupplier .inv-chart-legend-row[data-key="Alpha"]').click();
   const list = page.locator('[data-dash-supplier="Alpha"]');
   // The supplier first (suppliers.js, P208: its lead time and its door), then its bills.
@@ -141,6 +141,7 @@ test('Stock is one screen: a line opens from its group, a supplier lists its bil
   await page.locator('#dashPriceLine').selectOption('Z');
   await expect(page.locator('#dashPriceChart')).toContainText('Caustic soda');
   await expect(page.locator('#dashSupplier')).toHaveAttribute('data-mark', '1');
-  // The reorder's cash is the card's (it was the Overview's panel).
+  // The reorder's cash is the card's (it was the Overview's panel), back on the list.
+  await page.locator('[data-action="invStockBack"]').click();
   await expect(page.locator('#stockVerdict .inv-hero-title')).toContainText('reorder');
 });

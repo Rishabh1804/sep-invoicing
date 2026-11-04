@@ -1127,6 +1127,8 @@ document.addEventListener('keydown', function(e) {
     return;
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
+    // In a guided flow, Enter in a field that finishes its step goes on to the step Next (state.js uiFlowEnter).
+    if (uiFlowEnter(e)) return;
     e.preventDefault();
     var container = e.target.closest('[data-form], .inv-page-active, .inv-dialog');
     if (!container) container = document.body;
@@ -1163,8 +1165,7 @@ document.addEventListener('focusout', function(e) {
 
 /* The guided flows (state.js, UI pass 3 §11a) kept in step with what is typed: after every input, change and click has been
    handled (these listeners are the last registered), the steps' state, the progress and the preview are worked out again. Enter
-   in a field of a step it finishes goes on to the first field of the step Next. */
+   in a field of a step it finishes goes on to the first field of the step Next (the Enter chain above). */
 ['input', 'change', 'click'].forEach(function(t) {
   document.addEventListener(t, function() { if (document.querySelector('[data-flow]')) uiFlowSync(); });
 });
-document.addEventListener('keydown', uiFlowEnter);

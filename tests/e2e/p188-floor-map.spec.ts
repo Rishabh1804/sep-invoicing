@@ -231,17 +231,20 @@ test.describe('P188: Floor’s map', () => {
     await expect(page.locator('#productionContent .inv-deck-item[data-plt-unit="U-R1"]')).toHaveCount(0);
   });
 
-  test('Stock: one screen, its verdict, one toolbar row on the phone, and Spend and prices folded at the foot', async ({ page }) => {
+  test('Stock: one screen, its verdict, one toolbar row on the phone, and Spend and prices a screen of its own from the foot', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageStock');
     await expect(page.locator('#pageStock .inv-viewtabs:not(#wsTabs)')).toHaveCount(0);
     await expect(page.locator('#stockVerdict')).toBeVisible();
     await expect(page.locator('#pageStock .inv-toolbar:visible')).toHaveCount(1);
-    await expect(page.locator('#pageStock [data-action="invStockSpend"]')).toHaveCount(0);
-    const spend = page.locator('#pageStock details[data-fold="stock-spend"]');
-    await expect(spend).not.toHaveAttribute('open', '');
-    await spend.locator('summary').click();
+    // Not in the toolbar on the phone: a door at the list's foot, to a screen of its own with its way back (UI pass 3 §11b).
+    await expect(page.locator('#pageStock [data-stock-toolbar] [data-action="invStockSpend"]')).toHaveCount(0);
+    await expect(page.locator('#dashSupplier')).toHaveCount(0);
+    await page.locator('#pageStock [data-stock-spend-door] [data-action="invStockSpend"]').click();
     await expect(page.locator('#dashSupplier')).toBeVisible();
+    expect(new URL(page.url()).searchParams.get('v')).toBe('spend');
+    await page.locator('[data-action="invStockBack"]').click();
+    await expect(page.locator('#stockVerdict')).toBeVisible();
   });
 
   test('Power: Cuts leads with its card, Enter a cut and what needs the owner, the charts folded after the cuts; the case fitted to the phone', async ({ page }) => {

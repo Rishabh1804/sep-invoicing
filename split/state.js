@@ -1064,18 +1064,21 @@ function uiFlowFocusNext(root) {
   var f = uiFlowFirstField(li);
   if (f) focusSoon(f);
 }
+/* Called by the Enter chain (events.js) before it moves to the next field in the page's order: true when it moved instead. */
 function uiFlowEnter(e) {
-  if (e.key !== 'Enter' || e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing) return;
+  if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing) return false;
   var t = e.target;
-  if (!t || t.tagName !== 'INPUT' || /^(button|submit|checkbox|radio)$/.test(t.type)) return;
+  if (!t || t.tagName !== 'INPUT' || /^(button|submit|checkbox|radio)$/.test(t.type)) return false;
   var li = t.closest && t.closest('[data-flow-step]'), flow = li && li.closest('[data-flow]');
-  if (!flow || flow.hasAttribute('data-flow-ownkeys')) return;
+  if (!flow || flow.hasAttribute('data-flow-ownkeys')) return false;
   uiFlowSync(flow);
-  if (li.getAttribute('data-state') !== 'done') return;
+  if (li.getAttribute('data-state') !== 'done') return false;
   var nx = flow.querySelector('[data-flow-step][data-state="next"]'), f = uiFlowFirstField(nx);
-  if (!f || f === t) return;
+  if (!f || f === t) return false;
   e.preventDefault();
   f.focus();
+  if (f.select && (f.type === 'number' || f.type === 'text')) f.select();
+  return true;
 }
 /* A kind is a row of tiles (§11a): each its icon, its word and a line, pressed when chosen. `kinds`: [{value, icon, word, line}];
    `o`: action (data-action), attr (the data attribute naming the value, 'mode' by default), cur, label (the group's name), more
@@ -1104,7 +1107,7 @@ function uiFlowGuideGo(id, sec) {
   var i = 0;
   if (sec && typeof kbParse === 'function') {
     var want = String(sec).toLowerCase();
-    kbParse(a.body).some(function(s, k) { if (s.title && s.title.toLowerCase().indexOf(want) >= 0) { i = k; return true; } return false; });
+    (kbParse(a.body).sections || []).some(function(s, k) { if (s.title && s.title.toLowerCase().indexOf(want) >= 0) { i = k; return true; } return false; });
   }
   if (dialogsTypedAsk(function() { uiFlowGuideGo(id, sec); })) return;
   var loc = { tab: 'pageKnow', v: kbTabFor(a.kind), id: a.id };

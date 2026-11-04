@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="24cecfd3">
+<meta name="app-build" content="57e4f05a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3861,6 +3861,15 @@ body.inv-desktop .inv-mc-count { flex: 0 1 auto; margin-right: auto; }
 .inv-flow-receipt-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-flow-receipt-line { margin: var(--sp-2) 0 0; font-size: var(--fs-13); color: var(--text-2); overflow-wrap: anywhere; }
 .inv-flow-receipt-acts { flex: none; display: flex; gap: var(--sp-8); }
+
+/* Stock → Spend and prices takes the room (UI pass 3 §11b): on the desktop the list narrows to a line's name and its status and the
+   pane takes the rest; the cards are a small board, two across where the room holds them, one under another on the phone. */
+body.inv-desktop .inv-pane-host[data-wide-pane] > .inv-pane-list { flex: 0 0 var(--pane-list-narrow); }
+body.inv-desktop .inv-pane-host[data-wide-pane].inv-pane-open > .inv-pane { flex: 1 1 auto; }
+.inv-spend-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; flex-shrink: 0; }
+.inv-spend-board > .inv-panel { margin-bottom: 0; }
+body.inv-desktop .inv-spend-board { grid-template-columns: repeat(auto-fit, minmax(var(--board-col), 1fr)); }
+body.inv-desktop .inv-spend-board > #dashPrice { grid-column: 1 / -1; }
 </style>
 </head>
 <body>
@@ -5110,18 +5119,21 @@ function uiFlowFocusNext(root) {
   var f = uiFlowFirstField(li);
   if (f) focusSoon(f);
 }
+/* Called by the Enter chain (events.js) before it moves to the next field in the page's order: true when it moved instead. */
 function uiFlowEnter(e) {
-  if (e.key !== 'Enter' || e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing) return;
+  if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing) return false;
   var t = e.target;
-  if (!t || t.tagName !== 'INPUT' || /^(button|submit|checkbox|radio)$/.test(t.type)) return;
+  if (!t || t.tagName !== 'INPUT' || /^(button|submit|checkbox|radio)$/.test(t.type)) return false;
   var li = t.closest && t.closest('[data-flow-step]'), flow = li && li.closest('[data-flow]');
-  if (!flow || flow.hasAttribute('data-flow-ownkeys')) return;
+  if (!flow || flow.hasAttribute('data-flow-ownkeys')) return false;
   uiFlowSync(flow);
-  if (li.getAttribute('data-state') !== 'done') return;
+  if (li.getAttribute('data-state') !== 'done') return false;
   var nx = flow.querySelector('[data-flow-step][data-state="next"]'), f = uiFlowFirstField(nx);
-  if (!f || f === t) return;
+  if (!f || f === t) return false;
   e.preventDefault();
   f.focus();
+  if (f.select && (f.type === 'number' || f.type === 'text')) f.select();
+  return true;
 }
 /* A kind is a row of tiles (§11a): each its icon, its word and a line, pressed when chosen. `kinds`: [{value, icon, word, line}];
    `o`: action (data-action), attr (the data attribute naming the value, 'mode' by default), cur, label (the group's name), more
@@ -5150,7 +5162,7 @@ function uiFlowGuideGo(id, sec) {
   var i = 0;
   if (sec && typeof kbParse === 'function') {
     var want = String(sec).toLowerCase();
-    kbParse(a.body).some(function(s, k) { if (s.title && s.title.toLowerCase().indexOf(want) >= 0) { i = k; return true; } return false; });
+    (kbParse(a.body).sections || []).some(function(s, k) { if (s.title && s.title.toLowerCase().indexOf(want) >= 0) { i = k; return true; } return false; });
   }
   if (dialogsTypedAsk(function() { uiFlowGuideGo(id, sec); })) return;
   var loc = { tab: 'pageKnow', v: kbTabFor(a.kind), id: a.id };
@@ -30096,7 +30108,9 @@ function stockAliases(item) {
 }
 function stockFindByKey(key) {
   if (!key) return null;
-  return stockData().items.find(function(i) { return i.key === key || stockAliases(i).indexOf(key) >= 0; }) || null;
+  // A line merged into another is found as that line (UI pass 3 §11c): the line kept holds its name as a spelling.
+  var hits = stockData().items.filter(function(i) { return i.key === key || stockAliases(i).indexOf(key) >= 0; });
+  return hits.filter(function(i) { return !i.mergedInto; })[0] || (hits[0] && hits[0].mergedInto ? stockItem(hits[0].mergedInto) : hits[0]) || null;
 }
 /* The one line whose name starts with this whole word or words ("106" is "106 Salt"); none, or two, is no match. */
 function stockFindByLead(key) {
@@ -30301,7 +30315,6 @@ function stockCommitPaste(parsed, res, meta) {
 /* ---------- Screens ---------- */
 var _stockView = 'list';
 var _stockHome = 'list';   // where Back returns to: the list (Stock is one screen since the tab map, TM4d)
-var _stockSpendOpen = false;   // the desktop's pane holds Spend and prices (no line open)
 var _stockReview = null;   // { text, parsed, choices, sentBy }
 var _stockManual = null;   // { mode, date, supplier, billNo, bath, vals: {itemId: {qty, price}} }
 var _stockItemId = null;
@@ -30362,12 +30375,13 @@ function stockUnsettled(item) {
 }
 
 /* The toolbar (§1a-12): Paste message the one primary, Enter by hand beside it, the rest behind More (the reorder list, the paper,
-   the files). On the desktop Spend and prices opens in the pane beside the list; on the phone it is the fold at the list's foot. */
+   the files). On the desktop Spend and prices opens in the pane beside the list, which narrows to make room (UI pass 3 §11b); on the
+   phone it is a screen of its own (v=spend), its door a row at the list's foot. */
 function stockToolbarHtml() {
   var phone = !_isDesktop;
   return '<div class="inv-toolbar" data-stock-toolbar><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockManual">Enter by hand</button>' +
-    (phone ? '' : '<button class="inv-btn inv-btn-secondary" data-action="invStockSpend" aria-pressed="' + (_stockSpendOpen && !(_stockView === 'item' && stockItem(_stockItemId))) + '">Spend and prices</button>') +
+    (phone ? '' : '<button class="inv-btn inv-btn-secondary" data-action="invStockSpend" aria-pressed="' + (_stockView === 'spend') + '">Spend and prices</button>') +
     // The paper route for the day (stocksheet.js), the reorder list and the files: behind More.
     uiToolbarMoreHtml([{ label: 'Reorder list', action: 'invStockReorder' }, { label: 'Print sheets', action: 'invStockSheetOpen' },
       { label: 'Export', action: 'invStockExport' }, { label: 'Import', action: 'invStockImport' }], { icon: phone }) +
@@ -30385,6 +30399,8 @@ function renderStock() {
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = _isDesktop ? renderStockList(stockItem(_stockItemId)) : renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
   else if (_stockView === 'check') el.innerHTML = renderStockCheck();
+  // Spend and prices (§11b): the desktop's wide pane beside a narrow list; the phone's own screen.
+  else if (_stockView === 'spend') el.innerHTML = _isDesktop ? renderStockList(null) : renderStockSpendPage();
   else { _stockView = _stockHome = 'list'; el.innerHTML = renderStockList(null); }
   updateStockBadge();
 }
@@ -30392,7 +30408,7 @@ function renderStock() {
 function stockSetView(v) {
   // Only a new view goes to the top: a Lines tile filtering the list it is on is a change inside the view (P79).
   // On the desktop a line opens in the pane beside the table, which stays put: that is not a new view either.
-  var moved = v !== _stockView && !(_isDesktop && /^(list|item)$/.test(v) && /^(list|item)$/.test(_stockView));
+  var moved = v !== _stockView && !(_isDesktop && /^(list|item|spend)$/.test(v) && /^(list|item|spend)$/.test(_stockView));
   _stockView = v;
   _stockVoidArm = null;
   renderStock();
@@ -30401,8 +30417,8 @@ function stockSetView(v) {
 
 /* Stock (the tab map, TM4d): one screen. Its verdict card says what is out and what to order (the status tiles its factors, still
    filtering; the reorder's cash and, for a role that sees money with a statement, the forecast's low), one toolbar row, what needs
-   a check, then the lines grouped by status (a table beside the open line on the desktop); Spend and prices folded at the foot on
-   the phone, in the pane on the desktop. */
+   a check, then the lines grouped by status (a table beside the open line on the desktop); Spend and prices a door at the foot on
+   the phone, the wide pane on the desktop. */
 function renderStockList(open) {
   var st = stockData();
   var items = st.items.filter(function(i) { return i.active !== false; });
@@ -30431,7 +30447,13 @@ function renderStockList(open) {
     });
     h += '</div>';
   }
-  return h + uiFoldHtml('stock-spend', '<span class="inv-panel-title">Spend and prices</span>', stockSpendHtml(), false, ' id="stockSpend"');
+  return h + '<div class="inv-panel inv-panel-flush" data-stock-spend-door><button class="inv-row inv-row-2" data-action="invStockSpend">' +
+    '<span class="inv-row-main"><span class="inv-row-title">Spend and prices</span><span class="inv-row-meta">Spend by supplier, use by week, the price of each line</span></span>' +
+    '<span class="inv-row-end">' + iconSvg('next') + '</span></button></div>';
+}
+/* The phone's Spend and prices (§11b): a screen of its own with its way back, the cards one under another. */
+function renderStockSpendPage() {
+  return stockBackBar('Stock', 'Spend and prices') + stockSpendHtml();
 }
 /* The card (§3e): the lines out (else low) and the reorder's cash with GST, in the worst line's tone; the status tiles its factors,
    each filtering the list; the count's day its eyebrow; the forecast's low after the order, for a role that sees money (the order's
@@ -30466,26 +30488,28 @@ function stockRowHtml(item, s) {
 
 /* The desktop: one table grouped by status, and the open line in the pane beside it. */
 function stockLinesTableHtml(groups, shown, titles, open) {
-  var h = '<div class="inv-pane-host' + (open || _stockSpendOpen ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-pane-list" id="stockLines">' +
-    '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>' +
+  // Spend and prices takes the room (§11b): the list narrows to a line's name and its status, the pane takes the rest.
+  var spend = !open && _stockView === 'spend';
+  var h = '<div class="inv-pane-host' + (open || spend ? ' inv-pane-open' : '') + '" id="stockMasterDetail"' + (spend ? ' data-wide-pane' : '') + '><div class="inv-pane-list" id="stockLines">' +
+    '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th>' + (spend ? '' : '<th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>') +
     '<th>Status</th></tr></thead><tbody>';
   shown.forEach(function(g) {
-    h += '<tr class="inv-table-group"><td colspan="4">' + escHtml(titles[g]) + ' <span class="inv-panel-count">' + groups[g].length + '</span></td></tr>';
+    h += '<tr class="inv-table-group"><td colspan="' + (spend ? 2 : 4) + '">' + escHtml(titles[g]) + ' <span class="inv-panel-count">' + groups[g].length + '</span></td></tr>';
     groups[g].forEach(function(x) {
       var it = x.item, id = escHtml(it.id);
       h += '<tr data-action="invStockOpen" data-id="' + id + '" data-tone="' + x.st.tone + '"' + (open && open.id === it.id ? ' aria-current="true"' : '') + '>' +
         '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invStockOpen" data-id="' + id + '">' + escHtml(it.name) + '</button></td>' +
-        '<td class="inv-num">' + stockQtyUnit(x.st.level, it.unit || '') + '</td>' +
-        '<td class="inv-col-opt1 inv-col-grow-sm" title="' + escHtml(stockRowSub(it, x.st)) + '">' + escHtml(stockRowSub(it, x.st)) + '</td>' +
-        '<td>' + stockStatusDot(x.st) + (stockUnsettled(it) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</td></tr>';
+        (spend ? '' : '<td class="inv-num">' + stockQtyUnit(x.st.level, it.unit || '') + '</td>' +
+        '<td class="inv-col-opt1 inv-col-grow-sm" title="' + escHtml(stockRowSub(it, x.st)) + '">' + escHtml(stockRowSub(it, x.st)) + '</td>') +
+        '<td>' + stockStatusDot(x.st) + (!spend && stockUnsettled(it) ? ' <span class="inv-badge inv-badge-warning">Count unsettled</span>' : '') + '</td></tr>';
     });
   });
   h += '</tbody></table></div><div class="inv-pane" id="stockDetail">';
   if (open) {
     h += paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.name) + '</span>', 'invStockPaneClose') + stockItemBodyHtml(open);
-  } else if (_stockSpendOpen) {
+  } else if (spend) {
     // Spend and prices, with no line open: the list and the pane still fill the room under the toolbar (P80).
-    h += paneHeadHtml('<span class="inv-panel-title">Spend and prices</span>', 'invStockPaneClose') + '<div class="inv-panel inv-panel-flush" id="stockSpend">' + stockSpendHtml() + '</div>';
+    h += paneHeadHtml('<span class="inv-panel-title">Spend and prices</span>', 'invStockPaneClose') + stockSpendHtml();
   }
   return h + '</div></div>';
 }
@@ -30864,6 +30888,113 @@ function stockSaveManual() {
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (chk.n ? ' · check ' + (chk.n === 1 ? 'it' : chk.n + ' of them') + ': ' + chk.first :
     (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '')) +
     (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), chk.n || gaps || unpriced ? 'warning' : 'success');
+}
+
+/* ---------- Two stock lines that are one (UI pass 3 §11c) ----------
+   The same chemical written two ways became two lines (Nitric Acd beside Nitric Acid), each with half the record. Merged, the line
+   given up hands its entries to the line kept (each keeps `mergedFrom`), its name and spellings become the kept line's spellings,
+   and it is retired (`retiredAt`, `mergedInto`), never deleted. A settings change, asked again with the PIN. */
+function stockMergeTargets(item) {
+  return stockData().items.filter(function(o) { return o.id !== item.id && o.active !== false && !o.mergedInto; })
+    .sort(function(a, b) { return stockTwinScore(item, b) - stockTwinScore(item, a) || (a.name < b.name ? -1 : 1); });
+}
+function stockTwinScore(a, b) { return stockTwinWhy(a, b) ? 1 : 0; }
+/* Why two lines look like one: their names fold to one key (stockKey reads ACD as ACID), or differ by one letter in one word of four
+   letters or more, the rest alike. '' when they do not. */
+function stockTwinWhy(a, b) {
+  var ka = stockKey(a.name), kb = stockKey(b.name);
+  if (!ka || !kb) return '';
+  if (ka === kb) return 'the same name, spelt differently';
+  var wa = ka.split(' '), wb = kb.split(' ');
+  if (wa.length !== wb.length) return '';
+  var diff = -1;
+  for (var i = 0; i < wa.length; i++) {
+    if (wa[i] === wb[i]) continue;
+    if (diff >= 0) return '';
+    diff = i;
+  }
+  if (diff < 0) return '';
+  var x = wa[diff], y = wb[diff];
+  if (Math.min(x.length, y.length) < 4 || /\d/.test(x + y)) return '';
+  return stockOneLetter(x, y) ? 'one letter apart' : '';
+}
+/* One letter added, dropped or changed. */
+function stockOneLetter(x, y) {
+  if (Math.abs(x.length - y.length) > 1) return false;
+  var i = 0, j = 0, edits = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (x.length > y.length) i++; else if (y.length > x.length) j++; else { i++; j++; }
+  }
+  return edits + (x.length - i) + (y.length - j) === 1;
+}
+/* The pairs the To-do raises: each once, the line with fewer entries the one to merge. */
+function stockTwins() {
+  var items = stockData().items.filter(function(i) { return i.active !== false && !i.mergedInto; }), out = [];
+  var count = function(id) { return stockData().entries.filter(function(e) { return e.itemId === id && !e.voided; }).length; };
+  for (var i = 0; i < items.length; i++) for (var j = i + 1; j < items.length; j++) {
+    var why = stockTwinWhy(items[i], items[j]);
+    if (!why) continue;
+    var ni = count(items[i].id), nj = count(items[j].id);
+    // The line with fewer entries is merged; of two alike, the one made later.
+    var from = ni < nj || (ni === nj && (items[i].createdAt || 0) > (items[j].createdAt || 0)) ? items[i] : items[j], into = from === items[i] ? items[j] : items[i];
+    out.push({ from: from, into: into, why: why, nFrom: Math.min(ni, nj), nInto: Math.max(ni, nj) });
+  }
+  return out;
+}
+var _stockMergeFor = null;   // the line whose merge dialog is open, and the line picked to keep
+function stockMergeOpen(itemId, intoId) {
+  var it = stockItem(itemId);
+  if (!it) return;
+  var targets = stockMergeTargets(it);
+  if (!targets.length) { showToast('There is no other line to merge it into', 'warning'); return; }
+  var into = intoId && targets.some(function(t) { return t.id === intoId; }) ? intoId : targets[0].id;
+  _stockMergeFor = { id: it.id, into: into };
+  var n = stockData().entries.filter(function(e) { return e.itemId === it.id; }).length;
+  var html = '<div class="inv-dialog" data-stock-merge="' + escHtml(it.id) + '">' + dialogHeadHtml('Merge ' + escHtml(it.name) + ' into another line', 'invCloseOverlay') +
+    '<div class="inv-dialog-body"><p class="inv-note">Its ' + todoPlural(n, 'entry', 'entries') + ' move to the line you keep, its name becomes one of that line’s spellings, and it is retired. Nothing is deleted.</p>' +
+    '<label class="inv-field"><span class="inv-field-label">The line to keep</span><select class="inv-select" id="stockMergeInto">' +
+    targets.map(function(t) {
+      var why = stockTwinWhy(it, t);
+      return '<option value="' + escHtml(t.id) + '"' + (t.id === into ? ' selected' : '') + '>' + escHtml(t.name + (t.unit ? ' (' + t.unit + ')' : '') + (why ? ' · ' + why : '')) + '</option>';
+    }).join('') + '</select></label></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invStockMergeDo">Merge</button></div></div>';
+  dialogOpen(html, { dismiss: true });
+}
+async function stockMergeDo() {
+  var m = _stockMergeFor, sel = document.getElementById('stockMergeInto');
+  if (!m) return;
+  var from = stockItem(m.id), into = stockItem(sel ? sel.value : m.into);
+  if (!from || !into || from.id === into.id) return;
+  if (!grdGate('settings', 'merge two stock lines', stockMergeDo)) return;
+  if (from.unit && into.unit && from.unit !== into.unit) {
+    showToast(from.name + ' is in ' + from.unit + ' and ' + into.name + ' in ' + into.unit + ': set one line’s unit to the other’s first, then merge', 'error');
+    return;
+  }
+  var st = stockData(), moving = st.entries.filter(function(e) { return e.itemId === from.id; });
+  var ok = await uiConfirm({ title: 'Move ' + todoPlural(moving.length, 'entry', 'entries') + ' from ' + from.name + ' to ' + into.name + ' and keep ' + from.name + ' as a spelling?',
+    body: from.name + ' is retired, not deleted: each entry keeps where it came from. Messages written ' + from.name + ' land on ' + into.name + ' from now on.', okLabel: 'Merge' });
+  if (!ok) return;
+  var at = Date.now();
+  moving.forEach(function(e) { e.itemId = into.id; e.mergedFrom = from.id; });
+  into.aliases = stockAliases(into);
+  [stockKey(from.name), from.key].concat(stockAliases(from)).forEach(function(k) { if (k && k !== into.key && into.aliases.indexOf(k) < 0) into.aliases.push(k); });
+  (into.mergedFrom = Array.isArray(into.mergedFrom) ? into.mergedFrom : []).push(from.id);
+  if (into.lastPos == null && from.lastPos != null) into.lastPos = from.lastPos;
+  if (!into.orderFrom && from.orderFrom) into.orderFrom = from.orderFrom;
+  from.mergedInto = into.id;
+  from.retiredAt = at;
+  from.active = false;
+  delete from.lastPos;
+  _stockMergeFor = null;
+  saveState();
+  var scrim = document.querySelector('[data-stock-merge]');
+  if (scrim && scrim.closest('.inv-scrim-dialog')) dialogCloseScrim(scrim.closest('.inv-scrim-dialog'));
+  _stockItemId = into.id;
+  if (navPageOf() === 'pageStock') stockSetView('item');
+  showToast(from.name + ' merged into ' + into.name + ': ' + todoPlural(moving.length, 'entry', 'entries') + ' moved');
 }
 
 function stockAddLine() {
@@ -31476,10 +31607,13 @@ function stockAction(action, btn) {
       // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
       if (_stockView === 'manual') _stockBill = null;
       _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
-    case 'invStockOpen': _stockItemId = btn.dataset.id; _stockSpendOpen = false; stockSetView('item'); break;
-    case 'invStockPaneClose': _stockSpendOpen = false; stockSetView('list'); break;
+    case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
+    case 'invStockPaneClose': stockSetView('list'); break;
+    case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;
+    case 'invStockMergeDo': stockMergeDo(); break;
     // The desktop's Spend and prices: the pane beside the list, in place of an open line (a second press shuts it).
-    case 'invStockSpend': _stockSpendOpen = !(_stockSpendOpen && _stockView !== 'item'); _stockView = 'list'; renderStock(); break;
+    // Spend and prices (§11b): an address of its own (v=spend); pressed again on the desktop it gives the room back to the list.
+    case 'invStockSpend': stockSetView(_isDesktop && _stockView === 'spend' ? 'list' : 'spend'); break;
     case 'invStockFilter': _stockFilter = _stockFilter === btn.dataset.v ? null : btn.dataset.v; stockSetView('list'); break;
     case 'invStockBal':
       if (_stockReview) { _stockReview.choices['bal' + btn.dataset.i] = btn.dataset.v; renderStock(); }
@@ -33058,7 +33192,9 @@ function stockEditHtml(item) {
     '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
     units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
     (stockAliases(item).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + stockAliases(item).map(escHtml).join(', ') + '</div>' : '') +
-    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div></div>';
+    '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button>' +
+    // Two lines that are one (UI pass 3 §11c): this line's entries to another, its name kept as a spelling there.
+    '<button class="inv-btn inv-btn-ghost" data-action="invStockMerge" data-id="' + escHtml(item.id) + '">Merge into another line</button></div></div></div>';
 }
 
 /* ---------- Actions ---------- */
@@ -37676,11 +37812,12 @@ function cashAction(action, btn) {
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, stockTwins: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 3, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
   ['stockCheck', 'A stock entry does not fit the record, or a message reads differently now'],
+  ['stockTwins', 'Two stock lines look like one'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
   ['cnMatch', 'A credit note does not match its invoice'],
@@ -37801,6 +37938,18 @@ var TODO_RULE_FNS = {
       facts: [['Messages read differently', String(c.messages)], ['Entries to check', String(c.entries)]],
       clears: 'Clears itself when each is corrected, voided, read again or marked right.',
       go: { kind: 'stockCheck' }, goLabel: 'Check them', sig: c.entries + '|' + c.messages }];
+  },
+  // Two lines that are one (UI pass 3 §11c): names that fold to one, or one letter apart in a long word. The owner's; it opens the merge
+  // on the line with fewer entries.
+  stockTwins: function() {
+    return stockTwins().map(function(p) {
+      return { key: 'stockTwins:' + p.from.id + '|' + p.into.id, rule: 'stockTwins', tone: 'info',
+        title: 'Merge ' + p.from.name + ' into ' + p.into.name + '?', sub: p.why + ' · ' + todoPlural(p.nFrom, 'entry', 'entries') + ' against ' + p.nInto,
+        why: 'Stock · one chemical written two ways keeps half its record on each line',
+        facts: [['Line to merge', p.from.name + ' (' + todoPlural(p.nFrom, 'entry', 'entries') + ')'], ['Line to keep', p.into.name + ' (' + todoPlural(p.nInto, 'entry', 'entries') + ')'], ['Why', p.why]],
+        clears: 'Clears itself when the two are merged, or one is renamed.',
+        go: { kind: 'stockMerge', id: p.from.id, into: p.into.id }, goLabel: 'Merge them', sig: p.from.name + '|' + p.into.name };
+    });
   },
   paste: function() {
     var st = stockData();
@@ -37974,7 +38123,7 @@ var TODO_RULE_FNS = {
    the statement's); the insights' (insights.js) are named here. With the guard off, every task is everyone's; while
    nobody is signed in, none is (nothing a role decides is drawn under the lock, guard.js grdHeld). The book's own list
    (todoAppAll) is unfiltered: snoozes are kept against it, and the Windows widget reads it. */
-var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', insClientDown: 'money', insLeak: 'money', insBelowVar: 'money', insLabour: 'money' };
+var TODO_RULE_NEED = { stockTwins: 'owner', zinc: 'money', insQuiet: 'money', insRealLow: 'money', insClientDown: 'money', insLeak: 'money', insBelowVar: 'money', insLabour: 'money' };
 // Moves that open Staff → Pay, which a role opens only with the wages (staff.js).
 var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
 // A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
@@ -38521,6 +38670,8 @@ function todoGo(go) {
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;
+    // Two lines that are one (UI pass 3 §11c): the line to merge open, its merge asked over it.
+    case 'stockMerge': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); stockMergeOpen(go.id, go.into); break;
     case 'bills':
       // A bill is entered on Money → Payments (the tab map, TM3a; a task saved before still names `bills`), the form open on the
       // month it names, the bills panel in sight.
@@ -51719,15 +51870,15 @@ function dashUsedByWeek(n) {
   return { weeks: weeks, total: total, top: lines.slice(0, 4), unpriced: Object.keys(unpriced) };
 }
 
-/* A section of Spend and prices: its head a row-group (it sits in one fold on the phone, in the pane on the desktop, so a panel
-   in a panel would draw a box in a box), its chart, then its rows. */
+/* A card of Spend and prices (UI pass 3 §11b: a small board, a card a section): its head a row-group with its control, its chart,
+   then its rows. */
 function _dashSection(id, title, body, head, rows) {
-  return '<div id="' + id + '" data-dash-section><div class="inv-row-group"><span>' + title + '</span>' + (head || '') + '</div>' +
+  return '<div class="inv-panel inv-panel-flush" id="' + id + '" data-dash-section><div class="inv-row-group"><span>' + title + '</span>' + (head || '') + '</div>' +
     '<div class="inv-panel-body">' + body + '</div>' + (rows || '') + '</div>';
 }
-/* Stock → Spend and prices (the tab map, TM4d; it was the Overview's): spend by supplier (tap a slice for its bills and what the
-   bank paid), what was used by week in rupees, and one line's price trend (zinc against the market). Days left are the list's own
-   groups; the reorder's cash is the list's card. */
+/* Stock → Spend and prices (the tab map, TM4d; UI pass 3 §11b: a board of its own in the room it takes): spend by supplier (tap a
+   slice for its bills and what the bank paid), what was used by week in rupees, and one line's price trend (zinc against the
+   market), each a card. Days left are the list's own groups; the reorder's cash is the list's card. */
 function stockSpendHtml() {
   var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
   // A supplier wears its own colour (seriesSlot: the six with the most spend over the book), on this pie and on zinc's chart alike;
@@ -51761,7 +51912,7 @@ function stockSpendHtml() {
     // The week running is drawn as to date (TM6b).
     toDate: u.weeks.length && isoAddDays(u.weeks[u.weeks.length - 1], 6) >= localDateStr() ? u.weeks.length - 1 : null }) +
     (u.unpriced.length ? '<div class="inv-note">' + escHtml('Not counted, no price: ' + u.unpriced.join(', ') + '.') + '</div>' : ''));
-  return h + dashPricePanelHtml();
+  return '<div class="inv-spend-board" id="stockSpend">' + h + dashPricePanelHtml() + '</div>';
 }
 /* The price trend panel, drawn whole so a change of line redraws it alone. Zinc gets the market beside its bills. */
 function dashPricePanelHtml() {
@@ -51891,17 +52042,14 @@ function _dashZincRedraw() {
   var el = document.getElementById('dashPrice');
   if (el) el.outerHTML = dashPricePanelHtml();
 }
-/* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): on the desktop its pane holds them; on the phone its
-   fold at the list's foot is opened, as a tap opens it, and brought into sight. */
+/* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): its own address (v=spend: the desktop's wide pane, the
+   phone's screen), zinc's card brought into sight. */
 function dashZincShow() {
   var z = stockData().items.find(function(i) { return i.key === 'ZINC'; });
   if (z) _dashPriceItem = z.id;
-  if (_isDesktop) _stockSpendOpen = true;
-  navOpen({ tab: 'pageStock', v: 'list', id: '' });
-  if (_isDesktop) return;
-  var fold = document.getElementById('stockSpend');
-  if (fold && !fold.open) fold.open = true;
-  uiRevealEl(document.getElementById('dashPrice') || fold);
+  navOpen({ tab: 'pageStock', v: 'spend', id: '' });
+  var el = document.getElementById('dashPrice');
+  if (el) uiRevealEl(el);
 }
 /* ---------- Doing ---------- */
 function dashAction(action, btn) {
@@ -79586,6 +79734,8 @@ document.addEventListener('keydown', function(e) {
     return;
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
+    // In a guided flow, Enter in a field that finishes its step goes on to the step Next (state.js uiFlowEnter).
+    if (uiFlowEnter(e)) return;
     e.preventDefault();
     var container = e.target.closest('[data-form], .inv-page-active, .inv-dialog');
     if (!container) container = document.body;
@@ -79622,11 +79772,10 @@ document.addEventListener('focusout', function(e) {
 
 /* The guided flows (state.js, UI pass 3 §11a) kept in step with what is typed: after every input, change and click has been
    handled (these listeners are the last registered), the steps' state, the progress and the preview are worked out again. Enter
-   in a field of a step it finishes goes on to the first field of the step Next. */
+   in a field of a step it finishes goes on to the first field of the step Next (the Enter chain above). */
 ['input', 'change', 'click'].forEach(function(t) {
   document.addEventListener(t, function() { if (document.querySelector('[data-flow]')) uiFlowSync(); });
 });
-document.addEventListener('keydown', uiFlowEnter);
 /* ===== WORKSPACES: THE SHELL OF DIRECTION B =====
    Owner, 1 Oct 2026 (docs/DIRECTION_B.md): the phone bar is Today · Office · Add · Floor · Money, with no More; the
    desktop sidebar is Add · Search · each workspace with its views · Settings. Most of the day is entering things and
@@ -79940,7 +80089,7 @@ var WS_GO_PAGE = {
   client: 'pageClients', perf: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', prospects: 'pageClients', prospect: 'pageClients',
   staffRoster: 'pageStaff', staffDay: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
   production: 'pageProduction', prodLines: 'pageProduction',
-  stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
+  stock: 'pageStock', stockCheck: 'pageStock', stockMerge: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
   finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance', supplier: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
@@ -80239,7 +80388,7 @@ function navLabel(loc) {
       if (sw) rec = sw.name;
       break;
     case 'pageStock':
-      sub.push({ paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
+      sub.push({ paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check', spend: 'Spend and prices' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
@@ -80314,7 +80463,7 @@ function navApply(loc) {
         if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
         break;
       case 'pageStock':
-        var sv = /^(list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'list';
+        var sv = /^(list|item|paste|manual|reorder|check|spend)$/.test(parts[0]) ? parts[0] : 'list';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
         if (sv === 'item') _stockItemId = id;
         // Enter by hand and the reorder list are drawn from their own state: opened by an address it is made here, the

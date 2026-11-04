@@ -116,7 +116,8 @@ export function lookSuite(layout: 'phone' | 'desktop') {
         expect(outer(w.shadow), `${scheme} a widget: outside it`).toBe(true);
         expect(w.radius, `${scheme} a widget: a card's corners`).toBe(rCard);
         await switchTab(page, 'pageCreate');
-        const panel = await boxOf(page, '#pageCreate .inv-panel');
+        // A card on the page: Create's preview since U4 (its panels stand inside its steps, a card's body, not lifted twice).
+        const panel = await boxOf(page, '#pageCreate .inv-flow-preview');
         expect(layers(panel.shadow).length, `${scheme} a panel: two shadows`).toBe(2);
         expect(outer(panel.shadow)).toBe(true);
         expect(panel.radius).toBe(rCard);

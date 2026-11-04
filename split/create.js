@@ -169,6 +169,9 @@ function createFlowModelOf() {
   const linesDone = f.items.length > 0 && f.items.every(i => named(i) && (i.qty || 0) > 0);
   const errors = createErrorsShown(), allErrors = validateInvoiceKeyed();
   const checks = errors.map(e => ({ tone: 'danger', text: e.text }));
+  // The number a new invoice takes is refused at Save when a live invoice holds it (saveInvoice's own test; Iuno L-5).
+  const numTaken = !f.editingId && S.invoices.some(i => i.displayNumber === number);
+  if (numTaken) checks.push({ tone: 'danger', text: number + ' is already a live invoice: Save will refuse it. Check Settings → Business → Invoice series.' });
   if (client) {
     f.items.forEach((it, i) => {
       if (!named(it)) return;
@@ -200,7 +203,7 @@ function createFlowModelOf() {
     { key: 'details', title: 'The challan, P.O. and vehicle', help: 'Filled from the challans ticked and the client’s settings where it can be.', optional: true,
       done: !!details, says: details, body: '' },
     { key: 'check', title: 'Check it, then create', help: 'What Save records says the number it takes and the totals. An error shows once its field is left.',
-      done: !!client && linesDone && !allErrors.length, says: 'Total ' + formatCurrency(t.grand), body: '' }
+      done: !!client && linesDone && !allErrors.length && !numTaken, says: 'Total ' + formatCurrency(t.grand), body: '' }
   ];
   return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Choose the client and this says what the invoice records.' } };
 }

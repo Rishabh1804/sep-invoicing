@@ -116,13 +116,13 @@ test.describe('P71: Stock', () => {
     await noV1(page);
   });
 
-  test('Enter by hand: the mode is a segmented control; Home\'s Stock entry opens it (Paste message is covered by P41)', async ({ page }) => {
+  test('Enter by hand: the mode is a row of kind tiles (a guided flow since U4); Home\'s Stock entry opens it (Paste message is covered by P41)', async ({ page }) => {
     await loadAppWithState(page, state());
     await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();
-    await expect(page.locator('.inv-seg-btn[data-mode="count"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.inv-kind[data-mode="count"]')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('[data-action="invStockMode"][data-mode="received"]').click();
-    await expect(page.locator('.inv-seg-btn[data-mode="received"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.inv-kind[data-mode="received"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#stockManSupplier.inv-input')).toBeVisible();
     await expect(page.locator('#stockContent .inv-actionbar [data-action="invStockSaveManual"]')).toBeVisible();
     await noV1(page);

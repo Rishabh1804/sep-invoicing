@@ -1319,25 +1319,30 @@ function prodPhotoModel() {
   if (!_prodPhoto) return null;
   var x = prodPhotoState(), rd = x.rd, ph = x.ph, steps = [], lines = [], checks = [];
   var other = rd.page === 'other' || rd.page === 'challan';
+  // The runs Save keeps (Vulcanus L-5, U4's QA chain): a run every row of which was struck and Cancelled was never plated, and
+  // prodSavePhoto leaves it out; the preview counts and lists the same runs, each with its own index for its client's pick.
+  var kept = rd.runs.map(function(e, i) { return { e: e, i: i }; }).filter(function(k) { return !prodPhotoRunCancelled(k.e, ph); });
+  var keptQty = kept.length === rd.runs.length ? Math.round(rd.counted || 0) : Math.round(kept.reduce(function(t, k) { return t + (+k.e.qty || 0); }, 0));
   steps.push({ key: 'page', title: 'Which page is it?', help: 'The date written on the page' + (x.power || other ? '' : ' and its line') + '. Check them against the photo.', guide: ['app-production', 'Put the data in'],
     done: !!x.date && (x.power || other || !!x.line), says: [x.date ? stockShortDate(x.date) : '', x.power ? 'power log' : x.line ? PROD_LINE_LABEL[x.line] : ''].filter(Boolean).join(' · '), body: '' });
   if (!x.power && !other) {
     var runRed = x.red - rd.issues.filter(function(i) { return i.tone === 'red'; }).length;
     steps.push({ key: 'runs', title: 'Does each run read right?', help: 'Every row as written, and what it was read as. Settle a struck row and a run with no client.',
-      done: rd.runs.length > 0 && runRed <= 0, says: todoPlural(rd.runs.length, 'run') + ' · ' + Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS', body: '' });
+      done: rd.runs.length > 0 && runRed <= 0, says: todoPlural(kept.length, 'run') + ' · ' + keptQty.toLocaleString('en-IN') + ' NOS', body: '' });
   }
   if (x.power || (!other && rd.downtime.length)) {
     steps.push({ key: 'power', title: 'The power log', help: 'Each cut with its return, as written.', optional: !x.power, done: rd.downtime.length > 0, says: todoPlural(rd.downtime.length, 'cut'), body: '' });
   }
   if (x.power) {
     if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut') + (x.date ? ' on ' + stockShortDate(x.date) : '')) + ', from the register’s power log');
-  } else if (!other && rd.runs.length) {
-    lines.push('Plated ' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN')) + ' NOS on ' + escHtml(x.line ? PROD_LINE_LABEL[x.line] : 'a line not known') + (x.date ? ', ' + escHtml(stockShortDate(x.date)) : '') + ', in ' + escHtml(todoPlural(rd.runs.length, 'run')));
-    rd.runs.slice(0, 5).forEach(function(e, i) {
-      var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
+  } else if (!other && kept.length) {
+    lines.push('Plated ' + escHtml(keptQty.toLocaleString('en-IN')) + ' NOS on ' + escHtml(x.line ? PROD_LINE_LABEL[x.line] : 'a line not known') + (x.date ? ', ' + escHtml(stockShortDate(x.date)) : '') + ', in ' + escHtml(todoPlural(kept.length, 'run')));
+    kept.slice(0, 5).forEach(function(k) {
+      var e = k.e, cc = ph.choices['client' + k.i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
       lines.push(escHtml((cid != null ? clientShortName(prodClientName(cid)) : e.client || 'No client') + (e.part ? ' · ' + e.part : '') + ': ' + prodQtyText(e.qty, 'NOS')));
     });
-    if (rd.runs.length > 5) lines.push(escHtml((rd.runs.length - 5) + ' more runs'));
+    if (kept.length > 5) lines.push(escHtml((kept.length - 5) + ' more runs'));
+    if (kept.length < rd.runs.length) lines.push(escHtml(todoPlural(rd.runs.length - kept.length, 'run') + ' struck and cancelled: not saved'));
     if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut')) + ' from the page’s power log');
   }
   if (ph.dupSha) checks.push({ tone: 'danger', text: 'This photo was saved before: saving it again counts the page twice.' });
@@ -1348,6 +1353,10 @@ function prodPhotoModel() {
   return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Nothing was read from this photo to save.' } };
 }
 uiFlowDefine('prodPhoto', prodPhotoModel);
+/* A run every row of which was struck and Cancelled (prodSavePhoto's rule): never plated, never saved. */
+function prodPhotoRunCancelled(e, ph) {
+  return !!(e.rows && e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; }));
+}
 function prodPhotoHtml() {
   var x = prodPhotoState(), ph = x.ph, rd = x.rd, line = x.line, date = x.date, red = x.red, power = x.power, onMine = x.onMine;
   var model = prodPhotoModel(), body = {};
@@ -1428,7 +1437,7 @@ function prodSavePhoto() {
   });
   rd.runs.forEach(function(e, i) {
     // A run every row of which was struck and cancelled was never plated.
-    if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
+    if (prodPhotoRunCancelled(e, ph)) return;
     var cc = ph.choices['client' + i];
     var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.readLine ? 'written' : 'set') : null,
       clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
@@ -1493,7 +1502,27 @@ function prodHandDraft(f) {
   if (f.kind === 'downtime') return e;
   e.clientId = f.clientId ? prodHeldId(f.clientId) : null; e.part = String(f.part || '').trim(); e.gauge = prodGaugeOf(e.part, e.part); e.qty = isNaN(q) ? null : q;
   if (f.kind === 'plated') e.line = f.line || null;
+  // The part's own reading as Save makes it (Vulcanus M-4, U4's QA chain): a correction keeps the corrected entry's while the part and
+  // the client are as they were, and a name with a code is matched to the client's part (prodLearnAliases' choice, read here
+  // without learning anything).
+  var src = f.replaces ? prodIndex().byId[f.replaces] : null;
+  if (src && e.part === String(src.part || '').trim() && String(e.clientId) === String(src.clientId)) {
+    ['partNumber', 'gaugeOptions'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+    if (!e.gauge && src.gauge) e.gauge = src.gauge;
+  }
+  prodHandDraftPart(e);
   return e;
+}
+/* prodLearnAliases' pick of a part for a floor name, without its side effects: nothing is learnt, the entry's copy alone is set. */
+function prodHandDraftPart(e) {
+  if (e.clientId == null || !e.part || e.partNumber || e.kind === 'downtime') return;
+  var known = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+  if (known && known.partNumber) return;   // prodWeighLearnt reads it
+  var c = prodAliasCandidates(e.clientId, e.part), one = c.byCode.length === 1 ? c.byCode[0] : c.byCodeWords.length === 1 ? c.byCodeWords[0] : null;
+  if (one) { e.partNumber = one.partNumber; return; }
+  var rs = null;
+  try { rs = prodResolveEntryPart(e); } catch (x) { rs = null; }
+  if (rs && rs.partNumber) e.partNumber = rs.partNumber;
 }
 function prodHandModel() {
   var f = _prodHand;
@@ -1534,9 +1563,14 @@ function prodHandModel() {
     if (f.kind === 'plated' && !f.rework) {
       var w = null;
       try { w = prodWeigh(e); } catch (x) { w = null; }
-      var how = w && w.how ? { record: 'the part’s weight on record', challans: 'its challans', kind: 'the usual weight of its kind', 'default': 'the client’s own kg a piece' }[w.how] : '';
-      if (w && w.kg != null) lines.push('It counts as ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' plated' + (how ? ', weighed by ' + escHtml(how) : ''));
-      else checks.push({ tone: 'info', text: 'No weight is known for this part: it counts in pieces, and Not weighed asks for its weight.' });
+      // A run is set against its challans only once saved (the draft has no id, so In plant cannot hold it), and the challans come
+      // before the kind and the client's default: where the route is one of those, the preview says the weight is set at Save
+      // rather than naming a route Save may not take (Vulcanus M-4).
+      var atSave = !w || !w.how || w.how === 'kind' || w.how === 'default';
+      var how = w && w.how ? { written: 'the kilograms written', record: 'the part’s weight on record', challans: 'its challans', kind: 'the usual weight of its kind', 'default': 'the client’s own kg a piece' }[w.how] : '';
+      if (w && w.kg != null && !atSave) lines.push('It counts as ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' plated' + (how ? ', weighed by ' + escHtml(how) : ''));
+      else if (w && w.kg != null) lines.push('Weighed at save, from its challans if any are open; else ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' by ' + escHtml(how));
+      else lines.push('Weighed at save, from its challans if any are open; else it counts in pieces, and Not weighed asks for its weight.');
     }
     if (f.rework) lines.push('Rework: counted as work done, never as billing.');
   }

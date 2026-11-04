@@ -198,7 +198,7 @@ function _shiftRowModel(i, x) {
     lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(String(Math.floor(n.paidMin / 60))) + ' h as pay counts it' +
       (n.stop < n.end ? '; plating stops ' + escHtml(hm(n.stop)) : '') + '; plating time ' + escHtml(formatNum(n.plateMin / 60, 1)) + ' h after the ' + n.breakMin + '-minute break');
     lines.push(n.need ? 'Its crew: ' + n.need + (n.spare ? ' and ' + n.spare + ' spare, who books no shortfall' : '') : 'No crew set: a night short of its crew is not asked.');
-  } else if (vat && (t.start || t.end)) checks.push({ tone: 'warning', text: 'Set when the night starts and ends.' });
+  } else if (vat && (head || t.start || t.end)) checks.push({ tone: 'danger', text: 'Set when the night starts and ends: Save refuses a night line without them.' });
   var ra = relayParseHhmm(t.runFrom), rb = relayParseHhmm(t.runTo);
   if (barrel && ra != null && rb != null && rb > ra) {
     var wins = [];
@@ -207,7 +207,15 @@ function _shiftRowModel(i, x) {
     lines.push('Running ' + escHtml(hm(ra)) + ' to ' + escHtml(hm(rb)) + (wins.length ? '; with no crew ' + escHtml(wins.join(' and ')) : ''));
     var ex = [t.exOne ? t.exOne + ' h for 1 barrel' : '', t.exFew ? t.exFew + ' h for 2 to 4' : '', t.exMany ? t.exMany + ' h for 5 or 6' : ''].filter(Boolean);
     lines.push(ex.length ? 'EXTRA a window: ' + escHtml(ex.join(', ')) : 'No EXTRA set for loading in those windows.');
-  } else if (barrel && (t.runFrom || t.runTo)) checks.push({ tone: 'warning', text: 'Set the hours it runs.' });
+  } else if (barrel && (head || t.runFrom || t.runTo)) checks.push({ tone: 'danger', text: 'Set the hours it runs: Save refuses the barrel without them.' });
+  // Two schedules for one line from one day: Save refuses them (shiftSettingsSave; Castor L-5).
+  if (head) {
+    for (var j = 0; document.getElementById('setShLine' + j); j++) {
+      if (j === i) continue;
+      var o = _shiftRowVals(j);
+      if (o.line === t.line && o.from === t.from) { checks.push({ tone: 'danger', text: shiftLineName(t.line) + ' has another schedule from ' + formatDate(t.from) + ': Save refuses two.' }); break; }
+    }
+  }
   var nightDone = vat && !!n, crewDone = vat && crewN(t.crewL) + crewN(t.crewP) > 0, runDone = barrel && ra != null && rb != null && rb > ra;
   return {
     steps: [

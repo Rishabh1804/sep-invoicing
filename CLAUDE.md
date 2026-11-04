@@ -1131,7 +1131,8 @@ P230 (phone and desktop); the specs that opened Spend and prices' fold open its 
   **never a field**, so the cursor stays. Enter in a field that finishes its step goes to the step Next (`uiFlowEnter`, from the Enter
   chain); a form with its own chain (the challan form, Create, Mine's VAT page) says `data-flow-ownkeys`. A preview that needs the
   book as it would be after the save puts the record in for one reading and takes it straight out (`stockPreviewChecks`, the bill's and
-  the cheque's before → after): nothing is saved. **No id, `data-action`, `data-change` or `data-k` moved.**
+  the cheque's and a payment's before → after, from Receivables', Pay's and the supplier's own ledgers): nothing is saved, and a memo the
+  reading could poison is read past (`finCtx`) or cleared (`_suppMemo`). **No id, `data-action`, `data-change` or `data-k` moved.**
 - **The forms** (each its model beside its builder): Stock by hand (`stockManualModel`: What · When and the bill · Which lines · Who;
   each line's level before → after and `_stockEntryChecks` on the entry before it is saved); Production by hand (`prodHandModel`; the
   run as it counts by `prodWeigh`; no rounds field yet); the register photo's check (`prodPhotoModel`); a power cut completed
@@ -1153,8 +1154,20 @@ P230 (phone and desktop); the specs that opened Spend and prices' fold open its 
   deleted; lines of two units are refused. `stockFindByKey` finds a merged line as the line kept. To-do **`stockTwins`** (the owner's,
   info): two lines whose names fold to one key or are one letter apart in a word of four letters or more (`stockTwinWhy`); it opens
   the merge on the line with fewer entries (of two alike, the newer).
-- **A data flow changed**: `sep-stock` carries `mergedInto`, `mergedFrom` and `retiredAt` on its items and `mergedFrom` on its entries
-  (soma-internal reads the stock record; said in the PR and NEXT_SESSION).
+- **A line merged is found as the line kept** (`stockLive`) wherever an id comes from outside the book's own entries: a choice stored on
+  a message, a file's line and its quotes, the supervisor's numbered position. A structural pass in `migrateState` (`stockMergedRepoint`,
+  after every load, pull, merge and import) moves an entry or a price quoted naming a retired line to the line kept (another device
+  that had not merged). `stockTwins` never pairs a first letter changed (Nitric, Citric) or a chemical's ending (nitrate, nitrite), and
+  **They are different** on the merge keeps a pair apart for good (`stock.notTwins`).
+- **The QA chain** (Iuno, Castor, Vulcanus; P230's *QA chain* tests): a preview is the screen's own reading with the record in, never a
+  subtraction (a monthly salary dated by the 20th pays the month before, `payDueAfter`; a cheque already in the bank as its deposit
+  moves nothing, `bankChequeOwed`; a supplier payment that clears a statement row or falls before the balance's day, `suppLedgerWith`);
+  a power cut's cost only to a role that opens Power and sees money (`pcsSeesCost`); Production's preview names no weighing route Save
+  may not take (*weighed at save, from its challans if any are open*); a 6 AM block whose crew are all absent is refused, not dropped
+  with its EXTRA; the preview's checks mirror every refusal Save makes (a negative arrears, a blank challan line, an invoice number
+  taken, a night with no times, two schedules from one day).
+- **A data flow changed**: `sep-stock` carries `mergedInto`, `mergedFrom` and `retiredAt` on its items, `mergedFrom` on its entries
+  and the pairs said to differ (`notTwins`, in the book's stock) (soma-internal reads the stock record; said in the PR and NEXT_SESSION).
 - The guide *Using the app: stock* is version 6 (Enter by hand, Spend and prices, the merge).
 
 ## Business Domain

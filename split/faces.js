@@ -1268,7 +1268,10 @@ function faceRollRead(f) {
   var roster = faceRollRoster(f.date), counts = {}, unmarked = 0, kept = 0;
   roster.forEach(function(w) {
     var id = String(w.id), p = f.place[id];
-    if (p) counts[p] = (counts[p] || 0) + 1; else if (faceMarkByHand(f.date, id)) kept++; else unmarked++;
+    // A mark entered on the day by hand is counted whatever place the form gives it (faceRollMake places every one): the roll leaves
+    // it as it is (Castor L-3).
+    if (faceMarkByHand(f.date, id)) kept++;
+    if (p) counts[p] = (counts[p] || 0) + 1; else if (!faceMarkByHand(f.date, id)) unmarked++;
   });
   return { roster: roster, counts: counts, unmarked: unmarked, kept: kept };
 }

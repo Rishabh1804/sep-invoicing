@@ -530,7 +530,8 @@ function plantShutModel() {
   var span = !okFrom ? '' : n === 1 ? dayWord(from) : stockShortDate(from) + ' – ' + stockShortDate(to) + ' · ' + n + ' days';
   var steps = [
     { key: 'days', title: 'Which days?', help: 'For 1 day, keep From and To on the same day.', guide: ['app-today', 'Mark the plant shut'], done: okFrom && n <= 32, says: span, body: '' },
-    { key: 'why', title: 'Why is it shut?', help: 'A few words, for example Durga Puja. Home says it in place of the shift.', done: !!why, says: why, body: '' }
+    // Save does not ask for a reason (Vulcanus L-4, U4's QA chain): the step is filled only if wanted.
+    { key: 'why', title: 'Why is it shut?', help: 'A few words, for example Durga Puja. Home says it in place of the shift.', optional: true, done: !!why, says: why, body: '' }
   ];
   var lines = [], checks = [];
   if (okFrom && n <= 32) {
@@ -540,7 +541,12 @@ function plantShutModel() {
     var cfg = flowCfg(), worked = days.filter(function(x) { return statsWorkingDayList(x, x).length > 0; });
     lines.push(worked.length ? escHtml(todoPlural(worked.length, 'working day')) + ' left out of the month’s pace and the turnaround. Pay is not touched.' : 'None of these is a working day already. Pay is not touched.');
     var marked = days.filter(function(x) { return (cfg.holidays || []).indexOf(x) >= 0; });
-    if (marked.length) checks.push({ tone: 'info', text: todoPlural(marked.length, 'day') + ' already marked shut: kept, with the reason given here.' });
+    // Save writes the reason given here on every day, and with none it clears the reason a day had (plantShutSave).
+    if (marked.length) {
+      var had = marked.filter(function(x) { return cfg.shutWhy && cfg.shutWhy[x]; });
+      checks.push({ tone: 'info', text: todoPlural(marked.length, 'day') + ' already marked shut: ' + (why ? 'kept, with the reason given here.' :
+        had.length ? 'kept, and ' + (had.length === 1 ? 'its reason ' + cfg.shutWhy[had[0]] + ' is' : 'their reasons are') + ' cleared.' : 'kept.') });
+    }
     var busy = days.filter(function(x) { return typeof plantDayWorked === 'function' && plantDayWorked(x); });
     if (busy.length) checks.push({ tone: 'warning', text: 'Work is recorded on ' + busy.map(dayWord).join(', ') + ': the plant reads as working there all the same.' });
   }

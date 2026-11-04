@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="6e89990e">
+<meta name="app-build" content="f709b1a5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -12574,6 +12574,9 @@ function createFlowModelOf() {
   const linesDone = f.items.length > 0 && f.items.every(i => named(i) && (i.qty || 0) > 0);
   const errors = createErrorsShown(), allErrors = validateInvoiceKeyed();
   const checks = errors.map(e => ({ tone: 'danger', text: e.text }));
+  // The number a new invoice takes is refused at Save when a live invoice holds it (saveInvoice's own test; Iuno L-5).
+  const numTaken = !f.editingId && S.invoices.some(i => i.displayNumber === number);
+  if (numTaken) checks.push({ tone: 'danger', text: number + ' is already a live invoice: Save will refuse it. Check Settings → Business → Invoice series.' });
   if (client) {
     f.items.forEach((it, i) => {
       if (!named(it)) return;
@@ -12605,7 +12608,7 @@ function createFlowModelOf() {
     { key: 'details', title: 'The challan, P.O. and vehicle', help: 'Filled from the challans ticked and the client’s settings where it can be.', optional: true,
       done: !!details, says: details, body: '' },
     { key: 'check', title: 'Check it, then create', help: 'What Save records says the number it takes and the totals. An error shows once its field is left.',
-      done: !!client && linesDone && !allErrors.length, says: 'Total ' + formatCurrency(t.grand), body: '' }
+      done: !!client && linesDone && !allErrors.length && !numTaken, says: 'Total ' + formatCurrency(t.grand), body: '' }
   ];
   return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Choose the client and this says what the invoice records.' } };
 }
@@ -30900,6 +30903,12 @@ var STOCK_KINDS = [
   { value: 'used', icon: 'box', word: 'Used', line: 'Taken from the shelf' },
   { value: 'charged', icon: 'flask', word: 'Charged', line: 'Put into a bath' }
 ];
+/* A price a unit as kept: two places, or up to four where it has them (₹55.125 is not ₹55.13). */
+function stockPriceText(v) {
+  var dp = Math.min(4, Math.max(2, ((String(v).split('.')[1] || '').replace(/0+$/, '')).length));
+  var c = formatCurrency(Math.trunc(v));
+  return c.replace(/\.\d+$/, '') + '.' + Math.abs(v).toFixed(dp).split('.')[1];
+}
 function stockManualFilled(m) {
   var out = [];
   Object.keys(m.vals).forEach(function(id) {
@@ -30939,7 +30948,9 @@ function stockManualModel() {
     var what = m.mode === 'count' ? 'Counted ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) :
       m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
         (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
-        (f.price != null ? ', ' + escHtml(formatCurrency(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST' : '') :
+        // The price as it is kept (to its own places, never rounded to the paisa for show) and what the line comes to, the amount Save
+        // records (gstRound(price × qty); Iuno L-6).
+        (f.price != null ? ', ' + escHtml(stockPriceText(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST, ' + escHtml(formatCurrency(gstRound(f.price * f.qty))) + ' for the line' : '') :
       (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
     var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
       ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
@@ -32795,6 +32806,7 @@ function costBillFormModel() {
       (penalty > 0 ? ', the ' + escHtml(formatCurrency(penalty)) + ' penalty counted in it' : ''));
     var pv = costBillLivePreview(b);
     if (pv) lines.push(escHtml(billsMonthLabel(month)) + '’s live cost: ' + escHtml(formatCurrency(pv.before)) + '/kg → ' + escHtml(formatCurrency(pv.after)) + '/kg');
+    if (arrears < 0 || penalty < 0) checks.push({ tone: 'danger', text: 'Arrears and a penalty are parts of the bill: neither can be below 0.' });
     if (gstRound(arrears + penalty) > amount) checks.push({ tone: 'danger', text: 'Arrears and penalty are parts of the bill: together they are more than its amount.' });
     if (arrearsOf && arrearsOf >= month) checks.push({ tone: 'danger', text: 'Arrears are for a month before the one the bill covers.' });
     var twin = kind === 'power' && costBills().find(function(x) { return x.kind === 'power' && !x.voided && x.month === month; });
@@ -32813,23 +32825,29 @@ function costBillFormModel() {
 }
 uiFlowDefine('costBill', costBillFormModel);
 /* The month's live cost a kilo, before and after the bill: liveCost's own reading, the bill in the book only while it is read. */
+/* Kept per book (its object as well as its saves: a book another window, a pull or an import replaced is another book) and per day;
+   the live cost before the bill apart from after it, since only the after changes as the amount is typed (U4's QA chain, Iuno L-1, L-8). */
+var _costBillPv0 = null;
 function costBillLivePreview(b) {
-  var key = [b.kind, b.month, b.amount, b.arrears || 0, typeof _bookWrites === 'number' ? _bookWrites : 0].join('|');
-  if (_costBillPv && _costBillPv.key === key) return _costBillPv.v;
+  var book = [typeof _bookWrites === 'number' ? _bookWrites : 0, localDateStr()].join('|');
+  var key = [b.kind, b.month, b.amount, b.arrears || 0, b.penalty || 0, book].join('|');
+  if (_costBillPv && _costBillPv.key === key && _costBillPv.S === S) return _costBillPv.v;
   var v = null;
   try {
     var from = b.month + '-01', to = payMonthEnd(from), today = localDateStr();
     if (to > today) to = today;
     var w = from <= today ? weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; })) : null;
     if (w && w.kg > 0) {
-      var c0 = liveCost(from, to, w.kg), list = costBills(), tmp = { id: '_flow_preview', kind: b.kind, month: b.month, amount: b.amount, arrears: b.arrears, penalty: b.penalty, at: Date.now() };
+      var k0 = [from, to, w.kg, book].join('|');
+      if (!_costBillPv0 || _costBillPv0.key !== k0 || _costBillPv0.S !== S) _costBillPv0 = { key: k0, S: S, v: liveCost(from, to, w.kg) };
+      var c0 = _costBillPv0.v, list = costBills(), tmp = { id: '_flow_preview', kind: b.kind, month: b.month, amount: b.amount, arrears: b.arrears, penalty: b.penalty, at: Date.now() };
       list.push(tmp);
       var c1;
       try { c1 = liveCost(from, to, w.kg); } finally { var i = list.indexOf(tmp); if (i >= 0) list.splice(i, 1); }
       if (c0 && c1 && c0.perKg != null && c1.perKg != null) v = { before: c0.perKg, after: c1.perKg };
     }
   } catch (e) { v = null; }
-  _costBillPv = { key: key, v: v };
+  _costBillPv = { key: key, S: S, v: v };
   return v;
 }
 function costBillFormHtml() {
@@ -34567,16 +34585,32 @@ function bankChequeOpen(id) {
     '<div class="inv-dialog-foot">' + foot + '</div></div>', { dismiss: true });
 }
 /* The form: Money → Receivables → Cheque received, and Add → By hand → Cheque. A guided flow (UI pass 3 §11a): Whose and how much ·
-   The cheque · When it came; the preview what the client owes before and after it, Receivables' own figure (finClientMoney) less the
-   cheque, which counts as a receipt from the day it came. */
-var _chqPvOwed = null;   // { key, owed }: the client's figure as Receivables reads it, kept until the client or the book changes
-function bankChequeOwed(cid) {
-  var key = String(cid) + '|' + (typeof _bookWrites === 'number' ? _bookWrites : 0);
-  if (_chqPvOwed && _chqPvOwed.key === key) return _chqPvOwed.v;
-  var m = null;
-  try { m = finClientMoney(cid); } catch (e) { m = null; }
-  _chqPvOwed = { key: key, v: m ? { owed: m.r ? m.r.owed : 0, from: m.from } : null };
-  return _chqPvOwed.v;
+   The cheque · When it came; the preview what the client owes before and after it: Receivables' own reading (bankReceivables), the
+   cheque put into the book for one reading and taken straight out (never a subtraction: a cheque whose deposit the statement already
+   holds and counts changes nothing, U4's QA chain, Iuno H-1). Read through bankClassify directly, never finCtx, whose microtask memo
+   would keep the reading with the cheque in it. */
+var _chqPvOwed = null;   // { key, v }: the readings for the figures typed, kept until they, the book or the day change
+function _bankChequeReading(cid, ch) {
+  var list = bankCheques(), out = { owed: 0, link: null };
+  if (ch) list.push(ch);
+  try {
+    var cls = bankClassify(), r = bankReceivables(cls).find(function(x) { return String(x.client.id) === String(cid); });
+    out.owed = r ? r.owed : 0;
+    if (ch) out.link = bankChequeLinks(cls).find(function(o) { return o.ch === ch; }) || null;
+  } finally { if (ch) { var i = list.indexOf(ch); if (i >= 0) list.splice(i, 1); } }
+  return out;
+}
+function bankChequeOwed(cid, ch) {
+  if (!finSeen()) return null;
+  var key = [cid, typeof _bookWrites === 'number' ? _bookWrites : 0, localDateStr(), ch ? [ch.amount, ch.number, ch.receivedOn, ch.date].join('/') : ''].join('|');
+  if (_chqPvOwed && _chqPvOwed.key === key && _chqPvOwed.S === S) return _chqPvOwed.v;
+  var v = null;
+  try {
+    var before = _bankChequeReading(cid, null), after = ch ? _bankChequeReading(cid, ch) : null;
+    v = { owed: before.owed, after: after ? after.owed : null, link: after ? after.link : null, from: bankRecvFrom() };
+  } catch (e) { v = null; }
+  _chqPvOwed = { key: key, S: S, v: v };
+  return v;
 }
 function bankChequeModel() {
   var form = document.querySelector('[data-cheque-form]');
@@ -34587,11 +34621,14 @@ function bankChequeModel() {
   var lines = [], checks = [];
   if (c && amount > 0) {
     lines.push('Cheque' + (okNum ? ' ' + escHtml(number) : '') + ' from ' + escHtml(c.name) + ' for ' + escHtml(formatCurrency(amount)) + (okDay ? ', received ' + escHtml(formatDate(received)) : ''));
-    var o = bankChequeOwed(c.id);
+    var o = bankChequeOwed(c.id, okDay ? { id: '_flow_preview', clientId: c.id, amount: amount, number: okNum ? number : '', receivedOn: received, date: v('chqDate') || '', at: Date.now() } : null);
     if (o && okDay && received < o.from) lines.push('Received before receivables start (' + escHtml(formatDate(o.from)) + '): it is not read, as no receipt from before then is.');
-    else if (o) {
-      var after = gstRound(o.owed - amount);
-      lines.push('What ' + escHtml(c.name) + ' owes: ' + escHtml(formatCurrency(o.owed)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+    else if (o && o.link && (o.link.status === 'deposited' || o.link.status === 'returned')) {
+      lines.push('Already in the bank as the deposit of ' + escHtml(formatDate(o.link.dep.row.date)) + (o.link.status === 'returned' ? ', since returned' : '') +
+        ': what ' + escHtml(c.name) + ' owes ' + (Math.abs(o.after - o.owed) < 0.005 ? 'does not change, ' + escHtml(formatCurrency(o.owed)) : 'goes from ' + escHtml(formatCurrency(o.owed)) + ' to ' + escHtml(formatCurrency(o.after))));
+    } else if (o) {
+      var after = o.after != null ? o.after : o.owed;
+      lines.push('What ' + escHtml(c.name) + ' owes: ' + escHtml(formatCurrency(o.owed)) + (o.after != null ? ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))) : ''));
     }
     lines.push('It counts as paid from the day it came. Its deposit on the statement takes over, found by its number.');
   }
@@ -36234,6 +36271,27 @@ function suppLedgerHtml(sp, L) {
    the supplier's dialog, or Compare suppliers'); each form keeps the attribute its Save reads by (data-supp-pay-form and the rest) on
    a wrapper whose parent holds every field, as suppFormVal looks for them. */
 function suppFlowVal(sel, id) { return document.querySelector(sel) ? suppFormVal(sel, id) : ''; }
+/* The ledger as it would read with a payment recorded, or a balance set (U4's QA chain, Iuno H-3 and M-2): never a subtraction, since a
+   payment that clears as a statement row already counted, or one dated on or before the balance's day, moves nothing. The payment is
+   put into the book for one reading, or the record's balance set for one reading, and taken straight out; the index's memo is let go
+   before and after, so it never keeps the reading. */
+function suppLedgerWith(sp, pay, opening) {
+  var r = sp && sp.rec;
+  if (!r) return null;
+  var list = suppPays(), keep = { has: 'opening' in r, op: r.opening, has2: 'inOpening' in r, inOp: r.inOpening };
+  if (pay) list.push(pay);
+  if (opening) { r.opening = opening; if (!keep.op || keep.op.date !== opening.date) delete r.inOpening; }
+  _suppMemo = null;
+  try { var now = suppById(r.id); return now ? suppLedger(now) : null; }
+  finally {
+    if (pay) { var i = list.indexOf(pay); if (i >= 0) list.splice(i, 1); }
+    if (opening) {
+      if (keep.has) r.opening = keep.op; else delete r.opening;
+      if (keep.has2) r.inOpening = keep.inOp; else delete r.inOpening;
+    }
+    _suppMemo = null;
+  }
+}
 var SUPP_HOW = { cheque: 'Cheque handed over', transfer: 'Transfer', cash: 'Cash' };
 function suppPayModel() {
   var sp = suppById(_suppOpenId);
@@ -36246,8 +36304,13 @@ function suppPayModel() {
     lines.push(escHtml(SUPP_HOW[how] || 'A payment') + ' of ' + escHtml(formatCurrency(amount)) + ' to ' + escHtml(sp.name) + (okDay ? ' on ' + escHtml(formatDate(date)) : '') + (how === 'cheque' && chq ? ', cheque ' + escHtml(chq) : ''));
     var L = suppLedger(sp);
     if (L.op) {
-      var after = gstRound(L.balance - amount);
-      lines.push('Owed to them: ' + escHtml(formatCurrency(L.balance)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+      var LA = okDay ? suppLedgerWith(sp, { id: '_flow_preview', supplierId: sp.rec.id, date: date, amount: amount, how: how === 'transfer' || how === 'cash' ? how : 'cheque', chq: chq || null, at: Date.now() }) : null;
+      var after = LA ? LA.balance : null;
+      lines.push('Owed to them: ' + escHtml(formatCurrency(L.balance)) + (after == null ? '' : ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after)))));
+      if (after != null && Math.abs(after - L.balance) < 0.005) {
+        checks.push({ tone: 'info', text: okDay && date <= L.op.date ? 'Dated on or before the balance’s day (' + formatDate(L.op.date) + '): the balance already holds it.' :
+          'It clears as a payment the statement already shows: what is owed does not change.' });
+      }
     } else lines.push('What is owed to them is not set: set the balance from their statement to see it.');
     if (how === 'cheque') lines.push('It counts from the day it is handed over; when the statement shows it clear by its number, that row is this payment.');
   }
@@ -36287,6 +36350,7 @@ function suppBalanceModel() {
   var amount = drawn ? v('suppBalAmount') : (op.amount != null ? String(op.amount) : ''), date = drawn ? v('suppBalDate') : (op.date || ''), today = localDateStr();
   var a = parseFloat(amount), okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today, okAmt = amount !== '' && !isNaN(a);
   var lines = ['<span id="suppBalPreview">' + escHtml(suppBalPreview(sp, amount, date)) + '</span>'], checks = [];
+
   if (okDay && okAmt) {
     var near = isoAddDays(date, SUPP_NEAR_DAYS), counted = sp.pays.filter(function(p) { return p.kind === 'bank' && p.date > date && p.date <= near; });
     if (counted.length) lines.push(todoPlural(counted.length, 'payment') + ' on the statement in the ' + SUPP_NEAR_DAYS + ' days after it: mark each one their figure already counts as In their balance.');
@@ -36317,10 +36381,16 @@ function suppBalanceFormHtml(sp, L) {
 function suppBalPreview(sp, amount, date) {
   var a = parseFloat(amount);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || isNaN(a)) return 'Type the figure and its day to see what it comes to now.';
-  var billed = 0, paid = 0;
-  sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
-  sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
-  var now = gstRound(a + billed - paid);
+  // The ledger's own figure with this balance set (suppLedgerWith): the payments already marked In their balance are left out while
+  // the day is unchanged, as Save keeps them (U4's QA chain, Iuno M-2). A supplier with no record yet has no marks to keep.
+  var LB = sp.rec ? suppLedgerWith(sp, null, { amount: gstRound(a), date: date }) : null;
+  var billed = 0, paid = 0, now;
+  if (LB) { billed = LB.billed; paid = LB.paid; now = LB.balance; }
+  else {
+    sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
+    sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
+    now = gstRound(a + billed - paid);
+  }
   return 'Owed now: ' + formatCurrency(now) + ' (bills ' + finRs(billed) + ' and payments ' + finRs(paid) + ' after ' + formatDate(date) + ').';
 }
 function suppSetFormHtml(sp, lead) {
@@ -50572,7 +50642,7 @@ function _shiftRowModel(i, x) {
     lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(String(Math.floor(n.paidMin / 60))) + ' h as pay counts it' +
       (n.stop < n.end ? '; plating stops ' + escHtml(hm(n.stop)) : '') + '; plating time ' + escHtml(formatNum(n.plateMin / 60, 1)) + ' h after the ' + n.breakMin + '-minute break');
     lines.push(n.need ? 'Its crew: ' + n.need + (n.spare ? ' and ' + n.spare + ' spare, who books no shortfall' : '') : 'No crew set: a night short of its crew is not asked.');
-  } else if (vat && (t.start || t.end)) checks.push({ tone: 'warning', text: 'Set when the night starts and ends.' });
+  } else if (vat && (head || t.start || t.end)) checks.push({ tone: 'danger', text: 'Set when the night starts and ends: Save refuses a night line without them.' });
   var ra = relayParseHhmm(t.runFrom), rb = relayParseHhmm(t.runTo);
   if (barrel && ra != null && rb != null && rb > ra) {
     var wins = [];
@@ -50581,7 +50651,15 @@ function _shiftRowModel(i, x) {
     lines.push('Running ' + escHtml(hm(ra)) + ' to ' + escHtml(hm(rb)) + (wins.length ? '; with no crew ' + escHtml(wins.join(' and ')) : ''));
     var ex = [t.exOne ? t.exOne + ' h for 1 barrel' : '', t.exFew ? t.exFew + ' h for 2 to 4' : '', t.exMany ? t.exMany + ' h for 5 or 6' : ''].filter(Boolean);
     lines.push(ex.length ? 'EXTRA a window: ' + escHtml(ex.join(', ')) : 'No EXTRA set for loading in those windows.');
-  } else if (barrel && (t.runFrom || t.runTo)) checks.push({ tone: 'warning', text: 'Set the hours it runs.' });
+  } else if (barrel && (head || t.runFrom || t.runTo)) checks.push({ tone: 'danger', text: 'Set the hours it runs: Save refuses the barrel without them.' });
+  // Two schedules for one line from one day: Save refuses them (shiftSettingsSave; Castor L-5).
+  if (head) {
+    for (var j = 0; document.getElementById('setShLine' + j); j++) {
+      if (j === i) continue;
+      var o = _shiftRowVals(j);
+      if (o.line === t.line && o.from === t.from) { checks.push({ tone: 'danger', text: shiftLineName(t.line) + ' has another schedule from ' + formatDate(t.from) + ': Save refuses two.' }); break; }
+    }
+  }
   var nightDone = vat && !!n, crewDone = vat && crewN(t.crewL) + crewN(t.crewP) > 0, runDone = barrel && ra != null && rb != null && rb > ra;
   return {
     steps: [
@@ -58423,25 +58501,30 @@ function prodPhotoModel() {
   if (!_prodPhoto) return null;
   var x = prodPhotoState(), rd = x.rd, ph = x.ph, steps = [], lines = [], checks = [];
   var other = rd.page === 'other' || rd.page === 'challan';
+  // The runs Save keeps (Vulcanus L-5, U4's QA chain): a run every row of which was struck and Cancelled was never plated, and
+  // prodSavePhoto leaves it out; the preview counts and lists the same runs, each with its own index for its client's pick.
+  var kept = rd.runs.map(function(e, i) { return { e: e, i: i }; }).filter(function(k) { return !prodPhotoRunCancelled(k.e, ph); });
+  var keptQty = kept.length === rd.runs.length ? Math.round(rd.counted || 0) : Math.round(kept.reduce(function(t, k) { return t + (+k.e.qty || 0); }, 0));
   steps.push({ key: 'page', title: 'Which page is it?', help: 'The date written on the page' + (x.power || other ? '' : ' and its line') + '. Check them against the photo.', guide: ['app-production', 'Put the data in'],
     done: !!x.date && (x.power || other || !!x.line), says: [x.date ? stockShortDate(x.date) : '', x.power ? 'power log' : x.line ? PROD_LINE_LABEL[x.line] : ''].filter(Boolean).join(' · '), body: '' });
   if (!x.power && !other) {
     var runRed = x.red - rd.issues.filter(function(i) { return i.tone === 'red'; }).length;
     steps.push({ key: 'runs', title: 'Does each run read right?', help: 'Every row as written, and what it was read as. Settle a struck row and a run with no client.',
-      done: rd.runs.length > 0 && runRed <= 0, says: todoPlural(rd.runs.length, 'run') + ' · ' + Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS', body: '' });
+      done: rd.runs.length > 0 && runRed <= 0, says: todoPlural(kept.length, 'run') + ' · ' + keptQty.toLocaleString('en-IN') + ' NOS', body: '' });
   }
   if (x.power || (!other && rd.downtime.length)) {
     steps.push({ key: 'power', title: 'The power log', help: 'Each cut with its return, as written.', optional: !x.power, done: rd.downtime.length > 0, says: todoPlural(rd.downtime.length, 'cut'), body: '' });
   }
   if (x.power) {
     if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut') + (x.date ? ' on ' + stockShortDate(x.date) : '')) + ', from the register’s power log');
-  } else if (!other && rd.runs.length) {
-    lines.push('Plated ' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN')) + ' NOS on ' + escHtml(x.line ? PROD_LINE_LABEL[x.line] : 'a line not known') + (x.date ? ', ' + escHtml(stockShortDate(x.date)) : '') + ', in ' + escHtml(todoPlural(rd.runs.length, 'run')));
-    rd.runs.slice(0, 5).forEach(function(e, i) {
-      var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
+  } else if (!other && kept.length) {
+    lines.push('Plated ' + escHtml(keptQty.toLocaleString('en-IN')) + ' NOS on ' + escHtml(x.line ? PROD_LINE_LABEL[x.line] : 'a line not known') + (x.date ? ', ' + escHtml(stockShortDate(x.date)) : '') + ', in ' + escHtml(todoPlural(kept.length, 'run')));
+    kept.slice(0, 5).forEach(function(k) {
+      var e = k.e, cc = ph.choices['client' + k.i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
       lines.push(escHtml((cid != null ? clientShortName(prodClientName(cid)) : e.client || 'No client') + (e.part ? ' · ' + e.part : '') + ': ' + prodQtyText(e.qty, 'NOS')));
     });
-    if (rd.runs.length > 5) lines.push(escHtml((rd.runs.length - 5) + ' more runs'));
+    if (kept.length > 5) lines.push(escHtml((kept.length - 5) + ' more runs'));
+    if (kept.length < rd.runs.length) lines.push(escHtml(todoPlural(rd.runs.length - kept.length, 'run') + ' struck and cancelled: not saved'));
     if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut')) + ' from the page’s power log');
   }
   if (ph.dupSha) checks.push({ tone: 'danger', text: 'This photo was saved before: saving it again counts the page twice.' });
@@ -58452,6 +58535,10 @@ function prodPhotoModel() {
   return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Nothing was read from this photo to save.' } };
 }
 uiFlowDefine('prodPhoto', prodPhotoModel);
+/* A run every row of which was struck and Cancelled (prodSavePhoto's rule): never plated, never saved. */
+function prodPhotoRunCancelled(e, ph) {
+  return !!(e.rows && e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; }));
+}
 function prodPhotoHtml() {
   var x = prodPhotoState(), ph = x.ph, rd = x.rd, line = x.line, date = x.date, red = x.red, power = x.power, onMine = x.onMine;
   var model = prodPhotoModel(), body = {};
@@ -58532,7 +58619,7 @@ function prodSavePhoto() {
   });
   rd.runs.forEach(function(e, i) {
     // A run every row of which was struck and cancelled was never plated.
-    if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
+    if (prodPhotoRunCancelled(e, ph)) return;
     var cc = ph.choices['client' + i];
     var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.readLine ? 'written' : 'set') : null,
       clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
@@ -58597,7 +58684,27 @@ function prodHandDraft(f) {
   if (f.kind === 'downtime') return e;
   e.clientId = f.clientId ? prodHeldId(f.clientId) : null; e.part = String(f.part || '').trim(); e.gauge = prodGaugeOf(e.part, e.part); e.qty = isNaN(q) ? null : q;
   if (f.kind === 'plated') e.line = f.line || null;
+  // The part's own reading as Save makes it (Vulcanus M-4, U4's QA chain): a correction keeps the corrected entry's while the part and
+  // the client are as they were, and a name with a code is matched to the client's part (prodLearnAliases' choice, read here
+  // without learning anything).
+  var src = f.replaces ? prodIndex().byId[f.replaces] : null;
+  if (src && e.part === String(src.part || '').trim() && String(e.clientId) === String(src.clientId)) {
+    ['partNumber', 'gaugeOptions'].forEach(function(k) { if (src[k] != null) e[k] = src[k]; });
+    if (!e.gauge && src.gauge) e.gauge = src.gauge;
+  }
+  prodHandDraftPart(e);
   return e;
+}
+/* prodLearnAliases' pick of a part for a floor name, without its side effects: nothing is learnt, the entry's copy alone is set. */
+function prodHandDraftPart(e) {
+  if (e.clientId == null || !e.part || e.partNumber || e.kind === 'downtime') return;
+  var known = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)];
+  if (known && known.partNumber) return;   // prodWeighLearnt reads it
+  var c = prodAliasCandidates(e.clientId, e.part), one = c.byCode.length === 1 ? c.byCode[0] : c.byCodeWords.length === 1 ? c.byCodeWords[0] : null;
+  if (one) { e.partNumber = one.partNumber; return; }
+  var rs = null;
+  try { rs = prodResolveEntryPart(e); } catch (x) { rs = null; }
+  if (rs && rs.partNumber) e.partNumber = rs.partNumber;
 }
 function prodHandModel() {
   var f = _prodHand;
@@ -58638,9 +58745,14 @@ function prodHandModel() {
     if (f.kind === 'plated' && !f.rework) {
       var w = null;
       try { w = prodWeigh(e); } catch (x) { w = null; }
-      var how = w && w.how ? { record: 'the part’s weight on record', challans: 'its challans', kind: 'the usual weight of its kind', 'default': 'the client’s own kg a piece' }[w.how] : '';
-      if (w && w.kg != null) lines.push('It counts as ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' plated' + (how ? ', weighed by ' + escHtml(how) : ''));
-      else checks.push({ tone: 'info', text: 'No weight is known for this part: it counts in pieces, and Not weighed asks for its weight.' });
+      // A run is set against its challans only once saved (the draft has no id, so In plant cannot hold it), and the challans come
+      // before the kind and the client's default: where the route is one of those, the preview says the weight is set at Save
+      // rather than naming a route Save may not take (Vulcanus M-4).
+      var atSave = !w || !w.how || w.how === 'kind' || w.how === 'default';
+      var how = w && w.how ? { written: 'the kilograms written', record: 'the part’s weight on record', challans: 'its challans', kind: 'the usual weight of its kind', 'default': 'the client’s own kg a piece' }[w.how] : '';
+      if (w && w.kg != null && !atSave) lines.push('It counts as ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' plated' + (how ? ', weighed by ' + escHtml(how) : ''));
+      else if (w && w.kg != null) lines.push('Weighed at save, from its challans if any are open; else ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' by ' + escHtml(how));
+      else lines.push('Weighed at save, from its challans if any are open; else it counts in pieces, and Not weighed asks for its weight.');
     }
     if (f.rework) lines.push('Rework: counted as work done, never as billing.');
   }
@@ -59486,7 +59598,8 @@ function plantShutModel() {
   var span = !okFrom ? '' : n === 1 ? dayWord(from) : stockShortDate(from) + ' – ' + stockShortDate(to) + ' · ' + n + ' days';
   var steps = [
     { key: 'days', title: 'Which days?', help: 'For 1 day, keep From and To on the same day.', guide: ['app-today', 'Mark the plant shut'], done: okFrom && n <= 32, says: span, body: '' },
-    { key: 'why', title: 'Why is it shut?', help: 'A few words, for example Durga Puja. Home says it in place of the shift.', done: !!why, says: why, body: '' }
+    // Save does not ask for a reason (Vulcanus L-4, U4's QA chain): the step is filled only if wanted.
+    { key: 'why', title: 'Why is it shut?', help: 'A few words, for example Durga Puja. Home says it in place of the shift.', optional: true, done: !!why, says: why, body: '' }
   ];
   var lines = [], checks = [];
   if (okFrom && n <= 32) {
@@ -59496,7 +59609,12 @@ function plantShutModel() {
     var cfg = flowCfg(), worked = days.filter(function(x) { return statsWorkingDayList(x, x).length > 0; });
     lines.push(worked.length ? escHtml(todoPlural(worked.length, 'working day')) + ' left out of the month’s pace and the turnaround. Pay is not touched.' : 'None of these is a working day already. Pay is not touched.');
     var marked = days.filter(function(x) { return (cfg.holidays || []).indexOf(x) >= 0; });
-    if (marked.length) checks.push({ tone: 'info', text: todoPlural(marked.length, 'day') + ' already marked shut: kept, with the reason given here.' });
+    // Save writes the reason given here on every day, and with none it clears the reason a day had (plantShutSave).
+    if (marked.length) {
+      var had = marked.filter(function(x) { return cfg.shutWhy && cfg.shutWhy[x]; });
+      checks.push({ tone: 'info', text: todoPlural(marked.length, 'day') + ' already marked shut: ' + (why ? 'kept, with the reason given here.' :
+        had.length ? 'kept, and ' + (had.length === 1 ? 'its reason ' + cfg.shutWhy[had[0]] + ' is' : 'their reasons are') + ' cleared.' : 'kept.') });
+    }
     var busy = days.filter(function(x) { return typeof plantDayWorked === 'function' && plantDayWorked(x); });
     if (busy.length) checks.push({ tone: 'warning', text: 'Work is recorded on ' + busy.map(dayWord).join(', ') + ': the plant reads as working there all the same.' });
   }
@@ -67690,7 +67808,10 @@ function faceRollRead(f) {
   var roster = faceRollRoster(f.date), counts = {}, unmarked = 0, kept = 0;
   roster.forEach(function(w) {
     var id = String(w.id), p = f.place[id];
-    if (p) counts[p] = (counts[p] || 0) + 1; else if (faceMarkByHand(f.date, id)) kept++; else unmarked++;
+    // A mark entered on the day by hand is counted whatever place the form gives it (faceRollMake places every one): the roll leaves
+    // it as it is (Castor L-3).
+    if (faceMarkByHand(f.date, id)) kept++;
+    if (p) counts[p] = (counts[p] || 0) + 1; else if (!faceMarkByHand(f.date, id)) unmarked++;
   });
   return { roster: roster, counts: counts, unmarked: unmarked, kept: kept };
 }
@@ -70698,16 +70819,22 @@ function pcsModel() {
   if (r.state !== 'empty') lines.push('Why: ' + escHtml(name(r)) + (r.state === 'new' ? ', new to the list' : r.state === 'near' ? ', already on the list' : ''));
   if (where) lines.push('It hit ' + escHtml(where));
   if (x.state !== 'empty') lines.push('Back by: ' + escHtml(name(x)) + (x.state === 'new' ? ', new to the list' : ''));
-  if (f.costNow != null) lines.push('What it cost, as the record stands: ' + escHtml(formatCurrency(f.costNow)));
+  if (f.costNow != null && pcsSeesCost()) lines.push('What it cost, as the record stands: ' + escHtml(formatCurrency(f.costNow)));
   if (toMin != null && toMin === from) checks.push({ tone: 'danger', text: 'The power came back the minute it went: check the time.' });
   else if (toMin != null && toMin < from) checks.push({ tone: 'warning', text: 'The power back is earlier on the clock than the cut: saved as it is, it ran overnight. Save asks first.' });
   if (r.state === 'near') checks.push({ tone: 'info', text: 'Why it went is read as one already on the list: Keep as new under the field if it is not.' });
   return { steps: steps, preview: { lines: lines, checks: checks } };
 }
 uiFlowDefine('pcs', pcsModel);
+function pcsSeesCost() {
+  return (typeof grdSees !== 'function' || grdSees('pagePower')) && (typeof grdSeesMoney !== 'function' || grdSeesMoney());
+}
 function pcsDialogHtml() {
   var f = _pcs, cut = { date: f.date, from: f.from, to: f.toMin, overnight: f.toMin != null && f.toMin >= 1440 };
   var src = f.basis.indexOf('register') >= 0 ? 'the register' : f.basis.indexOf('relay') >= 0 || f.basis.indexOf('pickling') >= 0 ? 'the message' : 'the record';
+  // What the cut cost is its damage, idle wages and contribution among it: shown only to a role that opens Power and sees money
+  // (Iuno H-4, U4's QA chain); the floor reaches this dialog from Production and the VAT page, and no rupee was drawn there before.
+  if (f.costNow === undefined && !pcsSeesCost()) f.costNow = null;
   if (f.costNow === undefined) {
     // What the cut cost as Power reads it today (powerAnalysis), worked out once when the dialog opens.
     var c = null;
@@ -78398,8 +78525,12 @@ function challanFlowModelOf() {
   var kg = 0, nos = 0, amt = 0;
   used.forEach(function(it) { if (it.unit === 'NOS') nos += +it.qty || 0; else kg += +it.qty || 0; amt += it.amount || 0; });
   amt = gstRound(amt);
-  var linesDone = used.length > 0 && used.every(function(it) { return named(it) && (it.qty || 0) > 0; });
+  // Done only as Save takes it (challanIncomplete): every line on the form named, with a quantity, nothing below zero. A blank line
+  // left on the form is refused at Save, so the step is not done while one is there (U4's QA chain, Iuno L-4).
+  var lineOk = function(it) { return named(it) && Number(it.qty) > 0 && !(Number(it.rate) < 0) && !(Number(it.amount) < 0) && !(Number(it.nosQty) < 0); };
+  var linesDone = f.items.length > 0 && f.items.every(lineOk);
   var checks = [];
+  if (f.items.length > 1) f.items.forEach(function(it, i) { if (!named(it) && !((it.qty || 0) > 0)) checks.push({ tone: 'warning', text: 'Line ' + (i + 1) + ' is empty: fill it or remove it before Save.' }); });
   if (client) {
     imNumberMatches(f.clientId, hd.no, f._editingId || null).forEach(function(im) { checks.push({ tone: 'warning', text: imNumberMatchText(im) }); });
     if (!hd.no) checks.push({ tone: 'warning', text: 'No challan number: Save checks the challan by what it holds instead.' });

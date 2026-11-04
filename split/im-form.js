@@ -66,8 +66,12 @@ function challanFlowModelOf() {
   var kg = 0, nos = 0, amt = 0;
   used.forEach(function(it) { if (it.unit === 'NOS') nos += +it.qty || 0; else kg += +it.qty || 0; amt += it.amount || 0; });
   amt = gstRound(amt);
-  var linesDone = used.length > 0 && used.every(function(it) { return named(it) && (it.qty || 0) > 0; });
+  // Done only as Save takes it (challanIncomplete): every line on the form named, with a quantity, nothing below zero. A blank line
+  // left on the form is refused at Save, so the step is not done while one is there (U4's QA chain, Iuno L-4).
+  var lineOk = function(it) { return named(it) && Number(it.qty) > 0 && !(Number(it.rate) < 0) && !(Number(it.amount) < 0) && !(Number(it.nosQty) < 0); };
+  var linesDone = f.items.length > 0 && f.items.every(lineOk);
   var checks = [];
+  if (f.items.length > 1) f.items.forEach(function(it, i) { if (!named(it) && !((it.qty || 0) > 0)) checks.push({ tone: 'warning', text: 'Line ' + (i + 1) + ' is empty: fill it or remove it before Save.' }); });
   if (client) {
     imNumberMatches(f.clientId, hd.no, f._editingId || null).forEach(function(im) { checks.push({ tone: 'warning', text: imNumberMatchText(im) }); });
     if (!hd.no) checks.push({ tone: 'warning', text: 'No challan number: Save checks the challan by what it holds instead.' });

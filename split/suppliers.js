@@ -406,6 +406,27 @@ function suppLedgerHtml(sp, L) {
    the supplier's dialog, or Compare suppliers'); each form keeps the attribute its Save reads by (data-supp-pay-form and the rest) on
    a wrapper whose parent holds every field, as suppFormVal looks for them. */
 function suppFlowVal(sel, id) { return document.querySelector(sel) ? suppFormVal(sel, id) : ''; }
+/* The ledger as it would read with a payment recorded, or a balance set (U4's QA chain, Iuno H-3 and M-2): never a subtraction, since a
+   payment that clears as a statement row already counted, or one dated on or before the balance's day, moves nothing. The payment is
+   put into the book for one reading, or the record's balance set for one reading, and taken straight out; the index's memo is let go
+   before and after, so it never keeps the reading. */
+function suppLedgerWith(sp, pay, opening) {
+  var r = sp && sp.rec;
+  if (!r) return null;
+  var list = suppPays(), keep = { has: 'opening' in r, op: r.opening, has2: 'inOpening' in r, inOp: r.inOpening };
+  if (pay) list.push(pay);
+  if (opening) { r.opening = opening; if (!keep.op || keep.op.date !== opening.date) delete r.inOpening; }
+  _suppMemo = null;
+  try { var now = suppById(r.id); return now ? suppLedger(now) : null; }
+  finally {
+    if (pay) { var i = list.indexOf(pay); if (i >= 0) list.splice(i, 1); }
+    if (opening) {
+      if (keep.has) r.opening = keep.op; else delete r.opening;
+      if (keep.has2) r.inOpening = keep.inOp; else delete r.inOpening;
+    }
+    _suppMemo = null;
+  }
+}
 var SUPP_HOW = { cheque: 'Cheque handed over', transfer: 'Transfer', cash: 'Cash' };
 function suppPayModel() {
   var sp = suppById(_suppOpenId);
@@ -418,8 +439,13 @@ function suppPayModel() {
     lines.push(escHtml(SUPP_HOW[how] || 'A payment') + ' of ' + escHtml(formatCurrency(amount)) + ' to ' + escHtml(sp.name) + (okDay ? ' on ' + escHtml(formatDate(date)) : '') + (how === 'cheque' && chq ? ', cheque ' + escHtml(chq) : ''));
     var L = suppLedger(sp);
     if (L.op) {
-      var after = gstRound(L.balance - amount);
-      lines.push('Owed to them: ' + escHtml(formatCurrency(L.balance)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+      var LA = okDay ? suppLedgerWith(sp, { id: '_flow_preview', supplierId: sp.rec.id, date: date, amount: amount, how: how === 'transfer' || how === 'cash' ? how : 'cheque', chq: chq || null, at: Date.now() }) : null;
+      var after = LA ? LA.balance : null;
+      lines.push('Owed to them: ' + escHtml(formatCurrency(L.balance)) + (after == null ? '' : ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after)))));
+      if (after != null && Math.abs(after - L.balance) < 0.005) {
+        checks.push({ tone: 'info', text: okDay && date <= L.op.date ? 'Dated on or before the balance’s day (' + formatDate(L.op.date) + '): the balance already holds it.' :
+          'It clears as a payment the statement already shows: what is owed does not change.' });
+      }
     } else lines.push('What is owed to them is not set: set the balance from their statement to see it.');
     if (how === 'cheque') lines.push('It counts from the day it is handed over; when the statement shows it clear by its number, that row is this payment.');
   }
@@ -459,6 +485,7 @@ function suppBalanceModel() {
   var amount = drawn ? v('suppBalAmount') : (op.amount != null ? String(op.amount) : ''), date = drawn ? v('suppBalDate') : (op.date || ''), today = localDateStr();
   var a = parseFloat(amount), okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today, okAmt = amount !== '' && !isNaN(a);
   var lines = ['<span id="suppBalPreview">' + escHtml(suppBalPreview(sp, amount, date)) + '</span>'], checks = [];
+
   if (okDay && okAmt) {
     var near = isoAddDays(date, SUPP_NEAR_DAYS), counted = sp.pays.filter(function(p) { return p.kind === 'bank' && p.date > date && p.date <= near; });
     if (counted.length) lines.push(todoPlural(counted.length, 'payment') + ' on the statement in the ' + SUPP_NEAR_DAYS + ' days after it: mark each one their figure already counts as In their balance.');
@@ -489,10 +516,16 @@ function suppBalanceFormHtml(sp, L) {
 function suppBalPreview(sp, amount, date) {
   var a = parseFloat(amount);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || isNaN(a)) return 'Type the figure and its day to see what it comes to now.';
-  var billed = 0, paid = 0;
-  sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
-  sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
-  var now = gstRound(a + billed - paid);
+  // The ledger's own figure with this balance set (suppLedgerWith): the payments already marked In their balance are left out while
+  // the day is unchanged, as Save keeps them (U4's QA chain, Iuno M-2). A supplier with no record yet has no marks to keep.
+  var LB = sp.rec ? suppLedgerWith(sp, null, { amount: gstRound(a), date: date }) : null;
+  var billed = 0, paid = 0, now;
+  if (LB) { billed = LB.billed; paid = LB.paid; now = LB.balance; }
+  else {
+    sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
+    sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
+    now = gstRound(a + billed - paid);
+  }
   return 'Owed now: ' + formatCurrency(now) + ' (bills ' + finRs(billed) + ' and payments ' + finRs(paid) + ' after ' + formatDate(date) + ').';
 }
 function suppSetFormHtml(sp, lead) {

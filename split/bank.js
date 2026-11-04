@@ -611,16 +611,32 @@ function bankChequeOpen(id) {
     '<div class="inv-dialog-foot">' + foot + '</div></div>', { dismiss: true });
 }
 /* The form: Money → Receivables → Cheque received, and Add → By hand → Cheque. A guided flow (UI pass 3 §11a): Whose and how much ·
-   The cheque · When it came; the preview what the client owes before and after it, Receivables' own figure (finClientMoney) less the
-   cheque, which counts as a receipt from the day it came. */
-var _chqPvOwed = null;   // { key, owed }: the client's figure as Receivables reads it, kept until the client or the book changes
-function bankChequeOwed(cid) {
-  var key = String(cid) + '|' + (typeof _bookWrites === 'number' ? _bookWrites : 0);
-  if (_chqPvOwed && _chqPvOwed.key === key) return _chqPvOwed.v;
-  var m = null;
-  try { m = finClientMoney(cid); } catch (e) { m = null; }
-  _chqPvOwed = { key: key, v: m ? { owed: m.r ? m.r.owed : 0, from: m.from } : null };
-  return _chqPvOwed.v;
+   The cheque · When it came; the preview what the client owes before and after it: Receivables' own reading (bankReceivables), the
+   cheque put into the book for one reading and taken straight out (never a subtraction: a cheque whose deposit the statement already
+   holds and counts changes nothing, U4's QA chain, Iuno H-1). Read through bankClassify directly, never finCtx, whose microtask memo
+   would keep the reading with the cheque in it. */
+var _chqPvOwed = null;   // { key, v }: the readings for the figures typed, kept until they, the book or the day change
+function _bankChequeReading(cid, ch) {
+  var list = bankCheques(), out = { owed: 0, link: null };
+  if (ch) list.push(ch);
+  try {
+    var cls = bankClassify(), r = bankReceivables(cls).find(function(x) { return String(x.client.id) === String(cid); });
+    out.owed = r ? r.owed : 0;
+    if (ch) out.link = bankChequeLinks(cls).find(function(o) { return o.ch === ch; }) || null;
+  } finally { if (ch) { var i = list.indexOf(ch); if (i >= 0) list.splice(i, 1); } }
+  return out;
+}
+function bankChequeOwed(cid, ch) {
+  if (!finSeen()) return null;
+  var key = [cid, typeof _bookWrites === 'number' ? _bookWrites : 0, localDateStr(), ch ? [ch.amount, ch.number, ch.receivedOn, ch.date].join('/') : ''].join('|');
+  if (_chqPvOwed && _chqPvOwed.key === key && _chqPvOwed.S === S) return _chqPvOwed.v;
+  var v = null;
+  try {
+    var before = _bankChequeReading(cid, null), after = ch ? _bankChequeReading(cid, ch) : null;
+    v = { owed: before.owed, after: after ? after.owed : null, link: after ? after.link : null, from: bankRecvFrom() };
+  } catch (e) { v = null; }
+  _chqPvOwed = { key: key, S: S, v: v };
+  return v;
 }
 function bankChequeModel() {
   var form = document.querySelector('[data-cheque-form]');
@@ -631,11 +647,14 @@ function bankChequeModel() {
   var lines = [], checks = [];
   if (c && amount > 0) {
     lines.push('Cheque' + (okNum ? ' ' + escHtml(number) : '') + ' from ' + escHtml(c.name) + ' for ' + escHtml(formatCurrency(amount)) + (okDay ? ', received ' + escHtml(formatDate(received)) : ''));
-    var o = bankChequeOwed(c.id);
+    var o = bankChequeOwed(c.id, okDay ? { id: '_flow_preview', clientId: c.id, amount: amount, number: okNum ? number : '', receivedOn: received, date: v('chqDate') || '', at: Date.now() } : null);
     if (o && okDay && received < o.from) lines.push('Received before receivables start (' + escHtml(formatDate(o.from)) + '): it is not read, as no receipt from before then is.');
-    else if (o) {
-      var after = gstRound(o.owed - amount);
-      lines.push('What ' + escHtml(c.name) + ' owes: ' + escHtml(formatCurrency(o.owed)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+    else if (o && o.link && (o.link.status === 'deposited' || o.link.status === 'returned')) {
+      lines.push('Already in the bank as the deposit of ' + escHtml(formatDate(o.link.dep.row.date)) + (o.link.status === 'returned' ? ', since returned' : '') +
+        ': what ' + escHtml(c.name) + ' owes ' + (Math.abs(o.after - o.owed) < 0.005 ? 'does not change, ' + escHtml(formatCurrency(o.owed)) : 'goes from ' + escHtml(formatCurrency(o.owed)) + ' to ' + escHtml(formatCurrency(o.after))));
+    } else if (o) {
+      var after = o.after != null ? o.after : o.owed;
+      lines.push('What ' + escHtml(c.name) + ' owes: ' + escHtml(formatCurrency(o.owed)) + (o.after != null ? ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))) : ''));
     }
     lines.push('It counts as paid from the day it came. Its deposit on the statement takes over, found by its number.');
   }

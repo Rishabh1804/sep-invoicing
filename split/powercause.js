@@ -312,16 +312,22 @@ function pcsModel() {
   if (r.state !== 'empty') lines.push('Why: ' + escHtml(name(r)) + (r.state === 'new' ? ', new to the list' : r.state === 'near' ? ', already on the list' : ''));
   if (where) lines.push('It hit ' + escHtml(where));
   if (x.state !== 'empty') lines.push('Back by: ' + escHtml(name(x)) + (x.state === 'new' ? ', new to the list' : ''));
-  if (f.costNow != null) lines.push('What it cost, as the record stands: ' + escHtml(formatCurrency(f.costNow)));
+  if (f.costNow != null && pcsSeesCost()) lines.push('What it cost, as the record stands: ' + escHtml(formatCurrency(f.costNow)));
   if (toMin != null && toMin === from) checks.push({ tone: 'danger', text: 'The power came back the minute it went: check the time.' });
   else if (toMin != null && toMin < from) checks.push({ tone: 'warning', text: 'The power back is earlier on the clock than the cut: saved as it is, it ran overnight. Save asks first.' });
   if (r.state === 'near') checks.push({ tone: 'info', text: 'Why it went is read as one already on the list: Keep as new under the field if it is not.' });
   return { steps: steps, preview: { lines: lines, checks: checks } };
 }
 uiFlowDefine('pcs', pcsModel);
+function pcsSeesCost() {
+  return (typeof grdSees !== 'function' || grdSees('pagePower')) && (typeof grdSeesMoney !== 'function' || grdSeesMoney());
+}
 function pcsDialogHtml() {
   var f = _pcs, cut = { date: f.date, from: f.from, to: f.toMin, overnight: f.toMin != null && f.toMin >= 1440 };
   var src = f.basis.indexOf('register') >= 0 ? 'the register' : f.basis.indexOf('relay') >= 0 || f.basis.indexOf('pickling') >= 0 ? 'the message' : 'the record';
+  // What the cut cost is its damage, idle wages and contribution among it: shown only to a role that opens Power and sees money
+  // (Iuno H-4, U4's QA chain); the floor reaches this dialog from Production and the VAT page, and no rupee was drawn there before.
+  if (f.costNow === undefined && !pcsSeesCost()) f.costNow = null;
   if (f.costNow === undefined) {
     // What the cut cost as Power reads it today (powerAnalysis), worked out once when the dialog opens.
     var c = null;

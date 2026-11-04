@@ -2476,4 +2476,10 @@ Where the build departs from §11 and §26b, and why:
   units are refused; `stockFindByKey` finds a merged line as the line kept.
 - **The guides**: *Using the app: stock* gained the section its book opens at (version 6); the challan's and the invoice's open at
   their top, where their steps are written; a bill has no guide, so its steps carry no book.
+- **The QA chain** (Iuno, Castor, Vulcanus) found previews that subtracted where Save's ledger matches, dedupes and dates (a monthly
+  salary dated by the 20th, a cheque already deposited, a supplier payment that clears a statement row), a power cut's cost shown past
+  Power's gate, and a merge that a device not yet merged could undo by adding to the retired line. Each preview now reads the screen's
+  own ledger with the record put in for one reading; a merged line is found as the line kept everywhere an id comes in
+  (`stockLive`, `stockMergedRepoint`); real, different salts are never raised as twins and the owner's *They are different* keeps a
+  pair apart. P230's *QA chain* tests hold each.
 

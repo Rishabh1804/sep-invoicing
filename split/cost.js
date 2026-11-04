@@ -867,6 +867,7 @@ function costBillFormModel() {
       (penalty > 0 ? ', the ' + escHtml(formatCurrency(penalty)) + ' penalty counted in it' : ''));
     var pv = costBillLivePreview(b);
     if (pv) lines.push(escHtml(billsMonthLabel(month)) + '’s live cost: ' + escHtml(formatCurrency(pv.before)) + '/kg → ' + escHtml(formatCurrency(pv.after)) + '/kg');
+    if (arrears < 0 || penalty < 0) checks.push({ tone: 'danger', text: 'Arrears and a penalty are parts of the bill: neither can be below 0.' });
     if (gstRound(arrears + penalty) > amount) checks.push({ tone: 'danger', text: 'Arrears and penalty are parts of the bill: together they are more than its amount.' });
     if (arrearsOf && arrearsOf >= month) checks.push({ tone: 'danger', text: 'Arrears are for a month before the one the bill covers.' });
     var twin = kind === 'power' && costBills().find(function(x) { return x.kind === 'power' && !x.voided && x.month === month; });
@@ -885,23 +886,29 @@ function costBillFormModel() {
 }
 uiFlowDefine('costBill', costBillFormModel);
 /* The month's live cost a kilo, before and after the bill: liveCost's own reading, the bill in the book only while it is read. */
+/* Kept per book (its object as well as its saves: a book another window, a pull or an import replaced is another book) and per day;
+   the live cost before the bill apart from after it, since only the after changes as the amount is typed (U4's QA chain, Iuno L-1, L-8). */
+var _costBillPv0 = null;
 function costBillLivePreview(b) {
-  var key = [b.kind, b.month, b.amount, b.arrears || 0, typeof _bookWrites === 'number' ? _bookWrites : 0].join('|');
-  if (_costBillPv && _costBillPv.key === key) return _costBillPv.v;
+  var book = [typeof _bookWrites === 'number' ? _bookWrites : 0, localDateStr()].join('|');
+  var key = [b.kind, b.month, b.amount, b.arrears || 0, b.penalty || 0, book].join('|');
+  if (_costBillPv && _costBillPv.key === key && _costBillPv.S === S) return _costBillPv.v;
   var v = null;
   try {
     var from = b.month + '-01', to = payMonthEnd(from), today = localDateStr();
     if (to > today) to = today;
     var w = from <= today ? weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; })) : null;
     if (w && w.kg > 0) {
-      var c0 = liveCost(from, to, w.kg), list = costBills(), tmp = { id: '_flow_preview', kind: b.kind, month: b.month, amount: b.amount, arrears: b.arrears, penalty: b.penalty, at: Date.now() };
+      var k0 = [from, to, w.kg, book].join('|');
+      if (!_costBillPv0 || _costBillPv0.key !== k0 || _costBillPv0.S !== S) _costBillPv0 = { key: k0, S: S, v: liveCost(from, to, w.kg) };
+      var c0 = _costBillPv0.v, list = costBills(), tmp = { id: '_flow_preview', kind: b.kind, month: b.month, amount: b.amount, arrears: b.arrears, penalty: b.penalty, at: Date.now() };
       list.push(tmp);
       var c1;
       try { c1 = liveCost(from, to, w.kg); } finally { var i = list.indexOf(tmp); if (i >= 0) list.splice(i, 1); }
       if (c0 && c1 && c0.perKg != null && c1.perKg != null) v = { before: c0.perKg, after: c1.perKg };
     }
   } catch (e) { v = null; }
-  _costBillPv = { key: key, v: v };
+  _costBillPv = { key: key, S: S, v: v };
   return v;
 }
 function costBillFormHtml() {

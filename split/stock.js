@@ -1217,6 +1217,12 @@ var STOCK_KINDS = [
   { value: 'used', icon: 'box', word: 'Used', line: 'Taken from the shelf' },
   { value: 'charged', icon: 'flask', word: 'Charged', line: 'Put into a bath' }
 ];
+/* A price a unit as kept: two places, or up to four where it has them (₹55.125 is not ₹55.13). */
+function stockPriceText(v) {
+  var dp = Math.min(4, Math.max(2, ((String(v).split('.')[1] || '').replace(/0+$/, '')).length));
+  var c = formatCurrency(Math.trunc(v));
+  return c.replace(/\.\d+$/, '') + '.' + Math.abs(v).toFixed(dp).split('.')[1];
+}
 function stockManualFilled(m) {
   var out = [];
   Object.keys(m.vals).forEach(function(id) {
@@ -1256,7 +1262,9 @@ function stockManualModel() {
     var what = m.mode === 'count' ? 'Counted ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) :
       m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
         (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
-        (f.price != null ? ', ' + escHtml(formatCurrency(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST' : '') :
+        // The price as it is kept (to its own places, never rounded to the paisa for show) and what the line comes to, the amount Save
+        // records (gstRound(price × qty); Iuno L-6).
+        (f.price != null ? ', ' + escHtml(stockPriceText(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST, ' + escHtml(formatCurrency(gstRound(f.price * f.qty))) + ' for the line' : '') :
       (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
     var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
       ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));

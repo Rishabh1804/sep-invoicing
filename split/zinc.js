@@ -187,7 +187,7 @@ function _zincLmeOn(date) {
 }
 
 function zincUpliftBills() {
-  var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var item = stockFindByKey('ZINC');
   if (!item) return [];
   return stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }).slice(-ZINC_DERIVE_BILLS).map(function(p) {
     return { date: p.date, price: p.e.price, supplier: p.e.supplier || '', billNo: p.e.billNo || '' };
@@ -321,7 +321,7 @@ function zincTrend(from) {
   var landed = function(r) { return gstRound(r * (1 + up / 100) + prem); };
   var days = Object.keys(h).filter(function(d) { return h[d] > 0; }).sort();
   var market = days.filter(function(d) { return !from || d >= from; }).map(function(d) { return { date: d, lme: h[d], landed: landed(h[d]) }; });
-  var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var item = stockFindByKey('ZINC');
   var all = item ? stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }) : [];
   var bills = all.filter(function(p) { return !from || p.date >= from; }).map(function(p) {
     var l = _zincLmeOn(p.date), b = { date: p.date, price: p.e.price, qty: p.e.qty || 0, supplier: (p.e.supplier || '').trim(), billNo: p.e.billNo || '', market: null, over: null, timing: null };

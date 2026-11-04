@@ -337,7 +337,7 @@ function _dashZincRedraw() {
 /* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): its own address (v=spend: the desktop's wide pane, the
    phone's screen), zinc's card brought into sight. */
 function dashZincShow() {
-  var z = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var z = stockFindByKey('ZINC');
   if (z) _dashPriceItem = z.id;
   navOpen({ tab: 'pageStock', v: 'spend', id: '' });
   var el = document.getElementById('dashPrice');

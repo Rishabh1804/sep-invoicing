@@ -1030,7 +1030,8 @@ function uiFlowHtml(name, m, o) {
 /* The flows on screen kept in step with what is typed: the steps' state and heads, the progress and the preview. A field is never
    replaced, so the cursor and the keyboard stay where they are. */
 function uiFlowSync(root) {
-  var els = (root || document).querySelectorAll ? (root || document).querySelectorAll('[data-flow]') : [];
+  var r = root || document, els = r.querySelectorAll ? Array.prototype.slice.call(r.querySelectorAll('[data-flow]')) : [];
+  if (r.matches && r.matches('[data-flow]')) els.unshift(r);
   for (var k = 0; k < els.length; k++) {
     var el = els[k], fn = UI_FLOWS[el.getAttribute('data-flow')], m = null;
     if (!fn) continue;
@@ -1074,6 +1075,10 @@ function uiFlowEnter(e) {
   if (!flow || flow.hasAttribute('data-flow-ownkeys')) return false;
   uiFlowSync(flow);
   if (li.getAttribute('data-state') !== 'done') return false;
+  // Only the field that finishes its step goes on: the step's last field (Cipher M-1, U4's Edict V). From any other field the Enter
+  // chain moves to the next field as it always did, so a delivery's price after its quantity is never skipped.
+  var fields = li.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+  if (!fields.length || fields[fields.length - 1] !== t) return false;
   var nx = flow.querySelector('[data-flow-step][data-state="next"]'), f = uiFlowFirstField(nx);
   if (!f || f === t) return false;
   e.preventDefault();

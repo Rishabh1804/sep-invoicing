@@ -89,13 +89,19 @@ test.describe('P230 guided entry: Stock by hand', () => {
     await expect(page.locator('#stockDayEntries')).toContainText('Count 40 L');
   });
 
-  test('Enter in a field that finishes its step goes on to the step Next', async ({ page }) => {
+  test('Enter in the field that finishes its step goes on to the step Next; from any other field, to the next field', async ({ page }) => {
     await loadAppWithState(page, stockBook());
     await page.evaluate(() => localStorage.removeItem('sep_inv_stock_by'));
     await openHand(page);
+    // Who is the last step and its one field: done, Enter goes to the step Next, the lines, at its first field.
+    await page.locator('#stockBy').fill('Deepak');
+    await page.locator('#stockBy').press('Enter');
+    await expect(page.locator('[data-flow-step="lines"] [data-stock-qty]').first()).toBeFocused();
+    // A delivery's quantity finishes the lines step, but its price comes next: Enter stays in the step (Cipher M-1).
+    await page.locator('[data-action="invStockMode"][data-mode="received"]').click();
     await page.locator('[data-stock-qty="Q"]').fill('3');
     await page.locator('[data-stock-qty="Q"]').press('Enter');
-    await expect(page.locator('#stockBy')).toBeFocused();
+    await expect(page.locator('[data-stock-price="Q"]')).toBeFocused();
   });
 
   test('a step’s book opens its guide at the section it names', async ({ page }) => {

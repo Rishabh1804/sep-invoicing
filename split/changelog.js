@@ -100,6 +100,9 @@ var CHG_TRACK = [
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
+  // Two stock lines the owner said are different (UI pass 3 §11c): a sorted pair of ids, logged by the lines' names.
+  { path: 'stock.notTwins', kind: 'arr', noun: 'stock pair kept apart', key: function(r) { return String(r); },
+    label: function(r) { return String(r).split('|').map(function(id) { return chgStockName(id) || id; }).join(' and '); } },
   { path: 'stock.pastes', kind: 'raw', noun: 'stock message', label: function(r) { return chgJoin(r.sentBy, r.to ? chgDay(r.to) : ''); } },
   { path: 'production.entries', kind: 'arr', noun: 'production entry', plural: 'production entries',
     label: function(r) { return chgJoin(r.kind, typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },

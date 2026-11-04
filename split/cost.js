@@ -397,7 +397,7 @@ function costMonthShare(month, from, to) {
 /* Zinc from its bills: what was bought in the 90 days to `to`, per kg plated (weighed) over the same days. Null unless every
    zinc bill in the window is priced and something was plated: a gap is filled at the model, never read as cheap. */
 function costZincByBills(to) {
-  var it = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var it = stockFindByKey('ZINC');
   if (!it) return null;
   // The window starts no earlier than the first zinc bill on record: before it, nothing was entered, which is not nothing
   // bought (June read ₹0.93/kg over a window two-thirds before the bills began).
@@ -542,7 +542,7 @@ function liveCost(from, to, kg) {
   var landed = zincLandedRate();
   // Modelled zinc kilos are priced at what was last PAID by the end of the
   // period, and only failing that at today's market rate.
-  var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var zincItem = stockFindByKey('ZINC');
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
   var zp = zincPaid ? zincPaid.price : landed;

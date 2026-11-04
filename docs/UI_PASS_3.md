@@ -1314,7 +1314,8 @@ list is not synced until it is listed*).
 | The models followed | `S.market.models`, a list | yes | one record | store `market.models`, id `-` |
 | Weather days | `S.market.weather`, a map by day | **no** (a fetched copy) | **quiet**: this device's, the other filling what it lacks, never held | store `market.weather`, quiet |
 | The feeds' settings | `S.feedsCfg` | yes | one record | id `-` |
-| A merged stock line | `mergedInto`, `retiredAt` on the line; `mergedFrom` on its entries | yes | as their stores | as their stores |
+| A merged stock line | `mergedInto`, `retiredAt` on the line; `mergedFrom` on its entries; the kept line's `mergedFrom` (ids) and the merged line's names in its `aliases`; an entry or a price quoted naming the retired line moved to the kept line on load (`stockMergedRepoint`, structural and idempotent, as built) | yes | as their stores | as their stores |
+| Two stock lines kept apart | `stock.notTwins`: sorted pairs of ids the owner said are different chemicals (*They are different*); written only when said | yes | yes (*stock pair kept apart*) | as its store |
 | The PIN's length | `len` on a user's secret | as the users' store (the secret never compared) | as users | as users; no PIN is sent (SERVER.md §6) |
 | A board's layout | the device (`sep_inv_layout`) | — | — | store `prefs`, id the person; the later wins; served to that person only (§7h) |
 | A widget's Choose (U2R) | the layout's `opts.<id>.choose`, on the device | — | — | with the layout, in the person's `prefs` (§24n) |
@@ -1333,6 +1334,9 @@ list is not synced until it is listed*).
 
 TAB_MAP's I1–I11 hold, with these words for this pass:
 - **I1. The book changes only as §16 lists.** No record is rewritten by a migration. The device keys may change as each step says.
+  *As built at U4:* one structural pass moves an entry or a price quoted that names a retired stock line to the line it was merged
+  into (`stockMergedRepoint`): it changes only which line a record is on, keeping where it came from (`mergedFrom`), and runs again
+  to no effect.
 - **I2. Every old address still opens** where its screen went, through `navRedirect` (§18): a bookmark, the manifest's shortcut, the
   Windows widget's launch, a trail step an older build saved, a new window, a guide's link, a search's Recent, a task's saved `go`.
 - **I3. No dangling door.** A step that moves a place re-points every door to it in the same step (`todoGo`, `advGoTo`, `WS_GO_PAGE`,

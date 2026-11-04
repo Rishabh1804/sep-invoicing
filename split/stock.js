@@ -1259,13 +1259,14 @@ function stockManualModel() {
     if (m.mode === 'count') after = f.qty;
     else if (m.mode === 'received') after = (lvl || 0) + f.qty;
     else if (lvl != null) after = stockRound(lvl - f.qty);
-    var what = m.mode === 'count' ? 'Counted ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) :
-      m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
+    // The unit is the line's own text (a file's line carries any string): escaped as every other part (Cipher H-1, U4's Edict V).
+    var what = m.mode === 'count' ? 'Counted ' + escHtml(unitQ(it, f.qty)) + ' of ' + escHtml(it.name) :
+      m.mode === 'received' ? 'Received ' + escHtml(unitQ(it, f.qty)) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
         (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
         // The price as it is kept (to its own places, never rounded to the paisa for show) and what the line comes to, the amount Save
         // records (gstRound(price × qty); Iuno L-6).
         (f.price != null ? ', ' + escHtml(stockPriceText(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST, ' + escHtml(formatCurrency(gstRound(f.price * f.qty))) + ' for the line' : '') :
-      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
+      (m.mode === 'used' ? 'Used ' : 'Charged ') + escHtml(unitQ(it, f.qty)) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
     var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
       ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
     lines.push(what + (day ? ' on ' + escHtml(day) : '') + shelf);
@@ -1463,7 +1464,7 @@ function stockTwinWhy(a, b) {
 /* Two lines the owner said are different (a pair from the To-do or the merge): never raised again. Kept in the book as the pair's
    ids, sorted. */
 function stockTwinKey(a, b) { return [String(a), String(b)].sort().join('|'); }
-function stockNotTwins() { var st = stockData(); if (!Array.isArray(st.notTwins)) st.notTwins = []; return st.notTwins; }
+function stockNotTwins() { var st = stockData(); return Array.isArray(st.notTwins) ? st.notTwins : []; }
 /* One letter added, dropped or changed. */
 function stockOneLetter(x, y) {
   if (Math.abs(x.length - y.length) > 1) return false;
@@ -1513,8 +1514,9 @@ function stockMergeOpen(itemId, intoId) {
 }
 function stockNotTwinsSay(a, b) {
   if (!grdGate('settings', 'say two stock lines are different', function() { stockNotTwinsSay(a, b); })) return;
-  var k = stockTwinKey(a, b), list = stockNotTwins();
-  if (list.indexOf(k) < 0) list.push(k);
+  var st = stockData(), k = stockTwinKey(a, b);
+  if (!Array.isArray(st.notTwins)) st.notTwins = [];
+  if (st.notTwins.indexOf(k) < 0) st.notTwins.push(k);
   saveState();
   var scrim = document.querySelector('[data-stock-merge]');
   if (scrim && scrim.closest('.inv-scrim-dialog')) dialogCloseScrim(scrim.closest('.inv-scrim-dialog'));
@@ -1532,6 +1534,9 @@ async function stockMergeDo() {
     return;
   }
   var st = stockData(), moving = st.entries.filter(function(e) { return e.itemId === from.id; });
+  // One line with no unit: its figures are read in the other's from now on, which only the owner can say is right (Cipher L-4).
+  if ((from.unit || '') !== (into.unit || '') && !(await uiConfirm({ title: (from.unit ? into.name : from.name) + ' has no unit',
+      body: 'Its figures will be read in ' + (from.unit || into.unit) + '. Merge only if that is the unit they were counted in.', okLabel: 'They are in ' + (from.unit || into.unit) }))) return;
   var ok = await uiConfirm({ title: 'Move ' + todoPlural(moving.length, 'entry', 'entries') + ' from ' + from.name + ' to ' + into.name + ' and keep ' + from.name + ' as a spelling?',
     body: from.name + ' is retired, not deleted: each entry keeps where it came from. Messages written ' + from.name + ' land on ' + into.name + ' from now on.', okLabel: 'Merge' });
   if (!ok) return;
@@ -2043,7 +2048,7 @@ function stockMergeImport(src) {
   if (!src || typeof src !== 'object') throw new Error('not a stock file');
   if (src.format !== 'sep-stock' && src.stock) src = src.stock;
   if (!Array.isArray(src.items) || !Array.isArray(src.entries)) throw new Error('not a stock file');
-  var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
+  var st = stockData(), idMap = {}, copies = [], added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
   src.items.forEach(function(it) {
     if (!it || !it.id || typeof it.name !== 'string' || !it.name.trim()) return;
     var mine = stockLive(it.id) || stockFindByKey(it.key || stockKey(it.name));
@@ -2055,7 +2060,11 @@ function stockMergeImport(src) {
     if (!(Number.isInteger(copy.lastPos) && copy.lastPos > 0)) delete copy.lastPos;
     copy.aliases = stockAliases(copy);
     st.items.push(copy); idMap[it.id] = copy.id; added.items++;
+    copies.push(copy);
   });
+  // A file's line merged into another names that line by the file's id: read through the map, so the line kept is this book's
+  // (Cipher L-5, U4's Edict V).
+  copies.forEach(function(c) { if (c.mergedInto && idMap[c.mergedInto]) c.mergedInto = idMap[c.mergedInto]; });
   var have = {};
   st.entries.forEach(function(e) { have[e.id] = e; });
   var num = function(v) { return typeof v === 'number' && isFinite(v); };
@@ -2128,6 +2137,8 @@ function stockMergeImport(src) {
     if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
     suppPays().push(c); added.supplierPays++;
   });
+  // What the file brought that names a line merged here goes to the line kept (UI pass 3 §11c).
+  stockMergedRepoint();
   return added;
 }
 

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="f709b1a5">
+<meta name="app-build" content="477e102a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -5090,7 +5090,8 @@ function uiFlowHtml(name, m, o) {
 /* The flows on screen kept in step with what is typed: the steps' state and heads, the progress and the preview. A field is never
    replaced, so the cursor and the keyboard stay where they are. */
 function uiFlowSync(root) {
-  var els = (root || document).querySelectorAll ? (root || document).querySelectorAll('[data-flow]') : [];
+  var r = root || document, els = r.querySelectorAll ? Array.prototype.slice.call(r.querySelectorAll('[data-flow]')) : [];
+  if (r.matches && r.matches('[data-flow]')) els.unshift(r);
   for (var k = 0; k < els.length; k++) {
     var el = els[k], fn = UI_FLOWS[el.getAttribute('data-flow')], m = null;
     if (!fn) continue;
@@ -5134,6 +5135,10 @@ function uiFlowEnter(e) {
   if (!flow || flow.hasAttribute('data-flow-ownkeys')) return false;
   uiFlowSync(flow);
   if (li.getAttribute('data-state') !== 'done') return false;
+  // Only the field that finishes its step goes on: the step's last field (Cipher M-1, U4's Edict V). From any other field the Enter
+  // chain moves to the next field as it always did, so a delivery's price after its quantity is never skipped.
+  var fields = li.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+  if (!fields.length || fields[fields.length - 1] !== t) return false;
   var nx = flow.querySelector('[data-flow-step][data-state="next"]'), f = uiFlowFirstField(nx);
   if (!f || f === t) return false;
   e.preventDefault();
@@ -7345,6 +7350,9 @@ var CHG_TRACK = [
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
+  // Two stock lines the owner said are different (UI pass 3 §11c): a sorted pair of ids, logged by the lines' names.
+  { path: 'stock.notTwins', kind: 'arr', noun: 'stock pair kept apart', key: function(r) { return String(r); },
+    label: function(r) { return String(r).split('|').map(function(id) { return chgStockName(id) || id; }).join(' and '); } },
   { path: 'stock.pastes', kind: 'raw', noun: 'stock message', label: function(r) { return chgJoin(r.sentBy, r.to ? chgDay(r.to) : ''); } },
   { path: 'production.entries', kind: 'arr', noun: 'production entry', plural: 'production entries',
     label: function(r) { return chgJoin(r.kind, typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
@@ -9642,7 +9650,7 @@ function _zincLmeOn(date) {
 }
 
 function zincUpliftBills() {
-  var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var item = stockFindByKey('ZINC');
   if (!item) return [];
   return stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }).slice(-ZINC_DERIVE_BILLS).map(function(p) {
     return { date: p.date, price: p.e.price, supplier: p.e.supplier || '', billNo: p.e.billNo || '' };
@@ -9776,7 +9784,7 @@ function zincTrend(from) {
   var landed = function(r) { return gstRound(r * (1 + up / 100) + prem); };
   var days = Object.keys(h).filter(function(d) { return h[d] > 0; }).sort();
   var market = days.filter(function(d) { return !from || d >= from; }).map(function(d) { return { date: d, lme: h[d], landed: landed(h[d]) }; });
-  var item = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var item = stockFindByKey('ZINC');
   var all = item ? stockPurchases(item.id).filter(function(p) { return p.e.price > 0; }) : [];
   var bills = all.filter(function(p) { return !from || p.date >= from; }).map(function(p) {
     var l = _zincLmeOn(p.date), b = { date: p.date, price: p.e.price, qty: p.e.qty || 0, supplier: (p.e.supplier || '').trim(), billNo: p.e.billNo || '', market: null, over: null, timing: null };
@@ -29109,7 +29117,7 @@ uiFlowDefine('payForm', payFormModel);
 var _payDueAfterMemo = null;
 function payDueAfter(d, w, p) {
   var key = [typeof _bookWrites !== 'undefined' ? _bookWrites : '', d.weekStart, w.id, p.date, p.amount, p.kind].join('|');
-  if (_payDueAfterMemo && _payDueAfterMemo.key === key) return _payDueAfterMemo.v;
+  if (_payDueAfterMemo && _payDueAfterMemo.key === key && _payDueAfterMemo.book === S) return _payDueAfterMemo.v;
   var list = staffPayments(), rec = Object.assign({ id: '_flow_preview', note: '', at: Date.now() }, p), v = null;
   list.push(rec);
   try {
@@ -29117,7 +29125,7 @@ function payDueAfter(d, w, p) {
     v = row ? row.due : null;
   } catch (e) { v = null; }
   finally { var i = list.indexOf(rec); if (i >= 0) list.splice(i, 1); }
-  _payDueAfterMemo = { key: key, v: v };
+  _payDueAfterMemo = { key: key, v: v, book: S };
   return v;
 }
 function _payFormHtml(d) {
@@ -30945,13 +30953,14 @@ function stockManualModel() {
     if (m.mode === 'count') after = f.qty;
     else if (m.mode === 'received') after = (lvl || 0) + f.qty;
     else if (lvl != null) after = stockRound(lvl - f.qty);
-    var what = m.mode === 'count' ? 'Counted ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) :
-      m.mode === 'received' ? 'Received ' + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
+    // The unit is the line's own text (a file's line carries any string): escaped as every other part (Cipher H-1, U4's Edict V).
+    var what = m.mode === 'count' ? 'Counted ' + escHtml(unitQ(it, f.qty)) + ' of ' + escHtml(it.name) :
+      m.mode === 'received' ? 'Received ' + escHtml(unitQ(it, f.qty)) + ' of ' + escHtml(it.name) + (m.supplier ? ' from ' + escHtml(m.supplier) : '') +
         (m.billNo ? ', bill ' + escHtml(m.billNo) + (m.billDate || m.date ? ' of ' + escHtml(stockShortDate(m.billDate || m.date)) : '') : '') +
         // The price as it is kept (to its own places, never rounded to the paisa for show) and what the line comes to, the amount Save
         // records (gstRound(price × qty); Iuno L-6).
         (f.price != null ? ', ' + escHtml(stockPriceText(f.price)) + ' a' + (it.unit ? ' ' + escHtml(it.unit) : ' unit') + ' before GST, ' + escHtml(formatCurrency(gstRound(f.price * f.qty))) + ' for the line' : '') :
-      (m.mode === 'used' ? 'Used ' : 'Charged ') + unitQ(it, f.qty) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
+      (m.mode === 'used' ? 'Used ' : 'Charged ') + escHtml(unitQ(it, f.qty)) + ' of ' + escHtml(it.name) + (baths.length ? ' into ' + escHtml(baths.map(relayAreaName).join(' + ')) : '');
     var shelf = lvl == null ? (m.mode === 'count' || m.mode === 'received' ? ' · The shelf is ' + escHtml(unitQ(it, after)) + ' after it' : ' · The level is not known yet: no count or delivery before it') :
       ' · The shelf goes from ' + escHtml(unitQ(it, lvl)) + ' to ' + escHtml(unitQ(it, after));
     lines.push(what + (day ? ' on ' + escHtml(day) : '') + shelf);
@@ -31149,7 +31158,7 @@ function stockTwinWhy(a, b) {
 /* Two lines the owner said are different (a pair from the To-do or the merge): never raised again. Kept in the book as the pair's
    ids, sorted. */
 function stockTwinKey(a, b) { return [String(a), String(b)].sort().join('|'); }
-function stockNotTwins() { var st = stockData(); if (!Array.isArray(st.notTwins)) st.notTwins = []; return st.notTwins; }
+function stockNotTwins() { var st = stockData(); return Array.isArray(st.notTwins) ? st.notTwins : []; }
 /* One letter added, dropped or changed. */
 function stockOneLetter(x, y) {
   if (Math.abs(x.length - y.length) > 1) return false;
@@ -31199,8 +31208,9 @@ function stockMergeOpen(itemId, intoId) {
 }
 function stockNotTwinsSay(a, b) {
   if (!grdGate('settings', 'say two stock lines are different', function() { stockNotTwinsSay(a, b); })) return;
-  var k = stockTwinKey(a, b), list = stockNotTwins();
-  if (list.indexOf(k) < 0) list.push(k);
+  var st = stockData(), k = stockTwinKey(a, b);
+  if (!Array.isArray(st.notTwins)) st.notTwins = [];
+  if (st.notTwins.indexOf(k) < 0) st.notTwins.push(k);
   saveState();
   var scrim = document.querySelector('[data-stock-merge]');
   if (scrim && scrim.closest('.inv-scrim-dialog')) dialogCloseScrim(scrim.closest('.inv-scrim-dialog'));
@@ -31218,6 +31228,9 @@ async function stockMergeDo() {
     return;
   }
   var st = stockData(), moving = st.entries.filter(function(e) { return e.itemId === from.id; });
+  // One line with no unit: its figures are read in the other's from now on, which only the owner can say is right (Cipher L-4).
+  if ((from.unit || '') !== (into.unit || '') && !(await uiConfirm({ title: (from.unit ? into.name : from.name) + ' has no unit',
+      body: 'Its figures will be read in ' + (from.unit || into.unit) + '. Merge only if that is the unit they were counted in.', okLabel: 'They are in ' + (from.unit || into.unit) }))) return;
   var ok = await uiConfirm({ title: 'Move ' + todoPlural(moving.length, 'entry', 'entries') + ' from ' + from.name + ' to ' + into.name + ' and keep ' + from.name + ' as a spelling?',
     body: from.name + ' is retired, not deleted: each entry keeps where it came from. Messages written ' + from.name + ' land on ' + into.name + ' from now on.', okLabel: 'Merge' });
   if (!ok) return;
@@ -31729,7 +31742,7 @@ function stockMergeImport(src) {
   if (!src || typeof src !== 'object') throw new Error('not a stock file');
   if (src.format !== 'sep-stock' && src.stock) src = src.stock;
   if (!Array.isArray(src.items) || !Array.isArray(src.entries)) throw new Error('not a stock file');
-  var st = stockData(), idMap = {}, added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
+  var st = stockData(), idMap = {}, copies = [], added = { items: 0, entries: 0, pastes: 0, held: 0, differ: 0 };
   src.items.forEach(function(it) {
     if (!it || !it.id || typeof it.name !== 'string' || !it.name.trim()) return;
     var mine = stockLive(it.id) || stockFindByKey(it.key || stockKey(it.name));
@@ -31741,7 +31754,11 @@ function stockMergeImport(src) {
     if (!(Number.isInteger(copy.lastPos) && copy.lastPos > 0)) delete copy.lastPos;
     copy.aliases = stockAliases(copy);
     st.items.push(copy); idMap[it.id] = copy.id; added.items++;
+    copies.push(copy);
   });
+  // A file's line merged into another names that line by the file's id: read through the map, so the line kept is this book's
+  // (Cipher L-5, U4's Edict V).
+  copies.forEach(function(c) { if (c.mergedInto && idMap[c.mergedInto]) c.mergedInto = idMap[c.mergedInto]; });
   var have = {};
   st.entries.forEach(function(e) { have[e.id] = e; });
   var num = function(v) { return typeof v === 'number' && isFinite(v); };
@@ -31814,6 +31831,8 @@ function stockMergeImport(src) {
     if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
     suppPays().push(c); added.supplierPays++;
   });
+  // What the file brought that names a line merged here goes to the line kept (UI pass 3 §11c).
+  stockMergedRepoint();
   return added;
 }
 
@@ -32336,7 +32355,7 @@ function costMonthShare(month, from, to) {
 /* Zinc from its bills: what was bought in the 90 days to `to`, per kg plated (weighed) over the same days. Null unless every
    zinc bill in the window is priced and something was plated: a gap is filled at the model, never read as cheap. */
 function costZincByBills(to) {
-  var it = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var it = stockFindByKey('ZINC');
   if (!it) return null;
   // The window starts no earlier than the first zinc bill on record: before it, nothing was entered, which is not nothing
   // bought (June read ₹0.93/kg over a window two-thirds before the bills began).
@@ -32481,7 +32500,7 @@ function liveCost(from, to, kg) {
   var landed = zincLandedRate();
   // Modelled zinc kilos are priced at what was last PAID by the end of the
   // period, and only failing that at today's market rate.
-  var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var zincItem = stockFindByKey('ZINC');
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
   var zp = zincPaid ? zincPaid.price : landed;
@@ -52673,7 +52692,7 @@ function _dashZincRedraw() {
 /* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): its own address (v=spend: the desktop's wide pane, the
    phone's screen), zinc's card brought into sight. */
 function dashZincShow() {
-  var z = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var z = stockFindByKey('ZINC');
   if (z) _dashPriceItem = z.id;
   navOpen({ tab: 'pageStock', v: 'spend', id: '' });
   var el = document.getElementById('dashPrice');

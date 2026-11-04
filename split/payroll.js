@@ -723,7 +723,7 @@ uiFlowDefine('payForm', payFormModel);
 var _payDueAfterMemo = null;
 function payDueAfter(d, w, p) {
   var key = [typeof _bookWrites !== 'undefined' ? _bookWrites : '', d.weekStart, w.id, p.date, p.amount, p.kind].join('|');
-  if (_payDueAfterMemo && _payDueAfterMemo.key === key) return _payDueAfterMemo.v;
+  if (_payDueAfterMemo && _payDueAfterMemo.key === key && _payDueAfterMemo.book === S) return _payDueAfterMemo.v;
   var list = staffPayments(), rec = Object.assign({ id: '_flow_preview', note: '', at: Date.now() }, p), v = null;
   list.push(rec);
   try {
@@ -731,7 +731,7 @@ function payDueAfter(d, w, p) {
     v = row ? row.due : null;
   } catch (e) { v = null; }
   finally { var i = list.indexOf(rec); if (i >= 0) list.splice(i, 1); }
-  _payDueAfterMemo = { key: key, v: v };
+  _payDueAfterMemo = { key: key, v: v, book: S };
   return v;
 }
 function _payFormHtml(d) {

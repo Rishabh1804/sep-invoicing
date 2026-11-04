@@ -555,7 +555,7 @@ function rptSourcesHtml(p, current) {
   var items = [
     'Invoices and credit notes: the Register, each invoice net of the notes against it (as Stats reads them).',
     'Challans: Incoming material, by challan date. Production and power cuts: Production’s record. Attendance and labour: Staff, at the labour card’s arithmetic.',
-    'Cost: the live cost (Stats → Cost), measured where recorded and filled at the model where not. Money: the imported bank statement and GST by invoice month.',
+    'Cost: the live cost (Stats → Tables → Cost), measured where recorded and filled at the model where not. Money: the imported bank statement and GST by invoice month.',
     'Not recorded here: a day nobody typed (a gap, not a zero), material plated but not entered, and money that did not pass through the bank.'
   ];
   if (!current) items.push('A past period lists no open To-do: the tasks of the day it was are not kept.');

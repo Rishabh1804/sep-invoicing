@@ -165,7 +165,8 @@ test.describe('P210: contract labour is fixed', () => {
     await expect(worst.locator('[data-tile="full"]')).toContainText('Against the full cost');
     await expect(worst).toContainText('Labour is fixed, so it contributes');
     await expect(worst).not.toContainText('If labour scales');
-    await expect(page.locator('#statsMargin [data-margin-split]')).toHaveText('labour fixed');
+    // The badge is under the Tables' By client since U3 (§10), where contribution by client went.
+    await expect(page.locator('#statsTable [data-margin-split]')).toHaveText('labour fixed');
 
     // Home's "Who is driving it?" (Pulse's until UI pass 3, a widget at Large here) asks BETA for the full cost, and asks no
     // labour question.

@@ -70,10 +70,10 @@ test('a crore in a tile breaks after a comma group, and a cut meta line keeps it
   expect(home.length).toBe(1);
   expect(home[0]).toMatch(/^₹\d{1,2}\.\d\dCr$/);
   await expect(page.locator('#mtdRevenue [title]')).toHaveAttribute('title', /^₹\d{1,2},\d\d,\d\d,\d{3}\.\d\d$/);
-  // The exact crore in a tile is Stats → Trends' revenue, and it breaks only after a comma group.
-  await openStatsTab(page, 'trends');
+  // The exact crore in a tile is Stats' verdict's revenue (Trends' until UI pass 3's U3, §10), and it breaks only after a comma group.
+  await openStatsTab(page, 'board');
   await openVerdict(page);
-  const lines = await linesOf('#statsHeadline [data-tile="revenue"] .inv-tile-value');
+  const lines = await linesOf('#statsVerdict [data-tile="revenue"] .inv-tile-value');
   expect(lines.join('')).toMatch(/^₹\d{1,2},\d\d,\d\d,\d{3}\.\d\d$/);
   expect(lines.length).toBeGreaterThan(1);
   for (const l of lines.slice(0, -1)) expect(l).toMatch(/,$/);

@@ -84,9 +84,13 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     await loadAppWithState(page, state());
     const c = await g(page, `predCadence().map(function(x){ return [x.name, x.median, x.quiet]; })`) as any[];
     expect(c).toContainEqual(['QUIET WORKS', 2, true]);
+    // The next challan is the Tables' By client's last column since U3 (§10): over the whole book, so QUIET WORKS (billed two
+    // months ago) has its row, its next challan said late and quiet.
     await openStatsTab(page, 'clients');
-    await expect(page.locator('#statsNextChallan')).toContainText('QUIET WORKS');
-    await expect(page.locator('#statsNextChallan')).toContainText('quiet');
+    await page.locator('[data-stats-toolbar] [data-action="invStatsPeriod"][data-period="all"]').click();
+    const quiet = page.locator('#statsTable tr[data-client-row]', { hasText: 'QUIET WORKS' });
+    await expect(quiet.locator('td[data-col="next"]')).toContainText('late');
+    await expect(quiet.locator('td[data-col="next"]').locator('.inv-dot-danger')).toContainText('quiet');
     const p = await g(page, `predMonthPace()`) as any;
     if (p) expect(p.projRev).toBeGreaterThanOrEqual(p.rev);
   });

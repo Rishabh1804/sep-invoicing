@@ -51,7 +51,7 @@ function navLoc() {
       if (v === 'quotes') { if (_qtForm) v = 'quotes/form'; else if (_isDesktop && _qtActiveId) id = _qtActiveId; }
       break;
     case 'pageFinance': v = _finTab; if (_isDesktop && _finTab === 'receipts' && _bankOpen != null) id = String(_bankOpen); break;
-    case 'pageStats': v = statsTab(); break;
+    case 'pageStats': v = statsTab() === 'tables' ? 'tables/' + statsTable() : 'board'; break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
       v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
@@ -104,6 +104,10 @@ var NAV_REDIRECTS = [
   // UI pass 3, U2 (§8d): Pulse folded into Home's dashboard; its questions, its widgets and its cards are widgets on the board.
   { tab: 'pageHome', v: 'pulse', to: function() { return { tab: 'pageHome', v: 'home' }; } },
   { tab: 'pageStats', v: 'billing', to: function() { return { tab: 'pagePipeline', v: '' }; } },
+  // UI pass 3, U3 (§18): Stats' three tabs went to two views; each tab's cards are a widget on the Dashboard or a table.
+  { tab: 'pageStats', v: 'clients', to: function() { return { tab: 'pageStats', v: 'tables/client' }; } },
+  { tab: 'pageStats', v: 'cost', to: function() { return { tab: 'pageStats', v: 'tables/cost' }; } },
+  { tab: 'pageStats', v: 'trends', to: function() { return { tab: 'pageStats', v: 'board' }; } },
   // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
   { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } },
   // TM3a: Bills & notes split: its bills are Payments', its credit notes the Invoices' dialog.
@@ -161,7 +165,7 @@ function navLabel(loc) {
       var fc = loc.id && parts[0] === 'receipts' && S.clients.find(function(x) { return String(x.id) === loc.id; });
       if (fc) rec = fc.name;
       break;
-    case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
+    case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
       sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
@@ -237,7 +241,7 @@ function navApply(loc) {
         finSetTab(parts[0]); _bankEdit = null;
         if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id && S.clients.some(function(c) { return String(c.id) === id; }) ? id : null;
         break;
-      case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'clients'); } catch (e) { /* per device only */ } break;
+      case 'pageStats': statsPlace(parts[0] || 'board', parts[1]); break;
       case 'pageProduction':
         // An address of the register photo's check (it came out on 13 Oct 2026) opens the view under it.
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main';

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, switchTab, todayIso, type SepState } from './fixtures';
+import { loadAppWithState, switchTab, openStatsTab, todayIso, type SepState } from './fixtures';
 import { longBook, workDaysBack } from './load-fixture';
 import { dayOff } from './sweep-fixture';
 
@@ -205,10 +205,10 @@ export function dataLayerSpec(layout: 'phone' | 'desktop') {
       expect(foot.stats).toBe(200.01);
       expect(foot.net).toBe(200);
       expect(foot.lines).toEqual([[1, 100, 66.67, 18], [2, 100, 66.67, 18], [3, 100, 66.66, 18]]);
-      // As Trends' six months draw them: the tonnes and the ₹ a kilo, month by month.
-      await switchTab(page, 'pageStats');
-      await page.locator('#statsToolbar .inv-viewtab[data-tab="trends"]').click();
-      const drawn = await page.locator('#statsMonths table tbody tr').evaluateAll((trs) => trs.map((tr) => Array.from(tr.querySelectorAll('td')).slice(1, 3).map((td) => (td.textContent || '').trim())));
+      // As Stats' six months draw them (Trends' until U3, the Tables' By month since): the tonnes and the ₹ a kilo, month by month.
+      await openStatsTab(page, 'month');
+      const drawn = await page.locator('#statsTable table[data-stats-tbl="month"] tbody tr').evaluateAll((trs) => trs.map((tr) =>
+        ['t', 'real'].map((k) => ((tr.querySelector('td[data-col="' + k + '"]') || {}).textContent || '').trim().replace(/^\u2265 /, ''))));
       expect(drawn).toEqual(months.map((m: any) => m.cells));
 
       // Production → Lines: the pay week before this one, line by line, as prodLineWeek reads it and as its week table draws it.

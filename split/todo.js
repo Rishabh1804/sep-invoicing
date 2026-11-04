@@ -56,7 +56,8 @@ function todoToday() { return localDateStr(); }
 function todoPlural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 /* A task of the owner's own carries the label of the place its move opened when it was added; a place that has since moved
    (the tab map, §5) is shown by the name of the place it opens now. */
-var TODO_GO_LABEL_NOW = { 'Bills & notes': 'Add the bill' };
+/* A saved task's label for a place that moved: Bills & notes (TM3a); Stats' Trends and contribution (UI pass 3, U3). */
+var TODO_GO_LABEL_NOW = { 'Bills & notes': 'Add the bill', 'Open Trends': 'Open Stats', 'Open contribution by client': 'Open Stats by client' };
 function todoGoLabel(t) { var l = (t && t.goLabel) || 'Open'; return TODO_GO_LABEL_NOW[l] || l; }
 
 /* ---------- Mine ---------- */
@@ -916,10 +917,8 @@ function todoGo(go) {
       // Pipeline's.
       if (go.tab === 'overview') { tdySetView('home'); switchTab('pageHome'); }
       else if (go.tab === 'billing') switchTab('pagePipeline');
-      else {
-        try { localStorage.setItem(STATS_TAB_KEY, go.tab || 'clients'); } catch (e) { /* per-device */ }
-        switchTab('pageStats');
-      }
+      // A tab named before U3 (clients, cost, trends) lands where its cards went (intel.js STATS_TAB_OLD; §18).
+      else statsOpen(go.tab || 'board', go.table);
       if (go.anchor) uiRevealEl(document.getElementById(go.anchor));
       break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;

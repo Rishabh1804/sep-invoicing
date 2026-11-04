@@ -182,7 +182,11 @@ test.describe('P184: the tab map on the phone', () => {
     const own = await g(page, `NAV_REDIRECTS.length`) as number;
     expect(own).toBeGreaterThan(2);
     // A pure helper: an address it does not know comes back unchanged.
-    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'cost', id: '', d: '' })`)).toEqual({ tab: 'pageStats', v: 'cost', id: '', d: '' });
+    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'tables/cost', id: '', d: '' })`)).toEqual({ tab: 'pageStats', v: 'tables/cost', id: '', d: '' });
+    // U3's rows: Stats' three tabs land where their cards went.
+    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'cost', id: '', d: '' })`)).toEqual({ tab: 'pageStats', v: 'tables/cost', id: '', d: '' });
+    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'clients', id: '', d: '' })`)).toEqual({ tab: 'pageStats', v: 'tables/client', id: '', d: '' });
+    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'trends', id: '', d: '' })`)).toEqual({ tab: 'pageStats', v: 'board', id: '', d: '' });
     expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'old/x', id: 'A', d: '' })`)).toEqual({ tab: 'pagePipeline', v: '', id: 'A', d: '' });
     // A step's own row: Stats' Billing went to Pipeline (TM2b).
     expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'billing', id: '', d: '' })`)).toEqual({ tab: 'pagePipeline', v: '', id: '', d: '' });

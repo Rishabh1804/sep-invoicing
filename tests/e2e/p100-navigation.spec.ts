@@ -120,12 +120,12 @@ test.describe('P100: navigation on the phone', () => {
   test('Backspace goes back, but never from a field', async ({ page }) => {
     await loadAppWithState(page, imState());
     await switchTab(page, 'pageStats');
-    await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click();
-    await expect.poll(() => where(page)).toEqual(['pageStats', 'cost']);
+    await page.locator('[data-action="invStatsTab"][data-tab="tables"]').click();
+    await expect.poll(() => where(page)).toEqual(['pageStats', 'tables/client']);
     await page.locator('#topbarTitle').click();
     await page.keyboard.press('Backspace');
-    // Back to the tab Stats opened on (By client since the tab map, TM2b).
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="clients"][aria-selected="true"]')).toHaveCount(1);
+    // Back to the view Stats opened on (the Dashboard since U3; By client from the tab map, TM2b).
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="board"][aria-selected="true"]')).toHaveCount(1);
     await switchTab(page, 'pageRegister');
     const search = page.locator('#pageRegister input[type="search"], #pageRegister .inv-search input').first();
     await search.fill('x');

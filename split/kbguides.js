@@ -67,15 +67,20 @@ var KB_APP_GUIDES = [
     // Version 7: the owner's look of 21 Oct 2026 (P241): no period on Home, the masthead's lead red first and its weather, the red count
     // on Needs you, the tools in the masthead on a phone, about 7 widgets, an edge only for today, Plant shut.
     { version: 7 }),
-  _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how the app calculates their figures', ['pageStats', 'pageHome'],
-    'Stats has 3 tabs. All 3 tabs use 1 period, which is the same period as Home. Each tab starts with a card that shows its status. On a phone, tap the card to see its figures.\n\n' +
-    '# By client\n- Contribution by client shows the worst client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n' +
+  _kbg('stats', 'Reading Stats', 'The dashboard and the tables, and how the app calculates their figures', ['pageStats', 'pageHome'],
+    'Stats has 2 views: **Dashboard** and **Tables**. Both views start with 1 card. The card shows the price of the period against its live cost. On a phone, tap the card to see its figures.\n\n' +
+    '# The period\n- Stats has its own period: **MTD**, **QTD**, **YTD** or **All**. The period is in the row under the card. Home always shows this month.\n\n' +
+    '# Dashboard\n- The dashboard is a board of widgets, as Home is. Tap **Customise** to move, resize, add or remove a widget. Your board stays on your device, for your ID.\n' +
+    '- Tap the head of a widget to open its table. Tap **The tables behind these** to open the Tables.\n\n' +
+    '# Tables\n- There are 4 tables: **By client**, **By part**, **By month** and **Cost**. Tap a column head to sort by it. Tap it again to sort the other way.\n' +
+    '- To get a table as a file, tap **More**, then **Export this table (CSV)**. **Export the tables (Excel)** gives all 4 tables in 1 workbook.\n\n' +
+    '# By client\n- By client shows the worst priced client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n- Each client also shows its share of the revenue and of the tonnes, and its next challan.\n' +
     '- **Labour is fixed**. The owner ruled this on 13 Oct 2026. The contract crew does not increase or decrease with the work, and the monthly crew never did. Thus 1 kg more or less changes the zinc, chemicals, power and other costs, but not the wages.\n' +
     '- The app divides cost equally per kg. Thus a thin clamp and a heavy bracket have the same cost per kg here. This is the one assumption that the table cannot examine.\n' +
     '- The app uses this rule for the worst large account. It shows what 1 kg of the account contributes to labour. It shows what it does not pay of the full cost. It also shows the price at which it pays its share.\n' +
-    '- **Realisation by client** ranks only the clients with weights on 90% of their revenue. If a client is billed on parts with no weight, the app cannot calculate its price per kg. These accounts are the most likely to be priced too low.\n- To fill in the missing weights, use **Clients → Parts → Derive weights from rates**.\n' +
+    '- The app ranks only the clients with weights on 90% of their revenue. If a client is billed on parts with no weight, the app cannot calculate its price per kg. These accounts are the most likely to be priced too low.\n- To fill in the missing weights, use **Clients → Parts → Derive weights from rates**.\n' +
     '- A client between the variable cost and the full cost still contributes. If you lose that client, the other clients must pay the wages. A client below the variable cost loses money on each kg.\n' +
-    '- **Concentration**: a client with no weights adds almost nothing to the measured tonnage. Thus its share of the plant is unknown, not small.\n' +
+    '- **Of tonnes**: a client with no weights adds almost nothing to the measured tonnage. Thus its share of the plant is unknown, not small.\n' +
     '- To quote a client by the piece, each part must have a **weight per piece**. You can put this weight on the client’s card, in **Part weights**, or on **Parts**.\n' +
     '- **Next challan expected** is the median gap between the challans of each client, counted from its last challan. A client is late after that gap. A client is quiet after 1.75 times the gap and also after the gap plus 3 weeks.\n\n' +
     '# Cost\n- The live cost is all the cost lines divided by the kg plated. Each line shows its source.\n\nThe sources of a cost line:\n- **measured**: the app’s own records.\n- **paid, bank**: the bank statement.\n- **part-recorded**.\n- **market rate**: zinc with no bill.\n- **model**: a fallback figure in Settings.\n\nMore about the live cost:\n' +
@@ -84,14 +89,15 @@ var KB_APP_GUIDES = [
     '- Labour reads **low** when days are not recorded. Each tier is paid only for the days typed. The rest days of the monthly crew also depend on the same attendance.\n' +
     '- **Variable labour by area** puts the hourly pool, the daily tier, overtime and the extra in the area where each was worked.\n- The day pay and rest days of the monthly crew are not in it. That crew is the standing crew, and a split by area would show an allocation that nobody measured. Its overtime is in it, because each overtime hour was worked in a specific area.\n' +
     '- **Recorded against paid** compares the app’s records with what the bank paid. The app marks a difference of more than 10%.\n\n' +
-    '# Trends\n- Trends shows the revenue, tonnage, realisation and margin of the period, compared with the same days before.\n- Then it shows 6 months, each at its own live cost. Then the trend and the top items.\n' +
+    '# By part and By month\n- By part shows each part of 1 client a row. A part with no weight shows a dash for its kg and its price per kg.\n- By month shows 6 months, each at its own live cost.\n' +
     '- In the 6 months, labour shows only where 90% of the month is recorded, or where the bank statement shows the payments for it. If a month has less, the app does not show its labour, because the figure would be too low.\n- **Measured** is the share of the cost of that month that comes from the app’s own records.\n' +
     '- Realisation is revenue divided by the tonnage of the same lines. The app removes the lines with no weight from both figures. These lines are the low-priced work billed by the piece. Thus a partial figure is too **high**.\n\n' +
     '# Why it moved (a widget on Home)\n- The app divides the change in realisation into 2 causes: the rate of each client, and the mix. The mix is the share of the kg of a client, at its rate compared with the average before.\n- The app divides the change in contribution into the price, each cost line and the kg.\n- The causes add up to the change exactly.',
     // Version 2: labour is fixed (owner, 13 Oct 2026), so the worst account is settled one way.
     // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026).
     // Version 4: Pulse folded into Home (UI pass 3, 16 Oct 2026).
-    { version: 4 }),
+    // Version 5: Stats is a dashboard and its tables (UI pass 3, U3, 4 Nov 2026).
+    { version: 5 }),
   _kbg('add', 'Using the app: the Add button', 'One door for everything that comes in', ['pageHome', 'pageStaff', 'pageStock', 'pageProduction'],
     'All data that comes into the app goes through **Add**. On a phone, **Add** is the filled button in the middle of the bottom bar. On a computer, it is at the top of the rail. You can also push the key A.\n\n' +
     '- **Paste**: a WhatsApp message (an attendance roll, the stock message, pickling loads, a production list). The app reads the message. Before it saves anything, it shows each line next to what it read.\n' +

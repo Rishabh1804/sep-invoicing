@@ -43,7 +43,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U2H | Home leads: the masthead's first move, about seven cards on the phone, cards as tall as they need, edges only for today; the news and the weather straight from the sources, the place from the address; a day the plant is shut; Needs you's count a badge (§25) | Built, 21 Oct 2026 (P241) |
 | ⏸ | **Stop: the owner looks** at Home again, both layouts | Looked, 4 Nov 2026: *"Home screen test - pass"*. U3 may start |
 | ↻ | **The refresh of U3–U9** (owner, 4 Nov 2026: *"Start the refresh"*): §10–§15 and §19–§23 brought up to the code as it stands after U2R, U2H and the builds of 21 Oct – 3 Nov; what changed and why is §26 | Written, 4 Nov 2026 |
-| U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
+| U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Built, 4 Nov 2026 (P229): the Dashboard and the Tables, one verdict, the seven widgets, the redirects; §26a's preset as built (§26h) |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
 | U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Not built |
@@ -2433,3 +2433,23 @@ report of the period still running is the owner's to open from the print queue (
   holds*); the owner's book measured only in the scratchpad's harness, never committed.
 - **The data flows** (§16) gain nothing new for U3, U5, U6 and U7. U4's merge of two stock lines (`mergedInto`, `mergedFrom`) is the
   one that crosses to soma-internal through `sep-stock`; U8's `len` on a user's secret travels with the users as §16 lists.
+
+### 26h. U3 as built (4 Nov 2026)
+
+Where the build departs from §10 and §26a, and why:
+- **The owner's Stats preset** packs with no hole only so (P237's rule, checked as §26a asked): `pricecost` l · `kilo` m · `share` m ·
+  `clientprice` l · `turn` s · `dtp` s · `owed` s · `labour` s · `corr` l · `heat` l on the desktop (`kilo` and `share` a pair, four
+  Smalls a row of twelve, two rows of two on a board of six); on the phone `pricecost` · `kilo` · `share` · `clientprice` · `turn` (s) ·
+  `dtp` (s) · `owed` (m), seven cards. §26a's order (`clientprice` before `share`, `owed` at Medium after two Smalls) left a Medium's
+  half row empty. An entry may now be the phone's alone (`'phone'`), as one could be the desktop's (`'desk'`).
+- **The office's Stats preset** is in pairs (`share` · `topitems`, `months` at Large, `dtp` · `owed` at Medium), so a pair the role
+  cannot see (Money's, without Finance) leaves no hole.
+- **The Cost table** is the labour card and the live cost as Stats → Cost drew them ("as now", §10's table), its parts folding open
+  with their sources; it has no sortable head. Its export is the live cost's parts, a row each (its ₹, ₹ a kilo, share and source).
+- **The next challan** is By client's last column (its day, *late* and *quiet* as the card said them); the card went.
+- **The Dashboard's foot** has *The tables behind these* and *Add a widget*, side by side.
+- **The worst account's breakdown** under By client is a coded block (`inv-coded`): its tiles had been drawn grey, their figures alone
+  in their tones (owner, 4 Nov 2026: *"chips which are not color coded, or don't follow design principles"*).
+- **Measured** (phone screens, P195's long book; before → after): By client 2.18, Cost 2.82, Trends 1.89 → the Dashboard 2.94, the
+  Tables by client 1.57, by part 1.35, by month 1.29, Cost 2.90; each budget the next half screen up (3, 2, 1.5, 1.5, 3), none over the
+  three tabs' budgets (3.5, 3, 2).

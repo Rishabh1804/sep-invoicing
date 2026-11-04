@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab, openVerdict, setFilter } from './fixtures';
 
-/* The period's headline is Stats → Trends' verdict card since the tab map (TM2b; it was the Overview's first card), shut on the
-   phone until opened. */
+/* The period's headline is Stats' one verdict card since UI pass 3 (U3, §10; Trends' since the tab map, TM2b, the Overview's first
+   card before it), shut on the phone until opened. */
 async function openHeadline(page: import('@playwright/test').Page) {
-  await openStatsTab(page, 'trends');
+  await openStatsTab(page, 'board');
   await openVerdict(page);
 }
 
@@ -68,7 +68,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, pricedState());
     await openHeadline(page);
 
-    const band = page.locator('#statsHeadline .inv-tiles');
+    const band = page.locator('#statsVerdict .inv-tiles');
     await expect(band).toBeVisible();
 
     // 1000 kg + 2000 kg.
@@ -83,29 +83,30 @@ test.describe('Stats — tonnage and realisation', () => {
     await openHeadline(page);
 
     // 7.93 realised against 8.55 cost is a loss, and the line under the tiles says by how much.
-    const alert = page.locator('#statsHeadline [data-callout="below-cost"]');
+    const alert = page.locator('#statsVerdict [data-callout="below-cost"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText('below full cost');
   });
 
   test('ranks clients by realisation, worst first, and marks the ones under cost', async ({ page }) => {
     await loadAppWithState(page, pricedState());
+    // Realisation by client is the Tables' By client since U3 (§10): worst priced first by default, its ₹/kg the sixth column.
     await openStatsTab(page, 'clients');
 
-    const table = page.locator('[data-card="realisation"]');
+    const table = page.locator('#statsTable table[data-stats-tbl="client"]');
     await expect(table).toBeVisible();
 
-    const rows = table.locator('[data-client-row]');
+    const rows = table.locator('tr[data-client-row]');
     await expect(rows).toHaveCount(2);
     // Worst priced first — the ordering is the point of the table.
     await expect(rows.nth(0)).toContainText('BELOW COST CLIENT');
-    await expect(rows.nth(0)).toContainText('5.40');
+    await expect(rows.nth(0).locator('td[data-col="net"]')).toHaveText('5.40');
     await expect(rows.nth(1)).toContainText('GOOD RATE CLIENT');
-    await expect(rows.nth(1)).toContainText('13.00');
+    await expect(rows.nth(1).locator('td[data-col="net"]')).toHaveText('13.00');
 
-    // The under-cost figure is called out, not just listed.
-    await expect(rows.nth(0).locator('.inv-dot-danger')).toHaveCount(1);
-    await expect(rows.nth(1).locator('.inv-dot-danger')).toHaveCount(0);
+    // The under-cost figure is called out, not just listed: coloured in the danger tone beside the cost it is judged against.
+    await expect(rows.nth(0).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(1);
+    await expect(rows.nth(1).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(0);
   });
 
   test('says so when tonnage could not be established for every line', async ({ page }) => {
@@ -118,14 +119,14 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await openHeadline(page);
 
-    const caveat = page.locator('#statsHeadline [data-callout="coverage"]');
+    const caveat = page.locator('#statsVerdict [data-callout="coverage"]');
     // Stated in revenue terms: one unweighed line worth ₹10L matters more than
     // fifty worth ₹500, and it is the revenue ratio that governs how far the
     // realisation figure can be trusted. Which way it errs is said too (why: the guide).
     await expect(caveat).toContainText('99% of revenue weighed');
     await expect(caveat).toContainText('1 line worth ₹200.00 has no weight');
     await expect(caveat).toContainText('realisation reads high');
-    await expect(page.locator('#statsHeadline [data-tile="tonnage"] .inv-badge-warning')).toHaveText('99% weighed');
+    await expect(page.locator('#statsVerdict [data-tile="tonnage"] .inv-badge-warning')).toHaveText('99% weighed');
   });
 
   /* Regression, found by rendering the live backup.
@@ -147,7 +148,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await openHeadline(page);
 
-    const band = page.locator('#statsHeadline .inv-tiles');
+    const band = page.locator('#statsVerdict .inv-tiles');
     // Tonnage is unchanged at 3.00 t, so realisation must stay 7.93 — not leap
     // to (23,800 + 20,000) / 3000 = 14.60.
     await expect(band).toContainText('3.00 t');
@@ -166,8 +167,8 @@ test.describe('Stats — tonnage and realisation', () => {
     await loadAppWithState(page, state);
     await openStatsTab(page, 'clients');
 
-    const table = page.locator('[data-card="realisation"]');
-    const partialRow = table.locator('[data-partial]');
+    const table = page.locator('#statsTable');
+    const partialRow = table.locator('tr[data-partial]');
     await expect(partialRow).toHaveCount(1);
     await expect(partialRow).toContainText('BELOW COST CLIENT');
     // Shown as unestablished, never as a per-kg number drawn from a sliver.
@@ -184,14 +185,20 @@ test.describe('Stats — tonnage and realisation', () => {
       taxableValue: 100000,
     };
     await loadAppWithState(page, state);
+    // Concentration is the Tables' By client's Of revenue and Of tonnes since U3 (§10), and the share widget.
     await openStatsTab(page, 'clients');
 
-    const card = page.locator('[data-card="concentration"]');
-    await expect(card).toContainText('BELOW COST CLIENT');
+    const row = page.locator('#statsTable tr[data-client-row]', { hasText: 'BELOW COST CLIENT' });
+    await expect(row).toHaveCount(1);
     // Its measured tonnage is ~0, so a share would read as "small" when the
-    // truth is "unknown". That inversion is the trap.
-    await expect(card).toContainText('not measurable');
-    await expect(card).toContainText('unknown, not small');
+    // truth is "unknown". That inversion is the trap: its share of the tonnes is withheld, a dash, never a small percentage.
+    await expect(row.locator('td[data-col="revShare"]')).toHaveText(/^\d+%$/);          // its share of the revenue is known
+    await expect(row.locator('td[data-col="kgShare"]')).toHaveText('—');
+    await expect(row).toContainText('not ranked');
+    // The share widget leaves it out of the shares and says so.
+    await openStatsTab(page, 'board');
+    await page.evaluate(() => (0, eval)(`wdgItemsPut('stats', wdgLay(), [['share', 'm']]); renderStats();`));
+    await expect(page.locator('#statsBoard [data-w="share"] .inv-widget-sub')).toContainText('1 not weighed enough to share out');
   });
 
   test('output tax is Money → GST’s, and what is not yet filed is in Pipeline’s stages', async ({ page }) => {
@@ -222,7 +229,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await openHeadline(page);
 
     // MTD sees only the invoice dated this month: 1000 kg.
-    await expect(page.locator('#statsHeadline .inv-tiles')).toContainText('1.00 t');
+    await expect(page.locator('#statsVerdict .inv-tiles')).toContainText('1.00 t');
   });
 });
 

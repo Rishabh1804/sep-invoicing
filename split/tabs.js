@@ -77,6 +77,8 @@ function switchTab(tabId) {
   if (currentPage && currentPage.id === 'pageFace' && tabId !== 'pageFace' && typeof _faceForm !== 'undefined') _faceForm = null;
   // Home's clock and live widgets stop when Home is left (today.js homeLeave); they start again when it is shown.
   if (currentPage && currentPage.id === 'pageHome' && tabId !== 'pageHome' && typeof homeLeave === 'function') homeLeave();
+  // Stats' board likewise: arranging ends when Stats is left, and its live widgets stop (stats.js statsLeave).
+  if (currentPage && currentPage.id === 'pageStats' && tabId !== 'pageStats' && typeof statsLeave === 'function') statsLeave();
 
   // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
   _viewTopAt++;

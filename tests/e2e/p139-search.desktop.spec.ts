@@ -214,8 +214,9 @@ test.describe('P139: keys and new windows on the desktop', () => {
     await expect(page.locator('#' + here)).toHaveClass(/inv-page-active/);
     // A view tab: its page at that view.
     await switchTab(page, 'pageStats');
-    await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click({ modifiers: ['Control'] });
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="clients"]')).toHaveAttribute('aria-selected', 'true');
+    // Stats' views since U3: the Dashboard it opens on stays, the Tables open in a window of their own.
+    await page.locator('[data-action="invStatsTab"][data-tab="tables"]').click({ modifiers: ['Control'] });
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="board"]')).toHaveAttribute('aria-selected', 'true');
     // A row: its record. A challan on its tab and month.
     await switchTab(page, 'pageRegister');
     await allMonths(page);
@@ -227,7 +228,7 @@ test.describe('P139: keys and new windows on the desktop', () => {
     await page.locator('.inv-topbar [data-action="invNewWindow"]').click();
     expect(await opened(page)).toEqual([
       ['pageFloor', '', '', '_blank'], ['pageRegister', '', '', '_blank'], ['pageClients', 'clients', '', '_blank'], ['pageHistory', '', '', '_blank'],
-      ['pageStats', 'cost', '', '_blank'], ['pageRegister', '', 'INV-900', '_blank'], ['pageIM', 'awaiting', 'IM-8341', '_blank'],
+      ['pageStats', 'tables', '', '_blank'], ['pageRegister', '', 'INV-900', '_blank'], ['pageIM', 'awaiting', 'IM-8341', '_blank'],
       ['pageIM', 'awaiting', '', '_blank'],
     ]);
     // A plain click still does what it always did.

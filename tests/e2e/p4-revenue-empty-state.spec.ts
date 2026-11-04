@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 import { emptyState, loadAppWithState, switchTab, todayIso, openStatsTab } from './fixtures';
 
 // P4 assertion: "Revenue by Client" empty-state is upgraded from a terse muted-text
-// ("No client data") to an actionable empty-state (copy + "Create an invoice" CTA).
+// ("No client data") to an actionable empty-state (copy + "Create an invoice" CTA). Since UI pass 3's U3 (§10) revenue by client is
+// Stats → Tables → By client (and the `share` widget on the Dashboard): its empty state says the period has no invoices and offers
+// Create an invoice, in the one blank state (uiBlankHtml).
 
 test.describe('P4: Revenue by Client empty-state', () => {
 
@@ -15,7 +17,7 @@ test.describe('P4: Revenue by Client empty-state', () => {
     await expect(content).toBeVisible();
 
     // Positive: new copy is present.
-    await expect(content).toContainText('No revenue in this period');
+    await expect(content).toContainText('No invoices in this period');
 
     // Positive: CTA button is present and wired to the existing Create action.
     const cta = content.locator('button[data-action="invCreateNew"]', { hasText: 'Create an invoice' });
@@ -69,8 +71,11 @@ test.describe('P4: Revenue by Client empty-state', () => {
 
     const content = page.locator('#statsContent');
     await expect(content).toBeVisible();
-    // With revenue present, the empty-state copy should not be rendered.
-    await expect(content).not.toContainText('No revenue in this period');
+    // With revenue present, the empty-state copy should not be rendered, on the Tables by client or the Dashboard.
+    await expect(content).not.toContainText('No invoices in this period');
+    await expect(content.locator('button[data-action="invCreateNew"]')).toHaveCount(0);
+    await openStatsTab(page, 'clients');
+    await expect(content).not.toContainText('No invoices in this period');
     await expect(content.locator('button[data-action="invCreateNew"]')).toHaveCount(0);
   });
 

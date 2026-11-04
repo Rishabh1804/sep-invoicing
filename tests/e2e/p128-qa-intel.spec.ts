@@ -227,15 +227,16 @@ test.describe('P128: Stats', () => {
     ])]);
     b.invoices[0].items[0].zeroReason = 'replating';
     await loadAppWithState(page, b);
-    for (const tab of ['clients', 'cost', 'trends']) {
+    // Every place Stats draws since U3 (§10): the Dashboard and the four tables.
+    for (const tab of ['board', 'client', 'part', 'month', 'cost']) {
       await openStatsTab(page, tab);
       for (const sel of ['#statsContent', '#statsToolbar']) {
         await expect(page.locator(sel)).not.toContainText('Infinity');
         await expect(page.locator(sel)).not.toContainText('NaN');
       }
     }
-    await openStatsTab(page, 'trends');
-    await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('Nothing priced was weighed');
+    await openStatsTab(page, 'board');
+    await expect(page.locator('#statsVerdict [data-callout="weighed"]')).toContainText('Nothing priced was weighed');
     // Pulse reads the same period (its cards were the Overview's).
     await openPulse(page);
     await expect(page.locator('#homeDash')).not.toContainText('Infinity');
@@ -252,9 +253,9 @@ test.describe('P128: Stats', () => {
     }));
     const net = await g(page, `JSON.stringify(statsInvoices().map(function(i) { return [i.taxableValue, i.cgstAmt, i.sgstAmt, i.igstAmt, i.grandTotal]; }))`);
     expect(JSON.parse(net as string)).toEqual([[9000, 810, 810, 0, 10620]]);
-    // The headline is Trends' verdict card, and the GST is Money → GST's (the tab map, TM2b).
-    await openStatsTab(page, 'trends');
-    await expect(page.locator('#statsHeadline [data-tile="revenue"]')).toContainText('₹10,620.00 incl. GST');
+    // The headline is Stats' verdict card (U3, §10; Trends' since the tab map), and the GST is Money → GST's (TM2b).
+    await openStatsTab(page, 'board');
+    await expect(page.locator('#statsVerdict [data-tile="revenue"]')).toContainText('₹10,620.00 incl. GST');
     await switchTab(page, 'pageFinance');
     await page.locator('[data-action="invFinTab"][data-tab="gst"]').click();
     await expect(page.locator('#finGst')).toContainText('₹1,620.00');

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, switchTab, todayIso, recentTs } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, todayIso, recentTs } from './fixtures';
 
 // P112: credit notes are netted across all of Stats (owner, 30 Sep 2026: "credit note should be netted across all of
 // stats"). Only contribution by client took them off; the headline, realisation, clients, six months and the trend read a
@@ -28,10 +28,10 @@ test('a batch rebate comes off its invoices in proportion, and every Stats figur
   // Tonnage is untouched; realisation falls by the credit.
   expect(await g(page, 'weighLines(statsInvoices()).kg')).toBe(200);
   expect(await g(page, 'Math.round(weighLines(statsInvoices()).revKnown / weighLines(statsInvoices()).kg * 100) / 100')).toBe(9.8);
-  // The headline is Trends' verdict card (the tab map, TM2b): the revenue badged net of notes, and a line saying how much.
-  await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsHeadline [data-callout="credit-notes"]')).toContainText('₹40.00 taken off');
-  await expect(page.locator('#statsHeadline [data-tile="revenue"] .inv-badge')).toHaveText('net of notes');
+  // The headline is Stats' verdict card (Trends' until UI pass 3's U3, §10): the revenue badged net of notes, and a line saying how much.
+  await openStatsTab(page, 'board');
+  await expect(page.locator('#statsVerdict [data-callout="credit-notes"]')).toContainText('₹40.00 taken off');
+  await expect(page.locator('#statsVerdict [data-tile="revenue"] .inv-badge')).toHaveText('net of notes');
 });
 
 test("a note against one invoice comes off that one; one naming no invoice in the book is said, not guessed", async ({ page }) => {
@@ -39,23 +39,26 @@ test("a note against one invoice comes off that one; one naming no invoice in th
     note('4', { againstInvoice: 'SEP/OLD-00443', invoiceIds: [], taxableValue: 75 })]));
   const net: any = await g(page, 'statsInvoices().map(function(i) { return i.taxableValue; })');
   expect(net).toEqual([1000, 960]);
-  await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsHeadline [data-callout="credit-notes"]')).toContainText('1 note (₹75.00) name no invoice in the book');
-  await expect(page.locator('#statsHeadline [data-tile="revenue"] .inv-badge-warning')).toHaveText('net of notes');
+  await openStatsTab(page, 'board');
+  await expect(page.locator('#statsVerdict [data-callout="credit-notes"]')).toContainText('1 note (₹75.00) name no invoice in the book');
+  await expect(page.locator('#statsVerdict [data-tile="revenue"] .inv-badge-warning')).toHaveText('net of notes');
 });
 
-// The trend keeps its own reach whatever the period chip says, and shades the period on it (owner, 30 Sep 2026: option 1).
+// The trend keeps its own reach whatever the period chip says, and shades the period on it (owner, 30 Sep 2026: option 1). Since
+// UI pass 3's U3 (§10) the trend is the `trend` widget on Stats' board, which reads Stats' period: its bars keep twelve months and the
+// period's are shaded, its Source saying so.
 test('the trend shades the chosen period on its longer history, and says what it shows', async ({ page }) => {
   const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() - 4);
   const old = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-15';
   const s = book([]);
   s.invoices[1] = { ...s.invoices[1], date: old };
   await loadAppWithState(page, s);
-  await openStatsTab(page, 'trends');
-  const card = page.locator('#pageStats [data-card="trend"]');
+  await openStatsTab(page, 'board');
+  await page.evaluate(() => { const w = window as any; w.wdgItemsPut('stats', w.wdgLay(), [['trend', 'l']]); w.renderStats(); });
+  const card = page.locator('#statsBoard .inv-widget[data-w="trend"]');
   await expect(card.locator('[data-span]')).toHaveCount(1);
-  await expect(card).toContainText('Shows the last 12 months whatever the period above; the shaded part is MTD.');
+  await expect(card.locator('.inv-widget-src')).toContainText('the shaded part is MTD');
   await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
-  await expect(card.locator('[data-span]')).toHaveCount(0);
-  await expect(card).toContainText('All time covers all of it.');
+  await expect(page.locator('#statsBoard .inv-widget[data-w="trend"] [data-span]')).toHaveCount(0);
+  await expect(page.locator('#statsBoard .inv-widget[data-w="trend"] .inv-widget-src')).toContainText('All time covers all of it');
 });

@@ -180,12 +180,20 @@ export async function readStoredState(page: Page): Promise<any> {
   return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
-/** Stats is grouped into tabs (By client, Cost, Trends; the tab map, TM2: Overview's cards are Pulse's, Billing's dispatch cycle
- *  Pipeline's): open one by its id (`clients`, `cost`, `trends`). */
+/** Stats is two views since UI pass 3 (U3, §10): the Dashboard (`board`) and the Tables (`tables`, By client · By part · By month ·
+ *  Cost). Open one by its id, or by a table (`client`, `part`, `month`, `cost`), or by an old tab's name, which opens where its
+ *  cards went: `clients` the Tables by client, `cost` the Tables' Cost, `trends` the Dashboard. */
+const STATS_OLD: Record<string, [string, string?]> = { clients: ['tables', 'client'], cost: ['tables', 'cost'], trends: ['board'],
+  board: ['board'], tables: ['tables'], client: ['tables', 'client'], part: ['tables', 'part'], month: ['tables', 'month'] };
 export async function openStatsTab(page: Page, tab: string): Promise<void> {
+  const [v, t] = STATS_OLD[tab] || ['board'];
   await switchTab(page, 'pageStats');
-  await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
-  await page.locator(`#statsToolbar .inv-viewtab[aria-selected="true"][data-tab="${tab}"]`).waitFor();
+  await page.locator(`[data-action="invStatsTab"][data-tab="${v}"]`).click();
+  await page.locator(`#statsToolbar .inv-viewtab[aria-selected="true"][data-tab="${v}"]`).waitFor();
+  if (t) {
+    await page.locator(`[data-stats-table] [data-action="invStatsTable"][data-table="${t}"]`).click();
+    await page.locator(`[data-stats-table] [data-table="${t}"][aria-pressed="true"]`).waitFor();
+  }
 }
 
 /* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone

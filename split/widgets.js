@@ -37,7 +37,10 @@ var WDG_SECTIONS = [
   { id: 'market', label: 'Market', icon: 'market' }, { id: 'analysis', label: 'Analysis', icon: 'correlation' },
   { id: 'questions', label: 'Questions', icon: 'info' }
 ];
-var WDG_BOARDS = { home: 'Home' };
+/* The boards (§7, §10): Home's, and Stats' since U3, each with its own layout per person. A board's page decides who sees it. */
+var WDG_BOARDS = { home: 'Home', stats: 'Stats' };
+var WDG_BOARD_PAGE = { home: 'pageHome', stats: 'pageStats' };
+function wdgBoardSeen(b) { return !!WDG_BOARDS[b] && (typeof grdSees !== 'function' || grdSees(WDG_BOARD_PAGE[b])); }
 var WDG_STORE_KEY = 'sep_inv_layout';
 var WDG_TONES = { danger: 1, warning: 1, ok: 1, info: 1, neutral: 1 };
 
@@ -138,7 +141,7 @@ function wdgGo(def) {
 /* ---------- Presets by role (§7g, §24i) ----------
    A board starts from its role's preset; any change makes it the person's own, and Reset returns to the preset. Each preset holds
    what its role sees by default (grdRoleDefaults) and packs with no hole on both layouts, packing on or off. The phone keeps the
-   desktop's order: a Small stays Small, the rest Medium; an entry marked `desk` is the desktop's alone. About seven cards on the
+   desktop's order: a Small stays Small, the rest Medium; an entry marked `desk` is the desktop's alone, `phone` the phone's. About seven cards on the
    phone (owner, 21 Oct 2026: "Home screen should not feel heavy, and should lead and prioritise the user"): the masthead leads with
    the move worth most, the count of what needs you and the weather, so Do first, Needs you and the weather are not on a board;
    This month at its pace is in Month to date, and Production, the last day and Attendance today in The floor now. What a preset
@@ -152,6 +155,13 @@ var WDG_PRESETS = {
     ['ot', 'm', 'desk']] },
   floor: { label: 'Floor', home: [['floornow', 'l'], ['stockdays', 's'], ['quick', 's'], ['turn', 's'], ['eff', 's'], ['heat', 'm'], ['coming', 'm']] }
 };
+/* Stats' board (U3, §26a): the owner's, packing with no hole on both layouts (four Smalls a row of twelve, two a row of six; the
+   phone's two Smalls one row), about seven cards on the phone, Owed at Medium there; the office's, for a role given Stats, in pairs
+   so a pair the role cannot see leaves no hole (its money widgets drawn only where the role sees money, §7g). The supervisor and the floor have none: their board is drawn from the
+   gallery if Stats is opened to them. */
+WDG_PRESETS.owner.stats = [['pricecost', 'l'], ['kilo', 'm'], ['share', 'm'], ['clientprice', 'l'], ['turn', 's'], ['dtp', 's'], ['owed', 's', 'desk'], ['labour', 's', 'desk'],
+  ['owed', 'm', 'phone'], ['corr', 'l', 'desk'], ['heat', 'l', 'desk']];
+WDG_PRESETS.office.stats = [['share', 'm'], ['topitems', 'm'], ['months', 'l'], ['dtp', 'm'], ['owed', 'm']];
 function wdgRole() {
   if (typeof grdOn !== 'function' || !grdOn()) return 'owner';
   var u = typeof grdUser === 'function' ? grdUser() : null;
@@ -160,7 +170,7 @@ function wdgRole() {
 function wdgPresetKey() { var r = wdgRole(); return WDG_PRESETS[r] ? r : 'owner'; }
 function wdgPresetList(board, lay, key) {
   var p = WDG_PRESETS[key || wdgPresetKey()] || WDG_PRESETS.owner;
-  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]) && !(x[2] === 'desk' && lay === 'phone'); }).map(function(x) {
+  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]) && !(x[2] === 'desk' && lay === 'phone') && !(x[2] === 'phone' && lay !== 'phone'); }).map(function(x) {
     return [x[0], wdgFitSize(wdgDef(x[0]), lay === 'phone' && x[1] !== 's' ? 'm' : x[1])];
   });
 }
@@ -423,8 +433,9 @@ var _wdgDrawn = {};
    arrange mode its handle, its place, its size and its Remove ride over the head (§7e). An Outside card is never edged or tinted:
    the world outside is to know, info at most. */
 /* The period a board's widgets read: Home's is this month, always (owner, 21 Oct 2026: "Let's remove the MTD, QTD, YTD, all
-   filters - they are not needed on the home screen and increases cognitive load"). Stats keeps its own (_statsPeriod). */
-function wdgPeriod(board) { return 'mtd'; }
+   filters - they are not needed on the home screen and increases cognitive load"). Stats' is its own (_statsPeriod, the chips in its
+   toolbar; U3, §26a). */
+function wdgPeriod(board) { return board === 'stats' && typeof _statsPeriod !== 'undefined' && PERIOD_LABELS[_statsPeriod] ? _statsPeriod : 'mtd'; }
 function wdgCardHtml(def, size, o) {
   o = o || {};
   var board = o.board || 'home', opts = wdgOpts(board, def.id);
@@ -1150,6 +1161,7 @@ function wdgArrangeDone(quiet) {
 function wdgRedrawBoard(board) {
   keepScroll(function() {
     if (board === 'home' && typeof renderHomeBoard === 'function') renderHomeBoard();
+    else if (board === 'stats' && typeof renderStats === 'function') renderStats();
   });
   if (_wdgArrange === board) wdgArrangeWatch(board);
 }
@@ -1401,7 +1413,7 @@ function wdgGalleryHtml() {
       '<p class="inv-gallery-sizes">' + d.sizes.map(function(s) { return WDG_SIZE_NAMES[s]; }).join(' · ') + '</p></div>' +
       '<div class="inv-gallery-act">' + act + '</div></article>';
   }).join('');
-  var boards = Object.keys(WDG_BOARDS);
+  var boards = Object.keys(WDG_BOARDS).filter(wdgBoardSeen);
   var head = dialogHeadHtml('Add a widget', 'invWdgGalleryDone', 'Close') ;
   return '<div class="inv-dialog inv-dialog-wide" role="dialog" aria-modal="true" aria-label="Add a widget" data-wdg-gallery>' + head +
     (boards.length > 1 ? '<div class="inv-seg" role="group" aria-label="Board">' + boards.map(function(b) {
@@ -1411,7 +1423,7 @@ function wdgGalleryHtml() {
     '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invWdgGalleryDone">Done</button></div></div>';
 }
 function wdgGalleryOpen(board, at) {
-  _wdgGallery.board = WDG_BOARDS[board] ? board : 'home';
+  _wdgGallery.board = wdgBoardSeen(board) ? board : 'home';
   _wdgGallery.at = at != null && isFinite(at) ? Number(at) : null;
   dialogOpen(wdgGalleryHtml(), { dismiss: true });
   wdgGalleryWire();

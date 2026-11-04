@@ -187,7 +187,8 @@ test.describe('P211: the price against the cost, judged one way', () => {
     // NOVA GEARS fills the plant at ₹8.30/kg against ₹8.56: 3% under, Just under cost on Stats.
     await loadAppWithState(page, priced([1000, 8.3], [50, 9]));
     await openStatsTab(page, 'clients');
-    await expect(page.locator('#statsMargin [data-margin-net] .inv-fig-warning')).toHaveText('8.30');
+    // By client's price a kilo, the Tables' sixth column since U3 (contribution by client's until then).
+    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td[data-col="net"]').locator('.inv-fig-warning')).toHaveText('8.30');
     await openPulse(page);
     // A Briefing card since U2R: its tone said by the card, its answer's price in the warning's tone.
     const q = page.locator('[data-tdy-q="clients"]');
@@ -206,7 +207,7 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await expect(page.locator('#homeBoard [data-tdy-q="clients"][data-size="s"] .inv-meter-warning')).toHaveCount(1);
   });
 
-  test('A7-15: a loss within 5% of the live cost is a warning on Home, on Stats’ Cost and Trends, and on the report', async ({ page }) => {
+  test('A7-15: a loss within 5% of the live cost is a warning on Home, on Stats’ verdict, and on the report', async ({ page }) => {
     // ₹8,750 for 1,050 kg: ₹8.33/kg against ₹8.56, 2.7% under.
     await loadAppWithState(page, priced([1000, 8.3], [50, 9]));
     await openPulse(page);
@@ -220,14 +221,14 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await expect(page.locator('[data-tdy-q-open="money"] .inv-tile-warning')).toHaveCount(2);
     await expect(page.locator('[data-tdy-q-open="money"] [data-story-say] .inv-dot-warning')).toHaveCount(1);
     await page.locator('[data-tdy-q-open="money"] [data-action="invCloseOverlay"]').first().click();
+    // Stats' one verdict since U3 (Cost's and Trends' until then): what a kilo left and the realisation it rests on, both warnings.
     await openStatsTab(page, 'cost');
-    const contrib = page.locator('#statsVerdict .inv-tile', { has: page.locator('.inv-tile-label', { hasText: 'Contribution' }) });
-    await expect(contrib).toHaveClass(/inv-tile-warning/);
-    await openStatsTab(page, 'trends');
-    const margin = page.locator('#statsHeadline [data-tile="margin"]');
+    await expect(page.locator('#statsVerdict [data-tile="realisation"]')).toHaveClass(/inv-tile-warning/);
+    await openStatsTab(page, 'board');
+    const margin = page.locator('#statsVerdict [data-tile="margin"]');
     await expect(margin).toHaveClass(/inv-tile-warning/);
     await expect(margin.locator('.inv-badge')).toHaveClass(/inv-badge-warning/);
-    await expect(page.locator('#statsHeadline')).toHaveClass(/inv-hero-warning/);
+    await expect(page.locator('#statsVerdict')).toHaveClass(/inv-hero-warning/);
     // The month's report says what a kilo left in the same tone.
     await g(page, `rptSet('monthly', localDateStr())`);
     await switchTab(page, 'pageReports');
@@ -250,33 +251,39 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await expect(v.locator('.inv-tile', { has: page.locator('.inv-tile-label', { hasText: 'Realisation' }) })).toHaveClass(/inv-tile-warning/);
   });
 
-  test('A2-6: the By client card’s figure never contradicts its tone', async ({ page }) => {
-    // No large account under the cost; a small one (5% of the tonnage) well under it. The card judges large accounts: its figure,
-    // the worst-priced client, is plain, not red on a green card.
+  test('A2-6: Stats’ verdict, on By client, never contradicts its tone', async ({ page }) => {
+    // No large account under the cost; a small one (5% of the tonnage) well under it. The verdict judges the large accounts (By
+    // client's card did until U3): its fact says none is under, in the ok tone, never red on a green card; its figure is in its tone.
     await loadAppWithState(page, priced([1000, 9], [50, 4]));
     await openStatsTab(page, 'clients');
     let v = page.locator('#statsVerdict');
     await expect(v).toHaveClass(/inv-hero-ok/);
-    await expect(v.locator('.inv-hero-fig')).toContainText('₹4.00');
-    await expect(v.locator('.inv-hero-fig [class*="inv-fig-"]')).toHaveCount(0);
+    await expect(v.locator('.inv-hero-fact.inv-fig-ok')).toHaveText('no large account below the cost');
+    await expect(v.locator('.inv-hero-fact.inv-fig-danger, .inv-hero-fact.inv-fig-warning')).toHaveCount(0);
+    await expect(v.locator('.inv-hero-fig .inv-fig-ok')).toHaveCount(1);
+    await expect(v.locator('.inv-hero-fig .inv-fig-danger')).toHaveCount(0);
+    // The small one is red in its own row.
+    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('4.00');
     // A large account 12% under the full cost: red in its row, and the card is the worst of what it holds.
     await loadAppWithState(page, priced([1000, 7.5], [50, 9]));
     await openStatsTab(page, 'clients');
     v = page.locator('#statsVerdict');
-    await expect(page.locator('#statsMargin [data-margin-net] .inv-fig-danger')).toHaveText('7.50');
+    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('7.50');
+    await expect(v.locator('.inv-hero-fact.inv-fig-danger')).toHaveText('1 large account below the full cost');
     await expect(v.locator('.inv-hero-fig .inv-fig-danger')).toHaveCount(1);
     await expect(v).toHaveClass(/inv-hero-danger/);
   });
 
-  test('A2-10: Trends’ line on the weighed lines names the live cost per kg', async ({ page }) => {
+  test('A2-10: Stats’ line on the weighed lines names the live cost per kg', async ({ page }) => {
     const s = base();
     s.clients = [client(1, 'NOVA GEARS', 9)];
     // ₹1,000 of ₹10,000 is a NOS line with no weight: the tonnage under the cost carries 90% of the revenue.
     s.invoices = [inv('00001', 1, 'NOVA GEARS', [{ partNumber: 'NG-1', qty: 1000, rate: 9 }]), inv('00002', 1, 'NOVA GEARS', [{ partNumber: 'PIN', unit: 'NOS', qty: 100, rate: 10 }])];
     s.invNextNum = 3;
     await loadAppWithState(page, s);
+    // Trends' headline is Stats' one verdict since U3.
     await openStatsTab(page, 'trends');
-    await expect(page.locator('#statsHeadline [data-callout="weighed"]'))
+    await expect(page.locator('#statsVerdict [data-callout="weighed"]'))
       .toHaveText('The live cost per kg divides by the weighed lines alone, 90% of revenue: it reads high by about 11%.');
   });
 

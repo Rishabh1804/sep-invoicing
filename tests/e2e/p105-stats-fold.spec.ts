@@ -71,9 +71,10 @@ test.describe('S2: fixed and variable labour', () => {
 
     // The split is the power case's (powerMargin). On the page, labour is fixed whole (owner, 13 Oct 2026), said as a badge,
     // and the variable cost sits under the full cost by all of labour.
+    // Contribution by client is the Tables' By client since U3 (§10): the badge is under its table.
     await openStatsTab(page, 'clients');
     await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
-    const note = page.locator('#statsMargin .inv-panel-body .inv-note').first();
+    const note = page.locator('#statsTable .inv-panel-body .inv-note').first();
     await expect(note.locator('[data-margin-split]')).toHaveText('labour fixed');
     const [v, f] = ((await note.textContent()) || '').match(/₹[\d,.]+/g)!.map(x => parseFloat(x.slice(1).replace(/,/g, '')));
     expect(v).toBeLessThan(f);
@@ -119,12 +120,13 @@ test.describe('S2: fixed and variable labour', () => {
     expect(ins.map((t: any) => t.clientId)).toEqual([72]);
     expect(ins[0].title).toBe('BETA CLAMPS is below its variable cost');
 
+    // The Tables' By client (U3): its columns Client, Revenue, Of revenue, t, Of tonnes, ₹/kg, vs var., vs full, ₹ on period, Next.
     await openStatsTab(page, 'clients');
-    const card = page.locator('#statsMargin');
+    const card = page.locator('#statsTable');
     await expect(card.locator('[data-margin-split]')).toHaveText('labour fixed');
     const beta = card.locator('tbody tr', { hasText: 'BETA CLAMPS' });
-    await expect(beta.locator('td').nth(3)).toHaveClass(/inv-num-neg/);        // vs var.: below it
-    await expect(beta.locator('td').nth(4)).toHaveClass(/inv-num-neg/);        // vs full
+    await expect(beta.locator('td[data-col="vsVar"]')).toHaveClass(/inv-num-neg/);        // vs var.: below it
+    await expect(beta.locator('td[data-col="vsFull"]')).toHaveClass(/inv-num-neg/);        // vs full
     await expect(page.locator('#statsWorst [data-tile="contrib"]')).toContainText('Below its variable cost');
     await expect(page.locator('#statsWorst')).toContainText('loses money on every kilo');
     await expect(page.locator('#statsWorst')).not.toContainText('split labour');
@@ -155,12 +157,12 @@ test('S8: on the price ranking a part below cost ends short of the cost mark, on
   s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('LOW', 1000, 5)]), inv('00002', 1, 'TEST CLIENT KG', [kg('LESS LOW', 1000, 6)])];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
-  await openStatsTab(page, 'trends');
-  // Top items is the rest of Trends (TM2b): folded, shut on the phone.
-  await page.locator('[data-card="top"] > summary').click();
-  await page.locator('[data-action="invStatsTopBy"][data-by="rate"]').click();
-  const card = page.locator('[data-card="top"]');
-  await expect(card).toContainText('Worst priced items');
+  // Top items is the Top parts widget on Stats' Dashboard since U3 (§10), ranked by ₹/kg through its Choose.
+  await openStatsTab(page, 'board');
+  await g(page, `wdgItemsPut('stats', wdgLay(), [['topitems', 'l']]); renderStats();`);
+  await page.locator('#statsBoard [data-w="topitems"] [data-action="invWdgChoose"][data-v="rate"]').click();
+  const card = page.locator('#statsBoard [data-w="topitems"]');
+  await expect(card.locator('.inv-widget-say')).toContainText('Priced worst: LOW');
   // The track is drawn in percentages of its own width (UI pass 3 §5: never stretched, so a bar's data end is a true round):
   // the bar's end and the cost mark are read on that one scale, 0 to 100.
   const geo = await card.evaluate(el => Array.from(el.querySelectorAll('.inv-chart-ranked-svg')).map(svg => {
@@ -184,11 +186,10 @@ test('S9, S14: the drill-down judges at the live cost, in words, and says how th
   s.invoices = [inv('00001', 71, 'ALPHA WORKS', [kg('PA', 1000, 7)]), inv('00002', 72, 'BETA CLAMPS', [kg('PB', 1000, 13)])];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
+  // Realisation by client is the Tables' By client since U3 (§10): a row a client, its ₹/kg in the tone the live cost gives it.
   await openStatsTab(page, 'clients');
-  // Realisation by client folds, shut on the phone (TM2b).
-  await page.locator('[data-card="realisation"] > summary').click();
-  const alpha = page.locator('[data-card="realisation"] [data-client-row]', { hasText: 'ALPHA WORKS' });
-  await expect(alpha.locator('.inv-dot-danger')).toHaveText('Below cost');     // the table, at the live cost
+  const alpha = page.locator('#statsTable tr[data-client-row]', { hasText: 'ALPHA WORKS' });
+  await expect(alpha.locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('7.00');     // the table, at the live cost
 
   await alpha.click();
   const card = page.locator('.inv-dialog[data-drill="71"]');
@@ -201,7 +202,7 @@ test('S9, S14: the drill-down judges at the live cost, in words, and says how th
   await expect(card.locator('.inv-flip-front .inv-note').first()).toContainText('Weight · ₹7.00/kg');
   await card.locator('.inv-flip-front [data-action="invCloseOverlay"]').click();
 
-  await page.locator('[data-card="realisation"] [data-client-row]', { hasText: 'BETA CLAMPS' }).click();
+  await page.locator('#statsTable tr[data-client-row]', { hasText: 'BETA CLAMPS' }).click();
   const beta = page.locator('.inv-dialog[data-drill="72"]');
   await expect(beta.locator('.inv-flip-front .inv-note').first()).toContainText('Piece · ₹5.40/kg basis');
   await expect(beta.locator('[data-tile="realisation"]')).toHaveClass(/inv-tile-ok/);
@@ -295,9 +296,9 @@ test('S18: the six months are named the app\'s way, never "Sept"', async ({ page
   s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 100, 10)], `${y}-09-10`)];
   s.invNextNum = 2;
   await loadAppWithState(page, s);
-  // The six months head Stats → Trends since the tab map (TM2b).
-  await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsMonths tbody tr td:first-child')).toHaveText(['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep to date']);
+  // The six months are the Tables' By month since U3 (§10), and the Six months widget.
+  await openStatsTab(page, 'month');
+  await expect(page.locator('#statsTable table[data-stats-tbl="month"] tbody tr td:first-child')).toHaveText(['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep to date']);
 });
 
 test('S19: coverage never reads 100% while a line is left out', async ({ page }) => {
@@ -307,12 +308,12 @@ test('S19: coverage never reads 100% while a line is left out', async ({ page })
     inv('00002', 1, 'TEST CLIENT KG', [{ partNumber: 'NO WEIGHT PIN', unit: 'NOS', qty: 10, rate: 30 }])];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
-  // The headline is Trends' verdict card (TM2b): its coverage a badge on Tonnage and a line under the tiles.
-  await openStatsTab(page, 'trends');
-  const callout = page.locator('#statsHeadline [data-callout="coverage"]');
+  // The headline is Stats' verdict card since U3 (§10): its coverage a badge on Plated and billed and a line under the tiles.
+  await openStatsTab(page, 'board');
+  const callout = page.locator('#statsVerdict [data-callout="coverage"]');
   await expect(callout).toContainText('99% of revenue weighed');
   await expect(callout).toContainText('1 line worth ₹300.00');
-  await expect(page.locator('#statsHeadline [data-tile="tonnage"] .inv-badge')).toHaveText('99% weighed');
+  await expect(page.locator('#statsVerdict [data-tile="tonnage"] .inv-badge')).toHaveText('99% weighed');
   expect(await g(page, `[statsPctOf(0.997), statsPctOf(1), statsPctOf(0.5), statsPctOf(0)].join(',')`)).toBe('99,100,50,0');
 });
 
@@ -325,17 +326,20 @@ test('S20: a part is its client\'s part at its gauge, and its row names the clie
   ];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
-  await openStatsTab(page, 'trends');
-  const rows = page.locator('[data-card="top"] .inv-chart-ranked-row');
+  // Top items are the Tables' By part since U3 (§10): a row a client's part at its gauge, its client in its own column.
+  await openStatsTab(page, 'part');
+  const rows = page.locator('#statsTable table[data-stats-tbl="part"] tbody tr');
   await expect(rows).toHaveCount(4);
   const plate = rows.filter({ hasText: 'BASE PLATE' });
   await expect(plate).toHaveCount(2);
-  await expect(plate.filter({ hasText: 'BETA CLAMPS · ₹' })).toContainText('₹20.00/kg');
-  await expect(plate.filter({ hasText: 'ALPHA WORKS · ₹' })).toContainText('₹10.00/kg');
-  // A code both clients send says so on each row, counted apart (P118).
-  await expect(plate.filter({ hasText: 'ALPHA WORKS · ₹' })).toContainText('code also sent by BETA CLAMPS, counted apart');
-  await expect(rows.filter({ hasText: '35X6' })).toContainText('₹12.00/kg');
-  await expect(rows.filter({ hasText: '40X6' })).toContainText('₹14.00/kg');
+  const beta = plate.filter({ has: page.locator('td[data-col="client"]', { hasText: 'BETA CLAMPS' }) });
+  const alpha = plate.filter({ has: page.locator('td[data-col="client"]', { hasText: 'ALPHA WORKS' }) });
+  await expect(beta.locator('td[data-col="perKg"]')).toHaveText('20.00');
+  await expect(alpha.locator('td[data-col="perKg"]')).toHaveText('10.00');
+  // A code both clients send says so on each row, counted apart (P118), naming the other.
+  await expect(alpha).toContainText('code also sent by BETA CLAMPS, counted apart');
+  await expect(rows.filter({ hasText: '35X6' }).locator('td[data-col="perKg"]')).toHaveText('12.00');
+  await expect(rows.filter({ hasText: '40X6' }).locator('td[data-col="perKg"]')).toHaveText('14.00');
 });
 
 test('SB1: where a line has no weight, the live cost per kg says it divides by the weighed tonnage alone', async ({ page }) => {
@@ -344,14 +348,14 @@ test('SB1: where a line has no weight, the live cost per kg says it divides by t
   s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 1000, 9)]), inv('00002', 1, 'TEST CLIENT KG', [{ partNumber: 'PIN', unit: 'NOS', qty: 100, rate: 10 }])];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
-  // Trends' verdict says it in a line; Pulse's In one line carries the weighed share as a badge on realisation (TM2b).
-  await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('90% of revenue: it reads high by about 11%');
+  // Stats' verdict says it in a line (U3; Trends' until then); Home's The period in figures carries the weighed share as a badge.
+  await openStatsTab(page, 'board');
+  await expect(page.locator('#statsVerdict [data-callout="weighed"]')).toContainText('90% of revenue: it reads high by about 11%');
   await openPulse(page);
   await expect(page.locator('#statsOverview [data-tile="realisation"] .inv-badge')).toHaveText('90% weighed');
   await openStatsTab(page, 'clients');
-  // A note of its own under the cost's (TM2b: the margin's notes are a line each).
-  await expect(page.locator('#statsMargin .inv-panel-body .inv-note', { hasText: 'reads high' })).toContainText('90% of revenue: it reads high by about 11%');
+  // A note of its own under the cost's on the Tables' By client (TM2b: the margin's notes are a line each).
+  await expect(page.locator('#statsTable .inv-panel-body .inv-note', { hasText: 'reads high' })).toContainText('90% of revenue: it reads high by about 11%');
   await openStatsTab(page, 'cost');
   await expect(page.locator('#liveCost [data-callout="weighed"]')).toContainText('by about 11%');
 
@@ -360,8 +364,8 @@ test('SB1: where a line has no weight, the live cost per kg says it divides by t
   w.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 1000, 9)])];
   w.invNextNum = 2;
   await loadAppWithState(page, w);
-  await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsHeadline')).toBeVisible();
+  await openStatsTab(page, 'board');
+  await expect(page.locator('#statsVerdict')).toBeVisible();
   await expect(page.locator('[data-callout="weighed"]')).toHaveCount(0);
   await openPulse(page);
   await expect(page.locator('#statsOverview')).toBeVisible();
@@ -386,12 +390,15 @@ test.describe('charts', () => {
     // On the page: a book with no weighed line draws its tonnage at zero, labelled 0 alone.
     const s = base();
     s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [{ partNumber: 'PIN', unit: 'NOS', qty: 100, rate: 10 }]),
-      inv('00002', 1, 'TEST CLIENT KG', [{ partNumber: 'PIN', unit: 'NOS', qty: 100, rate: 10 }], addDays(todayIso(), -40))];
+      inv('00002', 1, 'TEST CLIENT KG', [{ partNumber: 'PIN', unit: 'NOS', qty: 100, rate: 10 }], addDays(todayIso(), -70))];
     s.invNextNum = 3;
     await loadAppWithState(page, s);
-    await openStatsTab(page, 'trends');
-    await page.locator('[data-action="invStatsTrendSeries"][data-series="tonnage"]').click();
-    await expect(page.locator('[data-card="trend"] .inv-chart-grid-label')).toHaveText(['0kg']);
+    // The trend is its widget on Stats' Dashboard since U3 (§10), its series its Choose; two whole months before this one, so it
+    // has a month to read against the one before.
+    await openStatsTab(page, 'board');
+    await g(page, `wdgItemsPut('stats', wdgLay(), [['trend', 'l']]); renderStats();`);
+    await page.locator('#statsBoard [data-w="trend"] [data-action="invWdgChoose"][data-v="tonnage"]').click();
+    await expect(page.locator('#statsBoard [data-w="trend"] .inv-chart-grid-label')).toHaveText(['0kg']);
   });
 
   test('S16: a null is a gap on an even axis, and each series joins its own days on a time axis', async ({ page }) => {

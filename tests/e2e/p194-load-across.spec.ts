@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openAttendance, openPulse, recentTs, setFilter, switchTab, todayIso, toolbarMoreLabels, type SepState, openWidget } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openAttendance, openPulse, recentTs, setFilter, switchTab, todayIso, toolbarMoreLabels, type SepState, openWidget, openStatsTab } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P194 (docs/TAB_MAP.md TM6): across the app. A fact is drawn in one tone wherever it is drawn (TM6a: on site against the roster,
@@ -156,14 +156,18 @@ test.describe('P194: TM6a, one tone per fact', () => {
         advRepriceMove(ctx, { id: c.id, name: c.name, net: 9.8, kg: 500, vsFull: -0.2, vsVar: 2.8 }).tone];
     })()`);
     expect(parted).toEqual(['red', 'amber']);
-    // Stats → By client draws the same judge on the same figure.
+    // Stats → Tables → By client draws the same judge on the same figure (By client's tab until UI pass 3's U3, §10).
     await ev(page, `_statsPeriod = 'qtd'`);
-    await switchTab(page, 'pageStats');
-    await page.locator('[data-action="invStatsTab"][data-tab="clients"]').click();
+    await openStatsTab(page, 'clients');
+    // Every client the moves judged has its ₹/kg cell on By client (Cipher H-1: a guard on its count had let the loop pass empty).
+    let seen = 0;
     for (const x of r) {
-      const cell = `#pageStats tr[data-client-id="${x.id}"] [data-margin-net]`;
-      if (await page.locator(cell).count()) expect(await toneOf(page, cell), 'Stats, client ' + x.id).toBe(x.judge);
+      const cell = `#pageStats tr[data-client-id="${x.id}"] td[data-col="net"]`;
+      await expect(page.locator(cell)).toHaveCount(1);
+      expect(await toneOf(page, cell), 'Stats, client ' + x.id).toBe(x.judge);
+      seen++;
     }
+    expect(seen).toBeGreaterThan(0);
   });
 });
 
@@ -179,9 +183,9 @@ test.describe('P194: TM6b, the period to date', () => {
     await marked('Home’s small bars');
     await expect(page.locator('#homeBoard [data-w="mtd"] .inv-minibar.inv-chart-todate')).toHaveCount(1);
     await expect(page.locator('#homeBoard [data-w="mtd"] .inv-minibar-slot:has(.inv-chart-todate) title')).toContainText('to date');
-    await switchTab(page, 'pageStats');
-    await page.locator('[data-action="invStatsTab"][data-tab="trends"]').click();
-    await marked('Trends');
+    // Stats' Dashboard (Trends' charts until UI pass 3's U3, §10): the price against the cost marks the month to date.
+    await openStatsTab(page, 'board');
+    await marked('Stats’ Dashboard');
     await expect(page.locator('#pageStats text.inv-chart-axis', { hasText: 'to date' }).first()).toBeAttached();
     await switchTab(page, 'pageFinance');
     await page.locator('#pageFinance [data-action="invFinTab"][data-tab="overview"]').click();

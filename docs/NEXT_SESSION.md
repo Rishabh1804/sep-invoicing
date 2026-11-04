@@ -66,9 +66,10 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 - **A data flow changed**: the stamps travel in the book, so in the `sep-stock` and `sep-production` exports soma-internal reads, and in
   every backup and pull.
 - **What counts in a day's plating** (owner, 4 Nov 2026, P258): a hand run of a client the shift's register never names counts beside
-  it; a run carries the owner's word as `countSet: {how: 'count' | 'leave', at, by}`, and a register pair kept as two runs `twinOk:
-  {id, at, by}`. **A data flow changed**: both travel on the entries in the `sep-production` export; the compile should count a plated
-  entry by the same rule (`prodCountPlated`), reading `countSet` first.
+  it; a run carries the owner's word as `countSet: {how: 'count' | 'leave', at, by}`, and a register run kept apart from its copies
+  `twinOk: {ids, at, by}`. **A data flow changed**: both travel on the entries in the `sep-production` export; the compile should count a
+  plated entry by the same rule (`prodCountPlated`), reading `countSet` first. An import merges by id and never overwrites, so a
+  `countSet` or `twinOk` set on one device after the file was written does not reach an entry already held (Vulcanus L-8).
 - **The suite is 2,096 tests.**
 
 

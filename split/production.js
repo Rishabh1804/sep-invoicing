@@ -669,7 +669,8 @@ function prodIndex() {
   p.entries.forEach(function(e) { byId[e.id] = e; });
   var counted = prodCountPlated(live, replaced, byId);
   var idx = { ver: _prodVer, store: p, n: p.entries.length, live: live, byId: byId, replaced: replaced, counted: counted.counted, also: counted.also, countedSet: counted.set, countWhy: counted.why };
-  idx.twin = prodRegisterTwins(counted.counted);
+  var tw = prodRegisterTwins(counted.counted, byId);
+  idx.twin = tw.twin; idx.twinSkip = tw.skip;
   idx.usual = prodUsualLines(idx);
   idx.racks = prodRackSizes(idx);
   idx.match = prodMatchAll(idx);
@@ -690,7 +691,7 @@ function prodIndex() {
    word on an entry wins either way (`countSet: {how: 'count' | 'leave', at, by}`, prodCountSet). `why` says which rule
    placed each entry, for the row that explains it (prodCountWhyText). */
 function prodCountPlated(live, replaced, byId) {
-  var groups = {}, counted = [], also = [], set = {}, why = {};
+  var groups = {}, counted = [], also = [], set = {}, why = {}, named = {};
   live.forEach(function(e) {
     if (e.kind !== 'plated' || replaced[e.id]) return;
     var basis = e.replaces && byId[e.replaces] ? (byId[e.replaces].basis || 'hand') : (e.basis || 'hand');
@@ -698,22 +699,39 @@ function prodCountPlated(live, replaced, byId) {
     var k = e.date + '|' + (e.line || '-') + '|' + sg;
     // A correction of a hand entry is a hand entry still: judged by its client as the run it replaces was (a correction of a run
     // counted beside the register had fallen out of the count).
-    (groups[k] = groups[k] || []).push({ e: e, basis: basis, standalone: basis === 'hand' });
+    var x = { e: e, basis: basis, standalone: basis === 'hand' };
+    (groups[k] = groups[k] || []).push(x);
+    // The clients the day's register and messages name on the line, over both slots and the barrel's day list (Vulcanus M-1, M-2:
+    // a register run is split at 5 PM and a hand run typed on the other slot read as other work): by id, and by the name written
+    // (M-4, H-1: a run read with no client of the book, or a firm held twice, is still the client its name says).
+    if (!x.standalone) {
+      var nk = e.date + '|' + (e.line || '-'), n = named[nk] || (named[nk] = { ids: {}, names: [], blind: false });
+      if (e.clientId != null) n.ids[String(e.clientId)] = true;
+      var key = prodCountNameKey(e.clientId != null ? prodClientName(e.clientId) || e.client : e.client);
+      if (key) n.names.push(key);
+      // A run read with no client of the book: its name may be a spelling the book does not hold, so it may be any client's.
+      if (e.clientId == null) n.blind = true;
+    }
   });
   var barrelDay = {};
   live.forEach(function(e) { if (e.kind === 'plated' && e.line === 'barrel' && e.slot === 'day' && !replaced[e.id]) barrelDay[e.date] = true; });
   Object.keys(groups).forEach(function(k) {
-    var g = groups[k], best = 0, ranked = {};
+    var g = groups[k], best = 0;
     g.forEach(function(x) { if (!x.standalone) best = Math.max(best, PROD_BASIS_RANK[x.basis] || 1); });
-    // The clients the slot's counted records hold: a hand entry of one of them is the same work; of another, other work.
-    g.forEach(function(x) { if (!x.standalone && (PROD_BASIS_RANK[x.basis] || 1) === best && x.e.clientId != null) ranked[String(x.e.clientId)] = true; });
-    var parts = k.split('|');
+    var parts = k.split('|'), n = named[parts[0] + '|' + parts[1]] || { ids: {}, names: [], blind: false };
     g.forEach(function(x) {
       var keep, w;
       if (!best) { keep = true; w = 'only'; }
       else if (!x.standalone) { keep = (PROD_BASIS_RANK[x.basis] || 1) === best; w = keep ? 'rank' : 'outranked'; }
-      else if (x.e.clientId != null && !ranked[String(x.e.clientId)]) { keep = true; w = 'other'; }
-      else { keep = false; w = x.e.clientId == null ? 'noclient' : 'same'; }
+      else if (x.e.clientId == null) { keep = false; w = 'noclient'; }
+      else {
+        var hk = prodCountNameKey(prodClientName(x.e.clientId) || x.e.client);
+        var same = n.ids[String(x.e.clientId)] || (hk && n.names.some(function(nm) { return prodCountNameSame(nm, hk); }));
+        if (same) { keep = false; w = 'same'; }
+        // A register run naming no client may be this one (Vulcanus H-1): left out, Count it offered.
+        else if (n.blind) { keep = false; w = 'unsure'; }
+        else { keep = true; w = 'other'; }
+      }
       if (keep && parts[1] === 'barrel' && parts[2] === 'ot' && barrelDay[parts[0]] && x.basis === 'relay') { keep = false; w = 'barrelday'; }
       var cs = x.e.countSet;
       if (cs && (cs.how === 'count' || cs.how === 'leave')) { keep = cs.how === 'count'; w = 'set'; }
@@ -723,6 +741,13 @@ function prodCountPlated(live, replaced, byId) {
   });
   return { counted: counted, also: also, set: set, why: why };
 }
+/* A client's name as the count compares it: its letters, its legal ending dropped (PVT, LTD, PRIVATE, LIMITED, CO). */
+function prodCountNameKey(name) {
+  var k = relayKey(String(name || '').toUpperCase().replace(/\b(PVT|PRIVATE|LTD|LIMITED|CO|COMPANY|P)\b\.?/g, ' '));
+  return k.length >= 3 ? k : '';
+}
+/* Two names one client: alike, or one the start of the other (a register writes the short form). */
+function prodCountNameSame(a, b) { return a === b || (Math.min(a.length, b.length) >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0)); }
 /* What placed an entry in or out of the count, in words (the row's fold and the pane). */
 var PROD_BASIS_WORD = { 3: 'the register', 2: 'the supervisor’s message', 1: 'an entry by hand' };
 function prodCountWhyText(e, idx) {
@@ -733,9 +758,10 @@ function prodCountWhyText(e, idx) {
     var cs = e.countSet || {};
     return { counted: counted, set: true, text: (counted ? 'Added: set by hand' : 'Left out: set by hand') + (cs.by ? ', ' + cs.by : '') + (cs.at ? ', ' + formatDate(isoOf(new Date(cs.at))) : '') + '. The rule no longer decides it.' };
   }
-  if (w.how === 'other') return { counted: true, text: 'Added beside ' + by + ': it holds no run of this client on this shift.' };
-  if (w.how === 'same') return { counted: false, text: 'Not added: ' + by + ' counts this shift and holds a run of this client, so this is taken as the same work.' };
+  if (w.how === 'other') return { counted: true, text: 'Added beside ' + by + ': it holds no run of this client on this line that day.' };
+  if (w.how === 'same') return { counted: false, text: 'Not added: ' + by + ' holds a run of this client on this line that day, so this is taken as the same work.' };
   if (w.how === 'noclient') return { counted: false, text: 'Not added: ' + by + ' counts this shift, and this run names no client.' };
+  if (w.how === 'unsure') return { counted: false, text: 'Not added: ' + by + ' holds a run naming no client on this day, which may be this work. Count it if it is not.' };
   if (w.how === 'outranked') return { counted: false, text: 'Not added: ' + by + ' counts this shift.' };
   if (w.how === 'barrelday') return { counted: false, text: 'Not added: the supervisor’s barrel list counts the whole day.' };
   return null;
@@ -755,41 +781,60 @@ async function prodCountSet(id, how) {
 }
 
 /* One run saved twice from two register sources (owner, 4 Nov 2026: two photos of one page, or a photo and the page typed on
-   Mine, both count, and the day read double). Two counted register runs of one day, line and client, the same figure in the same
-   unit, whose times meet, from two different pages, photos or messages, are a pair: said on both, never one dropped (which is
-   the owner's: void one). `twin[id]` is the other's id; a pair the owner said is two runs (`twinOk` on either, naming the other)
-   is not raised. */
-function prodRegisterTwins(counted) {
-  var by = {}, twin = {};
+   Mine, both count, and the day read double). Counted register runs of one day, line, unit (a barrel's batches run side by side:
+   Vulcanus H-2) and client, the same figure in the same unit, whose times overlap (touching is not overlapping, L-1), from two
+   different pages, photos, messages or imports (a correction is its root's source, M-5; one import's rows are one source, H-3),
+   are copies: said on each, never one dropped (which is the owner's: void one). Copies cluster (two photos and a page are three,
+   L-3). `twin[id]` is the cluster's other ids; `twinSkip[id]` the copies after the first saved, left out of the 60-day measures
+   (pace, a tank's load) until the owner settles them (M-3). A pair the owner kept (`twinOk` on either, naming the other) is not
+   raised. */
+function prodRegisterTwins(counted, byId) {
+  var by = {}, twin = {}, skip = {};
   counted.forEach(function(e) {
     if (e.basis !== 'register' || e.qty == null || e.clientId == null || e.voidedAt) return;
-    var k = e.date + '|' + (e.line || '-') + '|' + String(e.clientId) + '|' + e.qty + '|' + (e.unit || '');
+    var k = e.date + '|' + (e.line || '-') + '|' + (e.unitId || e.barrel || '') + '|' + String(e.clientId) + '|' + e.qty + '|' + (e.unit || '');
     (by[k] = by[k] || []).push(e);
   });
-  var span = function(e) { var a = e.time ? _hhmm(e.time) : null, b = e.to ? _hhmm(e.to) : a; if (a == null) a = b; return a == null ? null : [a, b < a ? b + 1440 : b]; };
-  var src = function(e) { return e.pageId ? 'page:' + e.pageId : e.photoId ? 'photo:' + e.photoId : e.msgHash ? 'msg:' + e.msgHash : 'id:' + e.id; };
+  var clock = function(t) { var m = t ? _hhmm(t) : null; return m == null ? null : m < PROD_DAY_START ? m + 1440 : m; };
+  var span = function(e) { var a = clock(e.time), b = clock(e.to); if (a == null) a = b; if (b == null) b = a; return a == null ? null : [a, b < a ? b + 1440 : b]; };
+  var root = function(e) { var n = 0; while (e && e.replaces && byId && byId[e.replaces] && n++ < 20) e = byId[e.replaces]; return e; };
+  var src = function(e) { var r = root(e) || e; return r.pageId ? 'page:' + r.pageId : r.photoId ? 'photo:' + r.photoId : r.importId ? 'imp:' + r.importId : r.msgHash ? 'msg:' + r.msgHash : 'id:' + r.id; };
+  var meet = function(a, b) { var sa = span(a), sb = span(b); if (!sa || !sb) return false; return Math.max(sa[0], sb[0]) < Math.min(sa[1], sb[1]) || (sa[0] === sb[0] && sa[1] === sb[1]); };
+  var kept = function(a, b) { return prodTwinOkIds(a).indexOf(b.id) >= 0 || prodTwinOkIds(b).indexOf(a.id) >= 0; };
   Object.keys(by).forEach(function(k) {
     var g = by[k];
+    if (g.length < 2) return;
     for (var i = 0; i < g.length; i++) for (var j = i + 1; j < g.length; j++) {
       var a = g[i], b = g[j];
-      if (twin[a.id] || twin[b.id] || src(a) === src(b)) continue;
-      if ((a.twinOk && a.twinOk.id === b.id) || (b.twinOk && b.twinOk.id === a.id)) continue;
-      var sa = span(a), sb = span(b);
-      if (!sa || !sb || sa[0] > sb[1] || sb[0] > sa[1]) continue;
-      twin[a.id] = b.id; twin[b.id] = a.id;
+      if (src(a) === src(b) || kept(a, b) || !meet(a, b)) continue;
+      (twin[a.id] = twin[a.id] || []).push(b.id); (twin[b.id] = twin[b.id] || []).push(a.id);
     }
+    // The first saved of each cluster stands in the measures; the copies after it wait.
+    var inCl = g.filter(function(e) { return twin[e.id]; }).sort(function(x, y) { return (x.at || 0) - (y.at || 0) || (x.id < y.id ? -1 : 1); });
+    var seen = {};
+    inCl.forEach(function(e) {
+      if (seen[e.id]) return;
+      var stack = [e.id], cl = [];
+      while (stack.length) { var id = stack.pop(); if (seen[id]) continue; seen[id] = true; cl.push(id); (twin[id] || []).forEach(function(o) { if (!seen[o]) stack.push(o); }); }
+      cl.forEach(function(id) { if (id !== e.id) skip[id] = true; });
+    });
   });
-  return twin;
+  return { twin: twin, skip: skip };
 }
-function prodTwinOf(e, idx) { var t = (idx || prodIndex()).twin[e.id]; return t ? (idx || prodIndex()).byId[t] || null : null; }
+/* The runs an entry was kept apart from (`twinOk: {ids, at, by}`; an older `id` read as one). */
+function prodTwinOkIds(e) { var t = e && e.twinOk; return !t ? [] : Array.isArray(t.ids) ? t.ids : t.id ? [t.id] : []; }
+function prodTwinOf(e, idx) { idx = idx || prodIndex(); var t = idx.twin[e.id]; return t && t.length ? idx.byId[t[0]] || null : null; }
+function prodTwinsOf(e, idx) { idx = idx || prodIndex(); return (idx.twin[e.id] || []).map(function(id) { return idx.byId[id]; }).filter(Boolean); }
 /* Two runs the check paired that are two runs (the same figure of one client twice on a shift): kept apart for good. */
 async function prodTwinOk(id) {
-  var idx = prodIndex(), e = idx.byId[id], o = e && prodTwinOf(e, idx);
-  if (!e || !o) return;
+  var idx = prodIndex(), e = idx.byId[id], os = e ? prodTwinsOf(e, idx) : [];
+  if (!e || !os.length) return;
   if (!grdOk('voids') && !(await guardAsk('voids', 'keep two runs'))) return;
   e = prodIndex().byId[id];
   if (!e) return;
-  e.twinOk = { id: o.id, at: Date.now(), by: stockBy() };
+  // This run is kept apart from every copy it was paired with; the copies left may still be one run saved twice, and stay paired.
+  var at = Date.now(), who = stockBy();
+  e.twinOk = { ids: prodTwinOkIds(e).concat(os.map(function(o) { return o.id; })).filter(function(id, i, a) { return a.indexOf(id) === i; }), at: at, by: who };
   prodTouch();
   saveState();
   renderProduction();
@@ -1405,6 +1450,7 @@ function prodLinePace(line) {
   var from = isoAddDays(iso, -(PROD_TANK_DAYS - 1)), days = {};
   prodIndex().counted.forEach(function(e) {
     if (e.kind !== 'plated' || e.line !== line || e.basis !== 'register' || !Array.isArray(e.rounds) || e.date < from || e.date > iso) return;
+    if (prodIndex().twinSkip[e.id]) return;   // a copy saved twice waits (Vulcanus M-3)
     var a = relayParseHhmm(e.time), b = relayParseHhmm(e.to);
     if (a == null || b == null) return;
     // On the shop's day: a time before 6 AM (before a scheduled night's end) is that night's, past midnight.
@@ -1450,7 +1496,8 @@ function prodTankLoad(line, iso) {
   var widx = prodWeighIndex(), memo = widx.tank || (widx.tank = {}), key = line + '|' + iso;
   if (memo[key]) return memo[key];
   var from = isoAddDays(iso, -(PROD_TANK_DAYS - 1)), tanks = {}, perRound = [], perTank = [], days = {}, linked = 0;
-  var mine = function(e) { return e.kind === 'plated' && e.line === line && e.basis === 'register' && Array.isArray(e.rounds) && e.qty > 0 && e.date >= from && e.date <= iso; };
+  var skipTw = prodIndex().twinSkip || {};
+  var mine = function(e) { return e.kind === 'plated' && e.line === line && e.basis === 'register' && Array.isArray(e.rounds) && e.qty > 0 && e.date >= from && e.date <= iso && !skipTw[e.id]; };
   var single = function(x) { return !x.struck && x.qty > 0 && !(x.n > 1) && !x.batch && x.time; };
   // A round two runs share is in each at the same time: one round, its kilos the shares' together, counted only when every
   // share is weighed (half a round is not a round's load).
@@ -1931,22 +1978,24 @@ TODO_RULE_FNS.prodUnweighed = function() {
 
 /* A register run saved twice from two sources (prodRegisterTwins), one task a day, the newest first: both count until the copy is
    voided, so the day's plating and the line's efficiency read high by it. Amber; a floor task (the one who saved the pages). */
-TODO_RULE_NEED.prodTwice = 'floor';
+// The owner's: Void and Two runs, keep both need the voids permission (Vulcanus L-7). The last 30 days only, as the other rules.
+TODO_RULE_NEED.prodTwice = 'owner';
 TODO_RULE_FNS.prodTwice = function() {
-  var idx = prodIndex(), days = {};
+  var idx = prodIndex(), days = {}, since = isoAddDays(localDateStr(), -30);
   Object.keys(idx.twin || {}).forEach(function(id) {
     var e = idx.byId[id];
-    if (!e || e.voidedAt) return;
-    var d = days[e.date] || (days[e.date] = { runs: 0, pieces: 0, ids: [], lines: {} });
+    if (!e || e.voidedAt || e.date < since) return;
+    var d = days[e.date] || (days[e.date] = { runs: 0, extra: 0, copies: 0, ids: [], lines: {} });
     d.runs++; d.ids.push(id); d.lines[e.line || '-'] = true;
-    if (e.unit === 'NOS' && e.qty) d.pieces += e.qty;
+    // A copy after the first saved is what is counted twice (a cluster of three counts two extra).
+    if (idx.twinSkip[id]) { d.copies++; if (e.unit === 'NOS' && e.qty) d.extra += e.qty; }
   });
   return Object.keys(days).sort().reverse().map(function(day) {
-    var d = days[day], pairs = d.runs / 2, lines = Object.keys(d.lines).map(function(l) { return l === '-' ? 'line unknown' : PROD_LINE_LABEL[l] || l; });
+    var d = days[day], pairs = d.copies, lines = Object.keys(d.lines).map(function(l) { return l === '-' ? 'line unknown' : PROD_LINE_LABEL[l] || l; });
     return { key: 'prodTwice:' + day, rule: 'prodTwice', tone: 'amber',
       title: formatDate(day) + ': ' + todoPlural(pairs, 'register run') + ' saved twice',
       sub: lines.join(', '), why: 'Production · the same run from two register sources (a photo and a page, or two photos of one page)',
-      facts: [['Day', formatDate(day)], ['Pairs', String(pairs)], ['Pieces counted twice', d.pieces ? Math.round(d.pieces / 2).toLocaleString('en-IN') : '–']],
+      facts: [['Day', formatDate(day)], ['Copies', String(pairs)], ['Pieces counted twice', d.extra ? Math.round(d.extra).toLocaleString('en-IN') : '–']],
       clears: 'Void the copy of each pair, or Two runs, keep both where they are two runs. Until then the day’s plating and the line’s efficiency read high.',
       go: prodGo('entries', { flag: 'twice', day: day }), goLabel: 'Open the pairs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
   });

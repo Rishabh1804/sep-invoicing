@@ -520,6 +520,9 @@ function prodLinesHtml() {
   h += '<div class="inv-panel inv-panel-flush" id="prodRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs</span>' +
     (r.entries.length ? '<span class="inv-panel-count">' + r.entries.length + '</span>' : '') + '</div>';
   if (!r.entries.length && !also.length) h += '<div class="inv-empty">No plating recorded on ' + escHtml(PROD_LINE_LABEL[line]) + ' this day: a gap, not a zero.</div>';
+  // Copies saved twice count until settled: the day's plating and efficiency read high by them, and say so (Vulcanus M-3).
+  var twN = r.entries.filter(function(e) { return idx.twinSkip[e.id]; }).length;
+  if (twN) h += '<div class="inv-callout inv-callout-warning" data-prod-twin-note>' + escHtml(todoPlural(twN, 'run') + ' saved twice: the plated figure and the efficiency read high until the copy is voided.') + '</div>';
   ['general', 'ot'].forEach(function(g) {
     if (!groups[g].length) return;
     h += '<div class="inv-row-group"><span>' + (g === 'ot' ? 'Overtime' : 'General shift') + '</span></div>';
@@ -829,9 +832,10 @@ function prodEntryMoreHtml(e, idx) {
   // reason seen).
   var cw = prodCountWhyText(e, idx);
   if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
-  var tw = prodTwinOf(e, idx);
-  if (tw) h += '<div class="inv-callout inv-callout-warning" data-prod-twin>' + escHtml('Saved twice? The same run (' + prodQtyText(tw.qty, tw.unit) + ', ' + (tw.time || '') + (tw.to && tw.to !== tw.time ? '–' + tw.to : '') +
-    ') came from ' + prodTwinSrc(tw) + ', and this one from ' + prodTwinSrc(e) + '. Both count now: void the copy, or keep both if they are two runs.') + '</div>';
+  var tws = prodTwinsOf(e, idx);
+  if (tws.length) h += '<div class="inv-callout inv-callout-warning" data-prod-twin>' + escHtml('Saved twice? The same run (' + prodQtyText(e.qty, e.unit) + ') also came from ' +
+    tws.map(function(tw) { return prodTwinSrc(tw) + ' (' + (tw.time || '') + (tw.to && tw.to !== tw.time ? '–' + tw.to : '') + ')'; }).join(' and ') +
+    ', and this one from ' + prodTwinSrc(e) + '. All count now: void the copy, or keep both if they are two runs.') + '</div>';
   var rounds = e.rounds || [];
   if (rounds.length) {
     h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Rounds <span class="inv-panel-count">' + rounds.length + '</span></span></div>' +
@@ -923,7 +927,7 @@ function prodEntryActionsHtml(e, idx, omit) {
   if (cw && !idx.replaced[e.id]) {
     if (cw.how === 'set') h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCountRule" data-id="' + escHtml(e.id) + '">Back to the rule</button>';
     else if (!idx.countedSet[e.id]) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdCountIt" data-id="' + escHtml(e.id) + '">Count it</button>';
-    else if (cw.how === 'other') h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
+    else h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
   }
   if (prodTwinOf(e, idx)) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdTwinOk" data-id="' + escHtml(e.id) + '">Two runs, keep both</button>';
   var one = prodEntryOneAction(e, idx);

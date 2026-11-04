@@ -2442,15 +2442,22 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   different way. On a day with the supervisor's whole-day barrel list, the roll's barrel OT blocks are *also reported*
   beside it (the owner could not say which the list covers: recorded as unknown, and kept so on 13 Oct 2026: *"This issue
   should be resolved once we have separate apps for everyone on the floor"*).
-  **A hand run of a client the shift's register never names is other work and counts beside it** (owner, 4 Nov 2026: a client
-  typed by hand sat under *Also reported, not added* on a shift whose register page never named it, and could not be moved;
-  `prodCountPlated`, P258); one of a client the register names stays also reported (the same work told twice), and so does one
-  naming no client. A correction of a hand run is judged as the run it replaces. **The owner's word on a run wins**: **Count it**,
-  **Leave it out** and **Back to the rule** (`countSet: {how, at, by}`, `prodCountSet`, the voids permission, kept by a correction);
-  the run's fold and pane say why it counts or not (`prodCountWhyText`). **A register run saved from two sources is flagged, never
-  dropped** (`prodRegisterTwins`: one day, line and client, the same figure and unit, times that meet, two different pages, photos or
-  messages): *saved twice?* on both rows, Entries' *Saved twice* flag, To-do `prodTwice` (a floor task, a day a task); void the copy,
-  or **Two runs, keep both** (`twinOk`, naming the other).
+  **A hand run of a client the day's register never names on its line is other work and counts beside it** (owner, 4 Nov 2026: a
+  client typed by hand sat under *Also reported, not added* on a shift whose register page never named it, and could not be moved;
+  `prodCountPlated`, P258). The clients named are the day's and the line's, over both slots and the barrel's day list (a register run is
+  split at 5 PM), matched by id and by name (`prodCountNameKey`: a firm held twice, a run read under another record). A hand run of a
+  client named stays also reported (the same work told twice); so does one naming no client, and one beside a register run read with
+  no client of the book (*unsure*: it may be that work). A correction of a hand run is judged as the run it replaces. **The owner's
+  word on any run wins**: **Count it**, **Leave it out**, **Back to the rule** (`countSet: {how, at, by}`, `prodCountSet`, the voids
+  permission, kept by a correction); it can count a barrel OT block beside the day's list too, the one exception to the ruling of 13 Oct
+  2026. A run's fold and pane say why it counts or not (`prodCountWhyText`). **A register run saved from two sources is flagged, never
+  dropped** (`prodRegisterTwins`, Vulcanus's audit the same day): one day, line, unit (barrels side by side are two runs) and client,
+  the same figure and unit, times that overlap (touching is not overlapping; a night on the night's clock), from two different pages,
+  photos, messages or imports (one import's rows one source; a correction its root's). Copies cluster (two photos and a page are
+  three); *saved twice?* on each row, Entries' *Saved twice* flag, Lines' note that the figure and efficiency read high, To-do
+  `prodTwice` (the owner's, 30 days, a day a task, the pieces counted twice). Until settled the copies after the first saved are left
+  out of the 60-day measures (the pace, a tank's load: `twinSkip`), never out of the day's figure. Void the copy, or **Two runs, keep
+  both** (`twinOk: {ids, at, by}`: kept apart from each copy it was paired with).
 - **A pickling message never names the line.** A load's line is read from the plating it became (the same part, the
   same day from half an hour before, or the next working day before noon), shown and **never stored**; a load with no
   plating offers the part's **usual line** (5+ days at 80%+, learnt only from lines written or set, so the pattern

@@ -1389,6 +1389,31 @@ data-tone>`, its parts in one order (P239):
 - On the phone the date and the clock share the first row and the sentence takes the whole width under them (two lines, where it
   took four beside the clock); the sentence and the clock stand in Home's first 200 px: the six-second test.
 
+### 6.37 A guided flow — `uiFlowHtml` (state.js), `inv-flow` (UI pass 3, §11a)
+Every form a person fills by hand (owner, 15 Oct 2026: *"The Enter by hand screen is primitive in design, and doesn't engage or leads
+the user"*): numbered steps that **lead without hiding**. `<div class="inv-flow" data-flow="<name>">`, in one order:
+- **the progress line** (`inv-flow-progress`, `[data-flow-progress]`): *2 of 4 done* (or *Ready to save*) and a meter of one segment a
+  required step (`inv-flow-seg`, `data-done`), each a well until it is done;
+- **the steps** (`inv-flow-steps`, `inv-flow-step`, `[data-flow-step]` and `data-state`: `done`, `next`, `todo`, or `opt` for a step
+  that is only filled if needed), each a lifted card: its number in a node (a tick once done), its title a question (*What came in?*),
+  under it what it holds once done (`[data-flow-says]`, *Q558 · 25 kg*, in ok), *Next* on the first required step not done (its card
+  edged in the accent), a book to its guide's section (`invFlowGuide`: the Reader at that section), a line of help, then its fields.
+  **Every step stays open and fillable in any order**: nothing is hidden, disabled or folded behind a step not reached;
+- **the preview** (`inv-flow-preview`, `[data-flow-preview]`, *What Save records*): in words and figures what Save writes and what it
+  changes (*Received 25 kg of Q558 from …, bill 1043 of 14 Oct, ₹55.20 a kg before GST · The shelf goes from 15 kg to 40 kg*), worked
+  out by the screen's own functions, then the checks the app already makes as rows in their tone. Beside the steps and kept in view
+  where the flow is 52rem wide (`--flow-pv-w`), under the last step otherwise (the phone, a dialog);
+- **the receipt** (`uiFlowReceiptHtml`, `inv-flow-receipt`, `[data-flow-receipt]`) after a save where the form stays: *Saved: …*,
+  what was recorded, and the form's own actions where it has them.
+
+A **kind** is a row of tiles (`uiKindTilesHtml`, `inv-kind`: its icon, its word and a line, pressed when chosen; two across, four from
+36rem of flow), in place of a segmented control. The flow is a model the form works out from its own state (`uiFlowDefine(name, fn)`
+→ `{steps, preview}`), drawn once and kept in step as it is typed (`uiFlowSync`, after every input, change and click): the steps'
+state, their heads, the progress and the preview, **never a field**. Enter in a field that finishes its step goes to the first field
+of the step Next (`uiFlowEnter`, from the Enter chain); a form with its own keyboard chain says `data-flow-ownkeys`. On opening, the
+step Next's first field is focused, never on a touch screen (`uiFlowFocusNext`). Save stays in the action bar. Nothing a test or the
+keyboard reads changes: the form's ids, `data-action`, `data-change` and `data-k` stay on its fields.
+
 ## 7. How each screen is assembled
 
 | Screen | Phone | Desktop |

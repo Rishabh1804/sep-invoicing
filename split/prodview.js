@@ -1300,7 +1300,10 @@ async function prodPhotoNext() {
   }
 }
 function prodPhotoRead() { var ph = _prodPhoto; return prodRackCheck(prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices)); }
-function prodPhotoHtml() {
+/* The register photo's check as a guided flow (UI pass 3 §26b): The page (its date and line) · Each run (a struck row counted or
+   cancelled, a client) · The power log. The preview says the runs as they will count (prodPhotoRead) and warns of a page saved
+   before or entered on Mine. Nothing is saved until Save. */
+function prodPhotoState() {
   var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
   var date = ph.choices.date || rd.date;
@@ -1308,60 +1311,105 @@ function prodPhotoHtml() {
   var red = rd.issues.filter(function(x) { return x.tone === 'red'; }).length, power = rd.page === 'power';
   rd.rows.forEach(function(r) { r.issues.forEach(function(x) { if (x.tone === 'red') red++; }); });
   rd.runs.forEach(function(e, i) { if (e.clientId == null && ph.choices['client' + i] === undefined) red++; });
-  var h = prodBackBar('Check the register');
-  h += '<div class="inv-panel"><div class="inv-scroll-x"><img class="inv-prod-photo" src="' + escHtml(ph.url) + '" alt="The register photo"></div>' +
+  // The page entered on Mine by the register clerk (faces.js, F4) for this day and line, whose runs are in the book.
+  var onMine = !power && line ? p.pages.find(function(x) { return !x.replacedBy && x.date === date && x.line === line && p.entries.some(function(e) { return e.pageId && e.date === x.date && e.line === x.line && !e.voidedAt; }); }) : null;
+  return { ph: ph, rd: rd, line: line, date: date, dupFp: dupFp, red: red, power: power, onMine: onMine };
+}
+function prodPhotoModel() {
+  if (!_prodPhoto) return null;
+  var x = prodPhotoState(), rd = x.rd, ph = x.ph, steps = [], lines = [], checks = [];
+  var other = rd.page === 'other' || rd.page === 'challan';
+  steps.push({ key: 'page', title: 'Which page is it?', help: 'The date written on the page' + (x.power || other ? '' : ' and its line') + '. Check them against the photo.', guide: ['app-production', 'Put the data in'],
+    done: !!x.date && (x.power || other || !!x.line), says: [x.date ? stockShortDate(x.date) : '', x.power ? 'power log' : x.line ? PROD_LINE_LABEL[x.line] : ''].filter(Boolean).join(' · '), body: '' });
+  if (!x.power && !other) {
+    var runRed = x.red - rd.issues.filter(function(i) { return i.tone === 'red'; }).length;
+    steps.push({ key: 'runs', title: 'Does each run read right?', help: 'Every row as written, and what it was read as. Settle a struck row and a run with no client.',
+      done: rd.runs.length > 0 && runRed <= 0, says: todoPlural(rd.runs.length, 'run') + ' · ' + Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS', body: '' });
+  }
+  if (x.power || (!other && rd.downtime.length)) {
+    steps.push({ key: 'power', title: 'The power log', help: 'Each cut with its return, as written.', optional: !x.power, done: rd.downtime.length > 0, says: todoPlural(rd.downtime.length, 'cut'), body: '' });
+  }
+  if (x.power) {
+    if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut') + (x.date ? ' on ' + stockShortDate(x.date) : '')) + ', from the register’s power log');
+  } else if (!other && rd.runs.length) {
+    lines.push('Plated ' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN')) + ' NOS on ' + escHtml(x.line ? PROD_LINE_LABEL[x.line] : 'a line not known') + (x.date ? ', ' + escHtml(stockShortDate(x.date)) : '') + ', in ' + escHtml(todoPlural(rd.runs.length, 'run')));
+    rd.runs.slice(0, 5).forEach(function(e, i) {
+      var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
+      lines.push(escHtml((cid != null ? clientShortName(prodClientName(cid)) : e.client || 'No client') + (e.part ? ' · ' + e.part : '') + ': ' + prodQtyText(e.qty, 'NOS')));
+    });
+    if (rd.runs.length > 5) lines.push(escHtml((rd.runs.length - 5) + ' more runs'));
+    if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut')) + ' from the page’s power log');
+  }
+  if (ph.dupSha) checks.push({ tone: 'danger', text: 'This photo was saved before: saving it again counts the page twice.' });
+  else if (x.dupFp) checks.push({ tone: 'warning', text: 'A photo with the same rows for this day and line was saved before.' });
+  else if (x.onMine) checks.push({ tone: 'warning', text: 'This page was entered on Mine' + (x.onMine.by ? ' by ' + x.onMine.by : '') + ': saving the photo as well counts the day twice.' });
+  if (x.red) checks.push({ tone: 'danger', text: x.red + (x.red === 1 ? ' question' : ' questions') + ' to settle before Save.' });
+  if (other) checks.push({ tone: 'info', text: rd.page === 'challan' ? 'This is a challan, not a register page: nothing is saved here.' : 'This is not a register page: nothing is saved here.' });
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Nothing was read from this photo to save.' } };
+}
+uiFlowDefine('prodPhoto', prodPhotoModel);
+function prodPhotoHtml() {
+  var x = prodPhotoState(), ph = x.ph, rd = x.rd, line = x.line, date = x.date, red = x.red, power = x.power, onMine = x.onMine;
+  var model = prodPhotoModel(), body = {};
+  var page = '<div class="inv-scroll-x"><img class="inv-prod-photo" src="' + escHtml(ph.url) + '" alt="The register photo"></div>' +
     '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodPhotoDate">Date on the page</label><input type="date" id="prodPhotoDate" class="inv-input" value="' + escHtml(date) + '"></div>' +
     (power || rd.page === 'other' ? '' : '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
       '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div>') + '</div>' +
-    '<div class="inv-note inv-mt-8">' + escHtml('Read by Claude' + (ph.meta.draft ? ' (kept from the last read of this photo)' : ph.meta.usd ? ' · ' + phMoney(ph.meta.usd) : '') + (ph.sentBy ? ' · sent by ' + ph.sentBy : '') + '. Check every row against the photo: nothing is saved until you do.') + '</div></div>';
-  // The page entered on Mine by the register clerk (faces.js, F4) for this day and line, whose runs are in the book.
-  var onMine = !power && line ? p.pages.find(function(x) { return !x.replacedBy && x.date === date && x.line === line && p.entries.some(function(e) { return e.pageId && e.date === x.date && e.line === x.line && !e.voidedAt; }); }) : null;
-  if (ph.dupSha) h += '<div class="inv-callout inv-callout-danger" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
-  else if (dupFp) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
-  else if (onMine) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup" data-prod-photo-mine>' + escHtml('The ' + PROD_LINE_LABEL[line] + ' page for this day was entered on Mine' + (onMine.by ? ' by ' + onMine.by : '') +
+    '<div class="inv-note inv-mt-8">' + escHtml('Read by Claude' + (ph.meta.draft ? ' (kept from the last read of this photo)' : ph.meta.usd ? ' · ' + phMoney(ph.meta.usd) : '') + (ph.sentBy ? ' · sent by ' + ph.sentBy : '') + '. Check every row against the photo: nothing is saved until you do.') + '</div>';
+  if (ph.dupSha) page += '<div class="inv-callout inv-callout-danger inv-mt-8" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
+  else if (x.dupFp) page += '<div class="inv-callout inv-callout-warning inv-mt-8" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
+  else if (onMine) page += '<div class="inv-callout inv-callout-warning inv-mt-8" id="prodPhotoDup" data-prod-photo-mine>' + escHtml('The ' + PROD_LINE_LABEL[line] + ' page for this day was entered on Mine' + (onMine.by ? ' by ' + onMine.by : '') +
     (onMine.fp === rd.fp ? ', with the same rounds' : '') + '. Saving the photo as well counts the day twice.') + '</div>';
-  rd.issues.forEach(function(x) { if (x.code === 'line' && line) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + '">' + escHtml(x.text) + '</div>'; });
-  if (power) {
+  rd.issues.forEach(function(i) { if (i.code === 'line' && line) return; page += '<div class="inv-callout inv-callout-' + uiTone(i.tone) + ' inv-mt-8">' + escHtml(i.text) + '</div>'; });
+  if (rd.page === 'challan') page += '<button class="inv-btn inv-btn-secondary inv-btn-block inv-mt-8" data-action="invProdToScanner">Read it as a challan</button>';
+  body.page = page;
+  if (rd.downtime.length || power) {
     // The register's power log: each cut with its return, as written.
-    h += '<div class="inv-panel inv-panel-flush" id="prodPhotoPower"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts read</span><span class="inv-panel-count">' + rd.downtime.length + '</span></div>' +
-      rd.downtime.map(function(x, i) {
-        var mins = x.to ? relayParseHhmm(x.to) - relayParseHhmm(x.time) : null;
-        return '<div class="inv-row inv-row-2" data-prod-cut="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(stockShortDate(x.date) + ' · ' + x.time + (x.to ? ' – ' + x.to : ', no return written')) + '</span>' +
-          '<span class="inv-row-meta">' + escHtml(x.raw.replace(/\n/g, ' / ')) + '</span></span><span class="inv-row-end inv-num">' + (mins != null ? escHtml(mins + ' min') : '&mdash;') + '</span></div>';
+    body.power = '<div class="inv-panel inv-panel-flush" id="prodPhotoPower"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts read</span><span class="inv-panel-count">' + rd.downtime.length + '</span></div>' +
+      rd.downtime.map(function(c, i) {
+        var mins = c.to ? relayParseHhmm(c.to) - relayParseHhmm(c.time) : null;
+        return '<div class="inv-row inv-row-2" data-prod-cut="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(stockShortDate(c.date) + ' · ' + c.time + (c.to ? ' – ' + c.to : ', no return written')) + '</span>' +
+          '<span class="inv-row-meta">' + escHtml(c.raw.replace(/\n/g, ' / ')) + '</span></span><span class="inv-row-end inv-num">' + (mins != null ? escHtml(mins + ' min') : '&mdash;') + '</span></div>';
       }).join('') + '<div class="inv-panel-body inv-note">A cut the pickling messages also reported is counted once: the two are joined when they overlap or begin within ten minutes.</div></div>';
-    return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Power cuts</div><div class="inv-actionbar-value">' + rd.downtime.length + '</div></div>' +
-      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.downtime.length ? ' disabled' : '') + '>Save</button></div>';
   }
-  if (rd.page === 'challan') h += '<div class="inv-panel"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invProdToScanner">Read it as a challan</button></div>';
-  if (rd.page === 'other' || rd.page === 'challan') return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Nothing to save</div><div class="inv-actionbar-value">0</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto" disabled>Save</button></div>';
-  h += '<div class="inv-panel inv-panel-flush" id="prodPhotoRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs read</span><span class="inv-panel-count">' + rd.runs.length + '</span></div>';
-  rd.runs.forEach(function(e, i) {
-    var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
-    h += '<div class="inv-row inv-row-auto inv-row-top" data-prod-run="' + i + '"><div class="inv-row-main"><div class="inv-row-title">' + escHtml((cid != null ? prodClientName(cid) : e.client || 'No client') + (e.part ? ' · ' + e.part : '')) + '</div>';
-    e.rows.forEach(function(r) {
-      h += '<div class="inv-quote inv-mt-4">' + escHtml(r.raw || '(empty row)') + '</div>';
-      r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-4">' + escHtml(x.text) + '</div>'; });
-      if (r.struck) h += '<div class="inv-toolbar inv-mt-4" role="group" aria-label="Struck row">' + [['counted', 'Counted'], ['cancelled', 'Cancelled']].map(function(o) {
-        return '<button class="inv-chip" data-action="invProdStruck" data-i="' + r.i + '" data-v="' + o[0] + '" aria-pressed="' + (ph.choices['struck' + r.i] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+  var bar;
+  if (power) {
+    bar = '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Power cuts</div><div class="inv-actionbar-value">' + rd.downtime.length + '</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.downtime.length ? ' disabled' : '') + '>Save</button></div>';
+  } else if (rd.page === 'other' || rd.page === 'challan') {
+    bar = '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Nothing to save</div><div class="inv-actionbar-value">0</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto" disabled>Save</button></div>';
+  } else {
+    var runs = '<div class="inv-panel inv-panel-flush" id="prodPhotoRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs read</span><span class="inv-panel-count">' + rd.runs.length + '</span></div>';
+    rd.runs.forEach(function(e, i) {
+      var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
+      runs += '<div class="inv-row inv-row-auto inv-row-top" data-prod-run="' + i + '"><div class="inv-row-main"><div class="inv-row-title">' + escHtml((cid != null ? prodClientName(cid) : e.client || 'No client') + (e.part ? ' · ' + e.part : '')) + '</div>';
+      e.rows.forEach(function(r) {
+        runs += '<div class="inv-quote inv-mt-4">' + escHtml(r.raw || '(empty row)') + '</div>';
+        r.issues.forEach(function(i2) { runs += '<div class="inv-callout inv-callout-' + uiTone(i2.tone) + ' inv-mt-4">' + escHtml(i2.text) + '</div>'; });
+        if (r.struck) runs += '<div class="inv-toolbar inv-mt-4" role="group" aria-label="Struck row">' + [['counted', 'Counted'], ['cancelled', 'Cancelled']].map(function(o) {
+          return '<button class="inv-chip" data-action="invProdStruck" data-i="' + r.i + '" data-v="' + o[0] + '" aria-pressed="' + (ph.choices['struck' + r.i] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+      });
+      e.issues.forEach(function(i2) { if (i2.code === 'client' && cc !== undefined) return; runs += '<div class="inv-callout inv-callout-' + uiTone(i2.tone) + ' inv-mt-8">' + escHtml(i2.text) + '</div>'; });
+      // Every run's client can be changed, as on the paste check (P127): a run read exactly, one the ditto rule moved, one whose
+      // round the rules give to another client. The last two open on the picker.
+      var moved = e.rows.some(function(r) { return r.issues.some(function(i2) { return i2.code === 'carried' || i2.code === 'whose'; }); });
+      if (!(e.clientId == null || cc !== undefined || moved || ph.choices['open' + i] || e.issues.some(function(i2) { return i2.code === 'readas'; })))
+        runs += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRunClient" data-i="' + i + '">Change client</button></div>';
+      else {
+        var sel = cc !== undefined ? String(cc) : (e.clientId != null ? String(e.clientId) : '');
+        runs += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodRunClient' + i + '">Client</label><select id="prodRunClient' + i + '" class="inv-select" data-prod-run-client="' + i + '">' +
+          (sel === '' ? '<option value="" selected>Pick the client</option>' : '') + '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep as written</option>' +
+          (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
+      }
+      runs += '</div><div class="inv-row-end"><span class="inv-num">' + escHtml(prodQtyText(e.qty, 'NOS')) + '</span></div></div>';
     });
-    e.issues.forEach(function(x) { if (x.code === 'client' && cc !== undefined) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
-    // Every run's client can be changed, as on the paste check (P127): a run read exactly, one the ditto rule moved, one whose
-    // round the rules give to another client. The last two open on the picker.
-    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
-    if (!(e.clientId == null || cc !== undefined || moved || ph.choices['open' + i] || e.issues.some(function(x) { return x.code === 'readas'; })))
-      h += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRunClient" data-i="' + i + '">Change client</button></div>';
-    else {
-      var sel = cc !== undefined ? String(cc) : (e.clientId != null ? String(e.clientId) : '');
-      h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodRunClient' + i + '">Client</label><select id="prodRunClient' + i + '" class="inv-select" data-prod-run-client="' + i + '">' +
-        (sel === '' ? '<option value="" selected>Pick the client</option>' : '') + '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep as written</option>' +
-        (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
-    }
-    h += '</div><div class="inv-row-end"><span class="inv-num">' + escHtml(prodQtyText(e.qty, 'NOS')) + '</span></div></div>';
-  });
-  h += '</div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Counted</div><div class="inv-actionbar-value">' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS') + '</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
-  return h;
+    body.runs = runs + '</div>';
+    bar = '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Counted</div><div class="inv-actionbar-value">' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS') + '</div></div>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
+  }
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
+  return uiFlowHtml('prodPhoto', model, { before: prodBackBar('Check the register') }) + bar;
 }
 function prodSavePhoto() {
   var ph = _prodPhoto;
@@ -1430,42 +1478,113 @@ function prodHandBlank(fromLines) {
   }
   return f;
 }
+/* Enter by hand as a guided flow (UI pass 3 §11a, §26b): What · Where and when · Whose work · Rework (if needed); a power cut is What
+   and When. The preview says the run as it will count, weighed by prodWeigh's route, and what the form would ask at Save. */
+var PROD_HAND_KINDS = [
+  { value: 'plated', icon: 'vat', word: 'Plated', line: 'A run on a line' },
+  { value: 'pickled', icon: 'pickling', word: 'Pickled', line: 'A load into the tank' },
+  { value: 'arrived', icon: 'truck', word: 'Arrived', line: 'Material came in' },
+  { value: 'downtime', icon: 'zap', word: 'Power cut', line: 'The power went off' }
+];
+var PROD_HAND_WORD = { plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' };
+/* The entry as Save would write it, for the preview's reading only (never saved from here). */
+function prodHandDraft(f) {
+  var q = parseFloat(f.qty), e = { kind: f.kind, date: f.date, time: f.time || null, unit: f.unit, rework: !!f.rework };
+  if (f.kind === 'downtime') return e;
+  e.clientId = f.clientId ? prodHeldId(f.clientId) : null; e.part = String(f.part || '').trim(); e.gauge = prodGaugeOf(e.part, e.part); e.qty = isNaN(q) ? null : q;
+  if (f.kind === 'plated') e.line = f.line || null;
+  return e;
+}
+function prodHandModel() {
+  var f = _prodHand;
+  if (!f) return null;
+  var today = localDateStr(), day = f.date ? stockShortDate(f.date) : '', cut = f.kind === 'downtime';
+  var q = parseFloat(f.qty), qtyOk = !isNaN(q) && q > 0, client = f.clientId ? prodClientName(f.clientId) : '';
+  var at = function(t) { var m = t ? relayParseHhmm(t) : null; return m == null ? '' : relayClockLabel(m); };
+  var whereSays = [day, at(f.time) ? (cut ? 'off at ' : 'at ') + at(f.time) : '', cut && at(f.to) ? 'back at ' + at(f.to) : '',
+    f.kind === 'plated' ? (f.line ? PROD_LINE_LABEL[f.line] : 'line unknown') : '', f.kind === 'plated' ? (f.slot === 'ot' ? 'overtime' : f.slot === 'day' ? 'whole day' : 'general shift') : ''].filter(Boolean).join(' · ');
+  var steps = [
+    { key: 'what', title: f.replaces ? 'What is corrected?' : 'What are you entering?', help: f.replaces ? '' : 'Pick one. The fields below follow it.', guide: ['app-production', 'Put the data in'],
+      done: true, says: PROD_HAND_WORD[f.kind] || '', body: '' },
+    { key: 'when', title: cut ? 'When did the power go?' : f.kind === 'plated' ? 'Where and when?' : 'When?',
+      help: cut ? 'The cut, and the power back if it has come back. A cut still on is completed when it ends.' :
+        f.kind === 'plated' ? 'The day and time of the run, its line and its shift.' : 'The day and the time.',
+      done: !!f.date && f.date <= today && (!cut || !!f.time), says: whereSays, body: '' }
+  ];
+  if (!cut) {
+    steps.push({ key: 'whose', title: f.kind === 'arrived' ? 'Whose material, and how much?' : 'Whose work, and how much?', help: 'The client, the part as the floor names it, and the figure.',
+      done: !!f.clientId && !!String(f.part || '').trim() && qtyOk,
+      says: [client ? clientShortName(client) : '', String(f.part || '').trim(), qtyOk ? formatNum(q, q % 1 ? 2 : 0) + ' ' + (f.unit === 'KG' ? 'kg' : 'NOS') : ''].filter(Boolean).join(' · '), body: '' });
+    steps.push({ key: 'rework', title: 'Is it rework?', help: 'Rework counts as work done, never as billing.', optional: true, done: !!f.rework, says: 'Rework', body: '' });
+  }
+  // The preview: the entry in words, and how it will count.
+  var lines = [], checks = [];
+  if (cut) {
+    if (f.time) {
+      var a = relayParseHhmm(f.time), b = f.to ? relayParseHhmm(f.to) : null;
+      lines.push('A power cut ' + (day ? 'on ' + escHtml(day) + ' ' : '') + 'at ' + escHtml(at(f.time)) +
+        (b != null && a != null ? ', back at ' + escHtml(at(f.to)) + ' · ' + escHtml(powerDur(b >= a ? b - a : b + 1440 - a)) + ' off' : ' · still off: completed when the power comes back'));
+      if (b != null && a != null && b < a) checks.push({ tone: 'warning', text: 'The power back is earlier on the clock than the cut: saved as it is, it ran overnight. Save asks first.' });
+    }
+  } else if (f.clientId && String(f.part || '').trim() && qtyOk) {
+    var e = prodHandDraft(f), unit = f.unit === 'KG' ? 'kg' : 'NOS';
+    lines.push(escHtml(PROD_HAND_WORD[f.kind]) + ' ' + escHtml(formatNum(q, q % 1 ? 2 : 0) + ' ' + unit) + ' of ' + escHtml(e.part) + ' for ' + escHtml(clientShortName(client || '')) +
+      (f.kind === 'plated' ? ' on ' + escHtml(f.line ? PROD_LINE_LABEL[f.line] : 'a line not known') + ', ' + (f.slot === 'ot' ? 'overtime' : f.slot === 'day' ? 'the whole day' : 'the general shift') : '') +
+      (day ? ', ' + escHtml(day) : '') + (f.time ? ' at ' + escHtml(at(f.time)) : ''));
+    if (f.kind === 'plated' && !f.rework) {
+      var w = null;
+      try { w = prodWeigh(e); } catch (x) { w = null; }
+      var how = w && w.how ? { record: 'the part’s weight on record', challans: 'its challans', kind: 'the usual weight of its kind', 'default': 'the client’s own kg a piece' }[w.how] : '';
+      if (w && w.kg != null) lines.push('It counts as ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' plated' + (how ? ', weighed by ' + escHtml(how) : ''));
+      else checks.push({ tone: 'info', text: 'No weight is known for this part: it counts in pieces, and Not weighed asks for its weight.' });
+    }
+    if (f.rework) lines.push('Rework: counted as work done, never as billing.');
+  }
+  if (f.date && f.date > today) checks.push({ tone: 'danger', text: 'That day has not come yet: pick a day up to today.' });
+  else if (f.date && f.date !== today && !f.replaces) checks.push({ tone: 'warning', text: 'Dated ' + formatDate(f.date) + ', not today.' });
+  if (f.kind === 'plated' && !f.line) checks.push({ tone: 'info', text: 'No line: the run is kept with its line unknown.' });
+  if (f.replaces) checks.push({ tone: 'info', text: 'It takes the place of the entry corrected, which stays on the record, marked corrected.' });
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: cut ? 'Enter when the power went, and this says how long it was off.' : 'Fill in whose work and how much, and this says how the run will count.' } };
+}
+uiFlowDefine('prodHand', prodHandModel);
 function prodHandHtml() {
   var f = _prodHand;
   var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
-  var h = f.from === 'power' ? '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invProdHandDone">' + STOCK_BACK_ICON + 'Power</button>' +
+  var head = f.from === 'power' ? '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invProdHandDone">' + STOCK_BACK_ICON + 'Power</button>' +
       '<h2 class="inv-pagehead-title">Enter power cuts</h2></div>' : prodBackBar(f.replaces ? 'Correct an entry' : 'Enter by hand');
-  if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
-  else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
-    return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
-  // A day not today is said above the fields, so an entry is never filed on an old day unseen.
-  if (!f.replaces && f.date && f.date !== localDateStr()) h += '<div class="inv-callout inv-callout-warning" data-prod-hand-past>Dated ' + escHtml(formatDate(f.date)) + ', not today. Change the date if this is today\u2019s work.</div>';
-  h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '" max="' + localDateStr() + '">') +
+  var model = prodHandModel(), body = {};
+  body.what = f.replaces ? '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>' :
+    uiKindTilesHtml(PROD_HAND_KINDS, { action: 'invProdHandKind', attr: 'kind', cur: f.kind, label: 'What is entered' });
+  // A day not today is said first in the step that holds the date (#173's rule), so an entry is never filed on an old day unseen.
+  var when = !f.replaces && f.date && f.date !== localDateStr() ? '<div class="inv-callout inv-callout-warning" data-prod-hand-past>Dated ' + escHtml(formatDate(f.date)) + ', not today. Change the date if this is today’s work.</div>' : '';
+  when += '<div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '" max="' + localDateStr() + '">') +
     field('prodHandTime', f.kind === 'downtime' ? 'Power cut at' : 'Time', '<input type="time" id="prodHandTime" class="inv-input" data-prod-hand="time" value="' + escHtml(f.time) + '">');
-  if (f.kind === 'downtime') h += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
+  if (f.kind === 'downtime') when += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
   // What is shown is what is saved: an entry corrected with no line keeps it unknown (the list showed VAT A1 and saved
   // none), and the barrel list's whole day stays a whole day (it was forced to the general shift).
-  if (f.kind === 'plated') h += field('prodHandLine', 'Line', '<select id="prodHandLine" class="inv-select" data-prod-hand="line"><option value=""' + (!f.line ? ' selected' : '') + '>Line unknown</option>' +
+  if (f.kind === 'plated') when += field('prodHandLine', 'Line', '<select id="prodHandLine" class="inv-select" data-prod-hand="line"><option value=""' + (!f.line ? ' selected' : '') + '>Line unknown</option>' +
       PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>') +
     field('prodHandSlot', 'Shift', '<select id="prodHandSlot" class="inv-select" data-prod-hand="slot"><option value="general"' + (f.slot !== 'ot' && f.slot !== 'day' ? ' selected' : '') + '>General shift</option><option value="ot"' + (f.slot === 'ot' ? ' selected' : '') + '>Overtime</option>' +
       (f.slot === 'day' ? '<option value="day" selected>Whole day (barrel list)</option>' : '') + '</select>');
+  body.when = when + '</div>';
   if (f.kind !== 'downtime') {
-    h += field('prodHandClient', 'Client', '<select id="prodHandClient" class="inv-select" data-prod-hand="clientId"><option value="">Pick the client</option>' +
+    body.whose = '<div class="inv-fields">' + field('prodHandClient', 'Client', '<select id="prodHandClient" class="inv-select" data-prod-hand="clientId"><option value="">Pick the client</option>' +
       (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (f.clientId === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select>') +
       field('prodHandPart', 'Part', '<input id="prodHandPart" class="inv-input" data-prod-hand="part" value="' + escHtml(f.part) + '" placeholder="e.g. CLAMP 165X83 (40X6)" autocomplete="off">') +
       field('prodHandQty', 'Quantity', '<input type="number" inputmode="decimal" step="any" min="0" id="prodHandQty" class="inv-input inv-input-num" data-prod-hand="qty" value="' + escHtml(f.qty) + '">') +
-      field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') +
-      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
+      field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') + '</div>';
+    body.rework = '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
   }
-  h += '</div></div>';
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
   // Entries are entered by hand several at a time (owner, 30 Sep 2026: the page went back to the base screen after every
   // one), so the form stays open after a save and lists what was saved from it, each with its Correct and Void.
-  var idx = prodIndex(), saved = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean);
-  if (saved.length) h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="prodHandSaved"><div class="inv-panel-head"><span class="inv-panel-title">Saved from this form</span><span class="inv-panel-count">' + saved.length + '</span>' +
+  var idx = prodIndex(), saved = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean), after = '';
+  if (saved.length) after = '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="prodHandSaved"><div class="inv-panel-head"><span class="inv-panel-title">Saved from this form</span><span class="inv-panel-count">' + saved.length + '</span>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdHandDone">Done</button></div>' +
     // Each row opens to its Void on the desktop too: the pane its tap opened is Entries', not the form's.
     saved.slice().reverse().map(function(e) { return prodEntryRowHtml(e, idx, true); }).join('') + '</div>';
-  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
+  var h = uiFlowHtml('prodHand', model, { before: head, receipt: f.lastSaid ? uiFlowReceiptHtml(f.lastSaid) : '', after: after });
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(PROD_HAND_WORD[f.kind]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div><button class="inv-btn inv-btn-primary" data-action="invProdSaveHand">Save</button></div>';
   return h;
 }
@@ -1530,6 +1649,9 @@ async function prodSaveHand() {
   }
   // The form stays for the next entry: the kind, day, line, shift, client and unit carry over; the figures clear.
   f.saved.push(e.id);
+  // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, until the next save.
+  var said = prodHandModel().preview.lines;
+  f.lastSaid = { title: 'Saved: ' + (PROD_HAND_WORD[f.kind] || 'An entry') + ' on ' + stockShortDate(f.date), lines: said.concat(['Listed under Saved from this form, with Correct and Void.']) };
   f.time = ''; f.to = ''; f.part = ''; f.qty = ''; f.rework = false;
   _pageTyped = false;
   renderProduction();

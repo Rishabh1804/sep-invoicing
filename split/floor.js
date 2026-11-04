@@ -514,6 +514,41 @@ function plantShutRows() {
   var c = flowCfg(), from = isoAddDays(localDateStr(), -30);
   return c.holidays.filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k) && k >= from; }).sort().map(function(k) { return { day: k, why: c.shutWhy[k] || '' }; });
 }
+/* Plant shut… as a guided flow (UI pass 3 §26b): Which days · Why. The preview says what each day reads as once marked: the masthead,
+   Needs you's inputs and the floor now, and the working days the pace and the turnaround leave out. The fields are the form's own; the
+   model reads them as they stand (the day the dialog opened on until it is drawn). */
+var _plantShutInit = null;
+function plantShutModel() {
+  var el = function(id) { return document.getElementById(id); };
+  var init = _plantShutInit, val = function(id, d) { return init ? d : el(id) ? el(id).value : d; };
+  var from = val('plantShutFrom', init ? init.from : localDateStr()), toRaw = val('plantShutTo', init ? init.to : from);
+  var why = String(val('plantShutWhy', init ? init.why : '') || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  var okFrom = /^\d{4}-\d{2}-\d{2}$/.test(from), to = /^\d{4}-\d{2}-\d{2}$/.test(toRaw) && toRaw >= from ? toRaw : from;
+  var n = okFrom ? isoDaysBetween(from, to) + 1 : 0, days = [];
+  if (okFrom && n <= 32) for (var d = from, g = 0; d <= to && g < 40; g++, d = isoAddDays(d, 1)) days.push(d);
+  var dayWord = function(iso) { return attDayName(iso) + ' ' + stockShortDate(iso); };
+  var span = !okFrom ? '' : n === 1 ? dayWord(from) : stockShortDate(from) + ' – ' + stockShortDate(to) + ' · ' + n + ' days';
+  var steps = [
+    { key: 'days', title: 'Which days?', help: 'For 1 day, keep From and To on the same day.', guide: ['app-today', 'Mark the plant shut'], done: okFrom && n <= 32, says: span, body: '' },
+    { key: 'why', title: 'Why is it shut?', help: 'A few words, for example Durga Puja. Home says it in place of the shift.', done: !!why, says: why, body: '' }
+  ];
+  var lines = [], checks = [];
+  if (okFrom && n <= 32) {
+    var words = plantDayOffText({ kind: 'shut', why: why });
+    lines.push('Home says <strong>' + escHtml(words) + '</strong> in place of the shift on ' + escHtml(span.split(' · ')[0]));
+    lines.push('Needs you’s inputs read Not expected: plant shut, and The floor now is one quiet line.');
+    var cfg = flowCfg(), worked = days.filter(function(x) { return statsWorkingDayList(x, x).length > 0; });
+    lines.push(worked.length ? escHtml(todoPlural(worked.length, 'working day')) + ' left out of the month’s pace and the turnaround. Pay is not touched.' : 'None of these is a working day already. Pay is not touched.');
+    var marked = days.filter(function(x) { return (cfg.holidays || []).indexOf(x) >= 0; });
+    if (marked.length) checks.push({ tone: 'info', text: todoPlural(marked.length, 'day') + ' already marked shut: kept, with the reason given here.' });
+    var busy = days.filter(function(x) { return typeof plantDayWorked === 'function' && plantDayWorked(x); });
+    if (busy.length) checks.push({ tone: 'warning', text: 'Work is recorded on ' + busy.map(dayWord).join(', ') + ': the plant reads as working there all the same.' });
+  }
+  if (okFrom && n > 32) checks.push({ tone: 'danger', text: 'Mark at most a month at a time.' });
+  if (/^\d{4}-\d{2}-\d{2}$/.test(toRaw) && okFrom && toRaw < from) checks.push({ tone: 'warning', text: 'To is before From: only From is marked.' });
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Pick the days, and this says what each will read as.' } };
+}
+uiFlowDefine('plantShut', plantShutModel);
 function plantShutOpen(day) {
   var today = localDateStr(), d = /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? day : today, rows = plantShutRows();
   var f = function(fid, label, input, hint) { return '<div class="inv-field"><label class="inv-field-label" for="' + fid + '">' + label + '</label>' + input + (hint ? '<div class="inv-field-hint">' + hint + '</div>' : '') + '</div>'; };
@@ -522,12 +557,17 @@ function plantShutOpen(day) {
       return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(attDayName(r.day) + ' ' + stockShortDate(r.day)) + '</span>' +
         (r.why ? '<span class="inv-row-meta">' + escHtml(r.why) + '</span>' : '') + '</span><span class="inv-row-end"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlantShutDel" data-day="' + r.day + '">Remove</button></span></div>';
     }).join('') + '</div>' : '';
+  _plantShutInit = { from: d, to: d, why: '' };
+  var model = plantShutModel(), body = {
+    days: '<div class="inv-fields">' + f('plantShutFrom', 'From', '<input class="inv-input" type="date" id="plantShutFrom" value="' + d + '">') +
+      f('plantShutTo', 'To', '<input class="inv-input" type="date" id="plantShutTo" value="' + d + '">') + '</div>',
+    why: f('plantShutWhy', 'Why', '<input class="inv-input" id="plantShutWhy" maxlength="40" placeholder="Durga Puja" autocomplete="off">', 'Pay is not touched: a paid holiday is set in Settings → Labour.')
+  };
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
+  _plantShutInit = null;
   dialogOpen('<div class="inv-dialog" data-plant-shut role="dialog" aria-modal="true" aria-labelledby="plantShutTitle">' +
     dialogHeadHtml('<span id="plantShutTitle">Plant shut</span>') +
-    '<div class="inv-fields">' + f('plantShutFrom', 'From', '<input class="inv-input" type="date" id="plantShutFrom" value="' + d + '">') +
-      f('plantShutTo', 'To', '<input class="inv-input" type="date" id="plantShutTo" value="' + d + '">') + '</div>' +
-    f('plantShutWhy', 'Why', '<input class="inv-input" id="plantShutWhy" maxlength="40" placeholder="Durga Puja" autocomplete="off">', 'Home says it in place of the shift, and these days are not counted as working days. Pay is not touched: a paid holiday is set in Settings → Labour.') +
-    list +
+    uiFlowHtml('plantShut', model, { after: list }) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invPlantShutSave">Mark shut</button></div></div>',
     { dismiss: true, replace: !!document.querySelector('[data-plant-shut]') });
 }

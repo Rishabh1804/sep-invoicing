@@ -282,16 +282,30 @@ var KB_APP_GUIDES = [
     '- This is the level of a line divided by its daily use. The daily use is the use over the last 3 weeks of record, without Sundays. If there are less than 3 days of record, the figure shows a ?.\n' +
     '- A line is red at a few days or fewer, and amber at a week (Settings → Checks & alerts → Stock alerts). A line that is charged into a bath is never red when the shelf is empty. The delivery goes into the bath, and this is the normal state.\n\n' +
     '# Spend and prices\n' +
-    '- On a phone, this is at the bottom of the list. On a computer, it is in the pane beside the list.\n' +
+    '- On a phone, tap **Spend and prices** at the bottom of the list. It opens on its own screen. Tap **Stock** to go back. On a computer, tap **Spend and prices** in the toolbar. The list becomes narrow and the cards fill the space beside it. Tap the button again to close it.\n' +
     '- **Spend by supplier** shows 6 months of bills, before GST. Tap a supplier to see its bills and what the bank paid it.\n' +
     '- **Used, by week** shows each use at the price paid for that line on that day. If a line has no price, the app names it and does not count it.\n' +
     '- **Price trend** shows the bills of 1 line. For zinc, it compares the bills with the market. The market uses the uplift and the premium that are set now.\n' +
     '- **The zinc market** is LME × (1 + the uplift) + the premium (Settings → Costing → Zinc rate). The app calculates it for each day that a Refresh kept. The app compares the price of a bill before GST with the market on its day. It uses the last LME up to 4 days before. The amount of each supplier over the market is weighted by the kilos.\n' +
-    '- **Timing** puts each bill in the market of the 30 days before it: near the low, in the middle or near the high.',
+    '- **Timing** puts each bill in the market of the 30 days before it: near the low, in the middle or near the high.\n\n' +
+    '# Enter by hand\n' +
+    'The form has 4 numbered steps. You can fill them in any order. The first step that is not done shows **Next**. A done step shows a tick and what it holds.\n' +
+    '1. **What are you entering?** Tap a tile: **Count**, **Received**, **Used** or **Charged**.\n' +
+    '2. **When?** Set the date. For **Received**, also type the company, the invoice number and the invoice date.\n' +
+    '3. Type the quantity on each line that changed. For **Received**, type the price per unit before GST. For **Used** or **Charged**, type the bath in **Into**.\n' +
+    '4. **Who is entering it?** Type your name. The app keeps it on this device.\n' +
+    '- **What Save records** shows each line in words, with the level before and after. It also shows the checks of the app, for example a count far from the level.\n' +
+    '- Tap **Save**. A card shows what was saved. The form stays open on the same day for the next entry.\n\n' +
+    '# Two lines that are one\n' +
+    '- If one chemical is on 2 lines (for example *Nitric acd* and *Nitric acid*), open the line to give up and tap **Merge into another line**. Select the line to keep.\n' +
+    '- The entries move to the line you keep. The old name becomes a spelling of that line, so a message written the old way finds it. The old line is retired, not deleted.\n' +
+    '- The app does not merge 2 lines with different units. Change the unit of one line first.\n' +
+    '- The To-do shows the owner 2 lines that look like one.',
     // Version 2: one screen, its card and Spend and prices (the tab map, TM4d). Version 3: the reorder list's supplier and its lead time.
     // Version 4: the zinc market's working, which the price trend printed under its chart (the tab map, TM7).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 5 }),
+    // Version 6: Enter by hand as numbered steps, Spend and prices on its own screen, two lines merged (UI pass 3, U4).
+    { version: 6 }),
   // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has 4 views: **Lines**, **In plant**, **Entries** and **Equipment**. Each view starts with a card that shows the status. On a phone, tap the card to see its figures. Floor → Overview shows the day across the plant.\n\n' +

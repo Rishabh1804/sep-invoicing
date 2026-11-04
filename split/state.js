@@ -963,7 +963,8 @@ function uiBlankHtml(o) {
    A flow is a model its form works out from its own state (`uiFlowDefine(name, fn)`; fn returns {steps, preview}), drawn once by
    `uiFlowHtml(name, model, o)` and kept in step as it is typed by `uiFlowSync()` (events.js, after every input, change and click),
    which touches the steps' state, their heads and the preview, never a field. A step: {key, title, help, guide: [articleId,
-   section title], body (HTML), done, says (text: what it holds once done), optional}. The preview: {lines: [HTML], checks: [{tone,
+   section title], body (HTML), done, says (text: what it holds once done), optional}; `live: true` on the model for a form that saves
+   each change as it is made (the progress then says so, never *Ready to save*). The preview: {lines: [HTML], checks: [{tone,
    text}], empty (text, while nothing is filled)}. Nothing a test or the keyboard reads changes: the forms' own ids, data-action and
    data-change stay on their fields. */
 var UI_FLOWS = {};
@@ -977,10 +978,10 @@ function uiFlowCount(steps) {
   var req = steps.filter(function(s) { return !s.optional; });
   return { done: req.filter(function(s) { return s.done; }).length, of: req.length };
 }
-function uiFlowProgressInner(steps) {
+function uiFlowProgressInner(steps, live) {
   var c = uiFlowCount(steps), segs = '';
   steps.forEach(function(s) { if (!s.optional) segs += '<span class="inv-flow-seg"' + (s.done ? ' data-done=""' : '') + '></span>'; });
-  return '<span class="inv-flow-count">' + (c.done === c.of ? 'Ready to save' : '<b class="inv-num">' + c.done + '</b> of ' + c.of + ' done') + '</span>' +
+  return '<span class="inv-flow-count">' + (c.done === c.of ? (live ? 'All filled · saved as you go' : 'Ready to save') : '<b class="inv-num">' + c.done + '</b> of ' + c.of + ' done') + '</span>' +
     '<span class="inv-flow-meter" role="meter" aria-label="Steps done" aria-valuemin="0" aria-valuemax="' + c.of + '" aria-valuenow="' + c.done + '">' + segs + '</span>';
 }
 function uiFlowPreviewInner(p) {
@@ -1021,7 +1022,7 @@ function uiFlowHtml(name, m, o) {
   var steps = m.steps || [], next = uiFlowNext(steps);
   return '<div class="inv-flow' + (o.cls ? ' ' + o.cls : '') + '" data-flow="' + escHtml(name) + '">' + (o.before || '') +
     (o.receipt || '') +
-    '<div class="inv-flow-progress" data-flow-progress>' + uiFlowProgressInner(steps) + '</div>' +
+    '<div class="inv-flow-progress" data-flow-progress>' + uiFlowProgressInner(steps, m.live) + '</div>' +
     '<div class="inv-flow-main"><ol class="inv-flow-steps">' + steps.map(function(s, i) { return uiFlowStepHtml(s, i, next); }).join('') + '</ol>' +
     '<aside class="inv-flow-preview" data-flow-preview aria-live="polite">' + uiFlowPreviewInner(m.preview) + '</aside></div>' +
     (o.after || '') + '</div>';
@@ -1046,7 +1047,7 @@ function uiFlowSync(root) {
       if (says && says.textContent !== sv) says.textContent = sv;
       if (tag && tag.textContent !== tv) tag.textContent = tv;
     });
-    var pr = el.querySelector('[data-flow-progress]'), ph = uiFlowProgressInner(m.steps);
+    var pr = el.querySelector('[data-flow-progress]'), ph = uiFlowProgressInner(m.steps, m.live);
     if (pr && pr.innerHTML !== ph) pr.innerHTML = ph;
     var pv = el.querySelector('[data-flow-preview]'), vh = uiFlowPreviewInner(m.preview);
     if (pv && pv._flowHtml !== vh) { pv.innerHTML = vh; pv._flowHtml = vh; }

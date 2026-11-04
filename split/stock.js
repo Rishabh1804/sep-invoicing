@@ -1233,7 +1233,7 @@ function stockManualModel() {
   });
   var bySays = stockBy();
   var steps = [
-    { key: 'what', title: 'What are you entering?', help: 'Pick one. Each line below is then entered as this.', guide: ['app-stock', 'by hand'], done: true, says: kind.word,
+    { key: 'what', title: 'What are you entering?', help: 'Pick one. Each line below is then entered as this.', guide: ['app-stock', 'Enter by hand'], done: true, says: kind.word,
       body: uiKindTilesHtml(STOCK_KINDS, { action: 'invStockMode', cur: m.mode, label: 'What is entered' }) },
     { key: 'when', title: m.mode === 'received' ? 'When, and on which bill?' : 'When?', help: m.mode === 'received' ? 'The company, the invoice and its date: the price and the buying pattern are read from them.' :
       m.mode === 'count' ? 'The day counted. The app sets it against its own level at the end of that day.' : 'The day it was taken.',

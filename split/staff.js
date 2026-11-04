@@ -760,6 +760,7 @@ function attEditModel() {
     slots.forEach(function(s) { lines.push(escHtml(s) + ', on that slot’s OT crew'); });
   }
   return {
+    live: true,   // each change saves at once (the progress says so)
     steps: [
       { key: 'mark', title: 'Was the hand here?', guide: ['app-day', 'Day'], done: !!st, says: st ? ATT_STATE_LABELS[st] : '', body: '' },
       { key: 'where', title: 'Where did they stand?', help: live ? 'The area of the general shift, 8:30 AM to 5:00 PM.' : st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.',

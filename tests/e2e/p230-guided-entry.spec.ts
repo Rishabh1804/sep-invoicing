@@ -105,7 +105,11 @@ test.describe('P230 guided entry: Stock by hand', () => {
     await expect(book).toHaveAttribute('data-id', 'app-stock');
     await book.click();
     await expect(page.locator('#pageKnow.inv-page-active')).toBeVisible();
-    expect(new URL(page.url()).searchParams.get('id')).toBe('app-stock');
+    const u = new URL(page.url());
+    expect(u.searchParams.get('id')).toBe('app-stock');
+    // The Reader, at the section the step names (kbread.js: its index among the article's sections).
+    expect(u.searchParams.get('v')).toMatch(/\/read\/[1-9]\d*$/);
+    await expect(page.locator('#pageKnow')).toContainText('Enter by hand');
   });
 });
 

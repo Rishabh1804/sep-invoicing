@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="2065314a">
+<meta name="app-build" content="31144c73">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -24706,32 +24706,62 @@ function attSheetEntryHtml(iso, rec, roster) {
 }
 
 /* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
-   saved as it is made, as on the board. */
+   saved as it is made, as on the board. A guided flow (UI pass 3 §11a): Mark · Where · In and out · OT shifts; the preview the
+   hours and OT the day holds, worked out from the times as a roll works them out (relayHoursOf, at each change). */
 var _attEditId = null;
+function attEditModel() {
+  var w = staffById(_attEditId);
+  if (!w) return null;
+  var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+  var area = m && m.area ? m.area : (w.area || 'flex'), times = live ? attTimesText(m) : '';
+  var slots = live ? ATT_SLOTS.map(function(z) { var a = attHandSlotArea(rec, w.id, z[0]); return a ? z[1] + ' on ' + areaLabel(a) : ''; }).filter(Boolean) : [];
+  var hrs = live ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours yet') : (m.hours ? m.hours + ' h' : '') + (m.hours ? ', ' : '') + 'OT ' + (m.ot || 0) + ' h') : '';
+  var lines = [];
+  if (st) {
+    lines.push(escHtml(w.name) + ' · ' + escHtml(ATT_STATE_LABELS[st]) + ' on ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + (live ? ', on ' + escHtml(areaLabel(area)) : ''));
+    if (live) lines.push(escHtml((times || 'The shift, 8:30 AM to 5:00 PM') + ': ' + hrs + (times ? ', worked out from the times' : '')));
+    slots.forEach(function(s) { lines.push(escHtml(s) + ', on that slot’s OT crew'); });
+  }
+  return {
+    steps: [
+      { key: 'mark', title: 'Was the hand here?', guide: ['app-day', 'Day'], done: !!st, says: st ? ATT_STATE_LABELS[st] : '', body: '' },
+      { key: 'where', title: 'Where did they stand?', help: live ? 'The area of the general shift, 8:30 AM to 5:00 PM.' : st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.',
+        done: !!live, optional: !live, says: live ? areaLabel(area) : '', body: '' },
+      { key: 'times', title: 'When did they come and go?', help: 'From the sheet. Left blank, the shift is assumed.', optional: true, done: !!times, says: times ? times + (hrs ? ' · ' + hrs : '') : '', body: '' },
+      { key: 'ot', title: 'Did they stand on an overtime slot?', help: 'Each slot puts them on its OT crew, where its hours are booked.', optional: true, done: slots.length > 0, says: slots.join(' · '), body: '' }
+    ],
+    preview: { title: 'What the day holds', lines: lines, empty: 'Mark the day and this says what is recorded for the hand.' }
+  };
+}
+uiFlowDefine('attEdit', attEditModel);
 function attEditHtml() {
   var w = staffById(_attEditId);
   if (!w) return '';
   var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
   var states = hourly ? ['P', 'A'] : ATT_STATES;
-  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
-    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
-    '<div class="inv-dialog-body" data-nodirty>' + (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + attWhoHtml(m, w.id) + '<div class="inv-fields">' +
-    '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
+  var model = attEditModel(), body = {};
+  body.mark = '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
-    }).join('') + '</span></div>' +
-    '<label class="inv-field"><span class="inv-field-label">General shift area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
-    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    }).join('') + '</span></div>';
+  body.where = '<label class="inv-field"><span class="inv-field-label">General shift area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>';
+  body.times = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">In</span><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
     '<label class="inv-field"><span class="inv-field-label">Out</span><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
-    ATT_SLOTS.map(function(z) { return '<label class="inv-field"><span class="inv-field-label">' + z[1] + ' area</span>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</label>'; }).join('') +
     (hourly
       ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
       : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
     '</div>' + (live ? '<div class="inv-note" data-att-times-note>' + (attTimesText(m)
       ? escHtml(attTimesText(m) + ': ' + m.hours + ' h' + (hourly ? '' : ', OT ' + (m.ot || 0) + ' h') + ', worked out from the times. A figure typed below the times wins until a time is changed.')
       : 'Type the in and out from the sheet, and the hours and OT are worked out as a roll works them out. Left blank, the shift (8:30 AM to 5:00 PM) is assumed.') + '</div>'
-      : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+      : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>');
+  body.ot = '<div class="inv-fields">' + ATT_SLOTS.map(function(z) { return '<label class="inv-field"><span class="inv-field-label">' + z[1] + ' area</span>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</label>'; }).join('') + '</div>';
+  model.steps.forEach(function(s) { s.body = body[s.key] || ''; });
+  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
+    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
+    '<div class="inv-dialog-body" data-nodirty>' +
+    uiFlowHtml('attEdit', model, { before: (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + attWhoHtml(m, w.id) }) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose" data-att-done>Done</button></div></div>';
 }
 /* Who marked the hand and who changed the mark (changelog.js tagWho), and a version a sync held for the owner: two phones
@@ -29024,21 +29054,56 @@ function payCarryFromSave(off) {
 }
 
 var _payLast = null;   // the kind and date of the last payment recorded, carried to the next (several go in at a sitting)
+var _payFlowD = null;  // the period the form is drawn for (payDue's), which its preview reads
+/* A payment to a hand as a guided flow (UI pass 3 §11a): Who · What and how much · When. The fields are read where they stand;
+   the preview is the hand's due in the period before and after it, from Pay's own row (payDue). */
+function payFormModel() {
+  var d = _payFlowD, root = document.getElementById('payForm');
+  if (!d) return null;
+  var val = function(id) { var el = root && root.querySelector('#' + id); return el ? String(el.value || '').trim() : ''; };
+  var id = val('payWorker'), r = id ? d.rows.find(function(x) { return String(x.w.id) === String(id); }) : null;
+  var amount = gstRound(parseFloat(val('payAmount')) || 0), kind = val('payKind') === 'advance' ? 'advance' : 'payment', date = val('payDate');
+  var okDate = /^\d{4}-\d{2}-\d{2}$/.test(date || '');
+  var lines = [], checks = [];
+  if (r) {
+    var period = r.weekly ? 'the week to Sat ' + formatDate(d.sat) : _monthLabel(r.from.slice(0, 7));
+    if (amount > 0) lines.push((kind === 'advance' ? 'An advance of ' : 'A payment of ') + payMoney(amount) + ' to ' + escHtml(r.w.name) + (okDate ? ' on ' + escHtml(formatDate(date)) : ''));
+    var after = gstRound(r.due - amount);
+    lines.push('Due for ' + escHtml(period) + ': ' + payMoney(r.due) + (amount > 0 ? ' → ' + (after < 0 ? payMoney(-after) + ' advanced, to work off' : payMoney(after)) : ''));
+    if (amount > 0 && r.due > 0 && amount > r.due) checks.push({ tone: 'warning', text: 'More than is due: ' + formatCurrency(gstRound(amount - r.due)) + ' over, carried as an advance.' });
+    if (okDate && (date < r.from || date > r.to) && !(r.weekly === false && date > r.to && date <= isoAddDays(r.to, 20))) checks.push({ tone: 'info', text: 'Dated outside ' + period + ': it counts in the period it is dated in.' });
+  }
+  return {
+    steps: [
+      { key: 'who', title: 'Who is paid?', guide: ['app-pay', ''], done: !!r, says: r ? r.w.name : '', body: '' },
+      { key: 'what', title: 'What, and how much?', help: 'An advance is worked off against what they earn next.', done: amount > 0, says: amount > 0 ? (kind === 'advance' ? 'Advance' : 'Payment') + ' · ' + formatCurrency(amount) : '', body: '' },
+      { key: 'when', title: 'When was it paid?', done: okDate, says: okDate ? formatDate(date) + (val('payNote') ? ' · ' + val('payNote') : '') : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Pick the hand and this says what is due before and after the payment.' }
+  };
+}
+uiFlowDefine('payForm', payFormModel);
 function _payFormHtml(d) {
+  _payFlowD = d;
   var today = localDateStr();
   var defDate = _payLast && _payLast.date >= d.weekStart && _payLast.date <= d.sat ? _payLast.date : today >= d.weekStart && today <= d.sat ? today : d.sat;
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
+  var model = payFormModel() || { steps: [], preview: {} }, body = {};
+  body.who = f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
+    d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>');
+  body.what = '<div class="inv-fields">' + f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
+    f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') + '</div>';
+  body.when = '<div class="inv-fields">' + f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
+    f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') + '</div>';
+  model.steps.forEach(function(s) { s.body = body[s.key] || ''; });
+  // The first draw (no form on the page yet) reads the date it is drawn with.
+  if (!document.getElementById('payForm')) { model.steps[2].done = true; model.steps[2].says = formatDate(defDate); }
+  var rc = _payLast && _payLast.receipt ? uiFlowReceiptHtml(_payLast.receipt) : '';
   // One look (TM4b): the form is one line until it is wanted (a hand's Pay opens it filled); open on the desktop, where it fits.
   return '<details class="inv-row-fold" data-fold="pay-form" id="payFormFold"' + (uiFoldOpen('pay-form', !!_isDesktop) ? ' open' : '') + '>' +
     '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Record a payment</span></span></summary>' +
-    '<div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
-    f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
-      d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
-    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
-    f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
-    f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
-    '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
-    '<button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div></details>';
+    '<div class="inv-panel-body" id="payForm">' + uiFlowHtml('payForm', model, { receipt: rc }) +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div></div></details>';
 }
 
 function _payListHtml(d) {
@@ -29360,6 +29425,7 @@ function payPick(id, due) {
   if (sel) sel.value = String(id);
   if (amt) amt.value = due > 0 ? String(due) : '';
   if (amt) amt.focus();
+  uiFlowSync(document.getElementById('payForm'));
 }
 function paySave() {
   var id = (document.getElementById('payWorker') || {}).value;
@@ -29373,7 +29439,9 @@ function paySave() {
   staffPayments().push({ id: 'PAY-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, date: date, amount: amount,
     kind: (document.getElementById('payKind') || {}).value === 'advance' ? 'advance' : 'payment',
     note: ((document.getElementById('payNote') || {}).value || '').trim(), at: Date.now() });
-  _payLast = { date: date, kind: staffPayments()[staffPayments().length - 1].kind };
+  var pk = staffPayments()[staffPayments().length - 1].kind;
+  _payLast = { date: date, kind: pk, receipt: { title: 'Saved: ' + (pk === 'advance' ? 'an advance of ' : 'a payment of ') + formatCurrency(amount) + ' to ' + w.name,
+    lines: [escHtml(formatDate(date)) + ' · listed under Payments in these periods, with Void'] } };
   saveState();
   renderAttendance();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);
@@ -32611,19 +32679,81 @@ function _costBillHtml() {
     (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span>' : '') + '</div>';
 }
 
-/* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). */
+/* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). A guided flow (UI
+   pass 3 §11a): Which bill · Amount and units · Arrears and penalty · Note; the preview its cost (costBillCost) and the month's live
+   cost a kilo before and after it, worked out by liveCost with the bill put in the book for the reading and taken out at once. */
+var _costBillPv = null;   // the live cost read for the preview, kept until the bill or the book changes
+function costBillFormModel() {
+  var root = costBillRoot(), form = root.querySelector('[data-bill-form]') || root;
+  var v = function(id) { var el = form.querySelector('#' + id); return el ? String(el.value || '').trim() : ''; };
+  var o = _costBillOpen || {};
+  var drawn = !!form.querySelector('#costBillKind');
+  var kind = (drawn ? v('costBillKind') : o.kind) === 'other' ? 'other' : 'power', month = drawn ? v('costBillMonth') : (o.month || localDateStr().slice(0, 7));
+  var amount = gstRound(parseFloat(v('costBillAmount')) || 0), units = parseFloat(v('costBillUnits'));
+  var arrears = gstRound(parseFloat(v('costBillArrears')) || 0), penalty = gstRound(parseFloat(v('costBillPenalty')) || 0), arrearsOf = v('costBillArrearsOf'), note = v('costBillNote');
+  var okMonth = /^\d{4}-\d{2}$/.test(month || ''), lines = [], checks = [];
+  if (okMonth && amount > 0) {
+    var b = { kind: kind, month: month, amount: amount, arrears: arrears > 0 ? arrears : null, penalty: penalty > 0 ? penalty : null };
+    var cost = costBillCost(b);
+    lines.push(escHtml(COST_BILL_KINDS[kind]) + ' bill for ' + escHtml(billsMonthLabel(month)) + ': ' + escHtml(formatCurrency(amount)) + ' before GST' + (units > 0 ? ', ' + escHtml(formatNum(units, 0)) + ' units' : ''));
+    lines.push('Its cost: ' + escHtml(formatCurrency(cost)) + (arrears > 0 ? ' (the ' + escHtml(formatCurrency(arrears)) + ' of arrears' + (arrearsOf ? ' for ' + escHtml(billsMonthLabel(arrearsOf)) : '') + ' left out: they were that month’s cost)' : '') +
+      (penalty > 0 ? ', the ' + escHtml(formatCurrency(penalty)) + ' penalty counted in it' : ''));
+    var pv = costBillLivePreview(b);
+    if (pv) lines.push(escHtml(billsMonthLabel(month)) + '’s live cost: ' + escHtml(formatCurrency(pv.before)) + '/kg → ' + escHtml(formatCurrency(pv.after)) + '/kg');
+    if (gstRound(arrears + penalty) > amount) checks.push({ tone: 'danger', text: 'Arrears and penalty are parts of the bill: together they are more than its amount.' });
+    if (arrearsOf && arrearsOf >= month) checks.push({ tone: 'danger', text: 'Arrears are for a month before the one the bill covers.' });
+    var twin = kind === 'power' && costBills().find(function(x) { return x.kind === 'power' && !x.voided && x.month === month; });
+    if (twin && !(arrears > 0)) checks.push({ tone: 'warning', text: 'There is already an electricity bill for ' + billsMonthLabel(month) + ' (' + formatCurrency(twin.amount) + '). A second usually carries arrears: enter them, or all of this counts as the month’s cost.' });
+  }
+  return {
+    steps: [
+      { key: 'which', title: 'Which bill?', help: 'The kind, and the month it covers.', done: okMonth, says: okMonth ? COST_BILL_KINDS[kind] + ' · ' + billsMonthLabel(month) : '', body: '' },
+      { key: 'amount', title: 'How much, and how many units?', help: 'The amount before GST. Units for an electricity bill.', done: amount > 0, says: amount > 0 ? formatCurrency(amount) + (units > 0 ? ' · ' + formatNum(units, 0) + ' units' : '') : '', body: '' },
+      { key: 'parts', title: 'Any arrears or penalty in it?', help: 'A second bill in a month usually carries an earlier month’s arrears and a penalty.', optional: true, done: arrears > 0 || penalty > 0,
+        says: [arrears > 0 ? 'arrears ' + formatCurrency(arrears) : '', penalty > 0 ? 'penalty ' + formatCurrency(penalty) : ''].filter(Boolean).join(' · '), body: '' },
+      { key: 'note', title: 'A note?', optional: true, done: !!note, says: note, body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Type the month and the amount, and this says what the bill costs and what it does to the month’s live cost.' }
+  };
+}
+uiFlowDefine('costBill', costBillFormModel);
+/* The month's live cost a kilo, before and after the bill: liveCost's own reading, the bill in the book only while it is read. */
+function costBillLivePreview(b) {
+  var key = [b.kind, b.month, b.amount, b.arrears || 0, typeof _bookWrites === 'number' ? _bookWrites : 0].join('|');
+  if (_costBillPv && _costBillPv.key === key) return _costBillPv.v;
+  var v = null;
+  try {
+    var from = b.month + '-01', to = payMonthEnd(from), today = localDateStr();
+    if (to > today) to = today;
+    var w = from <= today ? weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; })) : null;
+    if (w && w.kg > 0) {
+      var c0 = liveCost(from, to, w.kg), list = costBills(), tmp = { id: '_flow_preview', kind: b.kind, month: b.month, amount: b.amount, arrears: b.arrears, penalty: b.penalty, at: Date.now() };
+      list.push(tmp);
+      var c1;
+      try { c1 = liveCost(from, to, w.kg); } finally { var i = list.indexOf(tmp); if (i >= 0) list.splice(i, 1); }
+      if (c0 && c1 && c0.perKg != null && c1.perKg != null) v = { before: c0.perKg, after: c1.perKg };
+    }
+  } catch (e) { v = null; }
+  _costBillPv = { key: key, v: v };
+  return v;
+}
 function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
-  return '<div class="inv-fields">' +
+  var model = costBillFormModel(), body = {};
+  body.which = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
     '<option value="power">Electricity</option><option value="other"' + (o.kind === 'other' ? ' selected' : '') + '>Consumables, ETP, maintenance</option></select></label>' +
-    '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label></div>';
+  body.amount = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
-    '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label></div>';
+  body.parts = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Arrears in it, of an earlier month</span><input class="inv-input inv-input-num" id="costBillArrears" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
-    '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
-    '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
+    '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label></div>';
+  body.note = '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label>';
+  model.steps.forEach(function(s) { s.body = body[s.key] || ''; });
+  return uiFlowHtml('costBill', model, { receipt: o.receipt ? uiFlowReceiptHtml(o.receipt) : '' }) +
     (o.saved ? '<div class="inv-note">' + o.saved + (o.saved === 1 ? ' bill' : ' bills') + ' saved from this form. The next month is filled in.</div>' : '') +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
@@ -32665,7 +32795,9 @@ async function costBillSave() {
     var nk = next;
     if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
   }
-  _costBillOpen = { where: 'finance', month: next, kind: kind, saved: (was.saved || 0) + 1 };
+  _costBillOpen = { where: 'finance', month: next, kind: kind, saved: (was.saved || 0) + 1,
+    receipt: { title: 'Saved: ' + COST_BILL_KINDS[kind] + ' bill for ' + billsMonthLabel(month) + ', ' + formatCurrency(amount),
+      lines: [escHtml('Its cost ' + formatCurrency(costBillCost({ amount: amount, arrears: arrears })) + (penalty > 0 ? ', a penalty of ' + formatCurrency(penalty) + ' in it' : '') + '. Listed under the bills, with Void.')] } };
   saveState();
   costBillRedraw();
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
@@ -34339,23 +34471,79 @@ function bankChequeOpen(id) {
     facts.map(uiFactRowHtml).join('') + (ch.note ? '<div class="inv-panel-body inv-note">' + escHtml(ch.note) + '</div>' : '') + '</div>' +
     '<div class="inv-dialog-foot">' + foot + '</div></div>', { dismiss: true });
 }
-/* The form: Money → Receivables → Cheque received, and Add → By hand → Cheque. */
+/* The form: Money → Receivables → Cheque received, and Add → By hand → Cheque. A guided flow (UI pass 3 §11a): Whose and how much ·
+   The cheque · When it came; the preview what the client owes before and after it, Receivables' own figure (finClientMoney) less the
+   cheque, which counts as a receipt from the day it came. */
+var _chqPvOwed = null;   // { key, owed }: the client's figure as Receivables reads it, kept until the client or the book changes
+function bankChequeOwed(cid) {
+  var key = String(cid) + '|' + (typeof _bookWrites === 'number' ? _bookWrites : 0);
+  if (_chqPvOwed && _chqPvOwed.key === key) return _chqPvOwed.v;
+  var m = null;
+  try { m = finClientMoney(cid); } catch (e) { m = null; }
+  _chqPvOwed = { key: key, v: m ? { owed: m.r ? m.r.owed : 0, from: m.from } : null };
+  return _chqPvOwed.v;
+}
+function bankChequeModel() {
+  var form = document.querySelector('[data-cheque-form]');
+  var v = function(id) { var el = form && form.querySelector('#' + id); return el ? String(el.value || '').trim() : ''; };
+  var cid = v('chqClient'), c = cid ? (S.clients || []).find(function(x) { return String(x.id) === String(cid); }) : null;
+  var amount = gstRound(parseFloat(v('chqAmount')) || 0), number = v('chqNumber').replace(/\s+/g, ''), received = v('chqReceived'), today = localDateStr();
+  var okNum = /^\d+$/.test(number), okDay = /^\d{4}-\d{2}-\d{2}$/.test(received || '') && received <= today;
+  var lines = [], checks = [];
+  if (c && amount > 0) {
+    lines.push('Cheque' + (okNum ? ' ' + escHtml(number) : '') + ' from ' + escHtml(c.name) + ' for ' + escHtml(formatCurrency(amount)) + (okDay ? ', received ' + escHtml(formatDate(received)) : ''));
+    var o = bankChequeOwed(c.id);
+    if (o && okDay && received < o.from) lines.push('Received before receivables start (' + escHtml(formatDate(o.from)) + '): it is not read, as no receipt from before then is.');
+    else if (o) {
+      var after = gstRound(o.owed - amount);
+      lines.push('What ' + escHtml(c.name) + ' owes: ' + escHtml(formatCurrency(o.owed)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+    }
+    lines.push('It counts as paid from the day it came. Its deposit on the statement takes over, found by its number.');
+  }
+  if (c && okNum) {
+    var twin = bankCheques().find(function(ch) { return !ch.voidedAt && String(ch.clientId) === String(c.id) && bankChequeKey(ch.number) === bankChequeKey(number); });
+    if (twin) checks.push({ tone: 'danger', text: 'Cheque ' + number + ' is already recorded for this client, received ' + formatDate(twin.receivedOn) + '.' });
+  }
+  if (number && !okNum) checks.push({ tone: 'danger', text: 'The cheque number is digits only.' });
+  if (received && received > today) checks.push({ tone: 'danger', text: 'The day it came cannot be after today.' });
+  var cd = v('chqDate');
+  if (cd && /^\d{4}-\d{2}-\d{2}$/.test(cd) && cd > today) checks.push({ tone: 'info', text: 'Post-dated: in hand from ' + formatDate(cd) + ', the day it can go in.' });
+  return {
+    steps: [
+      { key: 'whose', title: 'Whose cheque, and how much?', guide: ['app-bank', ''], done: !!c && amount > 0, says: c && amount > 0 ? c.name + ' · ' + formatCurrency(amount) : '', body: '' },
+      { key: 'cheque', title: 'Which cheque?', help: 'Its number finds its deposit on the statement. Its date and bank if they are written.', done: okNum, says: okNum ? 'No. ' + number + (v('chqBank') ? ' · ' + v('chqBank') : '') : '', body: '' },
+      { key: 'when', title: 'When did it come?', done: okDay, says: okDay ? formatDate(received) + (v('chqNote') ? ' · ' + v('chqNote') : '') : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Pick the client and the amount, and this says what they owe before and after the cheque.' }
+  };
+}
+uiFlowDefine('chequeForm', bankChequeModel);
 function bankChequeFormOpen(clientId) {
   var today = localDateStr(), f = function(label, control, wide) { return '<label class="inv-field' + (wide ? ' inv-kv-wide' : '') + '"><span class="inv-field-label">' + label + '</span>' + control + '</label>'; };
   var opts = (S.clients || []).filter(function(c) { return c.isActive !== false || String(c.id) === String(clientId); }).slice().sort(function(a, b) { return a.name.localeCompare(b.name); })
     .map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (String(c.id) === String(clientId) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('');
+  var body = {
+    whose: '<div class="inv-fields">' + f('Client', '<select class="inv-select" id="chqClient"><option value="">Choose a client</option>' + opts + '</select>') +
+      f('Amount', '<input class="inv-input inv-input-num" id="chqAmount" type="number" step="0.01" min="0" inputmode="decimal">') + '</div>',
+    cheque: '<div class="inv-fields">' + f('Cheque number', '<input class="inv-input" id="chqNumber" inputmode="numeric" autocomplete="off">') +
+      f('Cheque date', '<input class="inv-input" id="chqDate" type="date">') +
+      f('Drawn on (bank)', '<input class="inv-input" id="chqBank" autocomplete="off">') + '</div>',
+    when: '<div class="inv-fields">' + f('Received on', '<input class="inv-input" id="chqReceived" type="date" max="' + today + '" value="' + today + '">') +
+      f('Note', '<input class="inv-input" id="chqNote" autocomplete="off">', true) + '</div>'
+  };
+  // Drawn before the dialog is on the page: the model reads what the dialog will open with.
+  var c = clientId != null && clientId !== '' ? (S.clients || []).find(function(x) { return String(x.id) === String(clientId); }) : null;
+  var model = { steps: [
+    { key: 'whose', title: 'Whose cheque, and how much?', guide: ['app-bank', ''], done: false, says: '' },
+    { key: 'cheque', title: 'Which cheque?', help: 'Its number finds its deposit on the statement. Its date and bank if they are written.', done: false, says: '' },
+    { key: 'when', title: 'When did it come?', done: true, says: formatDate(today) }
+  ], preview: { lines: c ? [escHtml(c.name) + ': type the amount, and this says what they owe before and after the cheque.'] : [], empty: 'Pick the client and the amount, and this says what they owe before and after the cheque.' } };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
   dialogOpen('<div class="inv-dialog" data-cheque-form>' + dialogHeadHtml('Cheque received') +
-    '<div class="inv-fields">' +
-    f('Client', '<select class="inv-select" id="chqClient"><option value="">Choose a client</option>' + opts + '</select>') +
-    f('Amount', '<input class="inv-input inv-input-num" id="chqAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
-    f('Cheque number', '<input class="inv-input" id="chqNumber" inputmode="numeric" autocomplete="off">') +
-    f('Received on', '<input class="inv-input" id="chqReceived" type="date" max="' + today + '" value="' + today + '">') +
-    f('Cheque date', '<input class="inv-input" id="chqDate" type="date">') +
-    f('Drawn on (bank)', '<input class="inv-input" id="chqBank" autocomplete="off">') +
-    f('Note', '<input class="inv-input" id="chqNote" autocomplete="off">', true) +
-    '</div><div class="inv-note">It counts as paid from the day it came. Its deposit on the statement takes over, found by its number.</div>' +
+    uiFlowHtml('chequeForm', model) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invChequeSave">Save cheque</button></div></div>', { dismiss: true });
+  uiFlowSync(document.querySelector('[data-cheque-form]'));
 }
 function bankChequeSave() {
   var form = document.querySelector('[data-cheque-form]');
@@ -35947,26 +36135,86 @@ function suppLedgerHtml(sp, L) {
   }
   return h;
 }
+/* A supplier's payment, its balance and a price quoted as guided flows (UI pass 3 §26b). The fields are read where they stand (in
+   the supplier's dialog, or Compare suppliers'); each form keeps the attribute its Save reads by (data-supp-pay-form and the rest) on
+   a wrapper whose parent holds every field, as suppFormVal looks for them. */
+function suppFlowVal(sel, id) { return document.querySelector(sel) ? suppFormVal(sel, id) : ''; }
+var SUPP_HOW = { cheque: 'Cheque handed over', transfer: 'Transfer', cash: 'Cash' };
+function suppPayModel() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return null;
+  var v = function(id) { return suppFlowVal('[data-supp-pay-form]', id); };
+  var drawn = !!document.querySelector('[data-supp-pay-form]'), today = localDateStr();
+  var date = drawn ? v('suppPayDate') : today, amount = gstRound(parseFloat(v('suppPayAmount')) || 0), how = (drawn && v('suppPayHow')) || 'cheque', chq = v('suppPayChq').replace(/\s+/g, '');
+  var okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today, lines = [], checks = [];
+  if (amount > 0) {
+    lines.push(escHtml(SUPP_HOW[how] || 'A payment') + ' of ' + escHtml(formatCurrency(amount)) + ' to ' + escHtml(sp.name) + (okDay ? ' on ' + escHtml(formatDate(date)) : '') + (how === 'cheque' && chq ? ', cheque ' + escHtml(chq) : ''));
+    var L = suppLedger(sp);
+    if (L.op) {
+      var after = gstRound(L.balance - amount);
+      lines.push('Owed to them: ' + escHtml(formatCurrency(L.balance)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+    } else lines.push('What is owed to them is not set: set the balance from their statement to see it.');
+    if (how === 'cheque') lines.push('It counts from the day it is handed over; when the statement shows it clear by its number, that row is this payment.');
+  }
+  if (how === 'cheque' && chq && !/^\d+$/.test(chq)) checks.push({ tone: 'danger', text: 'A cheque number is digits only.' });
+  var ck = how === 'cheque' ? bankChequeKey(chq) : '';
+  if (ck && suppPays().some(function(p) { return !p.voidedAt && p.how === 'cheque' && bankChequeKey(p.chq) === ck; })) checks.push({ tone: 'danger', text: 'Cheque ' + chq + ' is already recorded.' });
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day it was paid cannot be after today.' });
+  return {
+    steps: [
+      { key: 'who', title: 'Who is paid?', guide: ['app-suppliers', ''], done: true, says: sp.name, body: '' },
+      { key: 'how', title: 'How, and how much?', help: 'A cheque’s number lets the statement find it when it clears.', done: amount > 0, says: amount > 0 ? (SUPP_HOW[how] || '') + ' · ' + formatCurrency(amount) : '', body: '' },
+      { key: 'when', title: 'When was it paid?', done: okDay, says: okDay ? formatDate(date) : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Type the amount and this says what is owed to them after it.' }
+  };
+}
+uiFlowDefine('suppPay', suppPayModel);
 function suppPayFormHtml(sp) {
-  var today = localDateStr();
-  return '<div class="inv-fields" data-supp-pay-form>' +
-    suppField('suppPayDate', 'Paid on', '<input class="inv-input" id="suppPayDate" type="date" max="' + today + '" value="' + today + '">') +
-    suppField('suppPayAmount', 'Amount', '<input class="inv-input inv-input-num" id="suppPayAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
-    suppField('suppPayHow', 'How', '<select class="inv-select" id="suppPayHow"><option value="cheque">Cheque handed over</option><option value="transfer">Transfer</option><option value="cash">Cash</option></select>') +
-    suppField('suppPayChq', 'Cheque or reference no.', '<input class="inv-input" id="suppPayChq" autocomplete="off">') +
-    suppField('suppPayNote', 'Note', '<input class="inv-input" id="suppPayNote" autocomplete="off">', true) +
-    '</div><div class="inv-note">A cheque counts from the day it is handed over, as their book counts it; when the statement shows it clear by its number, that row is this payment, never a second one.</div>' +
+  var today = localDateStr(), model = suppPayModel(), body = {
+    who: '<p class="inv-note">' + escHtml(sp.name) + '</p>',
+    how: '<div class="inv-fields">' + suppField('suppPayHow', 'How', '<select class="inv-select" id="suppPayHow"><option value="cheque">Cheque handed over</option><option value="transfer">Transfer</option><option value="cash">Cash</option></select>') +
+      suppField('suppPayAmount', 'Amount', '<input class="inv-input inv-input-num" id="suppPayAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
+      suppField('suppPayChq', 'Cheque or reference no.', '<input class="inv-input" id="suppPayChq" autocomplete="off">') + '</div>',
+    when: '<div class="inv-fields">' + suppField('suppPayDate', 'Paid on', '<input class="inv-input" id="suppPayDate" type="date" max="' + today + '" value="' + today + '">') +
+      suppField('suppPayNote', 'Note', '<input class="inv-input" id="suppPayNote" autocomplete="off">', true) + '</div>'
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  return '<div data-supp-pay-form>' + uiFlowHtml('suppPay', model) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSuppSavePay">Save payment</button></div>';
 }
+function suppBalanceModel() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return null;
+  var L = suppLedger(sp), op = L.op || {}, drawn = !!document.querySelector('[data-supp-balance-form]');
+  var v = function(id) { return suppFlowVal('[data-supp-balance-form]', id); };
+  var amount = drawn ? v('suppBalAmount') : (op.amount != null ? String(op.amount) : ''), date = drawn ? v('suppBalDate') : (op.date || ''), today = localDateStr();
+  var a = parseFloat(amount), okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today, okAmt = amount !== '' && !isNaN(a);
+  var lines = ['<span id="suppBalPreview">' + escHtml(suppBalPreview(sp, amount, date)) + '</span>'], checks = [];
+  if (okDay && okAmt) {
+    var near = isoAddDays(date, SUPP_NEAR_DAYS), counted = sp.pays.filter(function(p) { return p.kind === 'bank' && p.date > date && p.date <= near; });
+    if (counted.length) lines.push(todoPlural(counted.length, 'payment') + ' on the statement in the ' + SUPP_NEAR_DAYS + ' days after it: mark each one their figure already counts as In their balance.');
+  }
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day cannot be after today.' });
+  return {
+    steps: [
+      { key: 'day', title: 'The end of which day?', help: 'The day of the last entry on their statement.', guide: ['app-suppliers', ''], done: okDay, says: okDay ? formatDate(date) : '', body: '' },
+      { key: 'amount', title: 'What does their statement say was owed?', help: 'The figure after that entry. The bills and payments after the day are counted on it.', done: okAmt, says: okAmt ? formatCurrency(a) : '', body: '' },
+      { key: 'note', title: 'A note?', optional: true, done: !!v('suppBalNote') || (!drawn && !!op.note), says: drawn ? v('suppBalNote') : (op.note || ''), body: '' }
+    ],
+    preview: { title: 'What it comes to now', lines: lines, checks: checks }
+  };
+}
+uiFlowDefine('suppBalance', suppBalanceModel);
 function suppBalanceFormHtml(sp, L) {
-  var op = L.op || {}, today = localDateStr();
-  return '<div class="inv-fields" data-supp-balance-form>' +
-    suppField('suppBalAmount', 'Owed to them', '<input class="inv-input inv-input-num" id="suppBalAmount" type="number" step="0.01" inputmode="decimal" value="' + escHtml(op.amount != null ? String(op.amount) : '') + '">') +
-    suppField('suppBalDate', 'At the end of', '<input class="inv-input" id="suppBalDate" type="date" max="' + today + '" value="' + escHtml(op.date || '') + '">') +
-    suppField('suppBalNote', 'Note', '<input class="inv-input" id="suppBalNote" autocomplete="off" placeholder="Their statement, the page for the month" value="' + escHtml(op.note || '') + '">', true) +
-    '</div><div class="inv-note" id="suppBalPreview" aria-live="polite">' + escHtml(suppBalPreview(sp, op.amount, op.date)) + '</div>' +
-    '<div class="inv-note">The figure on their statement after its last entry, and that entry’s day. The bills and payments after it are counted; a cheque they had credited before the day that clears after it can be marked as in their figure.</div>' +
+  var op = L.op || {}, today = localDateStr(), model = suppBalanceModel(), body = {
+    day: suppField('suppBalDate', 'At the end of', '<input class="inv-input" id="suppBalDate" type="date" max="' + today + '" value="' + escHtml(op.date || '') + '">'),
+    amount: suppField('suppBalAmount', 'Owed to them', '<input class="inv-input inv-input-num" id="suppBalAmount" type="number" step="0.01" inputmode="decimal" value="' + escHtml(op.amount != null ? String(op.amount) : '') + '">'),
+    note: suppField('suppBalNote', 'Note', '<input class="inv-input" id="suppBalNote" autocomplete="off" placeholder="Their statement, the page for the month" value="' + escHtml(op.note || '') + '">', true)
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  return '<div data-supp-balance-form>' + uiFlowHtml('suppBalance', model) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSuppSaveBalance">Save balance</button></div>';
 }
@@ -36504,20 +36752,58 @@ function suppCandCardHtml(item, K, c) {
     '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(c.name) + '</span>' + (sub ? '<span class="inv-deck-sub">' + escHtml(sub) + '</span>' : '') + body + '</div>' +
     (foot ? '<div class="inv-deck-foot">' + foot + '</div>' : '') + '</article>';
 }
-/* A price a supplier quoted for the line: weighed beside the bills for SUPP_QUOTE_DAYS, kept on the supplier's record. */
+/* A price a supplier quoted for the line: weighed beside the bills for SUPP_QUOTE_DAYS, kept on the supplier's record. A guided flow
+   (UI pass 3 §26b): Which supplier · The price and its unit · When; the preview the comparison's card it changes (suppCompare's own
+   candidates: the supplier's price now, the cheapest now, what this order would come to). */
+var _suppQuoteK = null;   // the comparison the form is drawn over
+function suppQuoteModel() {
+  var item = stockItem(_suppCmpItem), K = _suppQuoteK;
+  if (!item || !K) return null;
+  var v = function(id) { return suppFlowVal('[data-supp-quote-form]', id); };
+  var drawn = !!document.querySelector('[data-supp-quote-form]'), today = localDateStr(), unit = item.unit || 'unit';
+  var spId = v('suppQuoteSp'), nm = v('suppQuoteName').replace(/\s+/g, ' '), price = parseFloat(v('suppQuotePrice')), date = drawn ? v('suppQuoteDate') : today;
+  var sp = spId && spId !== '+' ? suppById(spId) : null, name = sp ? sp.name : spId === '+' ? nm : '';
+  var okWho = !!sp || (spId === '+' && suppKey(nm).length >= 3), okPrice = price > 0, okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today;
+  var per = function(x) { return formatCurrency(x) + '/' + unit; }, lines = [], checks = [];
+  if (okWho && okPrice) {
+    lines.push(escHtml(name) + ' at ' + escHtml(per(price)) + ' before GST' + (okDay ? ', quoted ' + escHtml(stockShortDate(date)) : '') + ': weighed beside the bills for ' + SUPP_QUOTE_DAYS + ' days');
+    var mine = K.cands.find(function(c) { return c.sp && sp && c.sp.id === sp.id; });
+    if (mine && mine.price != null) lines.push('Their price now: ' + escHtml(per(mine.price)) + (mine.basis === 'quote' ? ', quoted ' : ', bill of ') + escHtml(stockShortDate(mine.date)));
+    var low = K.cands.filter(function(c) { return c.sp && c.price != null && c.fresh && (!sp || c.sp.id !== sp.id); }).sort(function(a, b) { return a.price - b.price; })[0];
+    if (low) {
+      var d = gstRound(price - low.price, 2);
+      lines.push('The cheapest of the others: ' + escHtml(low.name) + ' at ' + escHtml(per(low.price)) + (d < 0 ? ', so this is ' + escHtml(per(-d)) + ' less' : d > 0 ? ', so this is ' + escHtml(per(d)) + ' more' : ', the same'));
+    }
+    if (K.qty > 0) lines.push('This order: ' + escHtml(formatCurrency(gstRound(K.qty * price))) + ' for ' + escHtml(stockFmtQty(K.qty) + ' ' + (item.unit || '')));
+  }
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day it was quoted cannot be after today.' });
+  if (item.key === 'ZINC') checks.push({ tone: 'info', text: 'Zinc follows the market: a quote holds only for the day.' });
+  return {
+    steps: [
+      { key: 'who', title: 'Which supplier?', help: 'One not in the book is made a supplier when the price is saved.', guide: ['app-suppliers', 'Compare suppliers'], done: okWho, says: okWho ? name : '', body: '' },
+      { key: 'price', title: 'At what price a ' + unit + '?', help: 'Before GST.', done: okPrice, says: okPrice ? per(price) : '', body: '' },
+      { key: 'when', title: 'When was it quoted?', done: okDay, says: okDay ? formatDate(date) + (v('suppQuoteNote') ? ' · ' + v('suppQuoteNote') : '') : '', body: '' }
+    ],
+    preview: { title: 'What it changes', lines: lines, checks: checks, empty: 'Pick the supplier and type the price, and this says how it sits beside the others.' }
+  };
+}
+uiFlowDefine('suppQuote', suppQuoteModel);
 function suppQuoteFormHtml(item, K) {
+  _suppQuoteK = K;
   var today = localDateStr(), list = suppIndex().list.slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
   var opts = '<option value="">Pick the supplier</option>' + list.map(function(sp) { return '<option value="' + escHtml(sp.id) + '">' + escHtml(sp.name) + '</option>'; }).join('') +
     '<option value="+">Another supplier…</option>';
   var quoted = [];
   K.cands.forEach(function(c) { if (c.quote) quoted.push(c); });
-  var h = '<div class="inv-fields" data-supp-quote-form>' +
-    suppField('suppQuoteSp', 'Supplier', '<select class="inv-select" id="suppQuoteSp">' + opts + '</select>', true) +
-    suppField('suppQuoteName', 'Another supplier’s name', '<input class="inv-input" id="suppQuoteName" autocomplete="off">', true) +
-    suppField('suppQuotePrice', 'Price a ' + escHtml(item.unit || 'unit') + ', before GST', '<input class="inv-input inv-input-num" id="suppQuotePrice" type="number" step="0.01" min="0" inputmode="decimal">') +
-    suppField('suppQuoteDate', 'Quoted on', '<input class="inv-input" id="suppQuoteDate" type="date" max="' + today + '" value="' + today + '">') +
-    suppField('suppQuoteNote', 'Note', '<input class="inv-input" id="suppQuoteNote" autocomplete="off" placeholder="On the phone, by WhatsApp, the minimum order">', true) +
-    '</div><div class="inv-note">A price quoted is weighed beside the bills for ' + SUPP_QUOTE_DAYS + ' days, until a bill from them replaces it.</div>';
+  var model = suppQuoteModel(), body = {
+    who: '<div class="inv-fields">' + suppField('suppQuoteSp', 'Supplier', '<select class="inv-select" id="suppQuoteSp">' + opts + '</select>', true) +
+      suppField('suppQuoteName', 'Another supplier’s name', '<input class="inv-input" id="suppQuoteName" autocomplete="off">', true) + '</div>',
+    price: suppField('suppQuotePrice', 'Price a ' + escHtml(item.unit || 'unit') + ', before GST', '<input class="inv-input inv-input-num" id="suppQuotePrice" type="number" step="0.01" min="0" inputmode="decimal">'),
+    when: '<div class="inv-fields">' + suppField('suppQuoteDate', 'Quoted on', '<input class="inv-input" id="suppQuoteDate" type="date" max="' + today + '" value="' + today + '">') +
+      suppField('suppQuoteNote', 'Note', '<input class="inv-input" id="suppQuoteNote" autocomplete="off" placeholder="On the phone, by WhatsApp, the minimum order">', true) + '</div>'
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  var h = '<div data-supp-quote-form>' + uiFlowHtml('suppQuote', model) + '</div>';
   if (quoted.length) {
     h += '<div class="inv-panel inv-panel-flush" data-supp-quotes><div class="inv-panel-head"><span class="inv-panel-title">Prices quoted for this line</span></div>' + quoted.map(function(c) {
       var q = c.quote;
@@ -37768,8 +38054,41 @@ function cashReviewOpen(text, sentOn) {
   _cashReview = { text: text, read: p, hash: hash, sentOn: sent, week: attWeekStartOf(sent), seen: seen || null };
   dialogOpen(cashReviewHtml(), { dismiss: true });
 }
+/* The review as a guided flow (UI pass 3 §26b): The message · Each line (what for, kind, day, amount) · The total; the preview the
+   week's payout before and after the lines (payWeek().cashOut is counted in its total), a total the lines do not reach in red. */
+function cashReviewModel() {
+  var r = _cashReview, form = document.querySelector('[data-cash-review]');
+  if (!r) return null;
+  var p = r.read, sat = isoAddDays(r.week, 6);
+  var q = function(k, i, d) { var el = form && form.querySelector('[data-cash-' + k + '="' + i + '"]'); return el ? String(el.value).trim() : d; };
+  var typed = p.lines.map(function(ln, i) { return { what: q('what', i, ln.what || ''), amount: gstRound(parseFloat(q('amount', i, String(ln.amount))) || 0), n: ln.n }; });
+  var live = typed.filter(function(ln) { return ln.amount > 0; }), blank = live.filter(function(ln) { return !ln.what; });
+  var sum = gstRound(live.reduce(function(s, ln) { return s + ln.amount; }, 0));
+  var lines = [], checks = [];
+  if (r.seen) checks.push({ tone: 'danger', text: 'Saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.' });
+  if (live.length) {
+    lines.push(live.length + (live.length === 1 ? ' line' : ' lines') + ' of cash paid out, ' + escHtml(formatCurrency(sum)) + ', paid back with the payout of Sat ' + escHtml(stockShortDate(sat)));
+    if (typeof grdSeesWages !== 'function' || grdSeesWages()) {
+      if (r.payoutBefore == null) { try { r.payoutBefore = payWeek(r.week).total; } catch (e) { r.payoutBefore = null; } }
+      if (r.payoutBefore != null) lines.push('The week’s payout: ' + escHtml(formatCurrency(r.payoutBefore)) + ' → ' + escHtml(formatCurrency(gstRound(r.payoutBefore + sum))));
+    }
+  }
+  if (p.total != null && Math.abs(p.total - sum) >= 0.5) checks.push({ tone: 'danger', text: 'The message says ' + formatCurrency(p.total) + '; the lines come to ' + formatCurrency(sum) + '.' });
+  blank.forEach(function(ln) { checks.push({ tone: 'warning', text: 'Line ' + ln.n + ': say what it was for.' }); });
+  return {
+    steps: [
+      { key: 'msg', title: 'Is this the message?', help: 'Sent ' + formatDate(r.sentOn) + '. Paid back with the payout of Sat ' + stockShortDate(sat) + ' (week ' + attPayWeekNumber(r.week) + ') and counted in its total.',
+        guide: ['app-pay', ''], done: !r.seen, says: r.seen ? '' : 'Sent ' + formatDate(r.sentOn), body: '' },
+      { key: 'lines', title: 'What was each line for?', help: 'A line with no amount is left out.', done: live.length > 0 && !blank.length,
+        says: live.length && !blank.length ? live.length + (live.length === 1 ? ' line' : ' lines') : '', body: '' },
+      { key: 'total', title: 'Does it add up?', done: live.length > 0 && (p.total == null || Math.abs(p.total - sum) < 0.5), says: live.length ? formatCurrency(sum) : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Nothing with an amount yet.' }
+  };
+}
+uiFlowDefine('cashReview', cashReviewModel);
 function cashReviewHtml() {
-  var r = _cashReview, p = r.read, sat = isoAddDays(r.week, 6);
+  var r = _cashReview, p = r.read;
   var opts = function(sel) { return CASH_CATS.map(function(c) { return '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + escHtml(c.label) + '</option>'; }).join(''); };
   var rows = p.lines.map(function(ln, i) {
     return '<div class="inv-row inv-row-2" data-cash-line="' + i + '">' +
@@ -37783,10 +38102,15 @@ function cashReviewHtml() {
   }).join('');
   var issues = p.issues.map(function(x) { return '<div class="inv-callout inv-callout-' + (x.tone === 'danger' ? 'danger' : 'warning') + '">' + (x.n ? 'Line ' + x.n + ': ' : '') + escHtml(x.text) + '</div>'; }).join('');
   var seen = r.seen ? '<div class="inv-callout inv-callout-danger" data-cash-seen>This message was saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.</div>' : '';
+  var model = cashReviewModel(), body = {
+    msg: seen + issues,
+    lines: '<div class="inv-panel inv-panel-flush">' + rows + '</div>',
+    total: '<div class="inv-panel inv-panel-flush">' + uiFactRowHtml({ label: 'Total', value: formatCurrency(p.sum), sub: p.total != null ? 'the message says ' + formatCurrency(p.total) : 'no total written', attrs: ' data-cash-sum' }) + '</div>'
+  };
+  // Drawn before the dialog is on the page: the lines are read as the message gave them.
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
   return '<div class="inv-dialog inv-dialog-wide" data-cash-review>' + dialogHeadHtml('Cash paid out') +
-    '<div class="inv-note">Sent ' + formatDate(r.sentOn) + '. Paid back with the payout of Sat ' + stockShortDate(sat) + ' (week ' + attPayWeekNumber(r.week) + ') and counted in its total.</div>' +
-    seen + issues + '<div class="inv-panel inv-panel-flush">' + rows +
-    uiFactRowHtml({ label: 'Total', value: formatCurrency(p.sum), sub: p.total != null ? 'the message says ' + formatCurrency(p.total) : 'no total written', attrs: ' data-cash-sum' }) + '</div>' +
+    uiFlowHtml('cashReview', model) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invPayCashSave"' + (r.seen ? ' disabled' : '') + '>Save cash paid out</button></div></div>';
 }
@@ -50126,6 +50450,59 @@ function shiftBackToBack(iso) {
 }
 
 /* ===== Settings → Labour → Shifts by line ===== */
+/* A schedule as a guided flow (UI pass 3 §26b): Which line, from when · The night's times and its break · The crew and the spare ·
+   (the barrel) its running hours and windows · Sundays and a note. A line works one or the other: the barrel's running hours, or a
+   VAT line's night. The preview is the night as each day will read it (shiftNightOf, the reading lineNightOn makes of a schedule in
+   force), its plating time less the break; the barrel's running day and its windows with no crew. */
+function _shiftRowVals(i, x) {
+  var has = !!document.getElementById('setShLine' + i);
+  var v = function(id, d) { if (!has) return d == null ? '' : String(d); var el = document.getElementById(id + i); return el ? String(el.value || '').trim() : ''; };
+  x = x || {};
+  var crew = x.crew || {}, sun = document.getElementById('setShSun' + i);
+  return { line: v('setShLine', x.line), from: v('setShFrom', x.from), to: v('setShTo', x.to), start: v('setShStart', x.start), end: v('setShEnd', x.end), stop: v('setShStop', x.stop),
+    breakMin: v('setShBreak', x.breakMin), crewL: v('setShCrewL', x.line ? crew[x.line] : null), crewP: v('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel']),
+    spare: v('setShSpare', x.spare), runFrom: v('setShRunFrom', x.runFrom), runTo: v('setShRunTo', x.runTo), exOne: v('setShExOne', x.extraOne), exFew: v('setShExFew', x.extraFew),
+    exMany: v('setShExMany', x.extraMany), sunday: has ? !!(sun && sun.checked) : !!x.sunday, note: v('setShNote', x.note) };
+}
+function _shiftRowModel(i, x) {
+  var t = _shiftRowVals(i, x), barrel = t.line === 'barrel', vat = !!t.line && !barrel;
+  var hm = function(m) { return relayClockLabel(((m % 1440) + 1440) % 1440); };
+  var lines = [], checks = [];
+  var head = !!t.line && /^\d{4}-\d{2}-\d{2}$/.test(t.from);
+  if (t.to && t.from && t.to < t.from) checks.push({ tone: 'danger', text: 'Its last day is before its first.' });
+  if (head) lines.push(escHtml(shiftLineName(t.line)) + ' from ' + escHtml(formatDate(t.from)) + (t.to ? ' to ' + escHtml(formatDate(t.to)) : ', open') + (t.sunday ? ', Sundays too' : ', not on Sundays'));
+  var crewN = function(s) { var n = Number(s); return s === '' || !isFinite(n) ? 0 : Math.max(0, Math.round(n)); };
+  var n = vat ? shiftNightOf({ line: t.line, start: t.start, end: t.end, stop: t.stop, breakMin: t.breakMin, crew: (function() { var c = {}; if (crewN(t.crewL)) c[t.line] = crewN(t.crewL); if (crewN(t.crewP)) c['pickling-vat'] = crewN(t.crewP); return c; })(), spare: t.spare }, t.from || localDateStr()) : null;
+  if (n) {
+    lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(formatNum(n.paidMin / 60, 1)) + ' h' +
+      (n.stop < n.end ? '; plating stops ' + escHtml(hm(n.stop)) : '') + '; plating time ' + escHtml(formatNum(n.plateMin / 60, 1)) + ' h after the ' + n.breakMin + '-minute break');
+    lines.push(n.need ? 'Its crew: ' + n.need + (n.spare ? ' and ' + n.spare + ' spare, who books no shortfall' : '') : 'No crew set: a night short of its crew is not asked.');
+  } else if (vat && (t.start || t.end)) checks.push({ tone: 'warning', text: 'Set when the night starts and ends.' });
+  var ra = relayParseHhmm(t.runFrom), rb = relayParseHhmm(t.runTo);
+  if (barrel && ra != null && rb != null && rb > ra) {
+    var wins = [];
+    if (ra < RELAY_GENERAL) wins.push(hm(ra) + '–' + hm(RELAY_GENERAL));
+    if (rb > RELAY_GENERAL_OUT) wins.push(hm(RELAY_GENERAL_OUT) + '–' + hm(rb));
+    lines.push('Running ' + escHtml(hm(ra)) + ' to ' + escHtml(hm(rb)) + (wins.length ? '; with no crew ' + escHtml(wins.join(' and ')) : ''));
+    var ex = [t.exOne ? t.exOne + ' h for 1 barrel' : '', t.exFew ? t.exFew + ' h for 2 to 4' : '', t.exMany ? t.exMany + ' h for 5 or 6' : ''].filter(Boolean);
+    lines.push(ex.length ? 'EXTRA a window: ' + escHtml(ex.join(', ')) : 'No EXTRA set for loading in those windows.');
+  } else if (barrel && (t.runFrom || t.runTo)) checks.push({ tone: 'warning', text: 'Set the hours it runs.' });
+  var nightDone = vat && !!n, crewDone = vat && crewN(t.crewL) + crewN(t.crewP) > 0, runDone = barrel && ra != null && rb != null && rb > ra;
+  return {
+    steps: [
+      { key: 'line', title: 'Which line, and from when?', help: 'Blank From takes the row off. A later From starts a new schedule.', guide: ['app-day', 'The night shift'], done: head,
+        says: head ? shiftLineName(t.line) + ' from ' + formatDate(t.from) : '', body: '' },
+      { key: 'night', title: 'When does the night run?', help: barrel ? 'A VAT line’s night: the barrel takes its running hours below.' : 'Its start and end, when plating stops, and the break inside it.',
+        optional: !vat, done: nightDone, says: n ? hm(n.start) + '–' + hm(n.end) + ' · break ' + n.breakMin + ' min' : '', body: '' },
+      { key: 'crew', title: 'Who works it?', help: barrel ? 'A VAT line’s night crew.' : 'The line’s hands and the pickling hands it pulls; a spare covers an absence.', optional: !vat, done: crewDone,
+        says: crewDone ? (crewN(t.crewL) + crewN(t.crewP)) + ' on the night' + (crewN(t.spare) ? ' + ' + crewN(t.spare) + ' spare' : '') : '', body: '' },
+      { key: 'run', title: 'When does the barrel run?', help: barrel ? 'Its running hours, and the EXTRA booked for loading in the hours with no crew.' : 'The barrel’s: a VAT line takes its night above.',
+        optional: !barrel, done: runDone, says: runDone ? hm(ra) + '–' + hm(rb) : '', body: '' },
+      { key: 'more', title: 'Sundays, and a note?', optional: true, done: t.sunday || !!t.note, says: [t.sunday ? 'Sundays too' : '', t.note].filter(Boolean).join(' · '), body: '' }
+    ],
+    preview: { title: 'How each day reads it', lines: lines, checks: checks, empty: 'Pick the line and its first day, then its night or its running hours.' }
+  };
+}
 function _shiftRowHtml(x, i) {
   x = x || {};
   var lineSel = '<select class="inv-input" id="setShLine' + i + '"><option value="">—</option>' + SHIFT_LINES.map(function(l) {
@@ -50133,20 +50510,24 @@ function _shiftRowHtml(x, i) {
   }).join('') + '</select>';
   var t = function(id, v) { return '<input type="time" class="inv-input inv-id" id="' + id + i + '" value="' + escHtml(v || '') + '">'; };
   var n = function(id, v) { return _sNum(id + i, v == null ? '' : v, 1, 0); };
-  var crew = x.crew || {};
-  return '<div class="inv-callout inv-callout-neutral inv-mt-8" data-shift-row="' + i + '"><div class="inv-field-label">' + (x.from ? escHtml(shiftLineName(x.line) + ' from ' + formatDate(x.from)) : 'Add a schedule') + '</div>' +
-    _sRow(_sfg('Line', 'setShLine' + i, lineSel), _sfg('From', 'setShFrom' + i, '<input type="date" class="inv-input inv-id" id="setShFrom' + i + '" value="' + escHtml(x.from || '') + '">', 'blank takes the row off'),
-      _sfg('To (blank: open)', 'setShTo' + i, '<input type="date" class="inv-input inv-id" id="setShTo' + i + '" value="' + escHtml(x.to || '') + '">')) +
-    _sRow(_sfg('Night from', 'setShStart' + i, t('setShStart', x.start)), _sfg('Night to', 'setShEnd' + i, t('setShEnd', x.end)),
-      _sfg('Plating stops', 'setShStop' + i, t('setShStop', x.stop)), _sfg('Break, minutes', 'setShBreak' + i, n('setShBreak', x.breakMin))) +
-    _sRow(_sfg('Crew on the line', 'setShCrewL' + i, n('setShCrewL', x.line ? crew[x.line] : null)), _sfg('Crew on pickling', 'setShCrewP' + i, n('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel'])),
-      _sfg('Spare', 'setShSpare' + i, n('setShSpare', x.spare))) +
-    _sRow(_sfg('Barrel runs from', 'setShRunFrom' + i, t('setShRunFrom', x.runFrom)), _sfg('to', 'setShRunTo' + i, t('setShRunTo', x.runTo)),
+  var crew = x.crew || {}, name = 'shift-' + i, xs = x;
+  uiFlowDefine(name, function() { return _shiftRowModel(i, xs); });
+  var model = _shiftRowModel(i, x), body = {
+    line: _sRow(_sfg('Line', 'setShLine' + i, lineSel), _sfg('From', 'setShFrom' + i, '<input type="date" class="inv-input inv-id" id="setShFrom' + i + '" value="' + escHtml(x.from || '') + '">', 'blank takes the row off'),
+      _sfg('To (blank: open)', 'setShTo' + i, '<input type="date" class="inv-input inv-id" id="setShTo' + i + '" value="' + escHtml(x.to || '') + '">')),
+    night: _sRow(_sfg('Night from', 'setShStart' + i, t('setShStart', x.start)), _sfg('Night to', 'setShEnd' + i, t('setShEnd', x.end)),
+      _sfg('Plating stops', 'setShStop' + i, t('setShStop', x.stop)), _sfg('Break, minutes', 'setShBreak' + i, n('setShBreak', x.breakMin))),
+    crew: _sRow(_sfg('Crew on the line', 'setShCrewL' + i, n('setShCrewL', x.line ? crew[x.line] : null)), _sfg('Crew on pickling', 'setShCrewP' + i, n('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel'])),
+      _sfg('Spare', 'setShSpare' + i, n('setShSpare', x.spare))),
+    run: _sRow(_sfg('Barrel runs from', 'setShRunFrom' + i, t('setShRunFrom', x.runFrom)), _sfg('to', 'setShRunTo' + i, t('setShRunTo', x.runTo)),
       _sfg('EXTRA a window, 1 barrel (h)', 'setShExOne' + i, n('setShExOne', x.extraOne)), _sfg('2 to 4 (h)', 'setShExFew' + i, n('setShExFew', x.extraFew)),
-      _sfg('5 or 6 (h)', 'setShExMany' + i, n('setShExMany', x.extraMany))) +
-    '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="setShSun' + i + '"' + (x.sunday ? ' checked' : '') + '> Runs on Sundays too</label>' +
-    _sfg('Note', 'setShNote' + i, '<input class="inv-input" id="setShNote' + i + '" value="' + escHtml(x.note || '') + '">', 'the material it runs, the rotation') +
-    '</div>';
+      _sfg('5 or 6 (h)', 'setShExMany' + i, n('setShExMany', x.extraMany))),
+    more: '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="setShSun' + i + '"' + (x.sunday ? ' checked' : '') + '> Runs on Sundays too</label>' +
+      _sfg('Note', 'setShNote' + i, '<input class="inv-input" id="setShNote' + i + '" value="' + escHtml(x.note || '') + '">', 'the material it runs, the rotation')
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  return '<div class="inv-mt-8" data-shift-row="' + i + '"><div class="inv-field-label">' + (x.from ? escHtml(shiftLineName(x.line) + ' from ' + formatDate(x.from)) : 'Add a schedule') + '</div>' +
+    uiFlowHtml(name, model) + '</div>';
 }
 function shiftSummary() {
   var l = lineShifts();

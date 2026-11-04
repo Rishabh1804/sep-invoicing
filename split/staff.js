@@ -743,32 +743,62 @@ function attSheetEntryHtml(iso, rec, roster) {
 }
 
 /* A hand's day in a dialog: P / H / A, where they stood, and the hours (an hourly hand) or the overtime. Each change is
-   saved as it is made, as on the board. */
+   saved as it is made, as on the board. A guided flow (UI pass 3 §11a): Mark · Where · In and out · OT shifts; the preview the
+   hours and OT the day holds, worked out from the times as a roll works them out (relayHoursOf, at each change). */
 var _attEditId = null;
+function attEditModel() {
+  var w = staffById(_attEditId);
+  if (!w) return null;
+  var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
+  var area = m && m.area ? m.area : (w.area || 'flex'), times = live ? attTimesText(m) : '';
+  var slots = live ? ATT_SLOTS.map(function(z) { var a = attHandSlotArea(rec, w.id, z[0]); return a ? z[1] + ' on ' + areaLabel(a) : ''; }).filter(Boolean) : [];
+  var hrs = live ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours yet') : (m.hours ? m.hours + ' h' : '') + (m.hours ? ', ' : '') + 'OT ' + (m.ot || 0) + ' h') : '';
+  var lines = [];
+  if (st) {
+    lines.push(escHtml(w.name) + ' · ' + escHtml(ATT_STATE_LABELS[st]) + ' on ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + (live ? ', on ' + escHtml(areaLabel(area)) : ''));
+    if (live) lines.push(escHtml((times || 'The shift, 8:30 AM to 5:00 PM') + ': ' + hrs + (times ? ', worked out from the times' : '')));
+    slots.forEach(function(s) { lines.push(escHtml(s) + ', on that slot’s OT crew'); });
+  }
+  return {
+    steps: [
+      { key: 'mark', title: 'Was the hand here?', guide: ['app-day', 'Day'], done: !!st, says: st ? ATT_STATE_LABELS[st] : '', body: '' },
+      { key: 'where', title: 'Where did they stand?', help: live ? 'The area of the general shift, 8:30 AM to 5:00 PM.' : st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.',
+        done: !!live, optional: !live, says: live ? areaLabel(area) : '', body: '' },
+      { key: 'times', title: 'When did they come and go?', help: 'From the sheet. Left blank, the shift is assumed.', optional: true, done: !!times, says: times ? times + (hrs ? ' · ' + hrs : '') : '', body: '' },
+      { key: 'ot', title: 'Did they stand on an overtime slot?', help: 'Each slot puts them on its OT crew, where its hours are booked.', optional: true, done: slots.length > 0, says: slots.join(' · '), body: '' }
+    ],
+    preview: { title: 'What the day holds', lines: lines, empty: 'Mark the day and this says what is recorded for the hand.' }
+  };
+}
+uiFlowDefine('attEdit', attEditModel);
 function attEditHtml() {
   var w = staffById(_attEditId);
   if (!w) return '';
   var rec = attDay(_attDate, false), m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
   var states = hourly ? ['P', 'A'] : ATT_STATES;
-  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
-    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
-    '<div class="inv-dialog-body" data-nodirty>' + (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + attWhoHtml(m, w.id) + '<div class="inv-fields">' +
-    '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
+  var model = attEditModel(), body = {};
+  body.mark = '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
-    }).join('') + '</span></div>' +
-    '<label class="inv-field"><span class="inv-field-label">General shift area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
-    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>' +
+    }).join('') + '</span></div>';
+  body.where = '<label class="inv-field"><span class="inv-field-label">General shift area</span><select class="inv-select" data-att-area data-id="' + w.id + '"' + (live ? '' : ' disabled') + '>' +
+    attAreaOptions(m && m.area ? m.area : (w.area || 'flex')) + '</select></label>';
+  body.times = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">In</span><input type="time" class="inv-input inv-id" data-att-in data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.inMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
     '<label class="inv-field"><span class="inv-field-label">Out</span><input type="time" class="inv-input inv-id" data-att-out data-id="' + w.id + '" value="' + escHtml(attTimeVal(m && m.outMin)) + '"' + (live ? '' : ' disabled') + '></label>' +
-    ATT_SLOTS.map(function(z) { return '<label class="inv-field"><span class="inv-field-label">' + z[1] + ' area</span>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</label>'; }).join('') +
     (hourly
       ? '<label class="inv-field"><span class="inv-field-label">Hours worked</span><input type="number" class="inv-input inv-input-num" data-att-hours data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.hours ? m.hours : '') + '"' + (live ? '' : ' disabled') + '></label>'
       : '<label class="inv-field"><span class="inv-field-label">Overtime, hours</span><input type="number" class="inv-input inv-input-num" data-att-ot data-id="' + w.id + '" step="0.5" min="0" value="' + (m && m.ot ? m.ot : '') + '"' + (live ? '' : ' disabled') + '></label>') +
     '</div>' + (live ? '<div class="inv-note" data-att-times-note>' + (attTimesText(m)
       ? escHtml(attTimesText(m) + ': ' + m.hours + ' h' + (hourly ? '' : ', OT ' + (m.ot || 0) + ' h') + ', worked out from the times. A figure typed below the times wins until a time is changed.')
       : 'Type the in and out from the sheet, and the hours and OT are worked out as a roll works them out. Left blank, the shift (8:30 AM to 5:00 PM) is assumed.') + '</div>'
-      : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
+      : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>');
+  body.ot = '<div class="inv-fields">' + ATT_SLOTS.map(function(z) { return '<label class="inv-field"><span class="inv-field-label">' + z[1] + ' area</span>' + attSlotSelectHtml(rec, w, z[0], live, z[1]) + '</label>'; }).join('') + '</div>';
+  model.steps.forEach(function(s) { s.body = body[s.key] || ''; });
+  return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
+    dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
+    '<div class="inv-dialog-body" data-nodirty>' +
+    uiFlowHtml('attEdit', model, { before: (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + attWhoHtml(m, w.id) }) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose" data-att-done>Done</button></div></div>';
 }
 /* Who marked the hand and who changed the mark (changelog.js tagWho), and a version a sync held for the owner: two phones

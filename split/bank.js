@@ -610,23 +610,79 @@ function bankChequeOpen(id) {
     facts.map(uiFactRowHtml).join('') + (ch.note ? '<div class="inv-panel-body inv-note">' + escHtml(ch.note) + '</div>' : '') + '</div>' +
     '<div class="inv-dialog-foot">' + foot + '</div></div>', { dismiss: true });
 }
-/* The form: Money → Receivables → Cheque received, and Add → By hand → Cheque. */
+/* The form: Money → Receivables → Cheque received, and Add → By hand → Cheque. A guided flow (UI pass 3 §11a): Whose and how much ·
+   The cheque · When it came; the preview what the client owes before and after it, Receivables' own figure (finClientMoney) less the
+   cheque, which counts as a receipt from the day it came. */
+var _chqPvOwed = null;   // { key, owed }: the client's figure as Receivables reads it, kept until the client or the book changes
+function bankChequeOwed(cid) {
+  var key = String(cid) + '|' + (typeof _bookWrites === 'number' ? _bookWrites : 0);
+  if (_chqPvOwed && _chqPvOwed.key === key) return _chqPvOwed.v;
+  var m = null;
+  try { m = finClientMoney(cid); } catch (e) { m = null; }
+  _chqPvOwed = { key: key, v: m ? { owed: m.r ? m.r.owed : 0, from: m.from } : null };
+  return _chqPvOwed.v;
+}
+function bankChequeModel() {
+  var form = document.querySelector('[data-cheque-form]');
+  var v = function(id) { var el = form && form.querySelector('#' + id); return el ? String(el.value || '').trim() : ''; };
+  var cid = v('chqClient'), c = cid ? (S.clients || []).find(function(x) { return String(x.id) === String(cid); }) : null;
+  var amount = gstRound(parseFloat(v('chqAmount')) || 0), number = v('chqNumber').replace(/\s+/g, ''), received = v('chqReceived'), today = localDateStr();
+  var okNum = /^\d+$/.test(number), okDay = /^\d{4}-\d{2}-\d{2}$/.test(received || '') && received <= today;
+  var lines = [], checks = [];
+  if (c && amount > 0) {
+    lines.push('Cheque' + (okNum ? ' ' + escHtml(number) : '') + ' from ' + escHtml(c.name) + ' for ' + escHtml(formatCurrency(amount)) + (okDay ? ', received ' + escHtml(formatDate(received)) : ''));
+    var o = bankChequeOwed(c.id);
+    if (o && okDay && received < o.from) lines.push('Received before receivables start (' + escHtml(formatDate(o.from)) + '): it is not read, as no receipt from before then is.');
+    else if (o) {
+      var after = gstRound(o.owed - amount);
+      lines.push('What ' + escHtml(c.name) + ' owes: ' + escHtml(formatCurrency(o.owed)) + ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after))));
+    }
+    lines.push('It counts as paid from the day it came. Its deposit on the statement takes over, found by its number.');
+  }
+  if (c && okNum) {
+    var twin = bankCheques().find(function(ch) { return !ch.voidedAt && String(ch.clientId) === String(c.id) && bankChequeKey(ch.number) === bankChequeKey(number); });
+    if (twin) checks.push({ tone: 'danger', text: 'Cheque ' + number + ' is already recorded for this client, received ' + formatDate(twin.receivedOn) + '.' });
+  }
+  if (number && !okNum) checks.push({ tone: 'danger', text: 'The cheque number is digits only.' });
+  if (received && received > today) checks.push({ tone: 'danger', text: 'The day it came cannot be after today.' });
+  var cd = v('chqDate');
+  if (cd && /^\d{4}-\d{2}-\d{2}$/.test(cd) && cd > today) checks.push({ tone: 'info', text: 'Post-dated: in hand from ' + formatDate(cd) + ', the day it can go in.' });
+  return {
+    steps: [
+      { key: 'whose', title: 'Whose cheque, and how much?', guide: ['app-bank', ''], done: !!c && amount > 0, says: c && amount > 0 ? c.name + ' · ' + formatCurrency(amount) : '', body: '' },
+      { key: 'cheque', title: 'Which cheque?', help: 'Its number finds its deposit on the statement. Its date and bank if they are written.', done: okNum, says: okNum ? 'No. ' + number + (v('chqBank') ? ' · ' + v('chqBank') : '') : '', body: '' },
+      { key: 'when', title: 'When did it come?', done: okDay, says: okDay ? formatDate(received) + (v('chqNote') ? ' · ' + v('chqNote') : '') : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Pick the client and the amount, and this says what they owe before and after the cheque.' }
+  };
+}
+uiFlowDefine('chequeForm', bankChequeModel);
 function bankChequeFormOpen(clientId) {
   var today = localDateStr(), f = function(label, control, wide) { return '<label class="inv-field' + (wide ? ' inv-kv-wide' : '') + '"><span class="inv-field-label">' + label + '</span>' + control + '</label>'; };
   var opts = (S.clients || []).filter(function(c) { return c.isActive !== false || String(c.id) === String(clientId); }).slice().sort(function(a, b) { return a.name.localeCompare(b.name); })
     .map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (String(c.id) === String(clientId) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('');
+  var body = {
+    whose: '<div class="inv-fields">' + f('Client', '<select class="inv-select" id="chqClient"><option value="">Choose a client</option>' + opts + '</select>') +
+      f('Amount', '<input class="inv-input inv-input-num" id="chqAmount" type="number" step="0.01" min="0" inputmode="decimal">') + '</div>',
+    cheque: '<div class="inv-fields">' + f('Cheque number', '<input class="inv-input" id="chqNumber" inputmode="numeric" autocomplete="off">') +
+      f('Cheque date', '<input class="inv-input" id="chqDate" type="date">') +
+      f('Drawn on (bank)', '<input class="inv-input" id="chqBank" autocomplete="off">') + '</div>',
+    when: '<div class="inv-fields">' + f('Received on', '<input class="inv-input" id="chqReceived" type="date" max="' + today + '" value="' + today + '">') +
+      f('Note', '<input class="inv-input" id="chqNote" autocomplete="off">', true) + '</div>'
+  };
+  // Drawn before the dialog is on the page: the model reads what the dialog will open with.
+  var c = clientId != null && clientId !== '' ? (S.clients || []).find(function(x) { return String(x.id) === String(clientId); }) : null;
+  var model = { steps: [
+    { key: 'whose', title: 'Whose cheque, and how much?', guide: ['app-bank', ''], done: false, says: '' },
+    { key: 'cheque', title: 'Which cheque?', help: 'Its number finds its deposit on the statement. Its date and bank if they are written.', done: false, says: '' },
+    { key: 'when', title: 'When did it come?', done: true, says: formatDate(today) }
+  ], preview: { lines: c ? [escHtml(c.name) + ': type the amount, and this says what they owe before and after the cheque.'] : [], empty: 'Pick the client and the amount, and this says what they owe before and after the cheque.' } };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
   dialogOpen('<div class="inv-dialog" data-cheque-form>' + dialogHeadHtml('Cheque received') +
-    '<div class="inv-fields">' +
-    f('Client', '<select class="inv-select" id="chqClient"><option value="">Choose a client</option>' + opts + '</select>') +
-    f('Amount', '<input class="inv-input inv-input-num" id="chqAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
-    f('Cheque number', '<input class="inv-input" id="chqNumber" inputmode="numeric" autocomplete="off">') +
-    f('Received on', '<input class="inv-input" id="chqReceived" type="date" max="' + today + '" value="' + today + '">') +
-    f('Cheque date', '<input class="inv-input" id="chqDate" type="date">') +
-    f('Drawn on (bank)', '<input class="inv-input" id="chqBank" autocomplete="off">') +
-    f('Note', '<input class="inv-input" id="chqNote" autocomplete="off">', true) +
-    '</div><div class="inv-note">It counts as paid from the day it came. Its deposit on the statement takes over, found by its number.</div>' +
+    uiFlowHtml('chequeForm', model) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invChequeSave">Save cheque</button></div></div>', { dismiss: true });
+  uiFlowSync(document.querySelector('[data-cheque-form]'));
 }
 function bankChequeSave() {
   var form = document.querySelector('[data-cheque-form]');

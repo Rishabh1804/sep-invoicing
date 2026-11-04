@@ -680,21 +680,56 @@ function payCarryFromSave(off) {
 }
 
 var _payLast = null;   // the kind and date of the last payment recorded, carried to the next (several go in at a sitting)
+var _payFlowD = null;  // the period the form is drawn for (payDue's), which its preview reads
+/* A payment to a hand as a guided flow (UI pass 3 §11a): Who · What and how much · When. The fields are read where they stand;
+   the preview is the hand's due in the period before and after it, from Pay's own row (payDue). */
+function payFormModel() {
+  var d = _payFlowD, root = document.getElementById('payForm');
+  if (!d) return null;
+  var val = function(id) { var el = root && root.querySelector('#' + id); return el ? String(el.value || '').trim() : ''; };
+  var id = val('payWorker'), r = id ? d.rows.find(function(x) { return String(x.w.id) === String(id); }) : null;
+  var amount = gstRound(parseFloat(val('payAmount')) || 0), kind = val('payKind') === 'advance' ? 'advance' : 'payment', date = val('payDate');
+  var okDate = /^\d{4}-\d{2}-\d{2}$/.test(date || '');
+  var lines = [], checks = [];
+  if (r) {
+    var period = r.weekly ? 'the week to Sat ' + formatDate(d.sat) : _monthLabel(r.from.slice(0, 7));
+    if (amount > 0) lines.push((kind === 'advance' ? 'An advance of ' : 'A payment of ') + payMoney(amount) + ' to ' + escHtml(r.w.name) + (okDate ? ' on ' + escHtml(formatDate(date)) : ''));
+    var after = gstRound(r.due - amount);
+    lines.push('Due for ' + escHtml(period) + ': ' + payMoney(r.due) + (amount > 0 ? ' → ' + (after < 0 ? payMoney(-after) + ' advanced, to work off' : payMoney(after)) : ''));
+    if (amount > 0 && r.due > 0 && amount > r.due) checks.push({ tone: 'warning', text: 'More than is due: ' + formatCurrency(gstRound(amount - r.due)) + ' over, carried as an advance.' });
+    if (okDate && (date < r.from || date > r.to) && !(r.weekly === false && date > r.to && date <= isoAddDays(r.to, 20))) checks.push({ tone: 'info', text: 'Dated outside ' + period + ': it counts in the period it is dated in.' });
+  }
+  return {
+    steps: [
+      { key: 'who', title: 'Who is paid?', guide: ['app-pay', ''], done: !!r, says: r ? r.w.name : '', body: '' },
+      { key: 'what', title: 'What, and how much?', help: 'An advance is worked off against what they earn next.', done: amount > 0, says: amount > 0 ? (kind === 'advance' ? 'Advance' : 'Payment') + ' · ' + formatCurrency(amount) : '', body: '' },
+      { key: 'when', title: 'When was it paid?', done: okDate, says: okDate ? formatDate(date) + (val('payNote') ? ' · ' + val('payNote') : '') : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Pick the hand and this says what is due before and after the payment.' }
+  };
+}
+uiFlowDefine('payForm', payFormModel);
 function _payFormHtml(d) {
+  _payFlowD = d;
   var today = localDateStr();
   var defDate = _payLast && _payLast.date >= d.weekStart && _payLast.date <= d.sat ? _payLast.date : today >= d.weekStart && today <= d.sat ? today : d.sat;
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
+  var model = payFormModel() || { steps: [], preview: {} }, body = {};
+  body.who = f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
+    d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>');
+  body.what = '<div class="inv-fields">' + f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
+    f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') + '</div>';
+  body.when = '<div class="inv-fields">' + f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
+    f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') + '</div>';
+  model.steps.forEach(function(s) { s.body = body[s.key] || ''; });
+  // The first draw (no form on the page yet) reads the date it is drawn with.
+  if (!document.getElementById('payForm')) { model.steps[2].done = true; model.steps[2].says = formatDate(defDate); }
+  var rc = _payLast && _payLast.receipt ? uiFlowReceiptHtml(_payLast.receipt) : '';
   // One look (TM4b): the form is one line until it is wanted (a hand's Pay opens it filled); open on the desktop, where it fits.
   return '<details class="inv-row-fold" data-fold="pay-form" id="payFormFold"' + (uiFoldOpen('pay-form', !!_isDesktop) ? ' open' : '') + '>' +
     '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Record a payment</span></span></summary>' +
-    '<div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
-    f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
-      d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
-    f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
-    f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
-    f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
-    '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
-    '<button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div></details>';
+    '<div class="inv-panel-body" id="payForm">' + uiFlowHtml('payForm', model, { receipt: rc }) +
+    '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div></div></details>';
 }
 
 function _payListHtml(d) {
@@ -1016,6 +1051,7 @@ function payPick(id, due) {
   if (sel) sel.value = String(id);
   if (amt) amt.value = due > 0 ? String(due) : '';
   if (amt) amt.focus();
+  uiFlowSync(document.getElementById('payForm'));
 }
 function paySave() {
   var id = (document.getElementById('payWorker') || {}).value;
@@ -1029,7 +1065,9 @@ function paySave() {
   staffPayments().push({ id: 'PAY-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), staffId: w.id, date: date, amount: amount,
     kind: (document.getElementById('payKind') || {}).value === 'advance' ? 'advance' : 'payment',
     note: ((document.getElementById('payNote') || {}).value || '').trim(), at: Date.now() });
-  _payLast = { date: date, kind: staffPayments()[staffPayments().length - 1].kind };
+  var pk = staffPayments()[staffPayments().length - 1].kind;
+  _payLast = { date: date, kind: pk, receipt: { title: 'Saved: ' + (pk === 'advance' ? 'an advance of ' : 'a payment of ') + formatCurrency(amount) + ' to ' + w.name,
+    lines: [escHtml(formatDate(date)) + ' · listed under Payments in these periods, with Void'] } };
   saveState();
   renderAttendance();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);

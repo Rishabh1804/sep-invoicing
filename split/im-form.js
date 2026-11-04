@@ -45,6 +45,69 @@ function showAddChallanForm() {
   renderAddChallanForm();
 }
 
+/* ===== THE CHALLAN FORM AS A GUIDED FLOW (UI pass 3 §11a; state.js uiFlowHtml) =====
+   Whose challan · What came on it · Check, every step open in any order; the preview says what Save records (the challan, its lines,
+   the kilos and the amount) and the checks the form already makes (the number recorded before, a red flag with no reason, a rate or a
+   weight off the record) as rows. The form keeps its own keys (Enter to the next field, Alt+N, Ctrl+Enter), so the flow's Enter is
+   left out (data-flow-ownkeys). The header's fields are read from the screen as typed, never written from here. */
+function challanFormHeader() {
+  var f = _challanForm, v = function(id, d) { var el = document.getElementById(id); return el ? el.value.trim() : d; };
+  return { no: v('imChallanNo', f.challanNo || ''), date: v('imChallanDate', f.challanDate || ''), ve: v('imVehicleNo', f.vehicleNo || ''), wanted: v('imWantedBy', f.priority || '') };
+}
+// Worked out by the sync only while Challans shows the form: it runs after every input anywhere, and a form left under another page waits.
+function challanFlowModel() { return _challanForm && document.querySelector('#pageIM.inv-page-active #imAddForm [data-flow]') ? challanFlowModelOf() : null; }
+function challanFlowModelOf() {
+  var f = _challanForm;
+  if (!f) return null;
+  var client = f.clientId ? S.clients.find(function(c) { return c.id === f.clientId; }) : null;
+  var hd = challanFormHeader(), date = hd.date || localDateStr();
+  var named = function(it) { return String(it.partNumber || it.desc || '').trim(); };
+  var used = f.items.filter(function(it) { return named(it) || (it.qty || 0) > 0; });
+  var kg = 0, nos = 0, amt = 0;
+  used.forEach(function(it) { if (it.unit === 'NOS') nos += +it.qty || 0; else kg += +it.qty || 0; amt += it.amount || 0; });
+  amt = gstRound(amt);
+  var linesDone = used.length > 0 && used.every(function(it) { return named(it) && (it.qty || 0) > 0; });
+  var checks = [];
+  if (client) {
+    imNumberMatches(f.clientId, hd.no, f._editingId || null).forEach(function(im) { checks.push({ tone: 'warning', text: imNumberMatchText(im) }); });
+    if (!hd.no) checks.push({ tone: 'warning', text: 'No challan number: Save checks the challan by what it holds instead.' });
+    f.items.forEach(function(it, i) {
+      var n = 'Line ' + (i + 1) + ': ';
+      if (!named(it)) { if ((it.qty || 0) > 0) checks.push({ tone: 'warning', text: n + 'name the part.' }); return; }
+      var fl = lineFlag(client, date, it);
+      if (fl && !it.flagReason) checks.push({ tone: 'danger', text: n + (fl.kind === 'rate' ? 'the rate' : 'the weight') + ' is far off the record: pick a reason under the line.' });
+      var rm = rateMatch(client, date, it), wm = weightMatch(client, date, it);
+      if (rm && rm.status === 'unit') checks.push({ tone: 'warning', text: n + 'the part’s rate on record is in another unit.' });
+      else if (rm && rm.status === 'differs') checks.push({ tone: 'info', text: n + 'the rate differs from the record.' });
+      if (wm && wm.status === 'differs') checks.push({ tone: 'info', text: n + 'the weight differs from the record.' });
+    });
+  }
+  var danger = checks.some(function(c) { return c.tone === 'danger'; }), warn = checks.filter(function(c) { return c.tone === 'warning'; }).length;
+  var day = hd.date ? formatDate(hd.date) : '';
+  var sum = used.length + ' line' + (used.length === 1 ? '' : 's') + (kg ? ' · ' + formatNum(kg, 3) + ' kg' : '') + (nos ? ' · ' + formatNum(nos, 0) + ' NOS' : '') + ' · ' + formatCurrency(amt);
+  var lines = [];
+  if (client) {
+    lines.push((f._editingId ? 'Updates challan ' : 'Challan ') + (hd.no ? '<b class="inv-id">' + escHtml(hd.no) + '</b>' : 'with no number') + ' from ' + escHtml(client.name) +
+      (day ? ', dated ' + escHtml(day) : '') + (hd.ve ? ' · vehicle <span class="inv-id">' + escHtml(hd.ve) + '</span>' : '') + (hd.wanted ? ' · wanted by ' + escHtml(formatDate(hd.wanted)) : ''));
+  }
+  used.slice(0, 6).forEach(function(it) {
+    lines.push(escHtml(named(it) ? lineLabel(it) : 'A line with no part') + ': ' + escHtml(formatNum(+it.qty || 0, it.unit === 'NOS' ? 0 : 3) + ' ' + (it.unit || 'KG')) +
+      (it.unit !== 'NOS' && it.nosQty ? ' · ' + escHtml(String(it.nosQty)) + ' pcs' : '') + ' · ' + escHtml(formatCurrency(it.amount || 0)));
+  });
+  if (used.length > 6) lines.push(escHtml((used.length - 6) + ' more line' + (used.length - 6 === 1 ? '' : 's')));
+  if (used.length) lines.push('<b>' + escHtml(sum) + '</b>');
+  var steps = [
+    { key: 'who', title: 'Whose challan is it?', help: 'The client, the challan’s number and its date. The number is checked against the client’s challans as it is typed.',
+      guide: ['app-challan', ''], done: !!client && !!hd.no && !!hd.date, says: client ? client.name + (hd.no ? ' · ' + hd.no : '') + (day ? ' · ' + day : '') : '', body: '' },
+    { key: 'lines', title: 'What came on it?', help: 'A part picked fills its rate and weight from the client’s record: tab through them to check. A red flag needs a reason.',
+      done: linesDone, says: used.length ? sum : '', body: '' },
+    { key: 'check', title: 'Check it, then save', help: 'What Save records says the lines, the kilos and the amount, and every warning. Save, add another opens the next on the same client, date and vehicle.',
+      done: !!client && linesDone && !!hd.date && !danger, says: warn ? warn + ' warning' + (warn === 1 ? '' : 's') + ' to read' : 'Nothing to look at', body: '' }
+  ];
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Choose the client and this says what Save records.' } };
+}
+uiFlowDefine('challanForm', challanFlowModel);
+
 function renderAddChallanForm() {
   var area = document.getElementById('imAddForm');
   if (!area) return;
@@ -58,18 +121,18 @@ function renderAddChallanForm() {
 
   var date = _challanForm.challanDate || localDateStr();
   var total = gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0));
-  var html = '<div data-form="challan">' +
-    '<p class="inv-keys">' +
+  var html;
+  var keys = '<p class="inv-keys">' +
       '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
       '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
       '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
       '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
-    '</p><div class="inv-panels">';
+    '</p>';
 
-  // Challan: client, number, date, vehicle.
-  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">' +
-    (_challanForm._editingId ? 'Edit challan' : 'Add challan') + '</span></div>';
-  if (client) html += chosenClientHtml(client, client.gstin || 'No GSTIN', 'invClearChallanClient', 'client-change');
+  // Step 1, whose challan: client, number, date, vehicle, wanted by.
+  var who = '<div class="inv-panel inv-panel-flush">';
+  if (client) who += chosenClientHtml(client, client.gstin || 'No GSTIN', 'invClearChallanClient', 'client-change');
+  html = '';
   html += '<div class="inv-panel-body"><div class="inv-fields">' +
     (client ? '' : clientSearchHtml('imChallanClientSearch', 'imChallanClientResults', 'client-search')) +
     '<div class="inv-field"><label class="inv-field-label" for="imChallanNo">Challan no.</label>' +
@@ -84,10 +147,10 @@ function renderAddChallanForm() {
     '<div class="inv-field"><label class="inv-field-label" for="imWantedBy">Wanted by</label>' +
     '<input type="date" class="inv-input inv-id" id="imWantedBy" data-k="priority" value="' + escHtml(_challanForm.priority || '') + '">' +
     '<div class="inv-field-hint">Only where the client asked for it by a day.</div></div></div></div></div>';
+  who += html;
 
-  // Lines, on the invoice form's line editor.
-  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
-    '<span class="inv-panel-count">' + _challanForm.items.length + '</span></div><div class="inv-lines">' +
+  // Step 2, what came on it: the invoice form's line editor.
+  html = '<div class="inv-panel inv-panel-flush"><div class="inv-lines">' +
     (_challanForm.items.length ? linesHeadHtml('Qty') : '');
   _challanForm.items.forEach(function(item, idx) {
     var isPieceNOS = client && client.billingMode === 'piece' && item.unit === 'NOS';
@@ -122,7 +185,13 @@ function renderAddChallanForm() {
   // data-kbd-ring puts these two in the Enter-to-next-field chain, so the last
   // field of the last line steps onto "Add line" instead of dead-ending.
   // The per-line remove buttons are deliberately left out of that chain.
-  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">Add line</button></div></div></div>';
+  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddChallanLine">Add line</button></div></div>';
+
+  var model = challanFlowModelOf(), body = { who: who, lines: html };
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
+  // The form's own keys stay its own (data-flow-ownkeys): Enter walks its fields, as it always did.
+  var head = '<div class="inv-panel-head"><span class="inv-panel-title">' + (_challanForm._editingId ? 'Edit challan' : 'Add challan') + '</span></div>';
+  html = '<div data-form="challan">' + uiFlowHtml('challanForm', model, { before: head + keys }).replace('data-flow="challanForm"', 'data-flow="challanForm" data-flow-ownkeys');
 
   // The action bar: the challan's amount, Cancel, and the one primary.
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Challan amount</div>' +

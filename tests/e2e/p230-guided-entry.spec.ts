@@ -104,6 +104,35 @@ test.describe('P230 guided entry: Stock by hand', () => {
     await expect(page.locator('[data-stock-price="Q"]')).toBeFocused();
   });
 
+  test('a screen reader hears how the form stands once typing pauses, and only when it changed, never the preview at every key (Cipher L-3)', async ({ page }) => {
+    await loadAppWithState(page, stockBook());
+    await page.evaluate(() => localStorage.removeItem('sep_inv_stock_by'));
+    await openHand(page);
+    const flow = page.locator('[data-flow="stockManual"]');
+    // The preview changes with every key: it is no live region.
+    await expect(flow.locator('[data-flow-preview]')).not.toHaveAttribute('aria-live', /.*/);
+    const say = flow.locator('[data-flow-say]');
+    await expect(say).toHaveAttribute('role', 'status');
+    await expect(say).toHaveText('');   // the form opening says itself
+    await flow.locator('#stockBy').fill('Deepak');
+    await expect(say).toHaveText('3 of 4 steps done.');
+    // Count what the region is told while a figure is typed key by key.
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-flow="stockManual"] [data-flow-say]')!;
+      (window as any).__said = [];
+      new MutationObserver(() => (window as any).__said.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true });
+    });
+    await flow.locator('[data-stock-qty="Q"]').pressSequentially('25', { delay: 60 });
+    await expect(say).toHaveText(/^Ready to save\./);
+    await page.waitForTimeout(1500);
+    const said = await page.evaluate(() => (window as any).__said);
+    expect(said.length, 'one line for the whole figure, not one a key').toBe(1);
+    // The same line again is not said twice.
+    await flow.locator('[data-stock-qty="Q"]').fill('25');
+    await page.waitForTimeout(1500);
+    expect(await page.evaluate(() => (window as any).__said)).toEqual(said);
+  });
+
   test('a step’s book opens its guide at the section it names', async ({ page }) => {
     await loadAppWithState(page, stockBook());
     await openHand(page);
@@ -280,6 +309,83 @@ test.describe('P230 QA chain: production', () => {
     // A part with no weight anywhere: the preview names no route Save may not take.
     await page.locator('#prodHandPart').fill('Bush 77');
     await expect(pv).toContainText('Weighed at save, from its challans if any are open');
+  });
+
+  test('Production by hand takes the rounds: said in the step and the preview, checked against the figure, saved as the register saves a batch', async ({ page }) => {
+    await loadAppWithState(page, prodBook());
+    await switchTab(page, 'pageProduction');
+    await toolbarMore(page, 'Enter by hand');
+    const flow = page.locator('[data-flow="prodHand"]'), pv = flow.locator('[data-flow-preview]'), step = flow.locator('[data-flow-step="rounds"]');
+    await expect(step).toHaveAttribute('data-state', 'opt');
+    await expect(step.locator('[data-flow-tag]')).toHaveText('If needed');
+    await page.locator('#prodHandClient').selectOption('11');
+    await page.locator('#prodHandPart').fill('Assy Bracket 3302');
+    await page.locator('#prodHandQty').fill('100');
+    await page.locator('#prodHandRacks').fill('2');
+    await page.locator('#prodHandRack').fill('40');
+    await expect(step).toHaveAttribute('data-state', 'done');
+    await expect(step.locator('[data-flow-says]')).toHaveText('2 rounds of 40');
+    await expect(pv).toContainText('In 2 rounds of 40');
+    await expect(pv.locator('[data-tone="warning"]')).toContainText('2 rounds of 40 hold 80, and 100 is written');
+    await page.locator('#prodHandRack').fill('56');
+    await expect(pv.locator('[data-tone="warning"]')).toHaveCount(0);
+    await page.locator('#prodHandRacks').fill('4');
+    await expect(pv.locator('[data-tone="warning"]')).toContainText('100 fits in 2 rounds of 56, not 4');
+    // A round is a whole number: said in the preview, refused at Save.
+    await page.locator('#prodHandRacks').fill('1.5');
+    await expect(pv.locator('[data-tone="danger"]')).toContainText('The rounds are a whole number');
+    await page.locator('[data-action="invProdSaveHand"]').click();
+    expect((await readStoredState(page)).production?.entries?.length || 0).toBe(0);
+    await page.locator('#prodHandRacks').fill('2');
+    await page.locator('[data-action="invProdSaveHand"]').click();
+    await expect(page.locator('[data-flow-receipt]')).toContainText('In 2 rounds of 56');
+    const saved = (await readStoredState(page)).production.entries;
+    expect(saved.length).toBe(1);
+    expect(saved[0].rounds).toEqual([{ qty: 100, batch: true, n: 2, rack: 56 }]);
+    // The efficiency reads them as the register's: two rounds on the line that day, a rack of 56 seen for the part.
+    expect(await g(page, `prodDayLine(${JSON.stringify(T)}, 'vat-a1').rounds`)).toBe(2);
+    expect(await g(page, `prodEntryRack(prodIndex().byId[${JSON.stringify(saved[0].id)}])`)).toBe(56);
+    // The form clears its rounds for the next; in kilograms it asks no pieces a round.
+    await expect(page.locator('#prodHandRacks')).toHaveValue('');
+    await page.locator('#prodHandUnit').selectOption('KG');
+    await expect(page.locator('#prodHandRack')).toHaveCount(0);
+    await expect(page.locator('#prodHandRacks')).toBeVisible();
+    // Corrected, the entry's rounds are the form's again.
+    await page.locator('[data-action="invProdHandDone"]').first().click();
+    await g(page, `prodOpenHand(${JSON.stringify(saved[0].id)})`);
+    await expect(page.locator('#prodHandRacks')).toHaveValue('2');
+    await expect(page.locator('#prodHandRack')).toHaveValue('56');
+  });
+
+  test('Production by hand: a part with no gauge takes it from the round by the owner’s rule, and a round no rule names is flagged', async ({ page }) => {
+    await loadAppWithState(page, prodBook());
+    await g(page, `prodData().gaugeRules.push({ clientId: 11, family: 'CLAMP', racks: [150], gauges: ['25X6', '30X6'] })`);
+    await switchTab(page, 'pageProduction');
+    await toolbarMore(page, 'Enter by hand');
+    const pv = page.locator('[data-flow="prodHand"] [data-flow-preview]');
+    await page.locator('#prodHandClient').selectOption('11');
+    await page.locator('#prodHandPart').fill('CLAMP 165X83');
+    await page.locator('#prodHandQty').fill('300');
+    await page.locator('#prodHandRacks').fill('2');
+    await page.locator('#prodHandRack').fill('150');
+    await expect(pv.locator('[data-tone="info"]').filter({ hasText: 'Gauge' })).toContainText('Gauge 25X6 or 30X6, read from the round of 150');
+    await page.locator('[data-action="invProdSaveHand"]').click();
+    await expect(page.locator('[data-flow-receipt]')).toBeVisible();
+    let e = (await readStoredState(page)).production.entries[0];
+    expect(e.gaugeOptions).toEqual(['25X6', '30X6']);
+    expect(e.gaugeSrc).toBe('rack');
+    // A round of 120 is in none of the client's rules for its clamps: saved with the gauge unknown, to pick on Entries.
+    await page.locator('#prodHandPart').fill('CLAMP 165X83');
+    await page.locator('#prodHandQty').fill('240');
+    await page.locator('#prodHandRacks').fill('2');
+    await page.locator('#prodHandRack').fill('120');
+    await expect(pv.locator('[data-tone="warning"]').filter({ hasText: 'none of the owner’s rules' })).toContainText('A round of 120 is in none of the owner’s rules');
+    // And the round is one the part has not run at on the line: the register's own rack check.
+    await expect(pv.locator('[data-tone="warning"]').filter({ hasText: 'has not been seen' })).toContainText('A round of 120 has not been seen for this part on VAT A1 (usually 150)');
+    await page.locator('[data-action="invProdSaveHand"]').click();
+    await expect(page.locator('#prodHandRacks')).toHaveValue('');
+    e = (await readStoredState(page)).production.entries[1];
+    expect(e.gaugeUnknown).toBe(120);
   });
 
   test('the register photo: a run struck and cancelled is neither listed nor counted, as Save leaves it out (Vulcanus L-5)', async ({ page }) => {

@@ -1024,7 +1024,10 @@ function uiFlowHtml(name, m, o) {
     (o.receipt || '') +
     '<div class="inv-flow-progress" data-flow-progress>' + uiFlowProgressInner(steps, m.live) + '</div>' +
     '<div class="inv-flow-main"><ol class="inv-flow-steps">' + steps.map(function(s, i) { return uiFlowStepHtml(s, i, next); }).join('') + '</ol>' +
-    '<aside class="inv-flow-preview" data-flow-preview aria-live="polite">' + uiFlowPreviewInner(m.preview) + '</aside></div>' +
+    '<aside class="inv-flow-preview" data-flow-preview>' + uiFlowPreviewInner(m.preview) + '</aside></div>' +
+    // What a screen reader hears (Cipher L-3, U4's Edict V): not the preview, which changed with every key and was read again each
+    // time, but one line saying how the form stands, once typing pauses and only when it has changed (uiFlowAnnounce).
+    '<p class="inv-visually-hidden" role="status" data-flow-say data-said="' + escHtml(uiFlowSay(m)) + '"></p>' +
     (o.after || '') + '</div>';
 }
 /* The flows on screen kept in step with what is typed: the steps' state and heads, the progress and the preview. A field is never
@@ -1052,7 +1055,33 @@ function uiFlowSync(root) {
     if (pr && pr.innerHTML !== ph) pr.innerHTML = ph;
     var pv = el.querySelector('[data-flow-preview]'), vh = uiFlowPreviewInner(m.preview);
     if (pv && pv._flowHtml !== vh) { pv.innerHTML = vh; pv._flowHtml = vh; }
+    uiFlowAnnounce(el, m);
   }
+}
+/* How the form stands, in one line for a screen reader: the steps done (or ready), and what the checks ask: the first that stops
+   Save in its own words, else how many to look at. */
+function uiFlowSay(m) {
+  var c = uiFlowCount(m.steps || []), checks = ((m.preview && m.preview.checks) || []).filter(Boolean);
+  var say = c.done === c.of ? (m.live ? 'All filled.' : 'Ready to save.') : c.done + ' of ' + c.of + ' steps done.';
+  var stop = checks.filter(function(x) { return x.tone === 'danger'; })[0], look = checks.filter(function(x) { return x.tone === 'warning'; }).length;
+  if (stop) say += ' ' + stop.text;
+  else if (look) say += ' ' + (look === 1 ? '1 check' : look + ' checks') + ' to look at in the preview.';
+  return say;
+}
+/* Said once typing pauses (UI_FLOW_SAY_MS) and only when the line differs from the last said: uiFlowSync runs on every key, and a
+   live region written on every key is read out on every key. The first line (as drawn) is never said: the form opening says it. */
+var UI_FLOW_SAY_MS = 1200;
+function uiFlowAnnounce(el, m) {
+  var p = el.querySelector('[data-flow-say]');
+  if (!p) return;
+  var say = uiFlowSay(m);
+  clearTimeout(p._sayTimer);
+  if (p.getAttribute('data-said') === say) return;
+  p._sayTimer = setTimeout(function() {
+    if (!p.isConnected || p.getAttribute('data-said') === say) return;
+    p.setAttribute('data-said', say);
+    p.textContent = say;
+  }, UI_FLOW_SAY_MS);
 }
 /* The first field of the step Next: focused when a form opens (never on a touch screen, which would raise the keyboard over it),
    and when Enter finishes the step before it. */

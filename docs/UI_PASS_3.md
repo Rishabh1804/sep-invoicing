@@ -2469,7 +2469,16 @@ Where the build departs from §11 and §26b, and why:
   the step is *If needed*.
 - **A hand's day saves each change** as it did; its progress says *All filled · saved as you go* (`live`), its preview *What the day
   holds*.
-- **Production by hand has no rounds field**: adding one changes what it saves; a correction keeps the rounds it had, as before.
+- **Production by hand's rounds** (*How many rounds?*, *If needed*, added after U4's QA chain on the owner's word, 4 Nov 2026): the
+  rounds and, for a run in pieces, the pieces a round held, saved as the register saves a batch written as rounds of a rack (one round
+  row, `batch`, `n`, `rack`, no time of its own: `prodHandRounds`), so the efficiency's rounds and racks, the rack sizes seen and the
+  gauge rules read them as they read the register's. The preview checks the figure against the rounds, a rack the part has not run at
+  on the line, and the gauge the owner's rules read off the round (`prodHandRoundChecks`); Save refuses a round that is not whole, and
+  a part written with no gauge takes it from the round (or is flagged gauge unknown, as a register's). A correction shows the rounds
+  the form saved; a register's (a row a round) are kept unless rounds are typed over them.
+- **The preview is no live region** (Cipher L-3, U4's Edict V): it changed at every key and was read again each time. A line under
+  the flow (`role="status"`, `uiFlowSay`) says how the form stands (*3 of 4 steps done.*, *Ready to save.*, the check that stops Save,
+  or how many to look at), once typing pauses 1.2 s and only when it differs from the last said (`uiFlowAnnounce`).
 - **A power cut's cost** in its preview is the record's as the dialog opened, not worked again as a time is typed.
 - **Mine's own screen** (its day, its duties as step cards, *What you entered* in a panel) was already §11a's look; only its six forms
   changed.

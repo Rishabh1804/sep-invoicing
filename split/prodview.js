@@ -1469,13 +1469,17 @@ function prodOpenHand(fromId, from, fromLines) {
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
     : prodHandBlank(fromLines);
+  // The rounds a hand entry was saved with are the form's to show again; a register's rounds (a row each) are kept as they are
+  // unless new ones are typed (prodHandRoundsOf).
+  var hr = src ? prodHandRoundsOf(src) : null;
+  _prodHand.racks = hr ? String(hr.n) : ''; _prodHand.rack = hr && hr.rack ? String(hr.rack) : '';
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {
-  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
+  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', racks: '', rack: '', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
   // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
   // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's. Said by the
   // door that opens it: Power's Enter a cut and Add's by hand open on today, though Lines' day and line outlive a visit to Lines.
@@ -1501,7 +1505,7 @@ function prodHandDraft(f) {
   var q = parseFloat(f.qty), e = { kind: f.kind, date: f.date, time: f.time || null, unit: f.unit, rework: !!f.rework };
   if (f.kind === 'downtime') return e;
   e.clientId = f.clientId ? prodHeldId(f.clientId) : null; e.part = String(f.part || '').trim(); e.gauge = prodGaugeOf(e.part, e.part); e.qty = isNaN(q) ? null : q;
-  if (f.kind === 'plated') e.line = f.line || null;
+  if (f.kind === 'plated') { e.line = f.line || null; var hr = prodHandRounds(f); if (hr && hr.ok) e.rounds = [hr.round]; }
   // The part's own reading as Save makes it (Vulcanus M-4, U4's QA chain): a correction keeps the corrected entry's while the part and
   // the client are as they were, and a name with a code is matched to the client's part (prodLearnAliases' choice, read here
   // without learning anything).
@@ -1524,6 +1528,60 @@ function prodHandDraftPart(e) {
   try { rs = prodResolveEntryPart(e); } catch (x) { rs = null; }
   if (rs && rs.partNumber) e.partNumber = rs.partNumber;
 }
+/* The rounds typed on the hand form (UI pass 3 §26b: "Whose work (client, part, figure, rounds)"): how many rounds, and the pieces a
+   round held where the run is counted in pieces. Saved as the register saves a batch written as rounds of a rack ("96×7"): one
+   round row, a batch, `n` rounds of `rack` (prodview's draft and save alike), with no time of its own, so it is never taken for a
+   round another run shares. The efficiency's rounds and racks, the rack sizes seen for the part and the gauge rules read it as
+   they read the register's. {ok, n, rack, round} where both read; {bad: text} where a figure cannot be; null where none is typed. */
+function prodHandRounds(f) {
+  if (!f || f.kind !== 'plated') return null;
+  var rs = String(f.racks == null ? '' : f.racks).trim(), ks = f.unit === 'NOS' ? String(f.rack == null ? '' : f.rack).trim() : '';
+  if (!rs && !ks) return null;
+  var n = Number(rs), rack = ks ? Number(ks) : null;
+  if (!rs) return { bad: 'The pieces a round held need the rounds too.' };
+  if (!(n > 0) || n !== Math.round(n)) return { bad: 'The rounds are a whole number, 1 or more.' };
+  if (ks && (!(rack > 0) || rack !== Math.round(rack))) return { bad: 'The pieces a round held are a whole number, 1 or more.' };
+  var q = parseFloat(f.qty), round = { qty: isNaN(q) ? null : q, batch: true, n: n };
+  if (rack) round.rack = rack;
+  return { ok: true, n: n, rack: rack, round: round };
+}
+/* A saved entry's rounds as the hand form holds them: one batch row, as the form saves it. A register's rounds (a row a round)
+   are not the form's to show: a correction keeps them unless rounds are typed over them. */
+function prodHandRoundsOf(e) {
+  var rs = (e && e.rounds) || [];
+  if (rs.length !== 1 || !rs[0].batch || rs[0].time || !(rs[0].n > 0)) return null;
+  return { n: rs[0].n, rack: rs[0].rack || null };
+}
+/* What the rounds typed say against the part and the line: the figure against the rounds, a rack the part has not run at on the
+   line, and the gauge the owner's rules read off the round. The register's own checks (prodRackCheck, prodGaugeRuleFor). */
+function prodHandRoundChecks(f, e, hr) {
+  var out = [], q = parseFloat(f.qty);
+  if (!hr || !hr.ok) return out;
+  if (hr.rack && f.unit === 'NOS' && q > 0) {
+    var hold = hr.n * hr.rack;
+    if (q > hold + 0.5) out.push({ tone: 'warning', text: todoPlural(hr.n, 'round') + ' of ' + formatNum(hr.rack, 0) + ' hold ' + formatNum(hold, 0) + ', and ' + formatNum(q, q % 1 ? 2 : 0) + ' is written. Check the rounds or the figure.' });
+    else if (hr.n > 1 && q <= (hr.n - 1) * hr.rack + 0.5) out.push({ tone: 'warning', text: formatNum(q, q % 1 ? 2 : 0) + ' fits in ' + todoPlural(Math.ceil(q / hr.rack), 'round') + ' of ' + formatNum(hr.rack, 0) + ', not ' + hr.n + '. Check the rounds.' });
+  }
+  if (hr.rack && e && f.line && e.clientId != null) {
+    var seen = prodIndex().racks[f.line + '|' + (prodEntryKey(e) || '')] || {}, sizes = Object.keys(seen), top = null;
+    sizes.forEach(function(z) { if (top == null || seen[z] > seen[top]) top = z; });
+    if (sizes.length && !seen[hr.rack]) out.push({ tone: 'warning', text: 'A round of ' + hr.rack + ' has not been seen for this part on ' + PROD_LINE_LABEL[f.line] + ' (usually ' + top + ').' });
+  }
+  var g = prodHandRoundGauge(e, hr);
+  if (g && g.gauges) out.push({ tone: 'info', text: 'Gauge ' + g.gauges.join(' or ') + ', read from the round of ' + hr.rack + ' (the owner’s rule).' + (g.gauges.length > 1 ? ' The challans say which.' : '') });
+  else if (g && g.unknown) out.push({ tone: 'warning', text: 'A round of ' + hr.rack + ' is in none of the owner’s rules for this part: saved with its gauge unknown, to pick on Entries.' });
+  return out;
+}
+/* The gauge a round gives a part written with none (the register's rule, prodparse): {gauges} from a rule naming the round,
+   {unknown} where the client's rules for the part's kind name other rounds, null where no rule speaks. */
+function prodHandRoundGauge(e, hr) {
+  if (!e || !hr || !hr.rack || e.clientId == null || e.gauge || lineGauge(String(e.part || '').replace(/[×✕]/g, 'X'))) return null;
+  var g = prodGaugeRuleFor(e.clientId, e.part, hr.rack);
+  if (g && g.length) return { gauges: g };
+  var w = (prodPartBase(e.part).toUpperCase().match(/[A-Z]+/) || [''])[0];
+  var any = w && prodData().gaugeRules.some(function(x) { return String(x.clientId) === String(e.clientId) && x.family === w; });
+  return any ? { unknown: true } : null;
+}
 function prodHandModel() {
   var f = _prodHand;
   if (!f) return null;
@@ -1544,6 +1602,11 @@ function prodHandModel() {
     steps.push({ key: 'whose', title: f.kind === 'arrived' ? 'Whose material, and how much?' : 'Whose work, and how much?', help: 'The client, the part as the floor names it, and the figure.',
       done: !!f.clientId && !!String(f.part || '').trim() && qtyOk,
       says: [client ? clientShortName(client) : '', String(f.part || '').trim(), qtyOk ? formatNum(q, q % 1 ? 2 : 0) + ' ' + (f.unit === 'KG' ? 'kg' : 'NOS') : ''].filter(Boolean).join(' · '), body: '' });
+    if (f.kind === 'plated') {
+      var hr = prodHandRounds(f);
+      steps.push({ key: 'rounds', title: 'How many rounds?', help: f.unit === 'NOS' ? 'The rounds it took, and the pieces a round held. The line’s efficiency reads them.' : 'The rounds it took. The line’s efficiency reads them.',
+        optional: true, done: !!(hr && hr.ok), says: hr && hr.ok ? todoPlural(hr.n, 'round') + (hr.rack ? ' of ' + formatNum(hr.rack, 0) : '') : '', body: '' });
+    }
     steps.push({ key: 'rework', title: 'Is it rework?', help: 'Rework counts as work done, never as billing.', optional: true, done: !!f.rework, says: 'Rework', body: '' });
   }
   // The preview: the entry in words, and how it will count.
@@ -1572,7 +1635,19 @@ function prodHandModel() {
       else if (w && w.kg != null) lines.push('Weighed at save, from its challans if any are open; else ' + escHtml(prodKgFig(w.kg, prodWeighEst(w))) + ' by ' + escHtml(how));
       else lines.push('Weighed at save, from its challans if any are open; else it counts in pieces, and Not weighed asks for its weight.');
     }
+    if (f.kind === 'plated') {
+      var hrp = prodHandRounds(f);
+      if (hrp && hrp.ok) lines.push('In ' + escHtml(todoPlural(hrp.n, 'round') + (hrp.rack ? ' of ' + formatNum(hrp.rack, 0) : '')));
+      prodHandRoundChecks(f, e, hrp).forEach(function(c) { checks.push(c); });
+    }
     if (f.rework) lines.push('Rework: counted as work done, never as billing.');
+  }
+  var hrb = prodHandRounds(f);
+  if (hrb && hrb.bad) checks.push({ tone: 'danger', text: hrb.bad });
+  else if (f.replaces && !hrb && f.kind === 'plated') {
+    var srcR = prodIndex().byId[f.replaces];
+    var kept = srcR && (srcR.rounds || []).filter(function(x) { return !x.struck && !x.start; }).length;
+    if (kept && !prodHandRoundsOf(srcR)) checks.push({ tone: 'info', text: 'It keeps the ' + todoPlural(kept, 'round') + ' the register recorded, unless rounds are typed here.' });
   }
   if (f.date && f.date > today) checks.push({ tone: 'danger', text: 'That day has not come yet: pick a day up to today.' });
   else if (f.date && f.date !== today && !f.replaces) checks.push({ tone: 'warning', text: 'Dated ' + formatDate(f.date) + ', not today.' });
@@ -1607,6 +1682,11 @@ function prodHandHtml() {
       field('prodHandPart', 'Part', '<input id="prodHandPart" class="inv-input" data-prod-hand="part" value="' + escHtml(f.part) + '" placeholder="e.g. CLAMP 165X83 (40X6)" autocomplete="off">') +
       field('prodHandQty', 'Quantity', '<input type="number" inputmode="decimal" step="any" min="0" id="prodHandQty" class="inv-input inv-input-num" data-prod-hand="qty" value="' + escHtml(f.qty) + '">') +
       field('prodHandUnit', 'Unit', '<select id="prodHandUnit" class="inv-select" data-prod-hand="unit"><option value="NOS"' + (f.unit === 'NOS' ? ' selected' : '') + '>NOS</option><option value="KG"' + (f.unit === 'KG' ? ' selected' : '') + '>kg</option></select>') + '</div>';
+    if (f.kind === 'plated') {
+      var srcB = f.replaces ? prodIndex().byId[f.replaces] : null, regN = srcB && !prodHandRoundsOf(srcB) ? (srcB.rounds || []).filter(function(x) { return !x.struck && !x.start; }).length : 0;
+      body.rounds = '<div class="inv-fields">' + field('prodHandRacks', 'Rounds', '<input type="number" inputmode="numeric" step="1" min="1" id="prodHandRacks" class="inv-input inv-input-num" data-prod-hand="racks" value="' + escHtml(f.racks || '') + '"' + (regN ? ' placeholder="' + regN + ' kept"' : '') + '>') +
+        (f.unit === 'NOS' ? field('prodHandRack', 'Pieces a round', '<input type="number" inputmode="numeric" step="1" min="1" id="prodHandRack" class="inv-input inv-input-num" data-prod-hand="rack" value="' + escHtml(f.rack || '') + '">') : '') + '</div>';
+    }
     body.rework = '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="prodHandRework" data-prod-hand="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never as billing)</span></label>';
   }
   model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
@@ -1639,6 +1719,8 @@ async function prodSaveHand() {
   if (f.kind !== 'downtime' && !f.clientId) { showToast('Pick the client', 'error'); return; }
   if (f.kind !== 'downtime' && !f.part.trim()) { showToast('Name the part', 'error'); return; }
   if (f.kind === 'downtime' && !f.time) { showToast('Enter when the power went', 'error'); return; }
+  var hrs = prodHandRounds(f);
+  if (hrs && hrs.bad) { showToast(hrs.bad, 'error'); return; }
   // A power back earlier on the clock than the cut ran overnight, or is a slip: asked, never assumed (P127).
   if (f.kind === 'downtime' && f.to && f.to < f.time) {
     var a = relayParseHhmm(f.time), b = relayParseHhmm(f.to);
@@ -1668,6 +1750,19 @@ async function prodSaveHand() {
         if (!e.gauge && src.gauge) e.gauge = src.gauge;
       }
     }
+    // The rounds typed take the place of any the entry corrected had (a correction with none typed keeps them, above).
+    // Rounds the form itself showed (an entry saved by hand) and cleared there go: the form held them, so clearing them is meant.
+    if (f.kind === 'plated' && !hrs && src && prodHandRoundsOf(src)) delete e.rounds;
+    if (f.kind === 'plated' && hrs && hrs.ok) {
+      e.rounds = [Object.assign({}, hrs.round, { qty: e.qty })];
+      // A part written with no gauge takes it from the round, as the register's does (the owner's rules); a round in none of the
+      // client's rules for the part's kind is flagged, to pick on Entries.
+      if (!e.gauge && !e.gaugeOptions) {
+        var hg = prodHandRoundGauge(e, hrs);
+        if (hg && hg.gauges) { if (hg.gauges.length === 1) e.gauge = hg.gauges[0]; else e.gaugeOptions = hg.gauges; e.gaugeSrc = 'rack'; delete e.gaugeUnknown; }
+        else if (hg && hg.unknown) e.gaugeUnknown = hrs.rack;
+      }
+    }
     // A name with a code ("Assy Bracket 3302") is matched to the client's part as a register's is.
     if (e.clientId != null) prodLearnAliases([e]);
   }
@@ -1686,7 +1781,7 @@ async function prodSaveHand() {
   // The receipt (UI pass 3 §11a): what was recorded, in the preview's words, until the next save.
   var said = prodHandModel().preview.lines;
   f.lastSaid = { title: 'Saved: ' + (PROD_HAND_WORD[f.kind] || 'An entry') + ' on ' + stockShortDate(f.date), lines: said.concat(['Listed under Saved from this form, with Correct and Void.']) };
-  f.time = ''; f.to = ''; f.part = ''; f.qty = ''; f.rework = false;
+  f.time = ''; f.to = ''; f.part = ''; f.qty = ''; f.racks = ''; f.rack = ''; f.rework = false;
   _pageTyped = false;
   renderProduction();
   var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
@@ -1872,7 +1967,7 @@ function prodOnChange(t) {
   if (t.dataset && t.dataset.prodHand) {
     var k = t.dataset.prodHand;
     _prodHand[k] = t.type === 'checkbox' ? t.checked : t.value;
-    if (k === 'date' || k === 'line' || k === 'slot') renderProduction();
+    if (k === 'date' || k === 'line' || k === 'slot' || (k === 'unit' && _prodHand.kind === 'plated')) renderProduction();
     return true;
   }
   if (t.id === 'prodBy') { try { localStorage.setItem(STOCK_BY_KEY, t.value.trim()); } catch (e) { /* per device */ } return true; }

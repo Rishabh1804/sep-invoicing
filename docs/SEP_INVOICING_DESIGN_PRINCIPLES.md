@@ -1402,7 +1402,10 @@ the user"*): numbered steps that **lead without hiding**. `<div class="inv-flow"
 - **the preview** (`inv-flow-preview`, `[data-flow-preview]`, *What Save records*): in words and figures what Save writes and what it
   changes (*Received 25 kg of Q558 from …, bill 1043 of 14 Oct, ₹55.20 a kg before GST · The shelf goes from 15 kg to 40 kg*), worked
   out by the screen's own functions, then the checks the app already makes as rows in their tone. Beside the steps and kept in view
-  where the flow is 52rem wide (`--flow-pv-w`), under the last step otherwise (the phone, a dialog);
+  where the flow is 52rem wide (`--flow-pv-w`), under the last step otherwise (the phone, a dialog). It is **no live region**: it
+  changes at every key. A screen reader hears one line instead (`[data-flow-say]`, `role="status"`, visually hidden): how the form
+  stands (*3 of 4 steps done.*, *Ready to save.*, the check that stops Save, or how many checks to look at), said once typing pauses
+  (1.2 s) and only when it differs from the last said;
 - **the receipt** (`uiFlowReceiptHtml`, `inv-flow-receipt`, `[data-flow-receipt]`) after a save where the form stays: *Saved: …*,
   what was recorded, and the form's own actions where it has them.
 

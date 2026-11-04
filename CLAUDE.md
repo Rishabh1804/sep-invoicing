@@ -1123,7 +1123,8 @@ P230 (phone and desktop); the specs that opened Spend and prices' fold open its 
   its fields. **Every step stays open in any order**; a step only filled if needed is `optional` (*If needed*, never Next). Over them
   the progress (*2 of 4 done*, a meter of a segment a step; *Ready to save*, or for a form saved as it goes, `live: true`, *All filled ·
   saved as you go*); beside them where the flow is 52rem wide (sticky), under them otherwise, **the preview** (*What Save records*: the
-  record in words and figures from the screen's own functions, then the checks the app already makes as rows in their tone); after a
+  record in words and figures from the screen's own functions, then the checks the app already makes as rows in their tone; no live
+  region: a screen reader hears one line, `uiFlowSay`, once typing pauses and only when it changed, `uiFlowAnnounce`); after a
   save where the form stays, **the receipt** (`uiFlowReceiptHtml`). A kind is a row of tiles (`uiKindTilesHtml`, keeping its
   `data-action` and data attribute).
 - **A flow is a model** (`uiFlowDefine(name, fn)` → `{steps, preview, live}`), drawn once and kept in step by `uiFlowSync`, which
@@ -1135,7 +1136,7 @@ P230 (phone and desktop); the specs that opened Spend and prices' fold open its 
   reading could poison is read past (`finCtx`) or cleared (`_suppMemo`). **No id, `data-action`, `data-change` or `data-k` moved.**
 - **The forms** (each its model beside its builder): Stock by hand (`stockManualModel`: What · When and the bill · Which lines · Who;
   each line's level before → after and `_stockEntryChecks` on the entry before it is saved); Production by hand (`prodHandModel`; the
-  run as it counts by `prodWeigh`; no rounds field yet); the register photo's check (`prodPhotoModel`); a power cut completed
+  run as it counts by `prodWeigh`; its rounds, *If needed*, saved as a register's batch, `prodHandRounds`); the register photo's check (`prodPhotoModel`); a power cut completed
   (`pcsModel`; its cost as the record stands when opened); Plant shut… (`plantShutModel`); the challan form (`challanFlowModel`) and
   Create (`createFlowModel`; its optional details stay folded until filled, P67's rule, the step *If needed*; the number it takes is
   `createNumberShown`); a hand's day (`attEditModel`, `live`); a payment to a hand (`payFormModel`), a bill (`costBillFormModel`), a

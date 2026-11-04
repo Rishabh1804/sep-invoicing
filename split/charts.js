@@ -893,11 +893,13 @@ function _chartScaleRow(rg, unit) {
   return '<div class="inv-chart-scale" aria-hidden="true"><span></span><span class="inv-chart-scale-ends"><span>' + escHtml(chartShort(rg.lo, unit)) + '</span><span>' +
     escHtml(chartShort(rg.hi, unit)) + '</span></span><span></span></div>';
 }
-function _chartRowHtml(r, read, track, fig) {
-  return '<button type="button" class="inv-chart-row" data-action="invChartRead" data-read="' + escHtml(read) + '"' + (r.key != null ? ' data-key="' + escHtml(r.key) + '"' : '') + '>' +
+/* In a card (bare: no readout to read into, §24d) a row is a plain row whose title is its figure, never a button. */
+function _chartRowHtml(r, read, track, fig, bare) {
+  var tag = bare ? 'div' : 'button';
+  return '<' + tag + (bare ? ' title="' + escHtml(read) + '"' : ' type="button"') + ' class="inv-chart-row"' + (bare ? '' : ' data-action="invChartRead" data-read="' + escHtml(read) + '"') + (r.key != null ? ' data-key="' + escHtml(r.key) + '"' : '') + '>' +
     '<span class="inv-chart-row-label">' + escHtml(r.label) + (r.sub ? '<span class="inv-chart-row-sub">' + escHtml(r.sub) + '</span>' : '') + '</span>' +
     '<svg class="inv-chart-track" aria-hidden="true"><line class="inv-chart-rail" x1="0" x2="100%" y1="50%" y2="50%"/>' + track + '</svg>' +
-    '<span class="inv-chart-row-val inv-num">' + escHtml(fig) + '</span></button>';
+    '<span class="inv-chart-row-val inv-num">' + escHtml(fig) + '</span></' + tag + '>';
 }
 
 /* One dot a row on one scale, labelled at the row's end, with marks as rules across the rows. rows: [{key, label, value, sub,
@@ -918,7 +920,7 @@ function chartDots(rows, opts) {
   var body = list.map(function(r) {
     var ink = r.slot != null || r.tone != null ? chartInk(r, 0) : chartSlotClass(opts.slot != null ? opts.slot : 1);
     var fig = chartFull(Number(r.value), unit), read = r.label + ': ' + fig + (r.sub ? ' · ' + r.sub : '');
-    return _chartRowHtml(r, read, rules + '<circle class="inv-chart-pt ' + ink + '" cx="' + pc(r.value) + '%" cy="50%" r="' + CHART_DOT_R + '"><title>' + escHtml(read) + '</title></circle>', fig);
+    return _chartRowHtml(r, read, rules + '<circle class="inv-chart-pt ' + ink + '" cx="' + pc(r.value) + '%" cy="50%" r="' + CHART_DOT_R + '"><title>' + escHtml(read) + '</title></circle>', fig, opts.bare);
   }).join('');
   var keys = marks.length ? '<div class="inv-chart-keys">' + marks.map(function(m) {
     return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-swatch-rule"></span>' + escHtml((m.label ? m.label + ' ' : '') + chartFull(Number(m.value), unit)) + '</span>';
@@ -1113,7 +1115,7 @@ function chartDumbbell(rows, opts) {
     var track = (a != null && b != null ? '<line class="inv-chart-dumb-rule" x1="' + pc(a) + '%" x2="' + pc(b) + '%" y1="50%" y2="50%"/>' : '') +
       (a != null ? '<line class="inv-chart-dumb-a" x1="' + pc(a) + '%" x2="' + pc(a) + '%" y1="25%" y2="75%">' + (b == null ? title : '') + '</line>' : '') +
       (b != null ? '<circle class="inv-chart-pt ' + ink + '" cx="' + pc(b) + '%" cy="50%" r="' + CHART_DOT_R + '">' + title + '</circle>' : '');
-    return _chartRowHtml(r, read, track, b != null ? chartFull(b, unit) : '\u2014');
+    return _chartRowHtml(r, read, track, b != null ? chartFull(b, unit) : '\u2014', opts.bare);
   }).join('');
   var keys = '<div class="inv-chart-keys"><span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-swatch-tick"></span>' + escHtml(aL) + '</span>' +
     '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-swatch-dot ' + (toned ? 'inv-chart-neutral' : chartSlotClass(1)) + '"></span>' + escHtml(bL) + '</span></div>';

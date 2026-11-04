@@ -37,7 +37,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // on the long book, the next half screen up (Dashboard 2.94, by client 1.57, by part 1.35, by month 1.29, Cost 2.90), none over
   // the three tabs' worst (I10).
   'Home › Stats › Dashboard': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Stats › Tables': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  // 2 → 2.5 at the QA chain the same day (2.11): By client's notes the Governors had back (the live cost on unweighed lines, the
+  // revenue that cannot be priced), said in the PR; under By client's 3.5 before U3.
+  'Home › Stats › Tables': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Tables › By part': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Tables › By month': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Tables › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },

@@ -175,6 +175,13 @@ function _xlsxInflate(raw) {
   return new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b) { return new Uint8Array(b); });
 }
 /* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
+/* A workbook handed to the browser to save under its name; the object URL let go once the click has it. */
+function xlsxDownload(name, bytes) {
+  var url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
 function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
 async function _xlsxPart(buf, dir, name) {
   var e = dir[name];

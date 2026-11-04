@@ -84,16 +84,16 @@ test.describe('P73: Stats', () => {
     const rows = page.locator('#statsTable tr[data-client-row]');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('BETA CLAMPS');
-    await expect(rows.nth(0).locator('td').nth(5).locator('.inv-fig-danger')).toHaveText('5.00');
+    await expect(rows.nth(0).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('5.00');
     // vs var. is a figure whether or not labour is recorded: labour is fixed (owner, 13 Oct 2026), so the variable cost is the live
     // cost less labour (it was withheld while labour's split was not known). vs full and the ₹ on the period are below.
     const first = rows.nth(0).locator('td');
-    await expect(first.nth(6)).toHaveText(/^[+−]\d/);
-    await expect(first.nth(7)).toHaveClass(/inv-num-neg/);
-    await expect(first.nth(8)).toHaveClass(/inv-num-neg/);
+    await expect(first.and(page.locator('[data-col="vsVar"]'))).toHaveText(/^[+−]\d/);
+    await expect(first.and(page.locator('[data-col="vsFull"]'))).toHaveClass(/inv-num-neg/);
+    await expect(first.and(page.locator('[data-col="money"]'))).toHaveClass(/inv-num-neg/);
     // Revenue by client is a column with its share (its chart the Dashboard's Who fills the plant).
-    await expect(rows.nth(0).locator('td').nth(1)).toHaveText('₹15,000.00');
-    await expect(rows.nth(0).locator('td').nth(2)).toHaveText('54%');
+    await expect(rows.nth(0).locator('td[data-col="rev"]')).toHaveText('₹15,000.00');
+    await expect(rows.nth(0).locator('td[data-col="revShare"]')).toHaveText('54%');
     await rows.nth(0).click();
     const card = page.locator('.inv-dialog[data-drill="72"]');
     await expect(card.locator('.inv-flip-front .inv-tile')).toHaveCount(6);

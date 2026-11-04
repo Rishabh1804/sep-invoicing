@@ -533,9 +533,12 @@ var STATS_TABLE_KEY = 'sep_inv_stats_table';
 var _statsSort = {};
 var STATS_SORT_DEFAULT = { client: { col: 'vsFull', dir: 'asc' }, part: { col: 'amount', dir: 'desc' }, month: { col: 'month', dir: 'asc' } };
 function statsTable() {
-  var t = null;
-  try { t = localStorage.getItem(STATS_TABLE_KEY); } catch (e) { /* per-device convenience only */ }
-  return STATS_TABLES.some(function(x) { return x[0] === t; }) ? t : 'client';
+  var t = null, old = null;
+  try { t = localStorage.getItem(STATS_TABLE_KEY); old = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
+  if (STATS_TABLES.some(function(x) { return x[0] === t; })) return t;
+  // A tab remembered from before U3 names its table (cost: the Tables' Cost), read and never written here.
+  var to = typeof STATS_TAB_OLD !== 'undefined' ? STATS_TAB_OLD[old] : null;
+  return to && to[1] ? to[1] : 'client';
 }
 function statsSetTable(t) {
   if (!STATS_TABLES.some(function(x) { return x[0] === t; })) t = 'client';
@@ -670,7 +673,7 @@ function statsVerdictHtml(pa) {
       badge: contribution != null && contribution < 0 ? [realTone, 'below cost'] : null, attrs: ' data-tile="margin"' }];
   var verdict = !filtered.length ? 'No invoices ' + word
     : contribution == null ? formatInrShort(totalRev) + ' ' + word + (realisation == null ? ', nothing weighed' : ', no cost to judge by')
-    : Math.abs(contribution) < 0.005 ? 'At the live cost, to the paisa'
+    : Math.abs(contribution) < 0.005 ? 'At the ' + (pa.periodCost.label === 'live cost ' ? 'live cost' : 'cost') + ', to the paisa'
     : formatCurrency(Math.abs(contribution)) + ' a kilo ' + (contribution > 0 ? 'over' : 'under') + ' the ' + (pa.periodCost.label === 'live cost ' ? 'live cost' : 'cost');
   var facts = filtered.length ? [todoPlural(filtered.length, 'invoice') + ' · ' + formatInrShort(totalRev) + (credited > 0.005 ? ' net of notes' : ''),
     m ? (belowVar.length ? { text: todoPlural(belowVar.length, 'large account') + ' below the variable cost', tone: 'danger' }
@@ -720,7 +723,8 @@ function statsTableHtml(model) {
   var rows = srt.rows.map(function(r) {
     return '<tr' + (r.attrs || '') + '>' + model.cols.map(function(c) {
       var v = r.v[c.k], h = r.h && r.h[c.k] != null ? r.h[c.k] : escHtml(statsCellText(c, v)) || '&mdash;';
-      return c.signed && typeof v === 'number' ? statsSignedCell(v, h) : '<td' + (c.num ? ' class="inv-num"' : '') + '>' + h + '</td>';
+      // Each cell names its column (data-col), so a reader never counts across a column added later.
+      return (c.signed && typeof v === 'number' ? statsSignedCell(v, h) : '<td' + (c.num ? ' class="inv-num"' : '') + '>' + h + '</td>').replace(/^<td/, '<td data-col="' + escHtml(c.k) + '"');
     }).join('') + '</tr>';
   });
   return '<div class="inv-scroll-x"><table class="inv-table" data-stats-tbl="' + escHtml(model.key) + '"><thead>' + head + '</thead><tbody>' +
@@ -728,7 +732,7 @@ function statsTableHtml(model) {
 }
 function statsTableViewHtml(t, pa) {
   if (t === 'cost') {
-    /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them. On All the labour card's
+    /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them before U3. On All the labour card's
        range is the attendance record's own span (labour.js), so its ₹/kg divides by the tonnage billed inside that span. */
     var labRange = _statsPeriod === 'all' ? labourRangeForPeriod('all') : null;
     // The labour card is wages: drawn for an ID that sees them, as People draws it (Castor H-1); the live cost's labour row is money.
@@ -830,8 +834,10 @@ function statsPartTable(pa) {
     var shared = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
     var known = r.kgKnown && r.kg > 0;
     return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: r.perKg },
-      h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml(shared.map(function(c) {
-          var cc = (S.clients || []).find(function(x) { return String(x.id) === String(c); }); return cc ? cc.name : 'another client'; }).join(', ')) + ', counted apart</div>' : ''),
+      // The other client named short, and how many more: a row's words stay under 120 characters (P195).
+      h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml((function() {
+          var cc = (S.clients || []).find(function(x) { return String(x.id) === String(shared[0]); }); return cc ? clientShortName(cc.name) : 'another client'; })() +
+          (shared.length > 1 ? ' and ' + (shared.length - 1) + ' more' : '')) + ', counted apart</div>' : ''),
         perKg: r.perKg != null ? figHtml(formatNum(r.perKg, 2), pa.periodCost.perKg > 0 ? figToneAgainst(r.perKg, pa.periodCost.perKg, 5) : null) : '&mdash;' } };
   });
   var unknown = top.rows.filter(function(r) { return !(r.kgKnown && r.kg > 0); }).length;
@@ -957,11 +963,7 @@ function statsExportXlsx() {
     });
     sheets.push({ name: x[1], cols: model.cols.map(function(c, i) { return i === 0 ? 34 : c.xl === 'text' ? 22 : 14; }), rows: [head].concat(body), freeze: 1, filter: body.length > 0 });
   });
-  var bytes = xlsxBuild(sheets);
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = statsExportName('xlsx');
-  a.click();
+  xlsxDownload(statsExportName('xlsx'), xlsxBuild(sheets));
   showToast('The tables exported: ' + sheets.length + ' sheets');
 }
 /* A head tapped: that column, then the other way. Drawn again where it stands. */

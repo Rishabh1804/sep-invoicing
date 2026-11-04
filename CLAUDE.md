@@ -179,7 +179,7 @@ split/
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
 ├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout (the snacks included) + forecast, the hours to check, monthly payroll as paid, hours by area (~1,150 lines)
 ├── stock.js           ← Floor → Stock, one screen led by its verdict: the WhatsApp message parser, event replay, a line's page, the reorder list, chemicals ₹/kg (~1,870 lines)
-├── cost.js            ← Prices, bills and patterns per stock line; Stats → Cost, the live cost with every source shown (~1,120 lines)
+├── cost.js            ← Prices, bills and patterns per stock line; Stats → Tables → Cost, the live cost with every source shown (~1,120 lines)
 ├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
@@ -203,7 +203,7 @@ split/
 ├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, by hand (~600 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
-├── stats.js           ← Stats: the Dashboard (a board of widgets) and the Tables (By client · By part · By month · Cost, sorted by a head, exported to CSV and Excel), one verdict leading both; History, the audit trail in the top bar, led by its card (~1,690 lines)
+├── stats.js           ← Stats: the Dashboard (a board of widgets) and the Tables (By client · By part · By month · Cost, sorted by a head, exported to CSV and Excel), one verdict leading both; History, the audit trail in the top bar, led by its card (~1,750 lines)
 ├── intel.js           ← Stats' two views and where an old tab lands (`statsPlace`, `statsOpen`); the questions' stories and The period in figures for Home's widgets; contribution by client (~440 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
@@ -281,7 +281,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,148 tests, both layouts
+pnpm exec playwright test          # 2,226 tests, both layouts (4 Nov 2026)
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -372,7 +372,7 @@ change's words, which name a user who can be renamed; two alike are numbered in 
 pane were scrolled (`paneScrollKeep`; the host's `data-open` says which record, and the pane keeps its place only while that record
 is open). The phone is unchanged: a client still opens under its row, a worker their sheet, a History row the invoice. **A role
 that may not see wages sees no rate on the roster** (`grdSeesWages`; the rows showed it to every role that could open Staff). Above
-a 100rem window the `inv-panels-3` grids (Stats, Finance's Overview; Pulse's questions and widgets until UI pass 3, whose board has its own grid) are three columns, and every
+a 100rem window the `inv-panels-3` grids (Finance's Overview; Stats' until U3, whose Dashboard is a board; Pulse's questions and widgets until UI pass 3, whose board has its own grid) are three columns, and every
 panel in a grid is a `panel-w` container, so a strip of tiles never leaves a blank cell (the Home widgets' rule, now every
 panel's); every other grid stays two across, since three left a column empty or a lone card under a row. P147, P80, P153.
 
@@ -1077,7 +1077,7 @@ rewritten to the same facts where they now live (§21), never weakened.
   large accounts below the cost (By client's verdict until now) and the share measured; its four factors Revenue (net of notes, its
   change), Plated and billed (the share weighed, of two shifts), Realisation and Left after the full cost. Then one toolbar row
   (`[data-stats-toolbar]`): the period (`_statsPeriod`, Stats' own), Customise on the Dashboard, and More (*Make a report*, *Export this
-  table (CSV)*, *Export the tables (Excel)*, *Reset Stats*). On the Tables the switch stands under the row (`[data-stats-table]`, as
+  table (CSV)* (*Export the cost (CSV)* on Cost), *Export the tables (Excel)*, *Reset Stats*). On the Tables the switch stands under the row (`[data-stats-table]`, as
   Attendance's Day · Week · Month).
 - **The Dashboard** is a board of the card family (`wdgBoardDraw(#statsBoard, 'stats')`; `WDG_BOARDS.stats`, `wdgBoardSeen`: a role
   that opens Stats), its own layout per person and layout (`stats` in `sep_inv_layout`), Customise as Home's (arranging ends when Stats is
@@ -3088,7 +3088,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
   counted once), when the next one is due, use per day and over 30 days, and cost per day and per month at
   the last price. Two bills on one day: the larger sets the price, so a local top-up at a higher rate does
   not stand in for the drum.
-- **Stats → Cost → Live cost** replaces the chemicals card. It lists every component with its ₹ and ₹/kg and tags
+- **Stats → Tables → Cost → Live cost** (Stats → Cost until U3) replaces the chemicals card. It lists every component with its ₹ and ₹/kg and tags
   its **source**:
   - *measured*: from this app's records;
   - *part-recorded*: unpriced lines used, or a stock record that starts partway through the period (it
@@ -3942,24 +3942,24 @@ dashboard*, above).
   clients by tonnage, the worst-priced large account, the biggest mover against the period before), *Is the plant full?* (capacity and
   tonnes by month), *What changed?* (the month's pace and the three most urgent insights) and, with a statement, *Is cash coming in?*.
   Each says what it means in one sentence with its tone (`data-story-say`). They read the figures the widgets beside them read: on Home,
-  *Why it moved*, *The period in figures* and the pace are widgets of their own; the headline and six months are Trends'; the insights are tasks on Needs you.
+  *Why it moved*, *The period in figures* and the pace are widgets of their own; the headline is Stats' verdict, the six months the Tables' By month (Trends' both until U3); the insights are tasks on Needs you.
   P120, P185.
 - **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so
-  Trends' headline and Home's *The period in figures* cannot disagree. The typed figure is used only where there is no tonnage to
+  Stats' verdict (Trends' headline until U3) and Home's *The period in figures* cannot disagree. The typed figure is used only where there is no tonnage to
   divide by (and still by Items Master's break-even).
-- **The period in figures** (a Home widget; Pulse's *In one line* until UI pass 3): realisation, live cost, contribution per kg and on the period, and capacity against
+- **The period in figures** (a Home widget; Pulse's *In one line* until UI pass 3): realisation, live cost, contribution per kg and on the period (its whole revenue less its whole cost, U3's QA chain), and capacity against
   ~2 t per shift × two shifts × working days. Whatever is not measured is a badge on its tile.
-- **Six months** (Trends): each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
+- **Six months** (the Tables' By month and the `months` widget; Trends' until U3): each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
   recorded and the share of cost measured.
 - **Credit notes are netted across all of Stats** (owner, 30 Sep 2026): each note's credit is spread over the invoices it names in
   proportion to their taxable (`statsInvoices`, `cnCreditByInvoice`), and the headline, realisation, clients, six months, the trend,
   the insights and Clients → Performance read those net invoices; tonnage is untouched. A note naming no invoice in the book is
-  counted apart and said on Trends' verdict. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
+  counted apart and said on Stats' verdict. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
   it should be mentioned"*): the Revenue tile reads *taxable, net of ₹200.00 in credit notes*, and its comparison with the same
   days last month is net on both sides. The tile will link to the notes once the hover previews are built.
 - **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
-  period on it (`opts.span`), saying so under the chart (owner, 30 Sep 2026).
-- **Contribution by client** (Clients tab), worst first: net realisation (credit notes whose batch ends in
+  period on it (`opts.span`), saying so in its Source (owner, 30 Sep 2026; the `trend` widget since U3).
+- **Contribution by client** (the Tables' By client since U3; Stats' By client tab before), worst first: net realisation (credit notes whose batch ends in
   the period are taken off), against the variable cost and the full cost, and the ₹ on the period. **Labour is
   fixed** (owner, 13 Oct 2026), so the variable cost is everything but labour (it was everything but the monthly
   crew), and the worst account with 10%+ of the tonnage is settled one way: what it contributes or loses against
@@ -4353,7 +4353,7 @@ say so: what the client owed read high for days. P187.
   read from it.** A data flow soma-internal reads.
 
 ### What the bank paid, as cost
-Stats → Cost → **Live cost** reads the statement as a second instrument beside the app's own record
+Stats → Tables → Cost → **Live cost** (Stats → Cost until U3) reads the statement as a second instrument beside the app's own record
 (`docs/FINANCE_INTELLIGENCE_SPEC.md`, Phase 4; `bankCostByMonth`, `bankCostForRange` in `bank.js`). Two routes to one
 figure is the strongest evidence this repo has; this gives the live cost a second route.
 

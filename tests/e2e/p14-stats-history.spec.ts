@@ -100,13 +100,13 @@ test.describe('Stats — tonnage and realisation', () => {
     await expect(rows).toHaveCount(2);
     // Worst priced first — the ordering is the point of the table.
     await expect(rows.nth(0)).toContainText('BELOW COST CLIENT');
-    await expect(rows.nth(0).locator('td').nth(5)).toHaveText('5.40');
+    await expect(rows.nth(0).locator('td[data-col="net"]')).toHaveText('5.40');
     await expect(rows.nth(1)).toContainText('GOOD RATE CLIENT');
-    await expect(rows.nth(1).locator('td').nth(5)).toHaveText('13.00');
+    await expect(rows.nth(1).locator('td[data-col="net"]')).toHaveText('13.00');
 
     // The under-cost figure is called out, not just listed: coloured in the danger tone beside the cost it is judged against.
-    await expect(rows.nth(0).locator('td').nth(5).locator('.inv-fig-danger')).toHaveCount(1);
-    await expect(rows.nth(1).locator('td').nth(5).locator('.inv-fig-danger')).toHaveCount(0);
+    await expect(rows.nth(0).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(1);
+    await expect(rows.nth(1).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(0);
   });
 
   test('says so when tonnage could not be established for every line', async ({ page }) => {
@@ -192,8 +192,8 @@ test.describe('Stats — tonnage and realisation', () => {
     await expect(row).toHaveCount(1);
     // Its measured tonnage is ~0, so a share would read as "small" when the
     // truth is "unknown". That inversion is the trap: its share of the tonnes is withheld, a dash, never a small percentage.
-    await expect(row.locator('td').nth(2)).toHaveText(/^\d+%$/);          // its share of the revenue is known
-    await expect(row.locator('td').nth(4)).toHaveText('—');
+    await expect(row.locator('td[data-col="revShare"]')).toHaveText(/^\d+%$/);          // its share of the revenue is known
+    await expect(row.locator('td[data-col="kgShare"]')).toHaveText('—');
     await expect(row).toContainText('not ranked');
     // The share widget leaves it out of the shares and says so.
     await openStatsTab(page, 'board');

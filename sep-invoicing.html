@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="3dab6703">
+<meta name="app-build" content="43797494">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3864,7 +3864,7 @@ body.inv-desktop .inv-mc-count { flex: 0 1 auto; margin-right: auto; }
 
 <div id="pageStats" class="inv-page">
   <div id="statsToolbar"></div>
-  <div id="statsContent" class="inv-panels inv-panels-dense inv-panels-3"></div>
+  <div id="statsContent"></div>
 </div>
 
 <div id="pageReports" class="inv-page">
@@ -23120,11 +23120,13 @@ function _chartScaleRow(rg, unit) {
   return '<div class="inv-chart-scale" aria-hidden="true"><span></span><span class="inv-chart-scale-ends"><span>' + escHtml(chartShort(rg.lo, unit)) + '</span><span>' +
     escHtml(chartShort(rg.hi, unit)) + '</span></span><span></span></div>';
 }
-function _chartRowHtml(r, read, track, fig) {
-  return '<button type="button" class="inv-chart-row" data-action="invChartRead" data-read="' + escHtml(read) + '"' + (r.key != null ? ' data-key="' + escHtml(r.key) + '"' : '') + '>' +
+/* In a card (bare: no readout to read into, §24d) a row is a plain row whose title is its figure, never a button. */
+function _chartRowHtml(r, read, track, fig, bare) {
+  var tag = bare ? 'div' : 'button';
+  return '<' + tag + (bare ? ' title="' + escHtml(read) + '"' : ' type="button"') + ' class="inv-chart-row"' + (bare ? '' : ' data-action="invChartRead" data-read="' + escHtml(read) + '"') + (r.key != null ? ' data-key="' + escHtml(r.key) + '"' : '') + '>' +
     '<span class="inv-chart-row-label">' + escHtml(r.label) + (r.sub ? '<span class="inv-chart-row-sub">' + escHtml(r.sub) + '</span>' : '') + '</span>' +
     '<svg class="inv-chart-track" aria-hidden="true"><line class="inv-chart-rail" x1="0" x2="100%" y1="50%" y2="50%"/>' + track + '</svg>' +
-    '<span class="inv-chart-row-val inv-num">' + escHtml(fig) + '</span></button>';
+    '<span class="inv-chart-row-val inv-num">' + escHtml(fig) + '</span></' + tag + '>';
 }
 
 /* One dot a row on one scale, labelled at the row's end, with marks as rules across the rows. rows: [{key, label, value, sub,
@@ -23145,7 +23147,7 @@ function chartDots(rows, opts) {
   var body = list.map(function(r) {
     var ink = r.slot != null || r.tone != null ? chartInk(r, 0) : chartSlotClass(opts.slot != null ? opts.slot : 1);
     var fig = chartFull(Number(r.value), unit), read = r.label + ': ' + fig + (r.sub ? ' · ' + r.sub : '');
-    return _chartRowHtml(r, read, rules + '<circle class="inv-chart-pt ' + ink + '" cx="' + pc(r.value) + '%" cy="50%" r="' + CHART_DOT_R + '"><title>' + escHtml(read) + '</title></circle>', fig);
+    return _chartRowHtml(r, read, rules + '<circle class="inv-chart-pt ' + ink + '" cx="' + pc(r.value) + '%" cy="50%" r="' + CHART_DOT_R + '"><title>' + escHtml(read) + '</title></circle>', fig, opts.bare);
   }).join('');
   var keys = marks.length ? '<div class="inv-chart-keys">' + marks.map(function(m) {
     return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-swatch-rule"></span>' + escHtml((m.label ? m.label + ' ' : '') + chartFull(Number(m.value), unit)) + '</span>';
@@ -23340,7 +23342,7 @@ function chartDumbbell(rows, opts) {
     var track = (a != null && b != null ? '<line class="inv-chart-dumb-rule" x1="' + pc(a) + '%" x2="' + pc(b) + '%" y1="50%" y2="50%"/>' : '') +
       (a != null ? '<line class="inv-chart-dumb-a" x1="' + pc(a) + '%" x2="' + pc(a) + '%" y1="25%" y2="75%">' + (b == null ? title : '') + '</line>' : '') +
       (b != null ? '<circle class="inv-chart-pt ' + ink + '" cx="' + pc(b) + '%" cy="50%" r="' + CHART_DOT_R + '">' + title + '</circle>' : '');
-    return _chartRowHtml(r, read, track, b != null ? chartFull(b, unit) : '\u2014');
+    return _chartRowHtml(r, read, track, b != null ? chartFull(b, unit) : '\u2014', opts.bare);
   }).join('');
   var keys = '<div class="inv-chart-keys"><span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-swatch-tick"></span>' + escHtml(aL) + '</span>' +
     '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-swatch-dot ' + (toned ? 'inv-chart-neutral' : chartSlotClass(1)) + '"></span>' + escHtml(bL) + '</span></div>';
@@ -33103,6 +33105,13 @@ function _xlsxInflate(raw) {
   return new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b) { return new Uint8Array(b); });
 }
 /* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
+/* A workbook handed to the browser to save under its name; the object URL let go once the click has it. */
+function xlsxDownload(name, bytes) {
+  var url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
 function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
 async function _xlsxPart(buf, dir, name) {
   var e = dir[name];
@@ -34890,10 +34899,7 @@ function bankExportXlsx() {
     { name: 'Statement', cols: [11, 11, 48, 30, 16, 24, 11, 14, 14, 15], rows: [head].concat(data), freeze: 1, filter: true },
     { name: 'Summary', cols: [22, 14, 16, 16], rows: summary }
   ]);
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = 'bank-statement-' + first.date + '-to-' + last.date + '.xlsx';
-  a.click();
+  xlsxDownload('bank-statement-' + first.date + '-to-' + last.date + '.xlsx', bytes);
   showToast('Statement exported: ' + rows.length + ' rows');
 }
 
@@ -46580,9 +46586,12 @@ var STATS_TABLE_KEY = 'sep_inv_stats_table';
 var _statsSort = {};
 var STATS_SORT_DEFAULT = { client: { col: 'vsFull', dir: 'asc' }, part: { col: 'amount', dir: 'desc' }, month: { col: 'month', dir: 'asc' } };
 function statsTable() {
-  var t = null;
-  try { t = localStorage.getItem(STATS_TABLE_KEY); } catch (e) { /* per-device convenience only */ }
-  return STATS_TABLES.some(function(x) { return x[0] === t; }) ? t : 'client';
+  var t = null, old = null;
+  try { t = localStorage.getItem(STATS_TABLE_KEY); old = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
+  if (STATS_TABLES.some(function(x) { return x[0] === t; })) return t;
+  // A tab remembered from before U3 names its table (cost: the Tables' Cost), read and never written here.
+  var to = typeof STATS_TAB_OLD !== 'undefined' ? STATS_TAB_OLD[old] : null;
+  return to && to[1] ? to[1] : 'client';
 }
 function statsSetTable(t) {
   if (!STATS_TABLES.some(function(x) { return x[0] === t; })) t = 'client';
@@ -46717,7 +46726,7 @@ function statsVerdictHtml(pa) {
       badge: contribution != null && contribution < 0 ? [realTone, 'below cost'] : null, attrs: ' data-tile="margin"' }];
   var verdict = !filtered.length ? 'No invoices ' + word
     : contribution == null ? formatInrShort(totalRev) + ' ' + word + (realisation == null ? ', nothing weighed' : ', no cost to judge by')
-    : Math.abs(contribution) < 0.005 ? 'At the live cost, to the paisa'
+    : Math.abs(contribution) < 0.005 ? 'At the ' + (pa.periodCost.label === 'live cost ' ? 'live cost' : 'cost') + ', to the paisa'
     : formatCurrency(Math.abs(contribution)) + ' a kilo ' + (contribution > 0 ? 'over' : 'under') + ' the ' + (pa.periodCost.label === 'live cost ' ? 'live cost' : 'cost');
   var facts = filtered.length ? [todoPlural(filtered.length, 'invoice') + ' · ' + formatInrShort(totalRev) + (credited > 0.005 ? ' net of notes' : ''),
     m ? (belowVar.length ? { text: todoPlural(belowVar.length, 'large account') + ' below the variable cost', tone: 'danger' }
@@ -46767,7 +46776,8 @@ function statsTableHtml(model) {
   var rows = srt.rows.map(function(r) {
     return '<tr' + (r.attrs || '') + '>' + model.cols.map(function(c) {
       var v = r.v[c.k], h = r.h && r.h[c.k] != null ? r.h[c.k] : escHtml(statsCellText(c, v)) || '&mdash;';
-      return c.signed && typeof v === 'number' ? statsSignedCell(v, h) : '<td' + (c.num ? ' class="inv-num"' : '') + '>' + h + '</td>';
+      // Each cell names its column (data-col), so a reader never counts across a column added later.
+      return (c.signed && typeof v === 'number' ? statsSignedCell(v, h) : '<td' + (c.num ? ' class="inv-num"' : '') + '>' + h + '</td>').replace(/^<td/, '<td data-col="' + escHtml(c.k) + '"');
     }).join('') + '</tr>';
   });
   return '<div class="inv-scroll-x"><table class="inv-table" data-stats-tbl="' + escHtml(model.key) + '"><thead>' + head + '</thead><tbody>' +
@@ -46775,7 +46785,7 @@ function statsTableHtml(model) {
 }
 function statsTableViewHtml(t, pa) {
   if (t === 'cost') {
-    /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them. On All the labour card's
+    /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them before U3. On All the labour card's
        range is the attendance record's own span (labour.js), so its ₹/kg divides by the tonnage billed inside that span. */
     var labRange = _statsPeriod === 'all' ? labourRangeForPeriod('all') : null;
     // The labour card is wages: drawn for an ID that sees them, as People draws it (Castor H-1); the live cost's labour row is money.
@@ -46877,8 +46887,10 @@ function statsPartTable(pa) {
     var shared = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
     var known = r.kgKnown && r.kg > 0;
     return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: r.perKg },
-      h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml(shared.map(function(c) {
-          var cc = (S.clients || []).find(function(x) { return String(x.id) === String(c); }); return cc ? cc.name : 'another client'; }).join(', ')) + ', counted apart</div>' : ''),
+      // The other client named short, and how many more: a row's words stay under 120 characters (P195).
+      h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml((function() {
+          var cc = (S.clients || []).find(function(x) { return String(x.id) === String(shared[0]); }); return cc ? clientShortName(cc.name) : 'another client'; })() +
+          (shared.length > 1 ? ' and ' + (shared.length - 1) + ' more' : '')) + ', counted apart</div>' : ''),
         perKg: r.perKg != null ? figHtml(formatNum(r.perKg, 2), pa.periodCost.perKg > 0 ? figToneAgainst(r.perKg, pa.periodCost.perKg, 5) : null) : '&mdash;' } };
   });
   var unknown = top.rows.filter(function(r) { return !(r.kgKnown && r.kg > 0); }).length;
@@ -47004,11 +47016,7 @@ function statsExportXlsx() {
     });
     sheets.push({ name: x[1], cols: model.cols.map(function(c, i) { return i === 0 ? 34 : c.xl === 'text' ? 22 : 14; }), rows: [head].concat(body), freeze: 1, filter: body.length > 0 });
   });
-  var bytes = xlsxBuild(sheets);
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = statsExportName('xlsx');
-  a.click();
+  xlsxDownload(statsExportName('xlsx'), xlsxBuild(sheets));
   showToast('The tables exported: ' + sheets.length + ' sheets');
 }
 /* A head tapped: that column, then the other way. Drawn again where it stands. */
@@ -47820,8 +47828,9 @@ var STATS_CAPACITY_KG_DAY = 4000; // ~2 t per 8-hour shift, two shifts (CLAUDE.m
 function statsTab() {
   var t = null;
   try { t = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
+  // An old tab's name is read as where its cards went, never written here: navLoc reads this on every step (Cipher L-3).
   var to = STATS_TAB_OLD[t];
-  if (to) { statsPlace(to[0], to[1]); t = to[0]; }
+  if (to) t = to[0];
   return t === 'tables' ? 'tables' : 'board';
 }
 /* The view (and the Tables' table) on screen, kept on the device: an old tab's name is read as the place it went. */
@@ -47841,7 +47850,8 @@ function statsSetTab(t) {
 }
 /* Stats opened on a place: a view, a table, or an old tab's name (a task saved before U3: {kind: 'stats', tab: 'clients'}). */
 function statsOpen(v, table) {
-  statsPlace(v || 'board', table);
+  // A jump to the Tables ends arranging the board (Cipher L-4).
+  if (statsPlace(v || 'board', table) === 'tables' && typeof statsLeave === 'function') statsLeave();
   switchTab('pageStats');
   if (navPageOf() === 'pageStats') { renderStats(); viewTop(); }
 }
@@ -51806,7 +51816,7 @@ var DV_VIEWS = {
       });
     } },
 
-  /* A month's cost as Stats → Trends' six months read it (statsMonthRows): the month's weighed kilos of its net invoices
+  /* A month's cost as Stats' six months read it (Trends' until U3, the Tables' By month since) (statsMonthRows): the month's weighed kilos of its net invoices
      (weighLines) and the live cost of each component over them (liveCost, which reads what the bank paid where the record is
      thin), in rupees, with the share measured. A month with nothing weighed has no cost per kilo: every figure null. */
   cost_months: { name: 'cost_months',
@@ -70296,7 +70306,7 @@ function rptSourcesHtml(p, current) {
   var items = [
     'Invoices and credit notes: the Register, each invoice net of the notes against it (as Stats reads them).',
     'Challans: Incoming material, by challan date. Production and power cuts: Production’s record. Attendance and labour: Staff, at the labour card’s arithmetic.',
-    'Cost: the live cost (Stats → Cost), measured where recorded and filled at the model where not. Money: the imported bank statement and GST by invoice month.',
+    'Cost: the live cost (Stats → Tables → Cost), measured where recorded and filled at the model where not. Money: the imported bank statement and GST by invoice month.',
     'Not recorded here: a day nobody typed (a gap, not a zero), material plated but not entered, and money that did not pass through the bank.'
   ];
   if (!current) items.push('A past period lists no open To-do: the tasks of the day it was are not kept.');
@@ -72546,7 +72556,7 @@ var KB_APP_GUIDES = [
     '- Tap the head of a widget to open its table. Tap **The tables behind these** to open the Tables.\n\n' +
     '# Tables\n- There are 4 tables: **By client**, **By part**, **By month** and **Cost**. Tap a column head to sort by it. Tap it again to sort the other way.\n' +
     '- To get a table as a file, tap **More**, then **Export this table (CSV)**. **Export the tables (Excel)** gives all 4 tables in 1 workbook.\n\n' +
-    '# By client\n- By client shows the worst priced client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n- Each client also shows its share of the revenue and of the tonnes, and its next challan. shows the worst client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n' +
+    '# By client\n- By client shows the worst priced client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n- Each client also shows its share of the revenue and of the tonnes, and its next challan.\n' +
     '- **Labour is fixed**. The owner ruled this on 13 Oct 2026. The contract crew does not increase or decrease with the work, and the monthly crew never did. Thus 1 kg more or less changes the zinc, chemicals, power and other costs, but not the wages.\n' +
     '- The app divides cost equally per kg. Thus a thin clamp and a heavy bracket have the same cost per kg here. This is the one assumption that the table cannot examine.\n' +
     '- The app uses this rule for the worst large account. It shows what 1 kg of the account contributes to labour. It shows what it does not pay of the full cost. It also shows the price at which it pays its share.\n' +
@@ -78427,8 +78437,8 @@ function onDocClick(e) {
     // Stats' period (UI pass 3, U3): its own, read by its board's widgets (wdgPeriod('stats')); Home reads this month (§25f).
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
-    // The Tables' switch, a head's sort, the board's foot and the exports (stats.js).
-    case 'invStatsTable': statsSetTable(btn.dataset.table); renderStats(); viewTop(); break;
+    // The Tables' switch (a change inside the view: the page stays where it is, P79), a head's sort, the board's foot and the exports (stats.js).
+    case 'invStatsTable': statsSetTable(btn.dataset.table); keepScroll(renderStats); break;
     case 'invStatsTables': statsOpen('tables'); break;
     case 'invStatsSort': statsSortBy(btn.dataset.table, btn.dataset.col); break;
     case 'invStatsExportCsv': statsExportCsv(); break;

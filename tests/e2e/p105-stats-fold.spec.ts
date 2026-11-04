@@ -125,8 +125,8 @@ test.describe('S2: fixed and variable labour', () => {
     const card = page.locator('#statsTable');
     await expect(card.locator('[data-margin-split]')).toHaveText('labour fixed');
     const beta = card.locator('tbody tr', { hasText: 'BETA CLAMPS' });
-    await expect(beta.locator('td').nth(6)).toHaveClass(/inv-num-neg/);        // vs var.: below it
-    await expect(beta.locator('td').nth(7)).toHaveClass(/inv-num-neg/);        // vs full
+    await expect(beta.locator('td[data-col="vsVar"]')).toHaveClass(/inv-num-neg/);        // vs var.: below it
+    await expect(beta.locator('td[data-col="vsFull"]')).toHaveClass(/inv-num-neg/);        // vs full
     await expect(page.locator('#statsWorst [data-tile="contrib"]')).toContainText('Below its variable cost');
     await expect(page.locator('#statsWorst')).toContainText('loses money on every kilo');
     await expect(page.locator('#statsWorst')).not.toContainText('split labour');
@@ -189,7 +189,7 @@ test('S9, S14: the drill-down judges at the live cost, in words, and says how th
   // Realisation by client is the Tables' By client since U3 (§10): a row a client, its ₹/kg in the tone the live cost gives it.
   await openStatsTab(page, 'clients');
   const alpha = page.locator('#statsTable tr[data-client-row]', { hasText: 'ALPHA WORKS' });
-  await expect(alpha.locator('td').nth(5).locator('.inv-fig-danger')).toHaveText('7.00');     // the table, at the live cost
+  await expect(alpha.locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('7.00');     // the table, at the live cost
 
   await alpha.click();
   const card = page.locator('.inv-dialog[data-drill="71"]');

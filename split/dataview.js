@@ -222,7 +222,7 @@ var DV_VIEWS = {
       });
     } },
 
-  /* A month's cost as Stats → Trends' six months read it (statsMonthRows): the month's weighed kilos of its net invoices
+  /* A month's cost as Stats' six months read it (Trends' until U3, the Tables' By month since) (statsMonthRows): the month's weighed kilos of its net invoices
      (weighLines) and the live cost of each component over them (liveCost, which reads what the bank paid where the record is
      thin), in rupees, with the share measured. A month with nothing weighed has no cost per kilo: every figure null. */
   cost_months: { name: 'cost_months',

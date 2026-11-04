@@ -30,8 +30,9 @@ var STATS_CAPACITY_KG_DAY = 4000; // ~2 t per 8-hour shift, two shifts (CLAUDE.m
 function statsTab() {
   var t = null;
   try { t = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
+  // An old tab's name is read as where its cards went, never written here: navLoc reads this on every step (Cipher L-3).
   var to = STATS_TAB_OLD[t];
-  if (to) { statsPlace(to[0], to[1]); t = to[0]; }
+  if (to) t = to[0];
   return t === 'tables' ? 'tables' : 'board';
 }
 /* The view (and the Tables' table) on screen, kept on the device: an old tab's name is read as the place it went. */
@@ -51,7 +52,8 @@ function statsSetTab(t) {
 }
 /* Stats opened on a place: a view, a table, or an old tab's name (a task saved before U3: {kind: 'stats', tab: 'clients'}). */
 function statsOpen(v, table) {
-  statsPlace(v || 'board', table);
+  // A jump to the Tables ends arranging the board (Cipher L-4).
+  if (statsPlace(v || 'board', table) === 'tables' && typeof statsLeave === 'function') statsLeave();
   switchTab('pageStats');
   if (navPageOf() === 'pageStats') { renderStats(); viewTop(); }
 }

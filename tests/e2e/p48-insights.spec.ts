@@ -89,8 +89,8 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     await openStatsTab(page, 'clients');
     await page.locator('[data-stats-toolbar] [data-action="invStatsPeriod"][data-period="all"]').click();
     const quiet = page.locator('#statsTable tr[data-client-row]', { hasText: 'QUIET WORKS' });
-    await expect(quiet.locator('td').nth(9)).toContainText('late');
-    await expect(quiet.locator('td').nth(9).locator('.inv-dot-danger')).toContainText('quiet');
+    await expect(quiet.locator('td[data-col="next"]')).toContainText('late');
+    await expect(quiet.locator('td[data-col="next"]').locator('.inv-dot-danger')).toContainText('quiet');
     const p = await g(page, `predMonthPace()`) as any;
     if (p) expect(p.projRev).toBeGreaterThanOrEqual(p.rev);
   });

@@ -1707,10 +1707,7 @@ function bankExportXlsx() {
     { name: 'Statement', cols: [11, 11, 48, 30, 16, 24, 11, 14, 14, 15], rows: [head].concat(data), freeze: 1, filter: true },
     { name: 'Summary', cols: [22, 14, 16, 16], rows: summary }
   ]);
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = 'bank-statement-' + first.date + '-to-' + last.date + '.xlsx';
-  a.click();
+  xlsxDownload('bank-statement-' + first.date + '-to-' + last.date + '.xlsx', bytes);
   showToast('Statement exported: ' + rows.length + ' rows');
 }
 

@@ -188,7 +188,7 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await loadAppWithState(page, priced([1000, 8.3], [50, 9]));
     await openStatsTab(page, 'clients');
     // By client's price a kilo, the Tables' sixth column since U3 (contribution by client's until then).
-    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td').nth(5).locator('.inv-fig-warning')).toHaveText('8.30');
+    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td[data-col="net"]').locator('.inv-fig-warning')).toHaveText('8.30');
     await openPulse(page);
     // A Briefing card since U2R: its tone said by the card, its answer's price in the warning's tone.
     const q = page.locator('[data-tdy-q="clients"]');
@@ -263,12 +263,12 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await expect(v.locator('.inv-hero-fig .inv-fig-ok')).toHaveCount(1);
     await expect(v.locator('.inv-hero-fig .inv-fig-danger')).toHaveCount(0);
     // The small one is red in its own row.
-    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td').nth(5).locator('.inv-fig-danger')).toHaveText('4.00');
+    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('4.00');
     // A large account 12% under the full cost: red in its row, and the card is the worst of what it holds.
     await loadAppWithState(page, priced([1000, 7.5], [50, 9]));
     await openStatsTab(page, 'clients');
     v = page.locator('#statsVerdict');
-    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td').nth(5).locator('.inv-fig-danger')).toHaveText('7.50');
+    await expect(page.locator('#statsTable tr[data-client-row]').first().locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveText('7.50');
     await expect(v.locator('.inv-hero-fact.inv-fig-danger')).toHaveText('1 large account below the full cost');
     await expect(v.locator('.inv-hero-fig .inv-fig-danger')).toHaveCount(1);
     await expect(v).toHaveClass(/inv-hero-danger/);

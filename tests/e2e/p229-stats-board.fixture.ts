@@ -308,10 +308,13 @@ export async function qaChain(page: Page) {
   await table(page, 'cost');
   const card = (await page.locator('#statsContent [data-card="labour"] [data-tile="perkg"] .inv-tile-value').innerText()).replace(/[^\d.]/g, '');
   expect(w).toBe(card);
-  // Left after the full cost: the period's revenue less its whole live cost.
-  const want = await g(page, `(function(){ var a = statsPulseArgs('all'), r = statsRangeIso('all'), c = liveCost(r.from, r.to, a.tonnage.kg); return gstRound(sumTaxable(a.filtered) - c.total); })()`) as number;
-  const tile = (await page.locator('#statsVerdict [data-tile="margin"] .inv-tile-value').innerText()).replace(/[^\d.\u2212-]/g, '').replace('\u2212', '-');
+  // Left after the full cost: the period's revenue less its whole cost, at the cost the verdict judges by (YTD).
+  await page.locator('[data-action="invStatsPeriod"][data-period="ytd"]').click();
+  const want = await g(page, `(function(){ var a = statsPulseArgs('ytd'); return gstRound(sumTaxable(a.filtered) - a.periodCost.perKg * a.tonnage.kg); })()`) as number;
+  const tile = (await page.locator('#statsVerdict [data-tile="margin"] .inv-tile-value').innerText()).replace(/\u2212/g, '-').replace(/[^\d.-]/g, '');
+  expect(tile.length).toBeGreaterThan(0);
   expect(Number(tile)).toBeCloseTo(want, 2);
+  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
   // Top parts names each part as By part does, its gauge with it.
   await view(page, 'board');
   const labels = await page.locator('#statsBoard .inv-widget[data-w="topitems"] .inv-chart-ranked-label').allInnerTexts();

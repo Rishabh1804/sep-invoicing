@@ -159,10 +159,15 @@ test.describe('P194: TM6a, one tone per fact', () => {
     // Stats → Tables → By client draws the same judge on the same figure (By client's tab until UI pass 3's U3, §10).
     await ev(page, `_statsPeriod = 'qtd'`);
     await openStatsTab(page, 'clients');
+    // Every client the moves judged has its ₹/kg cell on By client (Cipher H-1: a guard on its count had let the loop pass empty).
+    let seen = 0;
     for (const x of r) {
-      const cell = `#pageStats tr[data-client-id="${x.id}"] [data-margin-net]`;
-      if (await page.locator(cell).count()) expect(await toneOf(page, cell), 'Stats, client ' + x.id).toBe(x.judge);
+      const cell = `#pageStats tr[data-client-id="${x.id}"] td[data-col="net"]`;
+      await expect(page.locator(cell)).toHaveCount(1);
+      expect(await toneOf(page, cell), 'Stats, client ' + x.id).toBe(x.judge);
+      seen++;
     }
+    expect(seen).toBeGreaterThan(0);
   });
 });
 

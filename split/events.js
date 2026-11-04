@@ -305,8 +305,8 @@ function onDocClick(e) {
     // Stats' period (UI pass 3, U3): its own, read by its board's widgets (wdgPeriod('stats')); Home reads this month (§25f).
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
-    // The Tables' switch, a head's sort, the board's foot and the exports (stats.js).
-    case 'invStatsTable': statsSetTable(btn.dataset.table); renderStats(); viewTop(); break;
+    // The Tables' switch (a change inside the view: the page stays where it is, P79), a head's sort, the board's foot and the exports (stats.js).
+    case 'invStatsTable': statsSetTable(btn.dataset.table); keepScroll(renderStats); break;
     case 'invStatsTables': statsOpen('tables'); break;
     case 'invStatsSort': statsSortBy(btn.dataset.table, btn.dataset.col); break;
     case 'invStatsExportCsv': statsExportCsv(); break;

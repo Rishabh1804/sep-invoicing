@@ -189,7 +189,7 @@ test('P21: revenue by client can be read as a share, with a legend', async ({ pa
 
   // The Tables' By client carries each client's share of the revenue, and each row opens the client's drill-down.
   const t = page.locator('#statsTable table[data-stats-tbl="client"]');
-  const shareOf = (name: string) => t.locator('tbody tr[data-client-row]', { hasText: name }).locator('td').nth(2);
+  const shareOf = (name: string) => t.locator('tbody tr[data-client-row]', { hasText: name }).locator('td[data-col="revShare"]');
   await expect(shareOf('ALPHA')).toHaveText('75%');
   await expect(shareOf('BETA')).toHaveText('25%');
   await expect(t.locator('tbody tr[data-action="invStatsClientDrill"]').first()).toBeVisible();
@@ -209,7 +209,7 @@ test('P21: the share chart folds a long tail into one named wedge', async ({ pag
   await openStats(page, 'clients');
 
   // Every client keeps its row and its share in the Tables (the first thirty shown), the shares adding up to the whole.
-  const shares = await page.locator('#statsTable tbody tr[data-client-row] td:nth-child(3)').allInnerTexts();
+  const shares = await page.locator('#statsTable tbody tr[data-client-row] td[data-col="revShare"]').allInnerTexts();
   expect(shares).toHaveLength(11);
   expect(shares.reduce((t, x) => t + Number(x.replace('%', '')), 0)).toBeGreaterThanOrEqual(99);
   // Drawn as a share, the long tail folds into one named wedge (charts.js chartPie, Money's share charts and any other): six wedges,
@@ -273,10 +273,11 @@ test('P21: a weight ranking says how many parts it could not rank', async ({ pag
   await choose(page, 'topitems', 'tonnage');
   // Stated, not silently dropped: the excluded parts are the piece-billed end,
   // so a ranking that hides them reads better than the truth.
-  expect(await page.evaluate(() => (0, eval)('_wdgDrawn["stats|topitems"].d.detail'))).toContain('1 of 2 parts left out');
+  // On the card, where it is read (Cipher L-1): never a part the fit lets go of.
+  await expect(page.locator('#statsBoard .inv-widget[data-w="topitems"] .inv-widget-sub')).toContainText('1 of 2 parts left out');
   // The Tables' By part keeps the part, its kilos a dash, and says how many have no weight.
   await openStats(page, 'part');
-  await expect(page.locator('#statsTable tbody tr', { hasText: 'UNWEIGHED' }).locator('td').nth(3)).toHaveText('—');
+  await expect(page.locator('#statsTable tbody tr', { hasText: 'UNWEIGHED' }).locator('td[data-col="kg"]')).toHaveText('—');
   await expect(page.locator('#statsTable .inv-note', { hasText: 'no known weight' })).toContainText('1 of 2');
 });
 
@@ -297,7 +298,7 @@ test('P21: parts plated below cost are marked against the cost line', async ({ p
   await expect(card(page, 'topitems').locator('.inv-chart-ranked-fill-good')).toHaveCount(1);
   // The mark is the period's live cost: nothing recorded here, so every part is its model figure.
   const live = await page.evaluate(() => (0, eval)(`(function(){ var r = statsRangeIso(_statsPeriod); return formatCurrency(liveCost(r.from, r.to, weighLines(S.invoices.filter(function(i){ return i.status === 'active'; })).kg).perKg); })()`));
-  expect(await page.evaluate(() => (0, eval)('_wdgDrawn["stats|topitems"].d.detail'))).toContain('under the live cost of ' + live + '/kg');
+  await expect(page.locator('#statsBoard .inv-widget[data-w="topitems"] .inv-widget-sub')).toContainText('under the live cost of ' + live + '/kg');
   // The mark stands at the cost on the bars' own scale.
   await expect(card(page, 'topitems').locator('.inv-chart-ranked-mark, [class*="ranked-mark"]').first()).toBeAttached();
 });

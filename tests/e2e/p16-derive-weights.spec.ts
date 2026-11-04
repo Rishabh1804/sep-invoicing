@@ -118,8 +118,8 @@ test('derived weights make the client measurable in Stats without changing billi
   const row = table.locator('tr[data-client-row]').first();
   // 324 revenue over (100 x 0.5) + (10 x 0.9) = 59 kg = 5.49/kg, below cost.
   await expect(row).toContainText('PIECE CLIENT');
-  await expect(row.locator('td').nth(5)).toHaveText('5.49');
-  await expect(row.locator('td').nth(5).locator('.inv-fig-danger')).toHaveCount(1);
+  await expect(row.locator('td[data-col="net"]')).toHaveText('5.49');
+  await expect(row.locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(1);
   await expect(table.locator('[data-partial]')).toHaveCount(0);
 
   // The invoice's own money is untouched — stdWeightKg feeds Stats, never rates.

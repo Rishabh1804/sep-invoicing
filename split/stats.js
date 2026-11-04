@@ -773,8 +773,31 @@ function statsClientTable(pa) {
         t: x.kg > 0 ? formatNum(x.kg / 1000, 2) : '&mdash;', next: nextH, rev: escHtml(formatCurrency(x.total)) },
       attrs: ' data-action="invStatsClientDrill" data-client-id="' + escHtml(id) + '" data-client-row' + (net == null ? ' data-partial' : '') };
   });
+  // A client with a rhythm and nothing billed in the period (one gone quiet) keeps its row for its next challan, after the rest.
+  var billed = {};
+  ranked.forEach(function(x) { billed[String(x.clientId)] = true; });
+  Object.keys(next).forEach(function(id) {
+    if (billed[id]) return;
+    var nc = next[id];
+    rows.push({ v: { name: nc.name, next: nc.next },
+      h: { name: '<div class="inv-row-title">' + escHtml(nc.name) + '</div><div class="inv-row-meta">nothing billed in the period</div>',
+        next: nc.quiet ? uiDot('danger', nc.late + ' d late · quiet') : nc.late ? uiDot('warning', nc.late + ' d late') : '<span class="inv-nowrap">' + (nc.next === today ? 'today' : escHtml(formatDate(nc.next))) + '</span>' },
+      attrs: ' data-client-quiet' });
+  });
+  // The two costs the columns are read against, and how high the live cost per kg reads where lines have no weight
+  // (statsCostWeighedShort); why labour is fixed, and that cost is spread per kilo, is the guide's.
+  var weighed = statsCostWeighedShort(tonnage);
   var head = m ? statsBody(statsNote('Variable cost ' + statsMoney(m.varKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg' +
-    ' <span class="inv-badge inv-badge-info" data-margin-split>labour fixed</span>')) : '';
+    ' <span class="inv-badge inv-badge-info" data-margin-split>labour fixed</span>') + (weighed ? statsNote(weighed) : '')) : '';
+  // The revenue that cannot be priced, named: a client under 90% weighed is listed, not ranked, and its share of the plant is
+  // unknown, not small.
+  var partial = ranked.filter(function(r) { return !r.comparable; });
+  if (partial.length) {
+    var partialRev = partial.reduce(function(t, r) { return t + r.total; }, 0);
+    head += statsCallout(partial.length + ' client' + (partial.length === 1 ? '' : 's') + ' cannot be priced per kg: ' + formatNum(totalRev > 0 ? partialRev / totalRev * 100 : 0, 0) +
+      '% of revenue (' + formatCurrency(partialRev) + ') is on parts with no weight.', 'danger', 'unranked');
+    if (ranked[0] && !ranked[0].comparable) head += statsCallout(escHtml(ranked[0].name) + ' is the largest account, and its parts have no weights: its share of the plant is unknown, not small.', '', 'plant-share');
+  }
   return { key: 'client', noun: 'clients', title: (PERIOD_LABELS[per] || '') + ' by client', note: m ? 'worst priced first, at the live cost' : 'no weighed tonnage to price',
     empty: 'No invoices in this period',
     cols: [{ k: 'name', label: 'Client', xl: 'text' }, { k: 'rev', label: 'Revenue', num: true, xl: 'money' }, { k: 'revShare', label: 'Of revenue', num: true, xl: 'pct' },
@@ -794,7 +817,8 @@ function statsPartTable(pa) {
     var shared = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
     var known = r.kgKnown && r.kg > 0;
     return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: r.perKg },
-      h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by another client, counted apart</div>' : ''),
+      h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml(shared.map(function(c) {
+          var cc = (S.clients || []).find(function(x) { return String(x.id) === String(c); }); return cc ? cc.name : 'another client'; }).join(', ')) + ', counted apart</div>' : ''),
         perKg: r.perKg != null ? figHtml(formatNum(r.perKg, 2), pa.periodCost.perKg > 0 ? figToneAgainst(r.perKg, pa.periodCost.perKg, 5) : null) : '&mdash;' } };
   });
   var unknown = top.rows.filter(function(r) { return !(r.kgKnown && r.kg > 0); }).length;

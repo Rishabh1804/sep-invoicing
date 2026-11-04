@@ -41,7 +41,8 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026; built, 20 Oct 2026 (P235–P239; design §6.33–§6.36): every widget in its type, the grep checklist empty; then matched to the agreed canvas card by card, the phone holding all fourteen (§24o) |
 | ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–21 | Looked, 21 Oct 2026: Home's review (§25: the plant's place, the news, the Needs you count, a holiday, the weather, the period chips; *"Home screen should not feel heavy"*), which answers §1a-14 |
 | U2H | Home leads: the masthead's first move, about seven cards on the phone, cards as tall as they need, edges only for today; the news and the weather straight from the sources, the place from the address; a day the plant is shut; Needs you's count a badge (§25) | Built, 21 Oct 2026 (P241) |
-| ⏸ | **Stop: the owner looks** at Home again, both layouts | |
+| ⏸ | **Stop: the owner looks** at Home again, both layouts | Looked, 4 Nov 2026: *"Home screen test - pass"*. U3 may start |
+| ↻ | **The refresh of U3–U9** (owner, 4 Nov 2026: *"Start the refresh"*): §10–§15 and §19–§23 brought up to the code as it stands after U2R, U2H and the builds of 21 Oct – 3 Nov; what changed and why is §26 | Written, 4 Nov 2026 |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
@@ -1062,7 +1063,7 @@ board *Stats, desktop* is the reference.
   shifts, Realisation against the cost, Left after the full cost), one toolbar row (the period, Customise, More: *Make a report*,
   *Export the tables*), then a board (§7) with its own layout per person (`stats` in `sep_inv_layout`), and its foot *The tables behind
   these*.
-- **Stats' preset**: `pricecost` l · `kilo` m · `turn` s · `dtp` m · `corr` l · `clientprice` l · `share` m · `heat` l · `owed` m.
+- **Stats' preset**: refreshed 4 Nov 2026, §26a (a list per role, the phone's about seven cards, each widget's type and Small title).
   `pricecost` (*Price against cost, month by month · Are we under the cost, and by how much?*, Large and Medium, pageStats M) is added
   to §7d with U3: realised and live cost as two lines over six months and the gap as `chartDiverging` under them.
 - **Tables**: a switch **By client · By part · By month · Cost**, each an `inv-table` sortable by its columns (a head tapped sorts, as
@@ -1084,6 +1085,8 @@ board *Stats, desktop* is the reference.
   | The trend chart | `trend` |
   | Top items | `topitems` and **By part** |
 
+- **Its period** is Stats' own (`_statsPeriod`, the chips in its toolbar): `wdgPeriod('stats')` returns it, where `wdgPeriod` returns
+  `'mtd'` for every board today (widgets.js). Home keeps this month (§25f). §26a.
 - **Redirects** (§18): `pageStats` · `clients` → `tables/client`; `cost` → `tables/cost`; `trends` → `board`; `sep_inv_stats_tab`'s
   old values the same.
 
@@ -1112,16 +1115,19 @@ person fills by hand is cut into **numbered steps that lead without hiding** (§
 
 | Form | Builder (now) | Steps | The preview says |
 |---|---|---|---|
-| Stock by hand | `renderStockManual` stock.js:1168 | What (kind) · When (and the bill for Received) · Which lines, how much (₹ a unit; Into) · Who | each line's level before → after (`stockReplay`), the checks (`stockEntryChecks`) |
-| Production by hand | `prodHandHtml` prodview.js:1218 | What (Plated, Pickled, Arrived, Power cut) · Where and when (day, line, shift, times) · Whose work (client, part, figure, rounds) · Rework | the run as it will count (`prodWeigh`'s kg and route), the rack and gauge checks |
-| A power cut, completed | `pcsDialogHtml` powercause.js:290 | When (cut, power back) · Why · Where it hit · What brought it back | its length and what it cost (`powerCutCost`) |
-| A hand's day | `attEditHtml` staff.js:731 (each change saves at once, as now) | Mark · Where · In and out · OT shifts | the hours and OT worked out (`relayHoursOf`) |
+| Stock by hand | `renderStockManual` stock.js:1169 | What (kind) · When (and the bill for Received) · Which lines, how much (₹ a unit; Into) · Who | each line's level before → after (`stockReplay`), the checks (`stockEntryChecks`) |
+| Production by hand | `prodHandHtml` prodview.js:1433 | What (Plated, Pickled, Arrived, Power cut) · Where and when (day, line, shift, times) · Whose work (client, part, figure, rounds) · Rework | the run as it will count (`prodWeigh`'s kg and route), the rack and gauge checks |
+| A power cut, completed | `pcsDialogHtml` powercause.js:291 | When (cut, power back) · Why · Where it hit · What brought it back | its length and what it cost (`powerCutCost`) |
+| A hand's day | `attEditHtml` staff.js:748 (each change saves at once, as now) | Mark · Where · In and out · OT shifts | the hours and OT worked out (`relayHoursOf`) |
 | A challan | `renderAddChallanForm` im-form.js:48 | Who and which challan (the number checked as typed) · The lines · Check | the lines, kilos and amount; the warnings |
 | An invoice | create.js | Client and challans · Lines · Details (P.O., vehicle, dates) · Check | taxable, GST, total, the number it takes |
-| A payment to a hand | `_payFormHtml` payroll.js:614 | Who · What and how much · When | their due before → after |
+| A payment to a hand | `_payFormHtml` payroll.js:683 | Who · What and how much · When | their due before → after |
 | A bill | `costBillFormHtml` cost.js:850 | Which bill · Amount and units · Arrears and penalty · Note | its cost (`costBillCost`) and the month's live cost after |
 | A cheque received | `bankChequeFormOpen` bank.js:614 | Whose and how much · The cheque · When it came | what the client owes before → after |
 | Mine's forms | faces.js: `faceLoadHtml` :498, `faceInHtml` :521, `faceBarrelHtml` :1283, `faceRollInHtml` :1131, `faceRollOutHtml` :1161, `faceVatHtml` :1501 | each form's own parts as steps (a load: Client · Part · How many · When it went in) | the record, and the group's message as it will be sent |
+
+**Forms built since this table was written** (21 Oct – 3 Nov 2026) are §26b's: cash paid out, Shifts by line, a supplier's payment,
+balance and quote, Plant shut…, the register photo's check, a scanned challan, and the messages' confirmation screen.
 
 **Mine in the new look**: its day stepper, its duties as step cards (`faceStep` :55) and *What you entered* as rows in a card; its
 forms the flows above.
@@ -1129,7 +1135,7 @@ forms the flows above.
 ### 11b. Spend and prices takes the room
 
 The screenshot of 15 Oct: on the desktop, opening Spend and prices put it in the 22rem pane while the list of lines kept the rest.
-- **On the desktop**, `invStockSpend` (stock.js:1910) sets `data-wide-pane` on `#stockMasterDetail`: the list narrows to a compact list
+- **On the desktop**, the `invStockSpend` action (stock.js:1915; `_stockSpendOpen` :811) sets `data-wide-pane` on `#stockMasterDetail`: the list narrows to a compact list
   (`--pane-list-narrow`, 18rem: a line's name and its days left) and the pane takes the rest of the room (`flex: 1`). Opening a line
   puts the host back. P80's fill holds.
 - **Spend and prices is a small board** in that room: spend by supplier (the pie, tap a slice for its bills), use by week, a line's
@@ -1164,10 +1170,13 @@ has an order, a **next-step row** under the toolbar (the day's steps, drawn with
 | Areas | — | each area's heads against need over the period as small multiples; the extra checked as the verdict |
 | Roster | — | the roster as cards (below) |
 
-**The Roster as cards** (`_attRosterView` staff.js:1073): a deck, one card a hand: an avatar of initials, the name, designation,
+**What People gained since this section was written** (the night shift, cash paid out, the Saturday 5 PM cut-off, the slips' days,
+the two versions held, who entered a mark) is folded into each row in §26c, which this table defers to.
+
+**The Roster as cards** (`_attRosterView` staff.js:1114): a deck, one card a hand: an avatar of initials, the name, designation,
 area and tier; tenure; three bars (reliability, consistency, workload: `pplStats`); the top three skills as chips; a badge only for a
 state (*To watch*, *Check-in due*, *Motivation 42* for the owner, *Inactive*); the rate for a role that sees wages. Filter chips: area,
-tier, *To watch*, *Check-ins due*. A card opens the hand's record (the pane on the desktop, `_attWorkerPaneHtml` :1195; the sheet on
+tier, *To watch*, *Check-ins due*. A card opens the hand's record (the pane on the desktop, `_attWorkerPaneHtml` :1236; the sheet on
 the phone). Hands who left under *Left*, folded.
 
 **Measured, never longer** (§17 I10): each view's P195 budget holds; a picture that adds height takes it back from what it replaces
@@ -1178,7 +1187,7 @@ the phone). Hands who left under *Left*, folded.
 *"The report generated for power cut is extremely text heavy for anyone to be interested in solving it. Text heavy should be an
 optional copy and our copy, so that we know the entire context."*
 
-- **The picture page** (`powerCasePictureHtml`, power.js, new): one A4 page on paper (its own pt tokens, `inv-pcp-*`; white, as paper
+- **The picture page** (`powerCasePictureHtml`, power.js, new; beside `powerCaseHtml` :726; refreshed in §26d): one A4 page on paper (its own pt tokens, `inv-pcp-*`; white, as paper
   is): the title and the day it was drawn; four tiles (cuts in the last 12 months, hours dark in working hours, what a year of them
   costs as a range, the best option's payback); cuts by month (bars, the runs possibly unreported hatched); when they start (by hour);
   what a cut costs as one 100% bar (restart, catch-up overtime, lost contribution, idle wages); the three options as cards (one-time,
@@ -1204,20 +1213,20 @@ optional copy and our copy, so that we know the entire context."*
   page; **rows keep their heights** (`--row-h`, the density as now); the table's head stays at the card's top; the selected row
   `--accent-soft`, a hovered row `--surface-2`; a day's group head in small capitals `--text-3`; a status alone as a badge with its
   icon (§3d). P80 holds: the page never scrolls on the desktop.
-- **Dialogs** (`dialogOpen`, state.js:1268): `--r-card`, the title `--fs-17` semibold, close a ghost icon button, the foot as now
+- **Dialogs** (`dialogOpen`, state.js:1482): `--r-card`, the title `--fs-17` semibold, close a ghost icon button, the foot as now
   (sticky, last). **Sheets** (a dialog on the phone, the More and Filter dialogs): top corners `--r-card`, a grabber bar (decorative).
   **A dialog drawn again in place does not slide in again** (found building U2's gallery): `dialogOpen`'s `replace` writes a new
   `.inv-dialog`, whose entrance replays at every redraw. Five dialogs redraw that way: the credit note (two), the guard's form, the
   planner's card and the quotation. Each swaps its parts inside the dialog that is open, as the gallery does (`wdgGalleryRedraw`),
   or `replace` marks the new dialog so it does not animate.
-- **Toasts** (`showToast` state.js:1953): a pill with its kind's icon (success `done`, error `cancel`, warning `alert`, info `info`),
+- **Toasts** (`showToast` state.js:2228): a pill with its kind's icon (success `done`, error `cancel`, warning `alert`, info `info`),
   above the phone bar, as now in place and time.
 - **Search** (search.js): the input a large well with its icon; results grouped by kind (Screens, Invoices, Clients, Challans, …),
   each row its kind's icon; the keys' hint at its foot.
 
 ### 14b. One set of blank states
 
-`uiBlankHtml({kind, icon, title, body, action})` (state.js, new; `inv-blank`, `inv-blank-icon`, `inv-blank-title`, `inv-blank-body`;
+`uiBlankHtml({kind, icon, title, body, action})` (state.js:945, **built at U1**: U7 puts it everywhere else, §26e; `inv-blank`, `inv-blank-icon`, `inv-blank-title`, `inv-blank-body`;
 `inv-state-*` and `inv-empty-state` are retired names and are not used): **empty** (*No challans waiting* · *Add challan*), **early**
 (*Not enough yet: 4 of 10 working days*), **offline** (*Offline: this comes back with a signal*), **notset** (*Set the plant's place*),
 **error** (*This could not be drawn*). Every screen's own empty text (a list's *No …*, a chart's `emptyText`) is replaced by it; U7
@@ -1233,7 +1242,7 @@ never committed) include dark.
 `uiPointer(id, anchor, text, guideId)` (state.js, new; `inv-pointer*`): a small card pointing at one control, *New: …*, **Read the
 guide** (its guide, at the section) and **Got it**. Shown **once a person a device** (localStorage `sep_inv_pointers`), at most one a
 screen visit, only once the screen has drawn and the control is in view, never over a form with typed work, a dialog or arrange mode;
-off under `navigator.webdriver` unless a fixture turns it on (`pointersOn`). The pointers: Home's **Customise** (*Using the app:
+off under `navigator.webdriver` unless a fixture turns it on (`pointersOn`). The pointers (the list as refreshed, §26e): Home's **Customise** (*Using the app:
 Home*), the gallery's categories, Stats' **Tables** (*Reading Stats*), Stock's **Spend and prices** (*Using the app: stock*), a guided
 flow's preview (*Using the app: the Add button*), the Roster's cards (*Using the app: People*), the Case's **Read the full case**
 (*Using the app: power cuts*).
@@ -1242,8 +1251,8 @@ flow's preview (*Using the app: the Add button*), the Roster's cards (*Using the
 
 ### 15a. The screen
 
-The canvas's boards *Sign in, phone*, *Sign in, phone, dark* and *Sign in, desktop* are the reference; `grdLockHtml` (guard.js:445)
-and `grdRenderLock` (:475) draw it, in `#guardRoot` as now (siblings inert, `body.inv-locked`).
+The canvas's boards *Sign in, phone*, *Sign in, phone, dark* and *Sign in, desktop* are the reference; `grdLockHtml` (guard.js:443)
+and `grdRenderLock` (:473) draw it, in `#guardRoot` as now (siblings inert, `body.inv-locked`).
 - **The phone**: the theme toggle (top right); the mark (`markSvg`) in a lifted tile; the company's name (`S.company`) as the eyebrow;
   *Welcome back*; the person's row (initials, name, *role · last in yesterday, 7:12 PM*, **Not you?** opening the IDs as a sheet,
   `grdActiveUsers`); **four PIN wells** (a dot filled per digit); the **keypad** (1–9, *Forgot your PIN?*, 0, ⌫; each key `--r-key`,
@@ -1261,10 +1270,11 @@ and `grdRenderLock` (:475) draw it, in `#guardRoot` as now (siblings inert, `bod
 
 ### 15b. The PIN is four digits
 
-- `grdPinProblem(a, b)` (guard.js:258): exactly four digits (`GRD_PIN_LEN = 4` in place of `GRD_MIN_LEN`); refused as *too easy to
+- `grdPinProblem(a, b)` (guard.js:258; it asks four characters or more today, `GRD_MIN_LEN = 4` :33, any characters, up to 64):
+  exactly four digits (`GRD_PIN_LEN = 4` in place of `GRD_MIN_LEN`); refused as *too easy to
   guess*: one digit four times (0000…9999), a straight run up or down (0123…6789, 9876…3210), 1212, 1004, 2000, 2580 and 6969; the two
   entries alike.
-- `grdMakeSecret` (:241) stores `len: 4` beside `digits: true`; Settings' PIN forms (`grdFormOpen`, :887: a new ID, *Change my PIN*,
+- `grdMakeSecret` (:240) stores `len: 4` beside `digits: true`; Settings' PIN forms (`grdFormOpen`, :878, its PIN field's hint :887: a new ID, *Change my PIN*,
   the owner's reset) take four wells, the keypad on the phone. The hint at :1208 (*give the owner six or more, or a password*) becomes
   *A PIN stops someone at the screen; the recovery code keeps what is sealed.*
 - **A PIN set before** (a secret with no `len: 4`): that person's sign-in shows the typed field as now (*Your PIN is from before:
@@ -1284,7 +1294,8 @@ amends SERVER.md §4 in those words; nothing of the server is built here.
 
 ### 15d. The app's icon, splash and favicon
 
-From `markSvg`: `icon-192.png`, `icon-512.png`, a maskable 512 (the mark inside the middle 80%), `favicon.svg` and a 32 px PNG, the
+From `markSvg` (refreshed in §26f: the app already carries one icon per palette under `icons/`, swapped by appearance.js):
+`icon-192.png`, `icon-512.png`, a maskable 512 (the mark inside the middle 80%), `favicon.svg` and a 32 px PNG, the
 manifest's `icons` (`purpose: any` and `maskable`), its `background_color` the page's (`#e1e6eb`). Android's splash is the manifest's
 icon on its background colour (no splash images). The PNGs are made by a script in the repo (`tools/make-icons.mjs`: the mark drawn
 in Playwright's Chromium and screenshotted at each size; no new dependency) and committed; P234 checks the manifest names files that
@@ -1604,7 +1615,8 @@ From the survey of 16 Oct 2026 (the fixtures and the 76 files that open Pulse or
    `inv-widget-src`, `inv-wgrid-slot`, `inv-mast*`, `inv-ledger-*`, `inv-docket-*`, `inv-plant-row`, `inv-plate`, `inv-reading`,
    `inv-seat*`, `inv-crew-*`, `inv-brief-*`, `inv-wire-*`, `inv-tray*`. `inv-card*`, `inv-more-*` and `inv-total*` are retired
    prefixes: no part of a card takes those names.
-3. Measure before; build; the step's specs, the rewritten ones, the full suite (about 27 minutes on CI, longer locally: not a hang);
+3. Measure before; build; the step's specs, the rewritten ones, the full suite (CI runs it in two halves, about 17 and 21 minutes each
+   on 29 Oct 2026; longer locally: not a hang);
    measure after; lower the budgets.
 4. Commit each step with what moved and why and the trailers CLAUDE.md gives; no model name.
 5. Never: delete or skip a test; raise a budget; write the owner's data, a worker's or a supplier's name into the repo; call a browser
@@ -2291,3 +2303,133 @@ Home* returns to the preset.
 - **New requests from the device**: Nominatim (the company's address, once an address), and GDELT and MET Norway (where the Worker cannot
   be reached). Each names the site's origin as its referrer, and none carries anything of the book but the address's words and the
   place to two decimals.
+
+## 26. The refresh of U3–U9 (4 Nov 2026)
+
+The owner, 4 Nov 2026, after looking at Home: *"Home screen test - pass"*, then *"Start the refresh."* §10–§15 were written on
+16 Oct, before U2R (§24), U2H (§25) and the builds of 21 Oct – 3 Nov (HR-10, the print station's light, who entered and both versions
+held, the planner's details, the night shift, the pay slips' days, the rolls against the payout, cash paid out, the messages kept and
+confirmed, photos read by Claude). This section brings U3–U9 up to the code as it stands at `4f5c578` (sep-invoicing #173). **No
+ruling of the owner's changes**: what follows applies the rulings already given (§1, §24, §25, CLAUDE.md) to the screens U3–U9
+reach. Every function named here was found in `split/` on 4 Nov 2026 at the line given; a line drifts with each build, so a builder
+greps the name, never the number. Where §10–§15 and this section differ, **this section wins**.
+
+### 26a. Stats (U3), against U2R and U2H
+
+- **A board of the card family.** Every widget on Stats' board is drawn by the framework (§24): its type, its Small title (`short`)
+  where it offers Small, its Choose, Act and Source; no markup of its own (I14). U3's seven new widgets are **Ledgers** (§24f, as
+  already written): `share`, `labour`, `months`, `trend`, `topitems`, `costcheck`, `pricecost`; none exists yet (grep of `id: '` in
+  widgetcards.js, 4 Nov 2026). Each is also offered on Home's gallery (§7f), as every widget is.
+- **Its period is Stats' own**: `wdgPeriod(board)` (widgets.js:427) returns `'mtd'` for every board today; U3 makes it return
+  `_statsPeriod` (stats.js:16) for `'stats'` and keeps `'mtd'` for Home (§25f). The period chips (`invStatsPeriod`, stats.js:792) stand
+  in Stats' toolbar row. `invStatsPeriod` (events.js:307) still redraws Home when it is shown; nothing on Home reads the period since
+  §25f, so U3 drops that branch.
+- **Edges only for today** (§25i): every Stats widget is a period's answer or a record of days, so each is `trend: true` (its figure
+  and lamp in their tone, never edged or tinted), except a widget that names something to do today, which none of the nine does.
+- **The presets, by role** (`WDG_PRESETS`, widgets.js:147, gains a `stats` list per role; an entry marked `desk` is the desktop's, as
+  §25g): Stats opens for the owner and for a role given it in Settings → Access, and shows a role only what it may see (§7g).
+  - **Owner, the desktop**: `pricecost` l · `kilo` m · `clientprice` l · `share` m · `turn` s · `dtp` s · `owed` m · `corr` l · `heat` l
+    (as §10 drew it, `dtp` and `turn` at Small so the board packs with no hole: P237's rule, checked when U3 is built).
+  - **Owner, the phone, about seven cards** (§25g, the owner's 21 Oct ruling read for Stats as for Home): `pricecost` · `kilo` ·
+    `clientprice` · `share` · `turn` (s) · `dtp` (s) · `owed`; `corr` and `heat` are the desktop's.
+  - **Office**: `share` · `topitems` · `months` · `dtp` · `owed` (`turn` needs Production, `kilo` and `pricecost` money; §7g decides,
+    and a preset never names a widget its role cannot see: §1a-13).
+  - **Supervisor and Floor**: no Stats preset; their board is drawn from the gallery if Stats is opened to them.
+- **The tables** keep §10's switch and columns. `statsVerdictHtml(tab, pa)` (stats.js:804) is the verdict's builder today (one per
+  tab); U3 makes it the board's one verdict. `STATS_TABS` (intel.js:25) gives way to the two views; `STATS_TAB_KEY`'s old values follow
+  §18's rows.
+- **P195 and P197**: Stats' two views join `ONE_LOOK` as work screens (I11); its budget is set at U3's measure on the long book and
+  may not exceed the three tabs' worst today (I10).
+
+### 26b. Every Enter by hand (U4): the forms built since §11a
+
+§11a's table stands, its references corrected in place. These forms came after it; each is cut into steps the same way (§11a's
+rules: every step open in any order, the preview, the receipt, no id or action changed), and P230 holds them with the rest:
+
+| Form | Builder (4 Nov 2026) | Steps | The preview says |
+|---|---|---|---|
+| Cash paid out, reviewed | `cashReviewHtml` cashout.js:97 (opened by `cashReviewOpen` :89) | The message · Each line (what for, kind, day, amount) · The total | the week's payout before → after (`payWeek().cashOut`), a total the lines do not reach in red |
+| A line's shift | `_shiftRowHtml` shifts.js:174 (Settings → Labour → Shifts by line, `shiftSettingsBody` :207) | Which line, from when · The night's times and its break · The crew and the spare · (the barrel) its running hours and windows | the night as each day will read it (`lineNightOn`), its plating time less the break |
+| A supplier's payment | `suppPayFormHtml` suppliers.js:405 | Who · How (cash, cheque, transfer) and how much · When | what is owed to them before → after (`suppLedger`) |
+| A supplier's balance | `suppBalanceFormHtml` suppliers.js:417 | The day · What their statement says was owed | the balance from that day, and the payments it already counts |
+| A price quoted | `suppQuoteFormHtml` suppliers.js:963 | Which supplier · The price and its unit · When | the comparison's card it changes (`suppCompare`) |
+| Plant shut… | `plantShutOpen` floor.js:517 | Which days · Why | what the day reads as (the masthead, Needs you's inputs, the floor now) |
+| The register photo's check | `prodPhotoHtml` prodview.js:1303 | The page (date, line) · Each run (a struck row counted or cancelled, a client) · The power log | the runs as they will count (`prodPhotoRead` :1302), a page already entered on Mine warned |
+| A scanned challan | the challan form, filled by `_applyScanResult` scanner.js:75 | the challan form's own (§11a) | as the challan form's |
+
+**Not a flow**: the messages' confirmation screen (`mcOpen`, msgconfirm.js:227) is a review of many records at once, not a form; U7
+draws it in the look (§26e). Mine's VAT page (`faceVatHtml`, faces.js:1501) is a register page typed row by row: its steps are the
+page's head (the day, the line) and its rows, the preview the reader's reading under each row as now.
+
+**#173's rule holds in the flow**: Production's Enter by hand is dated today unless a day was chosen, and a form dated another day says
+so; the flow's *When* step shows that date first, its warning as the step's line of help.
+
+### 26c. People leads (U5): what each view gained
+
+Each row of §12's table, with what was built after it:
+
+- **Attendance · Day** (`_attDayView` staff.js:542): the next-step row gains **the night** where a line has one that day
+  (`lineNightOn`): *Night roll* (*due 6:30 AM tomorrow*: the night's roll is sent the next morning, CLAUDE.md, *Shifts by line*),
+  after the out-time roll. The night's card (`data-att-night-card`, staff.js:626) stays a card of the board, its heads against the
+  schedule's crew as a meter. A hand's day with **two versions held** (`data-att-held`, staff.js:793) is a step of its own while one
+  waits (*1 mark held for you*, the owner's), and the board's card for that area takes the warning edge. *Entered by …* (`tagWho`)
+  stays the hand's dialog's line.
+- **Attendance · Week** (`_attWeekView` :1018): the grid's cells read a night mark as its own tone of present (P on the night), and a
+  hand on two shifts back to back (`shiftBackToBack`, shifts.js:153) is marked on the cell.
+- **Attendance · Month** (`aregViewHtml`, attreg.js:154): as §12.
+- **Pay** (`_attPayView` payroll.js:461): the next-step row reads *Check the hours → Cash paid out (N lines) → The payout (₹N with the
+  snacks and the cash) → Record the payments → Print the slips*; the payout runs Sunday to Saturday 5 PM (`payLate`), which the payout's
+  step says (*to Sat 5 PM*). The picture is the payout against the twelve weeks before, with this week's cash paid out its own part of
+  the bar (`cashPayCardHtml`, cashout.js:172, stays the card under it). The slips' days (P250) are the slips' own; nothing changes on
+  paper (I12).
+- **Areas** (`_attAreasView` areas.js:831): the small multiples count a night block against the schedule's crew (`blockNorm`), not the
+  area's complement.
+- **Roster**: as §12.
+
+### 26d. The pictures (U6)
+
+As §13, with two facts the picture page reads: **the restart is the figure set in the app** (Power → Case → the options' figures, the
+owner's of 26 Oct 2026), and Power's figures save behind the settings PIN (28 Oct 2026), which the picture never asks for: it only
+reads. A night that ran is a working window (`powerWindows`, kind `night`), so *hours dark in working hours* counts a cut in it. The
+report's picture (`rptPictureHtml`, beside `rptHtml` report.js:171, printed through `rptPrint` :612) keeps `rptPrint`'s queue rule: a
+report of the period still running is the owner's to open from the print queue (`printNeed`).
+
+### 26e. Across the app (U7): the screens added since §14
+
+- **Into the look with the rest** (§14a): the Messages screen (`mvVerdictHtml` msgview.js:312, the list and one message), the
+  confirmation screen (`mcOpen`), the print station's dialog (`prtLightDialogInner`, prtlight.js:237), the suppliers' dialog
+  (`suppDialogHtml` suppliers.js:339) and Compare suppliers (`suppCompareHtml` :917), the cash review, the planner's options folded
+  open (U2R era), *Held for you* (`mrgHeldRowHtml`, merge.js:402).
+- **The tone rule** (§14a's first bullet) is already U2R's on the boards; on every other screen U7 applies it, and the coded cards
+  built since (the held marks' warning hero, the night card) take it with the rest.
+- **The blank states** (§14b): `uiBlankHtml` is built (state.js:945) and used by the boards and the charts' empty case. The screens'
+  own empty texts are left: on 4 Nov 2026 `emptyText` is passed in charts.js (29), dash.js (7), finance.js (4), widgetcards.js (4),
+  client-perf.js and power.js (2 each), payroll.js and prodview.js (1 each), and the *No …* lines in the renderers; U7's census
+  greps both and its report lists each place replaced.
+- **The pointers** (§14d): Home's **Customise** points at the masthead's act row on the phone (U2H moved it there) and at the toolbar
+  on the desktop; the Messages screen's **Read every message again** (*Using the app: messages*, written with U7 if no guide names the
+  screen yet) and Production's **Read register photo** (*Using the app: production*) join the list. Each pointer's guide is read for
+  its section when U7 is built.
+
+### 26f. Sign-in (U8)
+
+- **The PIN today** is four characters or more, any characters (`GRD_MIN_LEN = 4`, guard.js:33; `grdPinProblem` :258), so an ID set
+  up since 1 Oct may hold a PIN of four digits already, of more, or a password: §15b's path for *a PIN set before* covers every one
+  that is not exactly four digits (a secret with no `len: 4`).
+- **The icons exist per palette** (`icons/icon-<palette>.svg` and its 192 and 512 PNGs, swapped by appearance.js:40–42; the manifest
+  names `icon-192.png` and `icon-512.png` at the root, the 512 also as maskable, on `background_color` `#eef2f3`). U8 makes them from
+  `markSvg` per palette as appearance.js reads them, adds a maskable 512 drawn inside the middle 80% (today's maskable is the same file
+  as `any`), and sets the manifest's `background_color` to the default palette's page, `#e1e6eb` (§3a).
+- **Power's PIN** (28 Oct 2026) and the re-ask window are the guard's as now; the keypad is the re-ask's too (`grdPinAsk`).
+- **Before sign-in** (§15a's panel): the weather and Tata's week stay outside the book's figures; the print station's light is the
+  book's (whether a job waits) and is **not** drawn there.
+
+### 26g. Delivery and the stops
+
+- **One PR a step** from U3, each merged on its own (U2R and U2H were): the owner's word on each, CI green, the Governors' and
+  Cipher's chain as CLAUDE.md sets it. The single PR §0 and §19 speak of became one a step at U2R; §19's order stands.
+- **No stop is set between U3 and U9.** §1a-1's stops were for Home; the owner may name one at any step.
+- **HR-10** binds every example in U3–U9: the long book's made-up names, never the owner's (CLAUDE.md, *What the public repository
+  holds*); the owner's book measured only in the scratchpad's harness, never committed.
+- **The data flows** (§16) gain nothing new for U3, U5, U6 and U7. U4's merge of two stock lines (`mergedInto`, `mergedFrom`) is the
+  one that crosses to soma-internal through `sep-stock`; U8's `len` on a user's secret travels with the users as §16 lists.

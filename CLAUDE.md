@@ -65,7 +65,9 @@ figures in Geist, Home's verdict a flat masthead. **The owner looked again** (21
 should lead and prioritise the user, control attention, makes information effortless, has a clear objective"*), and **Home was made to
 lead the same day** (*UI pass 3: Home leads* below, `docs/UI_PASS_3.md` §25): the masthead's first move, about seven cards on the phone,
 cards as tall as they need, edges only for today, the news and the weather straight from their sources, a day the plant is shut, Needs
-you's count a badge. **The build stops again for the owner to look**; U3 waits on it.
+you's count a badge. **The owner looked: *"Home screen test - pass"* (4 Nov 2026)**, and U3–U9 were refreshed against the code the
+same day (`docs/UI_PASS_3.md` §26: Stats' presets and period, the forms built since §11a, People's night and cash paid out, the
+screens U7 reaches, the PIN and icons as they are, one PR a step). **U3 is next.**
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,

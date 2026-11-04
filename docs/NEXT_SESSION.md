@@ -7,6 +7,15 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## 4 Nov 2026: Home passed, U3–U9 refreshed (read this first)
+
+- **The owner looked at Home** after U2H: *"Home screen test - pass"*. The stop is cleared; **U3 (Stats as a dashboard) is next**.
+- **`docs/UI_PASS_3.md` §26** refreshes U3–U9 against the code at `4f5c578`: Stats' presets by role and the phone's seven cards,
+  `wdgPeriod('stats')` reading Stats' own period, the forms built since §11a (cash paid out, Shifts by line, a supplier's payment,
+  balance and quote, Plant shut…, the register photo's check), People's night, cash paid out and held versions, the screens U7 reaches
+  (Messages, the confirmation screen, the print station's dialog, the suppliers), the PIN as it is (four characters or more), the
+  per-palette icons, and **one PR a step**. Docs only; no ruling changed, no data flow.
+
 ## Built 29 Oct 2026: the night shift on a line's schedule (read this first)
 
 - **Shifts by line** (owner, 29 Oct 2026: a night shift on VAT A1, *"Build it as a schedule per line with a start date"*; `shifts.js`,

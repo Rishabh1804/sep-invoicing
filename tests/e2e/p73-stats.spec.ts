@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, openPulse, openStatsTab, switchTab, todayIso, recentTs, type SepState } from './fixtures';
 
-// P73 (phone): Stats on the v2.0 components (design principles §7, §9 step 3), in one look since the tab map (TM2b). Three view
-// tabs, each led by its verdict card; the period an inv-seg pressed with aria-pressed; every card a flush panel named by
+// P73 (phone): Stats on the v2.0 components (design principles §7, §9 step 3), in one look since the tab map (TM2b). Two views
+// since UI pass 3 (U3): the Dashboard and the Tables, one verdict card leading both; the period an inv-seg pressed with aria-pressed; every card a flush panel named by
 // data-card, its figures tiles and rows; the live cost's components rows that fold open to their parts, the source a badge; the
 // client drill-down tiles on the front and rows on the back. Billing's cards moved to their homes (Pipeline, Money → GST). No
 // v1.0 class is drawn on any of it.
@@ -31,19 +31,22 @@ const V1 = '#pageStats [class*="inv-stats-"], #pageStats [class*="inv-kpi"], #pa
 const tab = (page: Page, t: string) => page.locator(`#statsToolbar .inv-viewtab[data-tab="${t}"]`);
 
 test.describe('P73: Stats', () => {
-  test('three view tabs and the period as a segmented control; every card a panel; no v1.0 class on any tab', async ({ page }) => {
+  test('two views and the period as a segmented control; every table a panel; no v1.0 class on any view', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStats');
-    await expect(page.locator('#statsToolbar .inv-viewtabs[role="tablist"] .inv-viewtab')).toHaveText(['By client', 'Cost', 'Trends']);
+    // U3: the Dashboard and the Tables (By client, Cost and Trends until then, their cards widgets or tables now).
+    await expect(page.locator('#statsToolbar .inv-viewtabs[role="tablist"] .inv-viewtab')).toHaveText(['Dashboard', 'Tables']);
     const mtd = page.locator('#statsToolbar .inv-seg [data-action="invStatsPeriod"][data-period="mtd"]');
     await expect(mtd).toHaveAttribute('aria-pressed', 'true');
-    for (const t of ['clients', 'cost', 'trends']) {
-      await tab(page, t).click();
-      await expect(tab(page, t)).toHaveAttribute('aria-selected', 'true');
-      // Led by its verdict card, between the tabs and the period.
+    // The Dashboard: led by its verdict card, between the tabs and the period; its cards are the board's widgets.
+    await expect(page.locator('#statsToolbar > .inv-hero[data-verdict]')).toHaveCount(1);
+    await expect(page.locator(V1)).toHaveCount(0);
+    await expect(page.locator('#statsContent .inv-wboard[data-board="stats"] .inv-widget').first()).toBeVisible();
+    for (const t of ['client', 'part', 'month', 'cost']) {
+      await openStatsTab(page, t);
       await expect(page.locator('#statsToolbar > .inv-hero[data-verdict]')).toHaveCount(1);
       await expect(page.locator(V1)).toHaveCount(0);
-      // Every card on the page is a panel.
+      // Every card on the Tables is a panel.
       const cards = await page.locator('#statsContent > *').evaluateAll((els) => els.map((e) => e.classList.contains('inv-panel')));
       expect(cards.length).toBeGreaterThan(0);
       expect(cards.every(Boolean)).toBe(true);
@@ -53,10 +56,11 @@ test.describe('P73: Stats', () => {
     await expect(mtd).toHaveAttribute('aria-pressed', 'false');
   });
 
-  test('Trends’ verdict carries the headline’s four tiles; below cost is a badge, a line and a toned margin', async ({ page }) => {
+  test('Stats’ verdict carries the headline’s four tiles; below cost is a badge, a line and a toned margin', async ({ page }) => {
     await loadAppWithState(page, state());
-    await openStatsTab(page, 'trends');
-    const head = page.locator('#statsHeadline');
+    // The headline was Trends' verdict until U3: it leads both views now.
+    await openStatsTab(page, 'board');
+    const head = page.locator('#statsVerdict');
     await expect(head.locator('.inv-tile')).toHaveCount(4);
     await expect(head.locator('[data-tile="tonnage"] .inv-tile-value')).toHaveText('4.00 t');
     // ₹28,000 on 4 t = ₹7.00/kg, under the ₹8.56 model: the margin reads −₹ in the danger tone, badged below cost.
@@ -65,28 +69,31 @@ test.describe('P73: Stats', () => {
     await expect(head.locator('[data-tile="margin"] .inv-badge-danger')).toHaveText('below cost');
     await expect(head.locator('[data-callout="below-cost"]')).toContainText('below full cost');
     await expect(head).toHaveClass(/inv-hero-danger/);
-    await expect(page.locator('#statsMonths table.inv-table tbody tr')).toHaveCount(6);
+    // The six months are the Tables' By month.
+    await openStatsTab(page, 'month');
+    await expect(page.locator('#statsTable table[data-stats-tbl="month"] tbody tr')).toHaveCount(6);
     // The contribution a kilo is Home's The period in figures (Pulse's In one line until UI pass 3), in the danger tone.
     await openPulse(page);
     await expect(page.locator('#statsOverview .inv-widget-fig .inv-fig-danger')).toContainText('−₹');
   });
 
-  test('clients: rows that drill through, a dot and a word for below cost; the drill-down turns over to rows', async ({ page }) => {
+  test('clients: rows that drill through, a figure in its tone for below cost; the drill-down turns over to rows', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStatsTab(page, 'clients');
-    const rows = page.locator('[data-card="realisation"] button.inv-row[data-client-row]');
+    // Realisation by client is the Tables' By client since U3: a row a client, worst priced first, each drilling through.
+    const rows = page.locator('#statsTable tr[data-client-row]');
     await expect(rows).toHaveCount(2);
-    // Folded, shut on the phone: the contribution table above already ranks the clients.
-    await page.locator('[data-card="realisation"] > summary').click();
     await expect(rows.nth(0)).toContainText('BETA CLAMPS');
-    await expect(rows.nth(0).locator('.inv-dot-danger')).toHaveText('Below cost');
+    await expect(rows.nth(0).locator('td').nth(5).locator('.inv-fig-danger')).toHaveText('5.00');
     // vs var. is a figure whether or not labour is recorded: labour is fixed (owner, 13 Oct 2026), so the variable cost is the live
     // cost less labour (it was withheld while labour's split was not known). vs full and the ₹ on the period are below.
-    const first = page.locator('#statsMargin tbody tr').nth(0).locator('td');
-    await expect(first.nth(3)).toHaveText(/^[+−]\d/);
-    await expect(first.nth(4)).toHaveClass(/inv-num-neg/);
-    await expect(first.nth(5)).toHaveClass(/inv-num-neg/);
-    await expect(page.locator('[data-card="revenue"] .inv-seg [data-chart="bar"]')).toHaveAttribute('aria-pressed', 'true');
+    const first = rows.nth(0).locator('td');
+    await expect(first.nth(6)).toHaveText(/^[+−]\d/);
+    await expect(first.nth(7)).toHaveClass(/inv-num-neg/);
+    await expect(first.nth(8)).toHaveClass(/inv-num-neg/);
+    // Revenue by client is a column with its share (its chart the Dashboard's Who fills the plant).
+    await expect(rows.nth(0).locator('td').nth(1)).toHaveText('₹15,000.00');
+    await expect(rows.nth(0).locator('td').nth(2)).toHaveText('54%');
     await rows.nth(0).click();
     const card = page.locator('.inv-dialog[data-drill="72"]');
     await expect(card.locator('.inv-flip-front .inv-tile')).toHaveCount(6);

@@ -87,9 +87,9 @@ test.describe('P102: on the screens', () => {
 
   test('Stats: the headline realisation and its change are coloured, gross margin below zero is danger', async ({ page }) => {
     await loadAppWithState(page, monthState());
-    // The headline is Trends' verdict card since the tab map (TM2b): each factor toned, the revenue by its change.
+    // The headline is Stats' one verdict card since U3 (Trends' from the tab map, TM2b): each factor toned, the revenue by its change.
     await openStatsTab(page, 'trends');
-    const head = page.locator('#statsHeadline');
+    const head = page.locator('#statsVerdict');
     await expect(head.locator('[data-tile="realisation"]')).toHaveClass(/inv-tile-danger/);
     await expect(head.locator('[data-tile="revenue"]')).toHaveClass(/inv-tile-ok/);
     await expect(head.locator('[data-tile="revenue"] .inv-tile-sub')).toContainText('on same days last month');

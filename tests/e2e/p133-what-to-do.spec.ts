@@ -192,7 +192,9 @@ test.describe('P133: what to do', () => {
     await go(`{ kind: 'payWeek' }`);
     await expect(page.locator('#pageStaff.inv-page-active [data-action="invAttView"][data-view="pay"]')).toHaveAttribute('aria-selected', 'true');
     await go(`{ kind: 'liveCost', key: 'labour' }`);
-    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveAttribute('data-tab', 'cost');
+    // The live cost is the Tables' Cost since U3.
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveAttribute('data-tab', 'tables');
+    await expect(page.locator('[data-stats-table] [data-table="cost"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#statsContent details[data-cost="labour"]')).toHaveJSProperty('open', true);
     await go(`{ kind: 'prodLines', line: 'vat-a2', day: '${dayOff(-1)}' }`);
     await expect(page.locator('#pageProduction.inv-page-active [data-action="invProdLine"][data-line="vat-a2"]')).toHaveAttribute('aria-pressed', 'true');
@@ -200,8 +202,10 @@ test.describe('P133: what to do', () => {
     // The status is Quotations' filter, behind Filter on the phone and said as its token (the tab map, TM5g).
     expect(await page.evaluate(() => (0, eval)('_qtStatus'))).toBe('issued');
     await expect(page.locator('#pageClients .inv-token[data-action="invQtStatusClear"]')).toHaveCount(1);
+    // A move saved naming By client (before U3) opens the Tables by client, the worst account settled under it.
     await go(`{ kind: 'stats', tab: 'clients', anchor: 'statsWorst' }`);
-    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveAttribute('data-tab', 'clients');
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveAttribute('data-tab', 'tables');
+    await expect(page.locator('[data-stats-table] [data-table="client"]')).toHaveAttribute('aria-pressed', 'true');
     await go(`{ kind: 'register', clientId: 2, month: '${dayOff(-40).slice(0, 7)}' }`);
     await expect(page.locator('#pageRegister.inv-page-active')).toBeVisible();
     expect(await g(page, `({ c: regFilter.clientId, m: regFilter.month })`)).toEqual({ c: '2', m: dayOff(-40).slice(0, 7) });

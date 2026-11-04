@@ -133,13 +133,21 @@ async function blankCells(page: Page) {
   });
 }
 
-test('above about 1,600px Stats and Finance take three columns, at 1280 two, with no blank tile cell; Home’s board keeps its twelve', async ({ page }) => {
+test('above about 1,600px Finance takes three columns, at 1280 two, with no blank tile cell; Home’s and Stats’ boards keep their twelve', async ({ page }) => {
   await loadAppWithState(page, sweepState());
+  // Stats is a board of widgets since U3 (§10): its own grid, twelve columns from 60rem whatever the window, as Home's; its Tables
+  // are panels two across, never leaving a blank tile cell.
   await switchTab(page, 'pageStats');
+  await expect(page.locator('#statsBoard .inv-wgrid')).toBeVisible();
+  expect(await columns(page, '#statsBoard .inv-wgrid')).toBe(12);
+  await page.locator('[data-action="invStatsTab"][data-tab="tables"]').click();
+  await page.locator('[data-stats-table] [data-action="invStatsTable"][data-table="cost"]').click();
   expect(await columns(page, '#pageStats .inv-panels')).toBe(2);
-  await page.setViewportSize({ width: 1700, height: 1000 });
-  expect(await columns(page, '#pageStats .inv-panels')).toBe(3);
   expect(await blankCells(page)).toEqual([]);
+  await page.setViewportSize({ width: 1700, height: 1000 });
+  expect(await blankCells(page)).toEqual([]);
+  await page.locator('[data-action="invStatsTab"][data-tab="board"]').click();
+  expect(await columns(page, '#statsBoard .inv-wgrid')).toBe(12);
   await openFinanceTab(page, 'overview');
   expect(await columns(page, '#pageFinance .inv-panels')).toBe(3);
   expect(await blankCells(page)).toEqual([]);

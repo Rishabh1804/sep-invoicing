@@ -113,12 +113,13 @@ test('derived weights make the client measurable in Stats without changing billi
   await loadAppWithState(page, state);
   await openStatsTab(page, 'clients');
 
-  const table = page.locator('[data-card="realisation"]');
-  const row = table.locator('[data-client-row]').first();
+  // Realisation by client is the Tables' By client since U3 (§10): its ₹/kg the sixth column, in its tone against the cost.
+  const table = page.locator('#statsTable table[data-stats-tbl="client"]');
+  const row = table.locator('tr[data-client-row]').first();
   // 324 revenue over (100 x 0.5) + (10 x 0.9) = 59 kg = 5.49/kg, below cost.
   await expect(row).toContainText('PIECE CLIENT');
-  await expect(row).toContainText('5.49');
-  await expect(row.locator('.inv-dot-danger')).toHaveCount(1);
+  await expect(row.locator('td').nth(5)).toHaveText('5.49');
+  await expect(row.locator('td').nth(5).locator('.inv-fig-danger')).toHaveCount(1);
   await expect(table.locator('[data-partial]')).toHaveCount(0);
 
   // The invoice's own money is untouched — stdWeightKg feeds Stats, never rates.
@@ -148,16 +149,16 @@ test('a piece-billed line with no catalogue row is still weighed', async ({ page
   };
   state.items = [];
   await loadAppWithState(page, state);
-  // The period's headline is Stats → Trends' verdict card (the tab map, TM2b).
-  await openStatsTab(page, 'trends');
+  // The period's headline is Stats' verdict card (U3, §10; Trends' since the tab map, TM2b).
+  await openStatsTab(page, 'board');
 
   // 540 / 5.40 = 100 kg, and realisation is the contract rate.
-  const band = page.locator('#statsHeadline .inv-tiles');
+  const band = page.locator('#statsVerdict .inv-tiles');
   await expect(band).toContainText('0.10 t');
   await expect(band).toContainText('5.40');
   // Fully covered, so no shortfall line and no badge.
-  await expect(page.locator('#statsHeadline [data-callout="coverage"]')).toHaveCount(0);
-  await expect(page.locator('#statsHeadline [data-tile="tonnage"] .inv-badge')).toHaveCount(0);
+  await expect(page.locator('#statsVerdict [data-callout="coverage"]')).toHaveCount(0);
+  await expect(page.locator('#statsVerdict [data-tile="tonnage"] .inv-badge')).toHaveCount(0);
 });
 
 test('the same part in two gauges is left for manual entry, never averaged', async ({ page }) => {
@@ -181,8 +182,8 @@ test('the same part in two gauges is left for manual entry, never averaged', asy
 
   // Withholding the catalogue figure costs no tonnage: the line is still
   // weighed from its own amount. 489 / 5.40 = 90.56 kg.
-  await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsHeadline .inv-tiles')).toContainText('0.09 t');
+  await openStatsTab(page, 'board');
+  await expect(page.locator('#statsVerdict .inv-tiles')).toContainText('0.09 t');
 });
 
 test('picking a part on a challan keeps the gauge in the line description', async ({ page }) => {

@@ -29,22 +29,26 @@ function state(): SepState {
 }
 
 test.describe('P47: Stats tabs, the overview and the margin by client', () => {
-  test('Stats is three tabs over one period, and remembers the one open', async ({ page }) => {
+  // Two views since UI pass 3 (U3, §10): the Dashboard and the Tables, whose switch is By client · By part · By month · Cost.
+  test('Stats is two views over one period, the Tables four, and remembers the one open', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStats');
-    await expect(page.locator('#statsToolbar .inv-viewtab')).toHaveText(['By client', 'Cost', 'Trends']);
-    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('By client');
-    await expect(page.locator('#statsMargin')).toBeVisible();
-    // The period in one line is Pulse's: not on Stats.
+    await expect(page.locator('#statsToolbar .inv-viewtab')).toHaveText(['Dashboard', 'Tables']);
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('Dashboard');
+    await expect(page.locator('#statsBoard .inv-wboard[data-board="stats"]')).toBeVisible();
+    // The period in one line is Home's (The period in figures): not on Stats' preset.
     await expect(page.locator('#pageStats #statsOverview')).toHaveCount(0);
     await expect(page.locator('#liveCost')).toHaveCount(0);
-    await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click();
+    await openStatsTab(page, 'clients');
+    await expect(page.locator('#statsTable table[data-stats-tbl="client"]')).toBeVisible();
+    await page.locator('[data-stats-table] [data-action="invStatsTable"][data-table="cost"]').click();
     await expect(page.locator('#liveCost')).toBeVisible();
-    await expect(page.locator('#statsMargin')).toHaveCount(0);
+    await expect(page.locator('#statsTable')).toHaveCount(0);
     await page.reload();
     await page.locator('body.inv-booted').waitFor();
     await switchTab(page, 'pageStats');
-    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('Cost');
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('Tables');
+    await expect(page.locator('[data-stats-table] [aria-pressed="true"]')).toHaveText('Cost');
   });
 
   test('in one line reads realisation against the live cost, and says what is model', async ({ page }) => {
@@ -64,14 +68,16 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await expect(ov.locator('[data-tile="cost"] .inv-badge-warning')).toHaveText('0% measured');
     await openStatsTab(page, 'cost');
     await expect(page.locator('#liveCost')).toContainText('model');
-    await openStatsTab(page, 'trends');
-    await expect(page.locator('#statsMonths tbody tr')).toHaveCount(6);
+    // The six months are the Tables' By month since U3 (§10).
+    await openStatsTab(page, 'month');
+    await expect(page.locator('#statsTable table[data-stats-tbl="month"] tbody tr')).toHaveCount(6);
   });
 
   test('contribution by client: worst first, net of credit notes, and the worst large account settled with labour fixed', async ({ page }) => {
     await loadAppWithState(page, state());
+    // Contribution by client is the Tables' By client since U3 (§10), worst priced first.
     await openStatsTab(page, 'clients');
-    const rows = page.locator('#statsMargin tbody tr');
+    const rows = page.locator('#statsTable tbody tr[data-client-row]');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('BETA CLAMPS');
     await expect(rows.nth(0)).toContainText('net of ₹300.00 credit notes');

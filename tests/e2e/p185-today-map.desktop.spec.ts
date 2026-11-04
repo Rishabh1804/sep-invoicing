@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse, switchTab, toolbarMore, type SepState, openNeeds } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, openStatsTab, switchTab, toolbarMore, type SepState, openNeeds } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P185 desktop: the tab map, step TM2 on the desktop. The same places as the phone's (p185-today-map.spec.ts), in the desktop's
@@ -44,9 +44,9 @@ test.describe('P185: Today on the desktop', () => {
 
   test('Stats’ verdict cards are open; the Planner keeps its tables and one toolbar row', async ({ page }) => {
     await loadAppWithState(page, longBook());
-    await switchTab(page, 'pageStats');
-    for (const tab of ['clients', 'cost', 'trends']) {
-      await page.locator(`#statsToolbar [data-action="invStatsTab"][data-tab="${tab}"]`).click();
+    // The Dashboard and each of the Tables (U3; By client, Cost and Trends until then).
+    for (const tab of ['board', 'client', 'part', 'month', 'cost']) {
+      await openStatsTab(page, tab);
       expect(await page.locator('#statsToolbar > .inv-hero[data-verdict]').evaluate(el => (el as HTMLDetailsElement).open), tab).toBe(true);
     }
     await switchTab(page, 'pagePlanner');

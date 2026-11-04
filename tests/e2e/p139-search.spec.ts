@@ -97,8 +97,10 @@ test.describe('P139: search on the phone', () => {
     expect((await titles(page, 'screen')).slice(0, 2)).toEqual(['Live cost', 'Live cost fallbacks']);
     await page.keyboard.press('Enter');
     await expect(page.locator('#pageStats')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="cost"]')).toHaveAttribute('aria-selected', 'true');
-    await expect.poll(() => new URL(page.url()).searchParams.get('v')).toBe('cost');
+    // The live cost is the Tables' Cost since U3.
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="tables"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-stats-table] [data-table="cost"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => new URL(page.url()).searchParams.get('v')).toBe('tables/cost');
     await page.goBack();
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
     await expect(page.locator('[data-search]')).toHaveCount(0);

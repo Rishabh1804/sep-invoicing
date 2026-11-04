@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse, readStoredState, switchTab, toolbarMore, todayIso, waitForBoot, workingDaysBack, type SepState, openNeeds, openHome } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, openStatsTab, readStoredState, switchTab, toolbarMore, todayIso, waitForBoot, workingDaysBack, type SepState, openNeeds, openHome } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P185: the tab map, step TM2 (docs/TAB_MAP.md TM2a–TM2f, §5). Today: the To-do joins Needs you (its Add, its Done, its Snoozed,
@@ -168,34 +168,38 @@ test.describe('P185: Today on the phone', () => {
     await expect(page.locator('#homeDash > [data-home-toolbar][data-arranging] .inv-btn')).toHaveText(['Add a widget', 'Reset', 'Done']);
   });
 
-  test('Stats is By client · Cost · Trends, each led by its verdict card, shut on the phone', async ({ page }) => {
+  test('Stats is the Dashboard · the Tables, each led by its verdict card, shut on the phone', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageStats');
-    await expect(page.locator('#statsToolbar .inv-viewtab')).toHaveText(['By client', 'Cost', 'Trends']);
-    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('By client');
-    for (const [tab, id] of [['clients', 'statsVerdict'], ['cost', 'statsVerdict'], ['trends', 'statsHeadline']]) {
-      await page.locator(`#statsToolbar [data-action="invStatsTab"][data-tab="${tab}"]`).click();
+    // UI pass 3, U3: two views (By client · Cost · Trends until then), the Tables a switch of four under the toolbar.
+    await expect(page.locator('#statsToolbar .inv-viewtab')).toHaveText(['Dashboard', 'Tables']);
+    await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveText('Dashboard');
+    for (const tab of ['board', 'client', 'part', 'month', 'cost']) {
+      await openStatsTab(page, tab);
       const v = page.locator('#statsToolbar > .inv-hero[data-verdict]');
       await expect(v).toHaveCount(1);
-      await expect(v).toHaveAttribute('id', id);
+      await expect(v).toHaveAttribute('id', 'statsVerdict');
       expect(await v.evaluate(el => (el as HTMLDetailsElement).open), tab + ': shut on the phone').toBe(false);
       // The verdict, then the period: one toolbar row.
       await expect(page.locator('#statsToolbar > *').nth(2)).toHaveClass(/inv-toolbar/);
     }
-    // Trends: the headline's four figures are its factors, six months follows, top items folded.
-    const head = page.locator('#statsHeadline');
-    expect(await head.locator('[data-tile]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tile))).toEqual(['revenue', 'tonnage', 'realisation', 'margin']);
-    await expect(page.locator('#statsContent > *').first()).toHaveAttribute('data-card', 'months');
-    expect(await page.locator('[data-card="top"]').evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)).toBe(true);
-    // Cost: the live cost and how much of it is measured; each component's source a badge.
-    await page.locator('#statsToolbar [data-action="invStatsTab"][data-tab="cost"]').click();
-    await expect(page.locator('#statsVerdict .inv-hero-title')).toContainText('% measured');
+    // The headline's four figures are the verdict's factors (Trends' until U3).
+    expect(await page.locator('#statsVerdict [data-tile]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tile))).toEqual(['revenue', 'tonnage', 'realisation', 'margin']);
+    // Six months are the Tables' By month, the first card there; top items are By part's table, a switch away as their fold was.
+    await openStatsTab(page, 'month');
+    await expect(page.locator('#statsContent > *').first()).toHaveAttribute('data-card', 'table-month');
+    await openStatsTab(page, 'part');
+    await expect(page.locator('#statsContent > *').first()).toHaveAttribute('data-card', 'table-part');
+    // Cost: how much of the live cost is measured, on the verdict; each component's source a badge.
+    await openStatsTab(page, 'cost');
+    await expect(page.locator('#statsVerdict')).toContainText('% measured');
     await expect(page.locator('[data-card="livecost"] .inv-badge').first()).toBeVisible();
-    // By client: realisation, concentration and the challan forecast fold, shut on the phone.
-    await page.locator('#statsToolbar [data-action="invStatsTab"][data-tab="clients"]').click();
-    for (const c of ['realisation', 'concentration', 'next']) {
-      expect(await page.locator(`[data-card="${c}"]`).evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open), c).toBe(true);
-    }
+    // By client: realisation, concentration and the challan forecast are its columns, and the worst account's working is folded shut.
+    await openStatsTab(page, 'client');
+    const heads = await page.locator('#statsTable table[data-stats-tbl="client"] thead th').allInnerTexts();
+    for (const h of ['₹/kg', 'Of revenue', 'Of tonnes', 'Next challan']) expect(heads.map(x => x.replace(/[▲▼]/g, '').trim()), h).toContain(h);
+    const working = page.locator('#statsWorst details').first();
+    if (await working.count()) expect(await working.evaluate(el => (el as HTMLDetailsElement).open)).toBe(false);
   });
 
   test('Cost keeps no list of bills: one line says where they are entered and opens the form there; their notes are on Money', async ({ page }) => {
@@ -207,8 +211,8 @@ test.describe('P185: Today on the phone', () => {
       { id: 'CB-T2', kind: 'power', month: ym(1), amount: 99999, voided: true, voidReason: 'entered twice', at: 2 },
     ];
     await loadAppWithState(page, book);
-    await switchTab(page, 'pageStats');
-    await page.locator('#statsToolbar [data-action="invStatsTab"][data-tab="cost"]').click();
+    // The live cost is the Tables' Cost since U3.
+    await openStatsTab(page, 'cost');
     // The tab map, TM3a: the bills are entered and kept on Money → Payments; the card's list repeated them.
     await expect(page.locator('[data-fold="cost-bills"]')).toHaveCount(0);
     await expect(page.locator('#liveCost [data-bill]')).toHaveCount(0);
@@ -246,9 +250,11 @@ test.describe('P185: Today on the phone', () => {
     // The two inside the window, averaged: (2 + 4) / 2.
     await expect(card.locator('.inv-row', { hasText: 'Created to dispatched' })).toContainText('3.0');
     await expect(card.locator('.inv-row', { hasText: 'Created to dispatched' })).toContainText('average of 2 invoices');
-    // Stats keeps no Billing tab to hold it.
+    // Stats keeps no Billing tab to hold it: its views are the Dashboard and the Tables (U3).
     await switchTab(page, 'pageStats');
-    await expect(page.locator('#pageStats [data-action="invStatsTab"]')).toHaveText(['By client', 'Cost', 'Trends']);
+    await expect(page.locator('#pageStats [data-action="invStatsTab"]')).toHaveText(['Dashboard', 'Tables']);
+    await openStatsTab(page, 'tables');
+    await expect(page.locator('[data-stats-table] .inv-seg-btn')).toHaveText(['By client', 'By part', 'By month', 'Cost']);
   });
 
   test('the Planner is Play · Ledger · A day · Moves, one verdict card on every view, one toolbar row, rows on the phone', async ({ page }) => {

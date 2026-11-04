@@ -135,8 +135,10 @@ test.describe('P186: Money’s map', () => {
     // A task of the owner's own saved naming the old tab reads as what it does now.
     expect(await g(page, `todoGoLabel({ goLabel: 'Bills & notes' })`)).toBe('Add the bill');
     // Live cost: the bills are entered on Payments; its link opens the form there.
+    // The live cost is the Tables' Cost since U3.
     await switchTab(page, 'pageStats');
-    await page.locator('#statsToolbar [data-action="invStatsTab"][data-tab="cost"]').click();
+    await page.locator('#statsToolbar [data-action="invStatsTab"][data-tab="tables"]').click();
+    await page.locator('[data-stats-table] [data-action="invStatsTable"][data-table="cost"]').click();
     const link = page.locator('[data-cost-bills]');
     await expect(link).toContainText('Bills are entered in Money → Payments');
     await expect(page.locator('#pageStats [data-bill]')).toHaveCount(0);

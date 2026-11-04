@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openFoldAt, recentTs, switchTab, todayIso, type SepState, openPulse, withHomeWidgets, openWidget } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openFoldAt, recentTs, switchTab, todayIso, type SepState, openPulse, withHomeWidgets, openWidget, openStatsTab } from './fixtures';
 
 // P64: finance linked into every screen (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 6). Each screen carries the
 // figure that belongs to it and a link that lands on the right place in Finance. Dates are built from today;
@@ -108,9 +108,9 @@ test('Pulse: In one line carries the cash; Stats: contribution by client says wh
   // Short on a board since U2R, the exact balance its title (§24k).
   await expect(page.locator('#statsCash [title="₹2,50,000.00"]')).toContainText('2.50');
   await expect(page.locator('#statsCash')).toContainText('clients pay in 20 days');
-  await switchTab(page, 'pageStats');
-  await page.locator('[data-action="invStatsTab"][data-tab="clients"]').click();
-  await expect(page.locator('#statsMargin [data-client-owed]')).toContainText('owes ₹5,900.00 · pays in 20 d');
+  // Contribution by client is the Tables' By client since U3 (§10): owed and days to pay under each name.
+  await openStatsTab(page, 'clients');
+  await expect(page.locator('#statsTable [data-client-owed]')).toContainText('owes ₹5,900.00 · pays in 20 d');
 });
 
 test('Staff → Pay shows the bank’s salary legs, and Payments links to it and back', async ({ page }) => {

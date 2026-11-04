@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="31144c73">
+<meta name="app-build" content="5c902c80">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3870,6 +3870,11 @@ body.inv-desktop .inv-pane-host[data-wide-pane].inv-pane-open > .inv-pane { flex
 .inv-spend-board > .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-spend-board { grid-template-columns: repeat(auto-fit, minmax(var(--board-col), 1fr)); }
 body.inv-desktop .inv-spend-board > #dashPrice { grid-column: 1 / -1; }
+/* ===== Mine (faces.js) in the guided flow (UI pass 3 §11a, §26b) =====
+   The message the group will get, in the preview, as the text it is sent as; a roll's block inside its step is a box of its own, set
+   in the step's card by its edge, with no lift (a card in a card would lift twice). */
+.inv-flow-pv-line .inv-quote { display: block; margin-top: var(--sp-4); }
+.inv-flow-body > .inv-panel:not(.inv-panel-flush) { box-shadow: none; margin-bottom: var(--sp-8); }
 </style>
 </head>
 <body>
@@ -66725,6 +66730,7 @@ function faceFormOpen(duty, fromId) {
   _pageTyped = false;
   renderFace();
   viewTop();
+  if (duty !== 'vat') uiFlowFocusNext(document.getElementById('faceContent'));
 }
 function faceFormDone() { _faceForm = null; _pageTyped = false; renderFace(); viewTop(); }
 /* An address naming a form (nav.js): the form on the face's day; a correction where it names this duty's entry made on a face.
@@ -66821,17 +66827,6 @@ function faceActionBarHtml(label, f) {
   return '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(label) + '</div><div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div>' +
     '<button class="inv-btn inv-btn-primary" data-action="invFaceSave">Save</button></div>';
 }
-/* A load into the tank. */
-function faceLoadHtml(f) {
-  var parts = faceClientParts(f.clientId);
-  var h = faceBackBar(f.replaces ? 'Correct a load' : FACE_FORM_TITLE.pickling);
-  if (f.replaces) h += '<div class="inv-callout inv-callout-info">This load takes the place of the one corrected, which stays on the record, marked corrected.</div>';
-  h += '<div class="inv-panel" data-face-form="pickling"><div class="inv-fields">' + faceClientSelectHtml(f) + facePartFieldsHtml(f, parts) + faceQtyFieldsHtml(f) +
-    faceField('faceTime', 'Into the tank at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
-    '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Re-pickling or rework (counted as work, never billed)</span></label>' +
-    '</div></div>';
-  return h + faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the load of' : 'Pickled on', f);
-}
 /* Material in: a challan in the book counted line by line, or what came with no challan in the book yet. */
 function faceInChallans(f) {
   if (!f.clientId) return [];
@@ -66845,38 +66840,159 @@ function faceLineFigure(it, unit) {
   if (unit === 'NOS') return it.unit === 'NOS' ? Number(it.qty) || 0 : it.nosQty > 0 ? Number(it.nosQty) : null;
   return it.unit === 'KG' ? Number(it.qty) || 0 : null;
 }
+/* ---------- Mine's forms as guided flows (docs/UI_PASS_3.md §11a, §26b) ----------
+   Each form is numbered steps that lead without hiding (state.js uiFlowHtml): every step open in any order, the first not done
+   Next, a done step ticked with what it holds. The preview says what Save records and the message the group will get, from the
+   same builders Save uses (faceMsgOf, faceRollText, faceVatRead), and the checks the face would raise. The fields, their ids and
+   their actions are the forms' own, unchanged. */
+function faceFlowPartOf(f, parts) { return (parts || faceClientParts(f.clientId)).find(function(p) { return p.key === f.part; }) || null; }
+function faceFlowPartOk(f) { return !!f.part && (f.part !== FACE_TYPED || !!String(f.partText || '').trim()); }
+function faceFlowPartName(f, x) { return x ? x.label : f.part === FACE_TYPED ? String(f.partText || '').trim() : ''; }
+function faceFlowClientName(f) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(f.clientId); }); return c ? c.name : ''; }
+function faceFlowTimeOk(t) { return /^\d{1,2}:\d{2}$/.test(t || ''); }
+function faceFlowClock(t) { var m = relayParseHhmm(t); return m == null ? '' : relayClockLabel(m); }
+function faceFlowQty(f) { var q = parseFloat(f.qty); return q > 0 ? q : null; }
+/* The entry as Save makes it, for the message: the client, the part as the challans name it (or as written), the figure, the time. */
+function faceFlowDraft(f, kind, x) {
+  var cid = prodHeldId(f.clientId), e = { kind: kind, date: f.date, time: f.time, clientId: cid, client: prodClientName(cid), qty: faceFlowQty(f), unit: f.unit === 'KG' ? 'KG' : 'NOS', rework: !!f.rework };
+  if (x) { e.part = x.part; if (x.partNumber) e.partNumber = x.partNumber; e.gauge = x.gauge || null; }
+  else { e.part = String(f.partText || '').trim(); e.gauge = prodGaugeOf(e.part, e.part) || null; }
+  return e;
+}
+function faceFlowMsgLine(text, title) {
+  return text ? escHtml(title || 'The group’s message') + '<span class="inv-quote" data-face-flow-msg>' + escHtml(text) + '</span>' : '';
+}
+/* A load or a count past what is open on the part's challans (the face's own check, `over`, made before it is saved). */
+function faceFlowOverCheck(f, x, qty) {
+  if (!x || !(qty > 0)) return null;
+  var u = f.unit === 'KG' ? 'KG' : 'NOS', open = x.open[u];
+  return open > 0 && qty > open + 1e-9 ? { tone: 'warning', text: 'More than the ' + prodQtyText(open, u) + ' open on its challans: the owner will be asked about it.' } : null;
+}
+function faceFlowRender(name, model, bodies, o) {
+  model.steps.forEach(function(s) { if (bodies[s.key] != null) s.body = bodies[s.key]; });
+  return uiFlowHtml(name, model, o);
+}
+/* The receipt after a save that keeps the form: the last entry saved, said, with its message for the group (the list of all of
+   them, with Copy and Correct, stays under the form). */
+function faceFlowReceipt(f) {
+  var idx = prodIndex(), last = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean).pop();
+  if (!last || last.voidedAt || idx.replaced[last.id]) return '';
+  var t = relayParseHhmm(last.time), n = (f.saved || []).length;
+  return uiFlowReceiptHtml({ title: 'Saved: ' + prodEntryTitle(last),
+    lines: [escHtml(prodQtyText(last.qty, last.unit) + (t != null ? ' · ' + relayClockLabel(t) : '') + ' · ' + stockShortDate(last.date) + (n > 1 ? ' · ' + n + ' saved from this form, listed below' : ''))],
+    actions: '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(faceWaHref(faceMsgFor(last))) + '" target="_blank" rel="noopener">Send to the group</a>' });
+}
+function faceFieldsWrap(h) { return '<div class="inv-fields">' + h + '</div>'; }
+
+/* A load into the tank: Client · Part · How many · When it went in. */
+function faceLoadModel() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'pickling') return null;
+  var parts = faceClientParts(f.clientId), x = faceFlowPartOf(f, parts), qty = faceFlowQty(f), partOk = faceFlowPartOk(f), tOk = faceFlowTimeOk(f.time), u = f.unit === 'KG' ? 'KG' : 'NOS';
+  var g = ['app-face-pickling', 'A load into the tank'];
+  var steps = [
+    { key: 'client', title: 'Whose material is it?', help: 'Clients with material open on a challan come first.', guide: g, done: !!f.clientId, says: faceFlowClientName(f) },
+    { key: 'part', title: 'Which part?', help: 'As the challans name it. Not listed takes its name as written.', guide: g, done: partOk, says: faceFlowPartName(f, x) },
+    { key: 'qty', title: 'How many went in?', help: 'Pieces, or kilograms where the part is weighed.', done: qty != null, says: qty != null ? prodQtyText(qty, u) : '' },
+    { key: 'time', title: 'When did it go into the tank?', help: 'Now, unless it went in earlier. Tick rework for a load pickled again.', done: tOk, says: faceFlowClock(f.time) + (f.rework ? ' · rework' : '') }
+  ];
+  var lines = [], checks = [faceFlowOverCheck(f, x, qty)];
+  if (f.clientId && partOk && qty != null) {
+    lines.push((f.replaces ? 'Takes the place of the load corrected. ' : '') + (f.rework ? 'Re-pickled: ' : 'Into the tank: ') + escHtml(prodQtyText(qty, u) + ' of ' + faceFlowPartName(f, x) + ' for ' + faceFlowClientName(f) +
+      (tOk ? ' at ' + faceFlowClock(f.time) : '') + ' on ' + stockShortDate(f.date)) + (f.rework ? ' · counted as work, never billed' : ''));
+    if (tOk) lines.push(faceFlowMsgLine(faceMsgOf([faceFlowDraft(f, 'pickled', x)])));
+  }
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Pick the client and the part, and this says what Save records and the message for the group.' } };
+}
+uiFlowDefine('facePickling', faceLoadModel);
+function faceLoadHtml(f) {
+  var parts = faceClientParts(f.clientId);
+  var before = faceBackBar(f.replaces ? 'Correct a load' : FACE_FORM_TITLE.pickling) +
+    (f.replaces ? '<div class="inv-callout inv-callout-info">This load takes the place of the one corrected, which stays on the record, marked corrected.</div>' : '');
+  var body = {
+    client: faceFieldsWrap(faceClientSelectHtml(f)),
+    part: faceFieldsWrap(facePartFieldsHtml(f, parts)),
+    qty: faceFieldsWrap(faceQtyFieldsHtml(f)),
+    time: faceFieldsWrap(faceField('faceTime', 'Into the tank at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
+      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Re-pickling or rework (counted as work, never billed)</span></label>')
+  };
+  return '<div data-face-form="pickling">' + faceFlowRender('facePickling', faceLoadModel(), body, { before: before, receipt: faceFlowReceipt(f) }) + '</div>' +
+    faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the load of' : 'Pickled on', f);
+}
+
+/* Material in: Client · Which challan · What was counted · When it came in. A challan in the book is counted line by line against its
+   own figure; what came with no challan in the book yet is its part and figure. */
+function faceInModel() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'incoming') return null;
+  var chs = faceInChallans(f), m = !f.replaces && f.challan && f.challan !== FACE_NOCHALLAN ? chs.find(function(c) { return c.id === f.challan; }) : null;
+  var manual = !!f.replaces || f.challan === FACE_NOCHALLAN, tOk = faceFlowTimeOk(f.time), g = ['app-face-pickling', 'Material in'];
+  var x = manual ? faceFlowPartOf(f) : null, qty = faceFlowQty(f), u = f.unit === 'KG' ? 'KG' : 'NOS';
+  var counted = [], checks = [], lines = [], list = [];
+  if (m) {
+    (m.items || []).forEach(function(it) {
+      var raw = (f.counts || {})[it.id], v = parseFloat(raw);
+      if (raw == null || String(raw).trim() === '' || !(v >= 0)) return;
+      var lu = faceLineUnit(it), want = faceLineFigure(it, lu), name = lineLabel(it);
+      counted.push(it);
+      lines.push(escHtml(name + ': counted ' + prodQtyText(v, lu) + (want != null ? ', the challan says ' + prodQtyText(want, lu) : '')));
+      if (want != null) {
+        var gap = v - want, tol = lu === 'KG' ? want * 0.03 : 0;
+        if (gap < -tol - 1e-9) checks.push({ tone: 'danger', text: name + ': ' + prodQtyText(-gap, lu) + ' short of the challan, which bills what did not come.' });
+        else if (gap > tol + 1e-9) checks.push({ tone: 'warning', text: name + ': ' + prodQtyText(gap, lu) + ' more than the challan says.' });
+      }
+      var cid = prodHeldId(f.clientId);
+      list.push({ kind: 'arrived', date: f.date, time: f.time, clientId: cid, client: prodClientName(cid), part: String(it.partNumber || it.desc || '').trim(),
+        gauge: prodGaugeOf(it.partNumber, it.desc) || null, qty: v, unit: lu });
+    });
+  } else if (manual && f.clientId && faceFlowPartOk(f) && qty != null) {
+    lines.push((f.replaces ? 'Takes the place of the count corrected. ' : '') + escHtml('Came in: ' + prodQtyText(qty, u) + ' of ' + faceFlowPartName(f, x) + ' for ' + faceFlowClientName(f) +
+      (String(f.challanNo || '').trim() ? ', challan ' + String(f.challanNo).trim() : ', no challan in the book yet')));
+    list.push(faceFlowDraft(f, 'arrived', x));
+    if (!f.replaces) checks.push({ tone: 'info', text: 'No challan in the book: the owner is asked to look if none is entered by the next working day.' });
+  }
+  if (list.length && tOk) lines.push(faceFlowMsgLine(faceMsgOf(list)));
+  var steps = [{ key: 'client', title: 'Whose material is it?', help: 'Clients with material open on a challan come first.', guide: g, done: !!f.clientId, says: faceFlowClientName(f) }];
+  if (!f.replaces) steps.push({ key: 'challan', title: 'Which challan came with it?', help: 'Their challans of the week before. Not in the book yet if it is not listed.', guide: g, done: !!f.challan,
+    says: m ? 'Challan ' + (m.challanNo || 'with no number') : f.challan === FACE_NOCHALLAN ? 'Not in the book yet' : '' });
+  steps.push({ key: 'count', title: 'What was counted?', help: m ? 'A line each, in the floor’s unit. Leave a line blank if it was not counted.' : 'The part, and what was counted of it.',
+    done: m ? counted.length > 0 : manual && faceFlowPartOk(f) && qty != null,
+    says: m ? counted.length + ' of ' + todoPlural((m.items || []).length, 'line') : qty != null ? prodQtyText(qty, u) : '' });
+  steps.push({ key: 'time', title: 'When did it come in?', help: 'Now, unless it came earlier.', done: tOk, says: faceFlowClock(f.time) });
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Pick the client and the challan, count it, and this says what Save records and the message for the group.' } };
+}
+uiFlowDefine('faceIncoming', faceInModel);
 function faceInHtml(f) {
-  var h = faceBackBar(f.replaces ? 'Correct what came in' : FACE_FORM_TITLE.incoming);
-  if (f.replaces) h += '<div class="inv-callout inv-callout-info">This takes the place of the count corrected, which stays on the record, marked corrected.</div>';
-  var chs = faceInChallans(f), counted = {};
+  var before = faceBackBar(f.replaces ? 'Correct what came in' : FACE_FORM_TITLE.incoming) +
+    (f.replaces ? '<div class="inv-callout inv-callout-info">This takes the place of the count corrected, which stays on the record, marked corrected.</div>' : '');
+  var chs = faceInChallans(f), counted = {}, body = { client: faceFieldsWrap(faceClientSelectHtml(f)) };
   prodIndex().live.forEach(function(e) { if (e.kind === 'arrived' && e.imItemId && !prodIndex().replaced[e.id]) counted[e.imItemId] = true; });
-  var fields = faceClientSelectHtml(f);
+  var manual = !!f.replaces || f.challan === FACE_NOCHALLAN;
   if (!f.replaces) {
-    fields += faceField('faceChallan', 'Challan', '<select id="faceChallan" class="inv-select" data-face-f="challan"' + (f.clientId ? '' : ' disabled') + '><option value="">' + (f.clientId ? 'Pick the challan' : 'Pick the client first') + '</option>' +
+    body.challan = faceFieldsWrap(faceField('faceChallan', 'Challan', '<select id="faceChallan" class="inv-select" data-face-f="challan"' + (f.clientId ? '' : ' disabled') + '><option value="">' + (f.clientId ? 'Pick the challan' : 'Pick the client first') + '</option>' +
       chs.map(function(m) {
         var all = (m.items || []).every(function(it) { return counted[it.id]; });
         return '<option value="' + escHtml(m.id) + '"' + (f.challan === m.id ? ' selected' : '') + '>' + escHtml('Challan ' + (m.challanNo || 'with no number') + ' · ' + stockShortDate(m.challanDate) + ' · ' + todoPlural((m.items || []).length, 'line') + (all ? ' · counted' : '')) + '</option>';
       }).join('') + (f.clientId ? '<option value="' + FACE_NOCHALLAN + '"' + (f.challan === FACE_NOCHALLAN ? ' selected' : '') + '>Not in the book yet</option>' : '') + '</select>',
-      f.clientId && !chs.length ? '<div class="inv-field-hint">No challan of theirs in the book from the week before: pick Not in the book yet.</div>' : '');
+      f.clientId && !chs.length ? '<div class="inv-field-hint">No challan of theirs in the book from the week before: pick Not in the book yet.</div>' : ''));
   }
   var m = !f.replaces && f.challan && f.challan !== FACE_NOCHALLAN ? chs.find(function(x) { return x.id === f.challan; }) : null;
-  var lines = '';
   if (m) {
     // Each line counted against the challan's own figure, in the floor's unit; a line left blank is not counted.
-    lines = '<div class="inv-panel inv-panel-flush" data-face-lines><div class="inv-panel-head"><span class="inv-panel-title">Counted <span class="inv-panel-count">' + (m.items || []).length + '</span></span></div>' +
+    body.count = '<div class="inv-panel inv-panel-flush" data-face-lines><div class="inv-panel-head"><span class="inv-panel-title">Counted <span class="inv-panel-count">' + (m.items || []).length + '</span></span></div>' +
       (m.items || []).map(function(it) {
         var u = faceLineUnit(it), want = faceLineFigure(it, u), id = 'faceCnt' + String(it.id).replace(/[^A-Za-z0-9_-]/g, '');
         return '<div class="inv-row inv-row-2 inv-row-flow" data-face-line="' + escHtml(it.id) + '"><span class="inv-row-main"><label class="inv-row-title" for="' + id + '">' + escHtml(lineLabel(it)) + '</label>' +
           '<span class="inv-row-meta">' + escHtml('The challan says ' + prodQtyText(want, u) + (counted[it.id] ? ' · counted before' : '')) + '</span></span>' +
           '<span class="inv-row-end"><input type="number" inputmode="decimal" step="any" min="0" id="' + id + '" class="inv-input inv-input-sm inv-input-num" data-face-cnt="' + escHtml(it.id) + '" value="' + escHtml((f.counts || {})[it.id] || '') + '" aria-label="' + escHtml('Counted, ' + (u === 'NOS' ? 'pieces' : 'kilograms')) + '"></span></div>';
       }).join('') + '</div>';
-  } else if (f.replaces || f.challan === FACE_NOCHALLAN) {
-    fields += faceField('faceChallanNo', 'Challan number, if written', '<input id="faceChallanNo" class="inv-input" data-face-f="challanNo" value="' + escHtml(f.challanNo) + '" autocomplete="off">') +
-      facePartFieldsHtml(f, faceClientParts(f.clientId)) + faceQtyFieldsHtml(f, 'Counted');
-  }
-  fields += faceField('faceTime', 'Came in at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">');
-  h += '<div class="inv-panel" data-face-form="incoming"><div class="inv-fields">' + fields + '</div></div>' + lines;
-  return h + faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting what came in on' : 'Came in on', f);
+  } else if (manual) {
+    body.count = faceFieldsWrap(faceField('faceChallanNo', 'Challan number, if written', '<input id="faceChallanNo" class="inv-input" data-face-f="challanNo" value="' + escHtml(f.challanNo) + '" autocomplete="off">') +
+      facePartFieldsHtml(f, faceClientParts(f.clientId)) + faceQtyFieldsHtml(f, 'Counted'));
+  } else body.count = '<p class="inv-note">Pick the challan: its lines are counted here.</p>';
+  body.time = faceFieldsWrap(faceField('faceTime', 'Came in at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">'));
+  return '<div data-face-form="incoming">' + faceFlowRender('faceIncoming', faceInModel(), body, { before: before, receipt: faceFlowReceipt(f) }) + '</div>' +
+    faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting what came in on' : 'Came in on', f);
 }
 /* What was saved from this form, newest first: each with its message for the group and its Correct. */
 function faceSavedHtml(f) {
@@ -67455,11 +67571,60 @@ function faceBlockHtml(f, b, i, roster) {
     '</div><div class="inv-toolbar inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceBlkDel" data-i="' + i + '">Take this block off</button></div></div>';
   return h;
 }
+/* The rolls as flows (UI pass 3 §11a): the in-time roll's 6 AM blocks · where each hand stood · the 8:30 shift's EXTRA; the out-time
+   roll's who went home at five · the late blocks. The preview is the roll as the group will read it (faceRollText, what Save sends
+   through the roll's reader) and the checks Save makes of it. */
+function faceRollBlockProblem(f, b, i) {
+  var night = b.from === '20:00' && (relayParseHhmm(b.out) - RELAY_GENERAL_OUT + 1440) % 1440 <= 180;
+  if ((b.crew || []).length) {
+    if (!faceBlockHead(b.areas)) return 'Block ' + (i + 1) + ': tick the line it ran on.';
+    if (night) return 'Block ' + (i + 1) + ' ends before the night hold begins at 8 PM.';
+    return '';
+  }
+  return (b.areas || []).length || parseFloat(b.extra) > 0 ? 'Block ' + (i + 1) + ': put its crew on it, or take it off.' : '';
+}
+function faceRollBlockLine(f, b, i) {
+  var read = faceBlockReads(b.areas || []), h = parseFloat(b.extra);
+  var when = f.duty === 'roll-out' ? faceFlowClock(b.from || '17:00') + ' to ' + faceFlowClock(b.out) : '6:00 AM';
+  return escHtml(when + (read.length ? ' on ' + read.map(relayAreaName).join(' + ') : '') + ': ' + todoPlural((b.crew || []).length, 'hand') + (h > 0 ? ', EXTRA ' + (+h.toFixed(2)) + ' h' : ''));
+}
+function faceRollRead(f) {
+  var roster = faceRollRoster(f.date), counts = {}, unmarked = 0, kept = 0;
+  roster.forEach(function(w) {
+    var id = String(w.id), p = f.place[id];
+    if (p) counts[p] = (counts[p] || 0) + 1; else if (faceMarkByHand(f.date, id)) kept++; else unmarked++;
+  });
+  return { roster: roster, counts: counts, unmarked: unmarked, kept: kept };
+}
+function faceRollTextSafe(f) { try { return faceRollText(f); } catch (e) { return ''; } }
+function faceRollInModel() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'roll-in') return null;
+  var r = faceRollRead(f), g = ['app-face-supervisor', 'The in-time roll'], probs = f.blocks.map(function(b, i) { return faceRollBlockProblem(f, b, i); }).filter(Boolean);
+  var onSite = r.roster.length - (r.counts.absent || 0) - r.unmarked;
+  var extraH = Object.keys(f.extra || {}).reduce(function(s, k) { var h = parseFloat(f.extra[k]); return s + (h > 0 ? h : 0); }, 0);
+  var steps = [
+    { key: 'early', title: 'Was there a 6 AM block?', help: 'A block for each line that started at six, with its crew and EXTRA.', guide: g, optional: true,
+      done: f.blocks.length > 0 && !probs.length, says: f.blocks.length ? todoPlural(f.blocks.length, 'block') : '' },
+    { key: 'places', title: 'Where did each hand stand?', help: 'One pick a hand. Usual places fills the rest from each hand’s own area.', guide: g,
+      done: r.roster.length > 0 && r.unmarked === 0, says: r.roster.length ? onSite + ' on site' + (r.counts.absent ? ' · ' + r.counts.absent + ' absent' : '') : '' },
+    { key: 'extra', title: 'Any EXTRA on the 8:30 shift?', help: 'The hours booked to a line that ran short of hands.', optional: true, done: extraH > 0, says: extraH > 0 ? (+extraH.toFixed(2)) + ' h' : '' }
+  ];
+  var lines = [], checks = [];
+  var where = FACE_ROLL_SECTIONS.filter(function(s) { return r.counts[s.id]; }).map(function(s) { return s.title + ' ' + r.counts[s.id]; });
+  if (where.length || r.counts.absent) lines.push(escHtml('8:30 AM: ' + where.concat(r.counts.absent ? ['absent ' + r.counts.absent] : []).join(' · ')));
+  f.blocks.forEach(function(b, i) { if ((b.crew || []).length) lines.push(faceRollBlockLine(f, b, i)); });
+  if (lines.length) lines.push(faceFlowMsgLine(faceRollTextSafe(f), 'The roll as the group will read it'));
+  if (r.unmarked) checks.push({ tone: 'warning', text: todoPlural(r.unmarked, 'hand') + ' not marked yet: Usual places, or Mark the rest absent.' });
+  if (r.kept) checks.push({ tone: 'info', text: todoPlural(r.kept, 'mark') + ' entered on the day by hand: the roll leaves ' + (r.kept === 1 ? 'it' : 'them') + '.' });
+  probs.forEach(function(t) { checks.push({ tone: 'danger', text: t }); });
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Mark where the hands stood, and this says what Save records and the roll the group will read.' } };
+}
+uiFlowDefine('faceRollIn', faceRollInModel);
 function faceRollInHtml(f) {
-  var roster = faceRollRoster(f.date), counts = {}, unmarked = 0;
-  roster.forEach(function(w) { var p = f.place[String(w.id)]; if (p) counts[p] = (counts[p] || 0) + 1; else if (!faceMarkByHand(f.date, String(w.id))) unmarked++; });
-  var h = faceBackBar(FACE_FORM_TITLE['roll-in']) + faceRollSavedHtml(f), present = roster.filter(function(w) { return f.place[String(w.id)] !== 'absent'; });
-  h += '<div class="inv-panel inv-panel-flush" data-face-early><div class="inv-panel-head"><span class="inv-panel-title">6:00 AM <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
+  var r = faceRollRead(f), roster = r.roster, counts = r.counts, unmarked = r.unmarked;
+  var present = roster.filter(function(w) { return f.place[String(w.id)] !== 'absent'; }), body = {};
+  body.early = '<div class="inv-panel inv-panel-flush" data-face-early><div class="inv-panel-head"><span class="inv-panel-title">6:00 AM <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
     '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a 6 AM block</button></div>' +
     (f.blocks.length ? '' : '<div class="inv-empty">No early block today.</div>') + '</div>' + f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, present); }).join('');
   // Where each hand stood: a row a hand in the Day view's order, its place one pick; the counts above them.
@@ -67469,7 +67634,7 @@ function faceRollInHtml(f) {
   };
   var chips = FACE_ROLL_SECTIONS.filter(function(s) { return counts[s.id]; }).map(function(s) { return s.title + ' ' + counts[s.id]; })
     .concat(counts.absent ? ['Absent ' + counts.absent] : [], unmarked ? ['Not marked ' + unmarked] : []);
-  h += '<div class="inv-panel inv-panel-flush" data-face-general><div class="inv-panel-head"><span class="inv-panel-title">8:30 AM <span class="inv-panel-count">' + roster.length + '</span></span>' +
+  body.places = '<div class="inv-panel inv-panel-flush" data-face-general><div class="inv-panel-head"><span class="inv-panel-title">8:30 AM <span class="inv-panel-count">' + roster.length + '</span></span>' +
     (unmarked ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceUsual">Usual places</button>' : '') + '</div>' +
     '<div class="inv-panel-body inv-note" data-face-counts>' + escHtml(chips.join(' · ') || 'Nobody on the roster yet') + '</div>' +
     roster.map(function(w) {
@@ -67480,32 +67645,53 @@ function faceRollInHtml(f) {
         '<span class="inv-row-end"><select id="' + sel + '" class="inv-select inv-select-sm" data-face-place="' + escHtml(id) + '"' + (kept ? ' disabled' : '') + '>' + opts(f.place[id] || '') + '</select></span></div>';
     }).join('') + (unmarked ? '<div class="inv-toolbar inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceRestAbsent">Mark the rest absent</button></div>' : '') + '</div>';
   // The EXTRA booked to each floor area on the general shift.
-  h += '<div class="inv-panel" data-face-extra><div class="inv-panel-title">EXTRA on the 8:30 shift</div><div class="inv-fields">' + FACE_ROLL_SECTIONS.filter(function(s) { return s.floor && faceExtraSection(s.areas[0]) === s.id; }).map(function(s) {
+  body.extra = '<div data-face-extra><div class="inv-fields">' + FACE_ROLL_SECTIONS.filter(function(s) { return s.floor && faceExtraSection(s.areas[0]) === s.id; }).map(function(s) {
     return faceField('faceExtra' + s.id, s.title + ', hours', '<input type="number" inputmode="decimal" step="any" min="0" id="faceExtra' + s.id + '" class="inv-input inv-input-num" data-face-extra="' + s.id + '" value="' + escHtml(f.extra[s.id] || '') + '">');
   }).join('') + '</div></div>';
-  return h + faceActionBarHtml(unmarked ? unmarked + ' not marked · roll of' : 'In-time roll of', f);
+  return faceFlowRender('faceRollIn', faceRollInModel(), body, { before: faceBackBar(FACE_FORM_TITLE['roll-in']) + faceRollSavedHtml(f) }) +
+    faceActionBarHtml(unmarked ? unmarked + ' not marked · roll of' : 'In-time roll of', f);
 }
+function faceRollOutModel() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'roll-out') return null;
+  var present = facePresentIds(f.date), late = {}, g = ['app-face-supervisor', 'The out-time roll'];
+  f.blocks.forEach(function(b) { (b.crew || []).forEach(function(id) { late[String(id)] = true; }); });
+  var five = present.filter(function(id) { return !late[id]; }), own = five.filter(function(id) { return f.outAt && f.outAt[id] && f.outAt[id] !== '17:00'; });
+  var probs = f.blocks.map(function(b, i) { return faceRollBlockProblem(f, b, i); }).filter(Boolean), crewed = f.blocks.filter(function(b) { return (b.crew || []).length; });
+  var steps = [
+    { key: 'five', title: 'Who went home at five?', help: 'At 5:00 PM unless a time is set. A hand on a late block goes home with the block.', guide: g, done: true,
+      says: todoPlural(five.length, 'hand') + (own.length ? ' · ' + own.length + ' at their own time' : '') },
+    { key: 'late', title: 'Who stayed on a late block?', help: 'A block for each line that ran late: when it ended, its lines, its crew and EXTRA.', guide: g, optional: true,
+      done: crewed.length > 0 && !probs.length, says: crewed.length ? todoPlural(crewed.length, 'block') : '' }
+  ];
+  var lines = [], checks = [];
+  if (five.length) lines.push(escHtml('Went home: ' + todoPlural(five.length, 'hand') + (own.length ? ', ' + own.length + ' at their own time' : ' at 5:00 PM')));
+  crewed.forEach(function(b) { lines.push(faceRollBlockLine(f, b, f.blocks.indexOf(b))); });
+  if (crewed.length) lines.push(faceFlowMsgLine(faceRollTextSafe(f), 'The roll as the group will read it'));
+  probs.forEach(function(t) { checks.push({ tone: 'danger', text: t }); });
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Put the hands who stayed on their blocks, and this says what Save records and the roll the group will read.' } };
+}
+uiFlowDefine('faceRollOut', faceRollOutModel);
 function faceRollOutHtml(f) {
   var present = facePresentIds(f.date), roster = present.map(staffById).filter(Boolean);
   if (!roster.length) roster = faceRollRoster(f.date);
   var late = {};
   f.blocks.forEach(function(b) { (b.crew || []).forEach(function(id) { late[String(id)] = true; }); });
-  var five = present.filter(function(id) { return !late[id]; }).map(staffById).filter(Boolean);
-  var h = faceBackBar(FACE_FORM_TITLE['roll-out']) + faceRollSavedHtml(f);
-  if (!present.length) h += '<div class="inv-callout inv-callout-warning">The in-time roll of this day is not in: the out-time roll names only the blocks’ crews.</div>';
+  var five = present.filter(function(id) { return !late[id]; }).map(staffById).filter(Boolean), body = {};
   // Everyone present on no late block went home at five, unless their own time is set (the roll writes it after the name).
-  h += '<div class="inv-panel inv-panel-flush" data-face-five><div class="inv-panel-head"><span class="inv-panel-title">Went home <span class="inv-panel-count">' + five.length + '</span></span></div>' +
+  body.five = '<div class="inv-panel inv-panel-flush" data-face-five><div class="inv-panel-head"><span class="inv-panel-title">Went home <span class="inv-panel-count">' + five.length + '</span></span></div>' +
     (five.length ? five.map(function(w) {
       var id = String(w.id), sel = 'faceOut' + id.replace(/[^A-Za-z0-9_-]/g, ''), kept = faceMarkByHand(f.date, id);
       return '<div class="inv-row inv-row-2 inv-row-flow" data-face-left="' + escHtml(id) + '"><span class="inv-row-main"><label class="inv-row-title" for="' + sel + '">' + escHtml(w.name) + '</label>' +
         (kept ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(FACE_BY_HAND) + '</span>' : '') + '</span>' +
         '<span class="inv-row-end">' + faceOutSelectHtml(sel, 'data-face-out="' + escHtml(id) + '"' + (kept ? ' disabled' : ''), (f.outAt && f.outAt[id]) || '17:00', 720, true) + '</span></div>';
-    }).join('') : '<div class="inv-empty">Nobody: everyone present is on a late block.</div>') +
-    '<div class="inv-panel-body inv-note">At 5:00 PM unless a time is set. A hand on a block below goes home with the block.</div></div>';
-  h += '<div class="inv-panel inv-panel-flush" data-face-late><div class="inv-panel-head"><span class="inv-panel-title">Late blocks <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
+    }).join('') : '<div class="inv-empty">Nobody: everyone present is on a late block.</div>') + '</div>';
+  body.late = '<div class="inv-panel inv-panel-flush" data-face-late><div class="inv-panel-head"><span class="inv-panel-title">Late blocks <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
     '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a block</button></div>' + (f.blocks.length ? '' : '<div class="inv-empty">No late block today.</div>') + '</div>' +
     f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, roster); }).join('');
-  return h + faceActionBarHtml('Out-time roll of', f);
+  var before = faceBackBar(FACE_FORM_TITLE['roll-out']) + faceRollSavedHtml(f) +
+    (present.length ? '' : '<div class="inv-callout inv-callout-warning">The in-time roll of this day is not in: the out-time roll names only the blocks’ crews.</div>');
+  return faceFlowRender('faceRollOut', faceRollOutModel(), body, { before: before }) + faceActionBarHtml('Out-time roll of', f);
 }
 /* The roll saved from this form: its message for the group, and the day as the roll gave it. */
 function faceRollSavedHtml(f) {
@@ -67606,20 +67792,58 @@ function faceRollEdit(fn) {
 }
 
 /* ---------- A barrel batch ---------- */
-/* Its form is the load's (the client, the part, the figure), with the barrel it went into and when it went in and came out. */
+/* Its form is the load's (the client, the part, the figure), with the barrel it went into and when it went in and came out, as a
+   flow: Barrel · Client · Part · How many · In and out. */
+function faceBarrelModel() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'barrel') return null;
+  var parts = faceClientParts(f.clientId), x = faceFlowPartOf(f, parts), qty = faceFlowQty(f), partOk = faceFlowPartOk(f), u = f.unit === 'KG' ? 'KG' : 'NOS';
+  var tOk = faceFlowTimeOk(f.time), outOk = !f.timeOut || faceFlowTimeOk(f.timeOut), g = ['app-face-supervisor', 'The barrel'];
+  var unit = String(f.barrel || '').trim() ? pltUnitById(f.barrel) : null, bName = unit ? unit.name : String(f.barrel || '').trim();
+  var bWord = bName ? (/^barrel/i.test(bName) ? bName : 'Barrel ' + bName) : '';
+  var steps = [
+    { key: 'barrel', title: 'Which barrel?', help: 'The barrels of the plant register; its number where the register has none.', guide: g, done: !!bName, says: bWord },
+    { key: 'client', title: 'Whose material is it?', help: 'Clients with material open on a challan come first.', done: !!f.clientId, says: faceFlowClientName(f) },
+    { key: 'part', title: 'Which part?', help: 'As the challans name it. Not listed takes its name as written.', done: partOk, says: faceFlowPartName(f, x) },
+    { key: 'qty', title: 'How many went in?', help: 'Pieces, or kilograms where the part is weighed.', done: qty != null, says: qty != null ? prodQtyText(qty, u) : '' },
+    { key: 'time', title: 'When did it go in and come out?', help: 'Came out can wait until it does. Tick rework for work done again.', done: tOk && outOk,
+      says: faceFlowClock(f.time) + (f.timeOut && outOk ? ' – ' + faceFlowClock(f.timeOut) : '') + (f.rework ? ' · rework' : '') }
+  ];
+  var lines = [], checks = [faceFlowOverCheck(f, x, qty)];
+  if (bName && f.clientId && partOk && qty != null) {
+    lines.push((f.replaces ? 'Takes the place of the batch corrected. ' : '') + escHtml(bWord + ': ' + prodQtyText(qty, u) + ' of ' + faceFlowPartName(f, x) + ' for ' + faceFlowClientName(f) +
+      (tOk ? ', in ' + faceFlowClock(f.time) : '') + (f.timeOut && outOk ? ', out ' + faceFlowClock(f.timeOut) : '') + ' on ' + stockShortDate(f.date)) + (f.rework ? ' · rework, counted as work, never billed' : ''));
+    var e = faceFlowDraft(f, 'plated', x);
+    e.line = 'barrel'; e.to = f.timeOut || null;
+    if (unit) { e.unitId = unit.id; e.barrel = unit.name; } else e.barrel = bName;
+    // Over a quarter heavier than the barrel takes (the face's own check, `heavy`).
+    try {
+      var w = prodWeigh(e), usual = faceBarrelUsual(e);
+      if (w && w.kg > 0 && usual && w.kg > usual.kg * 1.25) checks.push({ tone: 'warning', text: 'About ' + Math.round(w.kg) + ' kg, over a quarter more than the ' + Math.round(usual.kg) + ' kg ' + bWord + ' takes: a figure misread?' });
+    } catch (err) { /* the check is a help; the batch is still saved as typed */ }
+    if (tOk) lines.push(faceFlowMsgLine(faceMsgOf([e])));
+  }
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Pick the barrel, the client and the part, and this says what Save records and the message for the group.' } };
+}
+uiFlowDefine('faceBarrel', faceBarrelModel);
 function faceBarrelHtml(f) {
   var parts = faceClientParts(f.clientId), units = pltUnits('barrel').filter(pltPlates);
-  var h = faceBackBar(f.replaces ? 'Correct a batch' : FACE_FORM_TITLE.barrel);
-  if (f.replaces) h += '<div class="inv-callout inv-callout-info">This batch takes the place of the one corrected, which stays on the record, marked corrected.</div>';
+  var before = faceBackBar(f.replaces ? 'Correct a batch' : FACE_FORM_TITLE.barrel) +
+    (f.replaces ? '<div class="inv-callout inv-callout-info">This batch takes the place of the one corrected, which stays on the record, marked corrected.</div>' : '');
   var barrel = units.length ? '<select id="faceBarrel" class="inv-select" data-face-f="barrel"><option value="">Pick the barrel</option>' +
       units.map(function(u) { return '<option value="' + escHtml(u.id) + '"' + (f.barrel === u.id ? ' selected' : '') + '>' + escHtml(u.name) + '</option>'; }).join('') + '</select>'
     : '<input id="faceBarrel" class="inv-input" data-face-f="barrel" value="' + escHtml(f.barrel || '') + '" autocomplete="off" placeholder="e.g. 2">';
-  h += '<div class="inv-panel" data-face-form="barrel"><div class="inv-fields">' + faceField('faceBarrel', 'Barrel', barrel) + faceClientSelectHtml(f) + facePartFieldsHtml(f, parts) + faceQtyFieldsHtml(f) +
-    faceField('faceTime', 'Went in at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
-    faceField('faceTimeOut', 'Came out at', '<input type="time" id="faceTimeOut" class="inv-input" data-face-f="timeOut" value="' + escHtml(f.timeOut || '') + '">') +
-    '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never billed)</span></label>' +
-    '</div></div>';
-  return h + faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the batch of' : 'Plated on', f);
+  var body = {
+    barrel: faceFieldsWrap(faceField('faceBarrel', 'Barrel', barrel)),
+    client: faceFieldsWrap(faceClientSelectHtml(f)),
+    part: faceFieldsWrap(facePartFieldsHtml(f, parts)),
+    qty: faceFieldsWrap(faceQtyFieldsHtml(f)),
+    time: faceFieldsWrap(faceField('faceTime', 'Went in at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
+      faceField('faceTimeOut', 'Came out at', '<input type="time" id="faceTimeOut" class="inv-input" data-face-f="timeOut" value="' + escHtml(f.timeOut || '') + '">') +
+      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never billed)</span></label>')
+  };
+  return '<div data-face-form="barrel">' + faceFlowRender('faceBarrel', faceBarrelModel(), body, { before: before, receipt: faceFlowReceipt(f) }) + '</div>' +
+    faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the batch of' : 'Plated on', f);
 }
 async function faceBarrelSave() {
   var f = _faceForm;
@@ -67825,26 +68049,65 @@ function faceVatPartNames(cid, line) {
   return out.slice(0, 40);
 }
 
+/* The page as a flow (UI pass 3 §26b): its steps are the page's head (the line, how it is kept) · its rows · the day total on the
+   paper · the day's power cuts. The reader's reading stays under each row as it is typed; the preview sums it up: the runs as they will
+   count, and the reader's questions. Enter on a row is the page's own (a round a row), never the next step. */
+var FACE_VAT_LINE_KINDS = [
+  { value: 'vat-a1', icon: 'vat', word: 'VAT A1', line: 'A round a row' },
+  { value: 'vat-a2', icon: 'vat', word: 'VAT A2', line: 'A batch a row' }
+];
+function faceVatModel() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'vat') return null;
+  var rd = faceVatRead(f), batches = f.style === 'batches', noun = batches ? 'batch' : 'round', nouns = batches ? 'batches' : 'rounds';
+  var typedN = f.rows.filter(function(r) { return !faceVatRowEmpty(r); }).length, counted = Math.round(rd.counted || 0), cuts = prodDowntimeDay(f.date);
+  var g = ['app-face-clerk', 'The VAT register page'];
+  var steps = [
+    { key: 'page', title: 'Which page?', help: 'The line, and how its page is kept: a round a row, or a batch a row from its start to its end.', guide: g, done: true,
+      says: PROD_LINE_LABEL[f.line] + ' · ' + stockShortDate(f.date) + ' · ' + nouns },
+    { key: 'rows', title: 'What does the page say?', help: 'A ' + noun + ' a row, its figure as written; the client and the part where a run begins.', guide: g, done: typedN > 0,
+      says: typedN ? todoPlural(typedN, noun, nouns) + ' · ' + counted.toLocaleString('en-IN') + ' NOS' : '' },
+    { key: 'total', title: 'What is the day total on the paper?', help: 'If the page has one: a ' + noun + ' missed shows against it.', optional: true,
+      done: String(f.total || '').trim() !== '', says: String(f.total || '').trim() ? 'Total ' + String(f.total).trim() : '' },
+    { key: 'cuts', title: 'Did the power go?', help: 'The day’s power log, from every record of it. A cut is saved at once.', guide: ['app-face-clerk', 'Power cuts'], optional: true,
+      done: cuts.length > 0, says: cuts.length ? todoPlural(cuts.length, 'cut') : '' }
+  ];
+  var lines = [], checks = [];
+  rd.runs.forEach(function(e) {
+    lines.push(escHtml([prodClientName(e.clientId) || e.client || 'No client', e.part, e.gaugeOptions ? 'gauge ' + e.gaugeOptions.join(' or ') : '',
+      prodQtyText(e.qty, 'NOS') + (e.rounds && e.rounds.length ? ' in ' + todoPlural(e.rounds.length, e.rounds.some(function(x) { return x.batch; }) ? 'batch' : 'round', e.rounds.some(function(x) { return x.batch; }) ? 'batches' : 'rounds') : '')].filter(Boolean).join(' · ')));
+  });
+  if (rd.runs.length > 1) lines.push(escHtml('Counted on the page: ' + counted.toLocaleString('en-IN') + ' NOS in ' + todoPlural(rd.runs.length, 'run')));
+  var asks = [];
+  rd.runs.forEach(function(e) { (e.issues || []).forEach(function(x) { if (x.tone !== 'info') asks.push(x); }); });
+  (rd.issues || []).forEach(function(x) { if (x.tone !== 'info') asks.push(x); });
+  Object.keys(rd.byRow || {}).forEach(function(k) { (rd.byRow[k] || []).forEach(function(r) { (r.issues || []).forEach(function(x) { if (x.tone !== 'info' && x.code !== 'grouped') asks.push(x); }); }); });
+  var seen = {};
+  asks.forEach(function(x) { if (seen[x.text]) return; seen[x.text] = true; checks.push({ tone: uiTone(x.tone), text: x.text }); });
+  if (checks.length > 6) { var more = checks.length - 5; checks = checks.slice(0, 5).concat([{ tone: 'warning', text: more + ' more questions, under their rows' }]); }
+  var idx = prodIndex(), other = idx.live.filter(function(e) { return e.kind === 'plated' && e.date === f.date && e.line === f.line && e.basis === 'register' && !e.pageId && !idx.replaced[e.id]; });
+  if (other.length) checks.unshift({ tone: 'warning', text: 'This page is in the book already: saved here too, the day counts twice.' });
+  return { steps: steps, preview: { title: 'What Save records', lines: lines, checks: checks, empty: 'Type the page’s ' + nouns + ', and this says the runs as they will count.' } };
+}
+uiFlowDefine('faceVat', faceVatModel);
 function faceVatHtml(f) {
-  var rd = faceVatRead(f), pg = faceVatPage(f.date, f.line), runs = faceVatRuns(f.date, f.line), idx = prodIndex();
-  var h = faceBackBar(FACE_FORM_TITLE.vat);
-  h += '<div class="inv-panel"><div class="inv-seg" role="group" aria-label="Line">' + FACE_VAT_LINES.map(function(l) {
-    return '<button class="inv-seg-btn" data-action="invFaceVatLine" data-line="' + l + '" aria-pressed="' + (f.line === l) + '">' + escHtml(PROD_LINE_LABEL[l]) + '</button>'; }).join('') + '</div>' +
-    '<div class="inv-seg inv-mt-8" role="group" aria-label="How the page is kept">' + FACE_VAT_STYLES.map(function(x) {
+  var rd = faceVatRead(f), pg = faceVatPage(f.date, f.line), runs = faceVatRuns(f.date, f.line), idx = prodIndex(), body = {};
+  body.page = uiKindTilesHtml(FACE_VAT_LINE_KINDS, { action: 'invFaceVatLine', attr: 'line', cur: f.line, label: 'Line' }) +
+    '<div class="inv-seg" role="group" aria-label="How the page is kept">' + FACE_VAT_STYLES.map(function(x) {
       return '<button class="inv-seg-btn" data-action="invFaceVatStyle" data-style="' + x[0] + '" aria-pressed="' + (f.style === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
   var sd = pg && pg.at ? new Date(pg.at) : null;
   // One line each (P195: no note past 120 characters on a face); how a round or a batch is written is the clerk's guide's.
   var note = pg ? 'Saved' + (sd ? ' at ' + relayClockLabel(sd.getHours() * 60 + sd.getMinutes()) + (isoOf(sd) !== localDateStr() ? ' on ' + formatDate(isoOf(sd)) : '') : '') + (pg.by ? ' by ' + pg.by : '') +
       (f.draftAt ? '. Changes since are on this phone, not saved yet.' : '. Saving again puts right what changed.')
     : 'Kept on this phone as you type; saved to the book when you save the page.';
-  h += '<div class="inv-note inv-mt-8" data-face-vat-state="' + (f.draftAt ? 'draft' : pg ? 'saved' : 'new') + '">' + escHtml(note) + '</div></div>';
+  body.page += '<div class="inv-note inv-mt-8" data-face-vat-state="' + (f.draftAt ? 'draft' : pg ? 'saved' : 'new') + '">' + escHtml(note) + '</div>';
   // Another record of this page: a photo of it, or a page saved from a file. Saved twice, the day is counted twice.
   var other = idx.live.filter(function(e) { return e.kind === 'plated' && e.date === f.date && e.line === f.line && e.basis === 'register' && !e.pageId && !idx.replaced[e.id]; });
-  if (other.length) h += '<div class="inv-callout inv-callout-warning" data-face-vat-dup>' + escHtml((other.some(function(e) { return e.photoId; }) ? 'A photo of the ' : 'The ') + PROD_LINE_LABEL[f.line] +
+  if (other.length) body.page += '<div class="inv-callout inv-callout-warning inv-mt-8" data-face-vat-dup>' + escHtml((other.some(function(e) { return e.photoId; }) ? 'A photo of the ' : 'The ') + PROD_LINE_LABEL[f.line] +
     ' page for this day is in the book (' + todoPlural(other.length, 'run') + '): saved here too, the day counts twice.') + '</div>';
   // The rounds: a run's client and part where it begins, then its rounds a line each.
   var batches = f.style === 'batches', noun = batches ? 'Batch' : 'Round', typedN = f.rows.filter(function(r) { return !faceVatRowEmpty(r); }).length;
-  h += '<div class="inv-panel inv-panel-flush" data-face-form="vat" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">' + noun + 'es'.slice(batches ? 0 : 1) + ' <span class="inv-panel-count">' + typedN + '</span></span>' +
+  var h = '<div class="inv-panel inv-panel-flush" data-face-form="vat" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">' + noun + 'es'.slice(batches ? 0 : 1) + ' <span class="inv-panel-count">' + typedN + '</span></span>' +
     (f.draftAt ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceVatDrop">' + (pg ? 'Put back as saved' : 'Start again') + '</button>' : '') + '</div>' +
     '<div class="inv-rnd-row inv-rnd-head' + (batches ? ' inv-rnd-batch' : '') + '" aria-hidden="true">' + (batches ? '<span>Began</span><span>Ended</span>' : '<span>Time</span><span>Figure</span>') + '<span></span></div>';
   var clients = faceClientsSorted(), lists = {};
@@ -67886,15 +68149,18 @@ function faceVatHtml(f) {
     h += '</div>';
   });
   Object.keys(lists).forEach(function(cid) { h += '<datalist id="' + lists[cid] + '">' + faceVatPartNames(cid, f.line).map(function(s) { return '<option value="' + escHtml(s) + '">'; }).join('') + '</datalist>'; });
-  h += '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFaceVatAdd">Add a ' + noun.toLowerCase() + '</button></div>';
-  h += '<div class="inv-panel-body"><div class="inv-fields">' + faceField('faceVatTotal', 'Day total on the paper page (if it has one)',
+  h += '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFaceVatAdd">Add a ' + noun.toLowerCase() + '</button></div></div>';
+  body.rows = h;
+  // The day total, kept on the phone with the rows (data-nodirty: the page is kept as it is typed, never lost to a tap that leaves).
+  body.total = '<div data-nodirty><div class="inv-fields">' + faceField('faceVatTotal', 'Day total on the paper page (if it has one)',
     '<input type="number" inputmode="numeric" min="0" step="any" id="faceVatTotal" class="inv-input inv-input-num" data-face-vat-total value="' + escHtml(f.total || '') + '">',
     '<div class="inv-field-hint">Set against the ' + noun.toLowerCase() + 'es'.slice(batches ? 0 : 1) + ': one missed shows here.</div>') + '</div>' +
-    rd.issues.filter(function(x) { return x.code === 'total'; }).map(function(x) { return '<div class="inv-callout inv-callout-warning" data-face-vat-total-q>' + escHtml(x.text) + '</div>'; }).join('') + '</div></div>';
-  h += faceVatCutsHtml(f);
-  if (runs.length) h += faceVatSavedHtml(f, runs);
+    rd.issues.filter(function(x) { return x.code === 'total'; }).map(function(x) { return '<div class="inv-callout inv-callout-warning" data-face-vat-total-q>' + escHtml(x.text) + '</div>'; }).join('') + '</div>';
+  body.cuts = faceVatCutsHtml(f);
   var counted = Math.round(rd.counted || 0);
-  return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(PROD_LINE_LABEL[f.line] + ' · ' + stockShortDate(f.date)) + '</div><div class="inv-actionbar-value" data-face-vat-counted>' +
+  return faceFlowRender('faceVat', faceVatModel(), body, { before: faceBackBar(FACE_FORM_TITLE.vat), after: runs.length ? faceVatSavedHtml(f, runs) : '' })
+      .replace('<div class="inv-flow" data-flow="faceVat">', '<div class="inv-flow" data-flow="faceVat" data-flow-ownkeys>') +
+    '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(PROD_LINE_LABEL[f.line] + ' · ' + stockShortDate(f.date)) + '</div><div class="inv-actionbar-value" data-face-vat-counted>' +
     escHtml(counted.toLocaleString('en-IN') + ' NOS') + '</div></div><button class="inv-btn inv-btn-primary" data-action="invFaceSave">Save the page</button></div>';
 }
 /* What the reader asks of a round or a run: a question as a callout in its tone; what it only says (the START rule, a gauge read

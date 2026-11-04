@@ -3848,3 +3848,8 @@ body.inv-desktop .inv-pane-host[data-wide-pane].inv-pane-open > .inv-pane { flex
 .inv-spend-board > .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-spend-board { grid-template-columns: repeat(auto-fit, minmax(var(--board-col), 1fr)); }
 body.inv-desktop .inv-spend-board > #dashPrice { grid-column: 1 / -1; }
+/* ===== Mine (faces.js) in the guided flow (UI pass 3 §11a, §26b) =====
+   The message the group will get, in the preview, as the text it is sent as; a roll's block inside its step is a box of its own, set
+   in the step's card by its edge, with no lift (a card in a card would lift twice). */
+.inv-flow-pv-line .inv-quote { display: block; margin-top: var(--sp-4); }
+.inv-flow-body > .inv-panel:not(.inv-panel-flush) { box-shadow: none; margin-bottom: var(--sp-8); }

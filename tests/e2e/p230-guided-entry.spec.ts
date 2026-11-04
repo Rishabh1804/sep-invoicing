@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import * as fs from 'fs';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openStockSpend } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openStockSpend, toolbarMore } from './fixtures';
 import { longBook } from './load-fixture';
 import { guardBook, withUsers, unlock, PINS } from './p140-guard.fixture';
 
@@ -176,5 +176,46 @@ test.describe('P230 Stock: Spend and prices, and two lines that are one', () => 
     await page.locator('[data-action="invStockMergeDo"]').click();
     await expect(page.locator('.inv-toast').last()).toContainText('set one line’s unit to the other’s first');
     expect((await readStoredState(page)).stock.items.find((i: any) => i.id === 'NK').mergedInto).toBeUndefined();
+  });
+});
+
+test.describe('P230: every Enter by hand is a flow', () => {
+  // Each form of §11a and §26b, opened the way a person opens it (or by its own opener where the door is deep), is numbered steps
+  // with at most one Next, a progress line and the preview; the ids the specs and the keyboard read are the form's own (each form's
+  // own specs, unchanged, hold its fields).
+  async function isFlow(page: Page, name: string) {
+    const flow = page.locator(`[data-flow="${name}"]`).first();
+    await expect(flow).toBeVisible();
+    expect(await flow.locator('[data-flow-step]').count()).toBeGreaterThanOrEqual(2);
+    expect(await flow.locator('[data-flow-step][data-state="next"]').count()).toBeLessThanOrEqual(1);
+    await expect(flow.locator('[data-flow-progress] [role="meter"]')).toHaveCount(1);
+    // What Save records; a form saved as it goes says what the day holds.
+    await expect(flow.locator('[data-flow-preview] .inv-flow-pv-head')).toHaveText(name === 'attEdit' ? 'What the day holds' : 'What Save records');
+    expect(await flow.locator('[data-flow-step] .inv-flow-title').first().textContent()).toMatch(/\?$/);
+  }
+  const close = (page: Page) => page.evaluate(() => { document.querySelectorAll('.inv-scrim-dialog').forEach(d => d.remove()); document.body.style.overflow = ''; });
+  test('Create, a challan, Production by hand, Plant shut, a cheque, a bill and a hand\u2019s day', async ({ page }) => {
+    await loadAppWithState(page, longBook());
+    await switchTab(page, 'pageCreate');
+    await isFlow(page, 'createInvoice');
+    await switchTab(page, 'pageIM');
+    await page.locator('[data-action="invShowAddChallan"]').first().click();
+    await isFlow(page, 'challanForm');
+    await switchTab(page, 'pageProduction');
+    await toolbarMore(page, 'Enter by hand');
+    await isFlow(page, 'prodHand');
+    await g(page, `plantShutOpen()`);
+    await isFlow(page, 'plantShut');
+    await close(page);
+    await g(page, `bankChequeFormOpen()`);
+    await isFlow(page, 'chequeForm');
+    await close(page);
+    await g(page, `addBill()`);
+    await isFlow(page, 'costBill');
+    await switchTab(page, 'pageStaff');
+    await g(page, `attEditOpen(staffActive()[0].id)`);
+    await isFlow(page, 'attEdit');
+    // A form that saves each change as it is made never says it is ready to save.
+    await expect(page.locator('[data-flow="attEdit"] [data-flow-progress]')).not.toContainText('Ready to save');
   });
 });

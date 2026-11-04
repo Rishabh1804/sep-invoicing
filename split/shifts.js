@@ -195,7 +195,7 @@ function _shiftRowModel(i, x) {
   var crewN = function(s) { var n = Number(s); return s === '' || !isFinite(n) ? 0 : Math.max(0, Math.round(n)); };
   var n = vat ? shiftNightOf({ line: t.line, start: t.start, end: t.end, stop: t.stop, breakMin: t.breakMin, crew: (function() { var c = {}; if (crewN(t.crewL)) c[t.line] = crewN(t.crewL); if (crewN(t.crewP)) c['pickling-vat'] = crewN(t.crewP); return c; })(), spare: t.spare }, t.from || localDateStr()) : null;
   if (n) {
-    lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(formatNum(n.paidMin / 60, 1)) + ' h' +
+    lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(String(Math.floor(n.paidMin / 60))) + ' h as pay counts it' +
       (n.stop < n.end ? '; plating stops ' + escHtml(hm(n.stop)) : '') + '; plating time ' + escHtml(formatNum(n.plateMin / 60, 1)) + ' h after the ' + n.breakMin + '-minute break');
     lines.push(n.need ? 'Its crew: ' + n.need + (n.spare ? ' and ' + n.spare + ' spare, who books no shortfall' : '') : 'No crew set: a night short of its crew is not asked.');
   } else if (vat && (t.start || t.end)) checks.push({ tone: 'warning', text: 'Set when the night starts and ends.' });

@@ -649,6 +649,8 @@ async function saveSettingsSection(key) {
   document.querySelectorAll('#settingsScrim [data-sum]').forEach(function(el) {
     el.innerHTML = SETTINGS_SECS[el.dataset.sum].summary();
   });
+  // A flow in the section (a line's shift) redrawn by its save reads its new fields (Castor M-1).
+  if (typeof uiFlowSync === 'function') uiFlowSync();
   showToast(s.title + ' saved');
 }
 

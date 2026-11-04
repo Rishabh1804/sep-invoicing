@@ -693,11 +693,20 @@ function payFormModel() {
   var lines = [], checks = [];
   if (r) {
     var period = r.weekly ? 'the week to Sat ' + formatDate(d.sat) : _monthLabel(r.from.slice(0, 7));
-    if (amount > 0) lines.push((kind === 'advance' ? 'An advance of ' : 'A payment of ') + payMoney(amount) + ' to ' + escHtml(r.w.name) + (okDate ? ' on ' + escHtml(formatDate(date)) : ''));
-    var after = gstRound(r.due - amount);
-    lines.push('Due for ' + escHtml(period) + ': ' + payMoney(r.due) + (amount > 0 ? ' → ' + (after < 0 ? payMoney(-after) + ' advanced, to work off' : payMoney(after)) : ''));
-    if (amount > 0 && r.due > 0 && amount > r.due) checks.push({ tone: 'warning', text: 'More than is due: ' + formatCurrency(gstRound(amount - r.due)) + ' over, carried as an advance.' });
-    if (okDate && (date < r.from || date > r.to) && !(r.weekly === false && date > r.to && date <= isoAddDays(r.to, 20))) checks.push({ tone: 'info', text: 'Dated outside ' + period + ': it counts in the period it is dated in.' });
+    // Which period it pays is Pay's own rule (payPaymentsFor): a monthly hand's payment dated by the 20th pays the month before,
+    // an advance the month it is dated in; a weekly hand's, the week it is dated in.
+    var paysMonth = !r.weekly && okDate ? payMonthPaidFor({ date: date, kind: kind }) : '';
+    if (amount > 0) lines.push((kind === 'advance' ? 'An advance of ' : 'A payment of ') + payMoney(amount) + ' to ' + escHtml(r.w.name) + (okDate ? ' on ' + escHtml(formatDate(date)) : '') +
+      (paysMonth ? ', for ' + escHtml(_monthLabel(paysMonth.slice(0, 7))) : ''));
+    // What is due after it is Pay's own row worked out with the payment in the book (put in for one reading, taken straight out):
+    // never a second arithmetic (Castor H-1, U4's QA chain: a salary dated the 14th pays the month before, which a subtraction missed).
+    var after = amount > 0 && okDate ? payDueAfter(d, r.w, { staffId: r.w.id, date: date, amount: amount, kind: kind }) : null;
+    lines.push('Due ' + (r.weekly ? 'for ' : 'with ') + escHtml(period) + (r.weekly ? '' : ' and what it carries') + ': ' + payMoney(r.due) +
+      (after != null ? ' → ' + (after < 0 ? payMoney(-after) + ' advanced, to work off' : payMoney(after)) : ''));
+    if (paysMonth && paysMonth.slice(0, 7) !== r.from.slice(0, 7)) {
+      checks.push({ tone: 'info', text: 'It pays ' + _monthLabel(paysMonth.slice(0, 7)) + (kind === 'advance' ? ', the month it is dated in.' : ': a payment dated by the ' + PAY_SALARY_BY_DAY + 'th pays the month before.') });
+    } else if (r.weekly && okDate && (date < r.from || date > r.to)) checks.push({ tone: 'info', text: 'Dated outside ' + period + ': it counts in the week it is dated in.' });
+    if (after != null && after < 0 && r.due >= 0) checks.push({ tone: 'warning', text: 'More than is due: ' + formatCurrency(-after) + ' over, carried as an advance.' });
   }
   return {
     steps: [
@@ -709,6 +718,22 @@ function payFormModel() {
   };
 }
 uiFlowDefine('payForm', payFormModel);
+/* The hand's due in the period on screen with this payment recorded: Pay's own row (payDue) worked out with the payment in the book
+   for one reading and taken straight out. Kept per book, form and figures, so a keystroke does not work the week out twice. */
+var _payDueAfterMemo = null;
+function payDueAfter(d, w, p) {
+  var key = [typeof _bookWrites !== 'undefined' ? _bookWrites : '', d.weekStart, w.id, p.date, p.amount, p.kind].join('|');
+  if (_payDueAfterMemo && _payDueAfterMemo.key === key) return _payDueAfterMemo.v;
+  var list = staffPayments(), rec = Object.assign({ id: '_flow_preview', note: '', at: Date.now() }, p), v = null;
+  list.push(rec);
+  try {
+    var row = payDue(d.weekStart).rows.find(function(x) { return String(x.w.id) === String(w.id); });
+    v = row ? row.due : null;
+  } catch (e) { v = null; }
+  finally { var i = list.indexOf(rec); if (i >= 0) list.splice(i, 1); }
+  _payDueAfterMemo = { key: key, v: v };
+  return v;
+}
 function _payFormHtml(d) {
   _payFlowD = d;
   var today = localDateStr();
@@ -1070,6 +1095,8 @@ function paySave() {
     lines: [escHtml(formatDate(date)) + ' · listed under Payments in these periods, with Void'] } };
   saveState();
   renderAttendance();
+  // A save the PIN held came back after the click's own sync: the new form's preview is worked out from it (Castor M-1).
+  uiFlowSync();
   showToast('Recorded ' + formatCurrency(amount) + ' to ' + w.name);
 }
 async function payVoid(id) {

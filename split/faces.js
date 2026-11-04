@@ -1246,15 +1246,23 @@ function faceRollBlockProblem(f, b, i) {
   var night = b.from === '20:00' && (relayParseHhmm(b.out) - RELAY_GENERAL_OUT + 1440) % 1440 <= 180;
   if ((b.crew || []).length) {
     if (!faceBlockHead(b.areas)) return 'Block ' + (i + 1) + ': tick the line it ran on.';
+    // The roll leaves a hand marked absent off every block (faceRollText): a 6 AM block whose crew are all absent would go, and its
+    // EXTRA with it, unsaid (Castor M-2, U4's QA chain).
+    if (faceRollBlockAllAbsent(f, b)) return 'Block ' + (i + 1) + ': its crew are all marked absent. Put the hands who stood it on it, or take it off.';
     if (night) return 'Block ' + (i + 1) + ' ends before the night hold begins at 8 PM.';
     return '';
   }
   return (b.areas || []).length || parseFloat(b.extra) > 0 ? 'Block ' + (i + 1) + ': put its crew on it, or take it off.' : '';
 }
+function faceRollBlockAllAbsent(f, b) {
+  return f.duty === 'roll-in' && (b.crew || []).length > 0 && (b.crew || []).every(function(id) { return f.place[String(id)] === 'absent'; });
+}
 function faceRollBlockLine(f, b, i) {
   var read = faceBlockReads(b.areas || []), h = parseFloat(b.extra);
+  // The hands the roll writes on it: on the in-time roll, those on site (faceRollText leaves the absent off every block).
+  var crew = f.duty === 'roll-in' ? (b.crew || []).filter(function(id) { return f.place[String(id)] !== 'absent'; }) : (b.crew || []);
   var when = f.duty === 'roll-out' ? faceFlowClock(b.from || '17:00') + ' to ' + faceFlowClock(b.out) : '6:00 AM';
-  return escHtml(when + (read.length ? ' on ' + read.map(relayAreaName).join(' + ') : '') + ': ' + todoPlural((b.crew || []).length, 'hand') + (h > 0 ? ', EXTRA ' + (+h.toFixed(2)) + ' h' : ''));
+  return escHtml(when + (read.length ? ' on ' + read.map(relayAreaName).join(' + ') : '') + ': ' + todoPlural(crew.length, 'hand') + (h > 0 ? ', EXTRA ' + (+h.toFixed(2)) + ' h' : ''));
 }
 function faceRollRead(f) {
   var roster = faceRollRoster(f.date), counts = {}, unmarked = 0, kept = 0;
@@ -1378,10 +1386,11 @@ async function faceRollSave() {
   if (!grdOk('floor') && !(await guardAsk('floor', 'save the roll'))) return;
   if (_faceForm !== f) return;
   var night = function(b) { return b.from === '20:00' && (relayParseHhmm(b.out) - RELAY_GENERAL_OUT + 1440) % 1440 <= 180; };   // a night hold over by eight
-  var bad = (f.blocks || []).findIndex(function(b) { return (b.crew || []).length ? !faceBlockHead(b.areas) || night(b) : (b.areas || []).length || parseFloat(b.extra) > 0; });
+  var bad = (f.blocks || []).findIndex(function(b) { return (b.crew || []).length ? !faceBlockHead(b.areas) || night(b) || faceRollBlockAllAbsent(f, b) : (b.areas || []).length || parseFloat(b.extra) > 0; });
   if (bad >= 0) {
     var bb = f.blocks[bad];
     showToast(!(bb.crew || []).length ? 'Put the crew on block ' + (bad + 1) + ', or take it off' : night(bb) ? 'Block ' + (bad + 1) + ' ends before the night hold begins at 8 PM'
+      : faceRollBlockAllAbsent(f, bb) ? 'Block ' + (bad + 1) + '’s crew are all marked absent: put the hands who stood it on it, or take it off'
       : 'Tick the line block ' + (bad + 1) + ' ran on', 'error');
     var el = document.querySelector('[data-face-block="' + bad + '"]'); if (el) uiRevealEl(el);
     return;

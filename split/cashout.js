@@ -108,9 +108,9 @@ function cashReviewModel() {
   if (r.seen) checks.push({ tone: 'danger', text: 'Saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.' });
   if (live.length) {
     lines.push(live.length + (live.length === 1 ? ' line' : ' lines') + ' of cash paid out, ' + escHtml(formatCurrency(sum)) + ', paid back with the payout of Sat ' + escHtml(stockShortDate(sat)));
-    if (typeof grdSeesWages !== 'function' || grdSeesWages()) {
-      if (r.payoutBefore == null) { try { r.payoutBefore = payWeek(r.week).total; } catch (e) { r.payoutBefore = null; } }
-      if (r.payoutBefore != null) lines.push('The week’s payout: ' + escHtml(formatCurrency(r.payoutBefore)) + ' → ' + escHtml(formatCurrency(gstRound(r.payoutBefore + sum))));
+    if (!r.seen && (typeof grdSeesWages !== 'function' || grdSeesWages())) {
+      if (r.payoutBefore === undefined) { try { r.payoutBefore = payWeek(r.week).total; } catch (e) { r.payoutBefore = null; } }
+      if (r.payoutBefore != null) lines.push('The week’s payout so far: ' + escHtml(formatCurrency(r.payoutBefore)) + ' → ' + escHtml(formatCurrency(gstRound(r.payoutBefore + sum))));
     }
   }
   if (p.total != null && Math.abs(p.total - sum) >= 0.5) checks.push({ tone: 'danger', text: 'The message says ' + formatCurrency(p.total) + '; the lines come to ' + formatCurrency(sum) + '.' });

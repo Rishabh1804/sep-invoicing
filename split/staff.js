@@ -756,7 +756,7 @@ function attEditModel() {
   var lines = [];
   if (st) {
     lines.push(escHtml(w.name) + ' · ' + escHtml(ATT_STATE_LABELS[st]) + ' on ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + (live ? ', on ' + escHtml(areaLabel(area)) : ''));
-    if (live) lines.push(escHtml((times || 'The shift, 8:30 AM to 5:00 PM') + ': ' + hrs + (times ? ', worked out from the times' : '')));
+    if (live) lines.push(escHtml((times ? times + ': ' : 'No times typed: ') + hrs + (times ? ', worked out from the times' : ', as recorded')));
     slots.forEach(function(s) { lines.push(escHtml(s) + ', on that slot’s OT crew'); });
   }
   return {

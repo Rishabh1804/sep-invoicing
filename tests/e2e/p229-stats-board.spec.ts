@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { twoViews, periodOwn, presetPacks, arrangeOwn, galleryBoards, tablesSort, exportsWork, oldPlaces, u3Widgets } from './p229-stats-board.fixture';
+import { twoViews, periodOwn, presetPacks, arrangeOwn, galleryBoards, tablesSort, exportsWork, oldPlaces, u3Widgets, qaChain, noWagesNoLabour } from './p229-stats-board.fixture';
 
 // P229 (UI pass 3, U3; docs/UI_PASS_3.md §10, §26a) on the phone: Stats as a dashboard and its tables.
 
@@ -12,3 +12,5 @@ test('a table sorts by a tapped head, again the other way, said on the head', as
 test('the table on show exports as CSV and every table as one workbook, in the order on screen', async ({ page }) => { await exportsWork(page); });
 test('every old place lands where its cards went: an address, the remembered tab, a saved task, the live cost’s move', async ({ page }) => { await oldPlaces(page); });
 test('the seven U3 widgets draw at every size as Ledgers and trends, none an error, Trend’s Choose kept', async ({ page }) => { test.setTimeout(60_000); await u3Widgets(page); });
+test('the QA chain’s: labour a kilo agrees with the labour card, the period’s margin is its revenue less its cost, Top parts name their gauge', async ({ page }) => { await qaChain(page); });
+test('a role that sees money and not wages sees no labour widget and no labour card on the Tables’ Cost', async ({ page }) => { await noWagesNoLabour(page); });

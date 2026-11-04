@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="8abedf66">
+<meta name="app-build" content="3dab6703">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -46671,12 +46671,18 @@ function statsVerdictHtml(pa) {
   var comparable = per !== 'all' && prior.length > 0, vs = PERIOD_PRIOR_LABELS[per] || '';
   var costKg = pa.periodCost.perKg;
   var realisation = tonnage.kg > 0 ? tonnage.revKnown / tonnage.kg : null;
-  var contribution = realisation != null && costKg > 0 ? realisation - costKg : null, margin = contribution != null ? contribution * tonnage.kg : null;
+  var contribution = realisation != null && costKg > 0 ? realisation - costKg : null;
+  // What the period left after its full cost is its whole revenue less its whole cost (Iuno H-1): read as contribution × the
+  // weighed kilos it left out every unweighed line's revenue against the plant's whole cost.
+  var margin = contribution != null ? gstRound(totalRev - costKg * tonnage.kg) : null;
   var pct = function(cur, prev) { if (!comparable || prev == null || !prev) return ''; var x = (cur - prev) / Math.abs(prev) * 100; return Math.abs(x) <= FIG_FLAT_PCT ? 'level' : (x > 0 ? '+' : '−') + formatNum(Math.abs(x), 1) + '%'; };
   var dRev = pct(totalRev, priorRev), dKg = pct(tonnage.kg, priorT.kg);
   var credited = filtered.reduce(function(s, i) { return s + (i._credit || 0); }, 0), cnOut = cnCreditByInvoice().unplaced;
   var realTone = costKg > 0 && realisation != null ? figToneAgainst(realisation, costKg, 5) : null;
-  var cap = statsCapacityKg(r.from, r.to), capPct = cap > 0 && tonnage.kg > 0 ? Math.round(tonnage.kg / cap * 100) : null;
+  // What was plated and billed is a floor where lines have no weight (≥, design §6.27), and its share of two shifts is said only from
+  // 90% weighed, in its capacity tone (Vulcanus M-1).
+  var part = tonnage.lines > 0 && tonnage.coverage < 0.999, ge = part ? '\u2265 ' : '';
+  var cap = statsCapacityKg(r.from, r.to), capPct = cap > 0 && tonnage.kg > 0 && !(tonnage.coverage < REALISATION_MIN_COVERAGE) ? Math.round(tonnage.kg / cap * 100) : null;
   // The large accounts (10% of the tonnes or more) under the full cost, as By client's verdict counted them.
   var m = null;
   try { m = typeof wdgMemo === 'function' ? wdgMemo('margins:' + per, function() { return statsClientMargins(per, filtered, tonnage); }) : statsClientMargins(per, filtered, tonnage); } catch (e) { m = null; }
@@ -46692,14 +46698,15 @@ function statsVerdictHtml(pa) {
     var weighedLine = pa.periodCost.label === 'live cost ' ? statsCostWeighedShort(tonnage) : '';
     if (weighedLine) lines.push('<div class="inv-note" data-callout="weighed">' + escHtml(weighedLine) + '</div>');
   }
-  if (contribution != null && contribution < 0) lines.push('<div class="inv-note" data-callout="below-cost">' + escHtml(formatCurrency(Math.abs(contribution)) + '/kg below full cost: ' + formatCurrency(Math.abs(margin)) + ' of loss for the period.') + '</div>');
+  if (contribution != null && contribution < 0) lines.push('<div class="inv-note" data-callout="below-cost">' + escHtml(formatCurrency(Math.abs(contribution)) + '/kg below full cost' +
+    (margin < 0 ? ': ' + formatCurrency(Math.abs(margin)) + ' of loss for the period.' : ' on the weighed lines.')) + '</div>');
   if (credited > 0.005 || cnOut.n) lines.push('<div class="inv-note" data-callout="credit-notes">' + escHtml('Net of credit notes' + (credited > 0.005 ? ': ' + formatCurrency(gstRound(credited)) + ' taken off' : '') +
     (cnOut.n ? '; ' + todoPlural(cnOut.n, 'note') + ' (' + formatCurrency(gstRound(cnOut.amount)) + ') name no invoice in the book' : '') + '.') + '</div>');
   var factors = [
     { label: 'Revenue', fig: figWrapHtml(escHtml(formatCurrency(totalRev))), tone: comparable ? figDeltaTone(totalRev, priorRev, 'up') : null,
       sub: comparable ? (dRev === 'level' ? 'level with ' : dRev + ' on ') + vs : todoPlural(filtered.length, 'invoice') + ' · ' + formatCurrency(totalGrand) + ' incl. GST',
       badge: credited > 0.005 || cnOut.n ? [cnOut.n ? 'warning' : 'info', 'net of notes'] : null, attrs: ' data-tile="revenue"' },
-    { label: 'Plated and billed', fig: formatNum(tonnage.kg / 1000, 2) + ' t', tone: comparable ? figDeltaTone(tonnage.kg, priorT.kg, 'up') : null,
+    { label: 'Plated and billed', fig: ge + formatNum(tonnage.kg / 1000, 2) + ' t', tone: comparable ? figDeltaTone(tonnage.kg, priorT.kg, 'up') : capPct != null ? figToneCapacity(capPct) : null,
       sub: (comparable && dKg ? (dKg === 'level' ? 'level' : dKg + ' on ' + vs) : formatNum(tonnage.kg, 0) + ' kg') + (capPct != null ? ' · ' + capPct + '% of two shifts' : ''),
       badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="tonnage"' },
     { label: 'Realisation', fig: realisation != null ? escHtml(formatCurrency(realisation)) + perKg : '', tone: realTone,
@@ -46711,8 +46718,8 @@ function statsVerdictHtml(pa) {
   var verdict = !filtered.length ? 'No invoices ' + word
     : contribution == null ? formatInrShort(totalRev) + ' ' + word + (realisation == null ? ', nothing weighed' : ', no cost to judge by')
     : Math.abs(contribution) < 0.005 ? 'At the live cost, to the paisa'
-    : formatCurrency(Math.abs(contribution)) + ' a kilo ' + (contribution > 0 ? 'over' : 'under') + ' the live cost';
-  var facts = filtered.length ? [todoPlural(filtered.length, 'invoice') + ' · ' + formatInrShort(totalRev) + ' net',
+    : formatCurrency(Math.abs(contribution)) + ' a kilo ' + (contribution > 0 ? 'over' : 'under') + ' the ' + (pa.periodCost.label === 'live cost ' ? 'live cost' : 'cost');
+  var facts = filtered.length ? [todoPlural(filtered.length, 'invoice') + ' · ' + formatInrShort(totalRev) + (credited > 0.005 ? ' net of notes' : ''),
     m ? (belowVar.length ? { text: todoPlural(belowVar.length, 'large account') + ' below the variable cost', tone: 'danger' }
       : belowFull.length ? { text: todoPlural(belowFull.length, 'large account') + ' below the full cost', tone: figToneAgainst(belowFull[0].net, m.fullKg, 5) || 'warning' }
       : large.length ? { text: 'no large account below the cost', tone: 'ok' } : '') : '',
@@ -46741,7 +46748,8 @@ function statsSorted(model) {
   if (!s || !model.cols.some(function(c) { return c.k === s.col; })) return { rows: model.rows, s: null };
   var dir = s.dir === 'desc' ? -1 : 1;
   var rows = model.rows.slice().sort(function(a, b) {
-    var x = a.v[s.col], y = b.v[s.col], xn = x == null || x === '', yn = y == null || y === '';
+    var key = s.col === 'month' && a.v._sort != null ? '_sort' : s.col;
+    var x = a.v[key], y = b.v[key], xn = x == null || x === '', yn = y == null || y === '';
     if (xn || yn) return xn && yn ? 0 : xn ? 1 : -1;
     if (typeof x === 'number' && typeof y === 'number') return (x - y) * dir;
     return String(x).localeCompare(String(y)) * dir;
@@ -46770,6 +46778,9 @@ function statsTableViewHtml(t, pa) {
     /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them. On All the labour card's
        range is the attendance record's own span (labour.js), so its ₹/kg divides by the tonnage billed inside that span. */
     var labRange = _statsPeriod === 'all' ? labourRangeForPeriod('all') : null;
+    // The labour card is wages: drawn for an ID that sees them, as People draws it (Castor H-1); the live cost's labour row is money.
+    if (typeof grdSeesWages === 'function' && !grdSeesWages()) return '<div class="inv-panel inv-panels-wide" data-card="labour-hidden">' +
+      uiBlankHtml({ kind: 'empty', small: true, title: 'Labour is shown to an ID that sees wages' }) + '</div>' + renderLiveCostCard(_statsPeriod, pa.tonnage);
     return renderLabourStatsCard(_statsPeriod, labRange
       ? weighLines(pa.filtered.filter(function(i) { return i.date >= labRange.from && i.date <= labRange.to; })) : pa.tonnage) +
       renderLiveCostCard(_statsPeriod, pa.tonnage);
@@ -46813,11 +46824,14 @@ function statsClientTable(pa) {
         (mo.days != null ? ' · pays in ' + figHtml(mo.days + ' d', figTonePaysIn(mo.days)) : '') + '</div>' : '');
     var nextH = !nc ? '&mdash;' : nc.quiet ? uiDot('danger', nc.late + ' d late · quiet') : nc.late ? uiDot('warning', nc.late + ' d late')
       : '<span class="inv-nowrap">' + (nc.next === today ? 'today' : escHtml(formatDate(nc.next))) + '</span>';
-    return { v: { name: x.name, rev: gstRound(x.total), revShare: totalRev > 0 ? x.total / totalRev * 100 : null, t: x.kg > 0 ? x.kg / 1000 : null,
+    // A client under 90% weighed: its tonnes are a floor (≥), sorted and exported with the unknowns, its share weighed said (Vulcanus H-3).
+    return { v: { name: x.name, rev: gstRound(x.total), revShare: totalRev > 0 ? x.total / totalRev * 100 : null, t: x.kg > 0 && x.comparable ? x.kg / 1000 : null,
+        weighed: x.coverage * 100,
         kgShare: tonnage.kg > 0 && x.comparable ? x.kg / tonnage.kg * 100 : null, net: net, vsVar: mx && net != null ? mx.vsVar : null,
         vsFull: mx && net != null ? mx.vsFull : null, money: mx && net != null ? mx.money : null, next: nc ? nc.next : null },
       h: { name: nameH, net: net != null ? figHtml(formatNum(net, 2), m ? figToneAgainst(net, m.fullKg, 5) : null) : uiDot('neutral', 'n/a'),
-        t: x.kg > 0 ? formatNum(x.kg / 1000, 2) : '&mdash;', next: nextH, rev: escHtml(formatCurrency(x.total)) },
+        t: x.kg > 0 ? (x.comparable ? formatNum(x.kg / 1000, 2) : '<span title="' + escHtml('Weights on ' + statsPctOf(x.coverage) + '% of its revenue: at least this') + '">\u2265 ' + formatNum(x.kg / 1000, 2) + '</span>') : '&mdash;',
+        weighed: escHtml(statsPctOf(x.coverage) + '%'), next: nextH, rev: escHtml(formatCurrency(x.total)) },
       attrs: ' data-action="invStatsClientDrill" data-client-id="' + escHtml(id) + '" data-client-row' + (net == null ? ' data-partial' : '') };
   });
   // A client with a rhythm and nothing billed in the period (one gone quiet) keeps its row for its next challan, after the rest.
@@ -46848,7 +46862,7 @@ function statsClientTable(pa) {
   return { key: 'client', noun: 'clients', title: (PERIOD_LABELS[per] || '') + ' by client', note: m ? 'worst priced first, at the live cost' : 'no weighed tonnage to price',
     empty: 'No invoices in this period',
     cols: [{ k: 'name', label: 'Client', xl: 'text' }, { k: 'rev', label: 'Revenue', num: true, xl: 'money' }, { k: 'revShare', label: 'Of revenue', num: true, xl: 'pct' },
-      { k: 't', label: 't', num: true, xl: 'num' }, { k: 'kgShare', label: 'Of tonnes', num: true, xl: 'pct' }, { k: 'net', label: '₹/kg', num: true, xl: 'num' },
+      { k: 't', label: 't', num: true, xl: 'num' }, { k: 'weighed', label: 'Weighed', num: true, xl: 'pct' }, { k: 'kgShare', label: 'Of tonnes', num: true, xl: 'pct' }, { k: 'net', label: '₹/kg', num: true, xl: 'num' },
       { k: 'vsVar', label: 'vs var.', num: true, xl: 'num', signed: true }, { k: 'vsFull', label: 'vs full', num: true, xl: 'num', signed: true },
       { k: 'money', label: '₹ on period', num: true, xl: 'money', signed: true }, { k: 'next', label: 'Next challan', xl: 'date' }],
     rows: rows, after: head + (m ? statsWorstHtml(m) : '') };
@@ -46859,8 +46873,7 @@ function statsClientTable(pa) {
 function statsPartTable(pa) {
   var top = buildTopItems(pa.filtered, 'value', Infinity), owners = top.total > 0 ? cpCodeOwners() : {};
   var rows = top.rows.map(function(r) {
-    var label = r.part + (r.desc && r.desc !== r.part ? ' — ' + r.desc : '');
-    if (r.gauge && rateKey(label).indexOf(rateKey(r.gauge)) < 0) label += ' (' + r.gauge + ')';
+    var label = statsPartLabel(r);
     var shared = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
     var known = r.kgKnown && r.kg > 0;
     return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: r.perKg },
@@ -46874,6 +46887,13 @@ function statsPartTable(pa) {
       { k: 'kg', label: 'kg', num: true, xl: 'int' }, { k: 'perKg', label: '₹/kg', num: true, xl: 'num' }],
     rows: rows, after: unknown ? statsBody(statsNote(unknown + ' of ' + top.total + ' part' + (top.total === 1 ? '' : 's') + ' with no known weight: their kilos and ₹/kg are a dash.')) : '' };
 }
+/* A part as a row names it: its number, its description where it says more, its gauge where neither says it (the gauge is priced,
+   so two gauges of one clamp never read alike). By part and the Top parts widget. */
+function statsPartLabel(r) {
+  var label = r.part + (r.desc && r.desc !== r.part ? ' \u2014 ' + r.desc : '');
+  if (r.gauge && rateKey(label).indexOf(rateKey(r.gauge)) < 0) label += ' (' + r.gauge + ')';
+  return label;
+}
 /* By month: six months, each at its own live cost (statsMonthsData, the `months` and `pricecost` widgets' rows). */
 function statsMonthTable() {
   var rows = statsMonthsData();
@@ -46883,10 +46903,14 @@ function statsMonthTable() {
       { k: 'real', label: '₹/kg', num: true, xl: 'num' }, { k: 'cost', label: 'Cost', num: true, xl: 'num' }, { k: 'contrib', label: 'Contrib.', num: true, xl: 'num', signed: true },
       { k: 'labour', label: 'Labour', num: true, xl: 'num' }, { k: 'measured', label: 'Measured', num: true, xl: 'pct' }],
     rows: rows.map(function(r) {
-      return { v: { month: r.month, rev: gstRound(r.rev), t: r.kg / 1000, real: r.real, cost: r.cost, contrib: r.contrib, labour: r.labour != null && r.labCov >= 0.9 ? r.labour : null,
-        measured: r.measured != null ? r.measured * 100 : null }, h: { month: '<span class="inv-nowrap">' + escHtml(r.label) + '</span>', t: formatNum(r.kg / 1000, 1) } };
+      // A month billed with nothing weighed has no tonnes to say (a dash, never 0.0); a month part weighed reads as a floor.
+      var tNone = !(r.kg > 0) && r.rev > 0;
+      return { v: { month: r.label, rev: gstRound(r.rev), t: tNone ? null : r.kg / 1000, real: r.real, cost: r.cost, contrib: r.contrib, labour: r.labour != null && r.labCov >= 0.9 ? r.labour : null,
+        measured: r.measured != null ? r.measured * 100 : null, _sort: r.month },
+        h: { month: '<span class="inv-nowrap">' + escHtml(r.label) + '</span>', t: tNone ? '&mdash;' : (r.coverage != null && r.coverage < 0.999 ? '\u2265 ' : '') + formatNum(r.kg / 1000, 1),
+          measured: r.measured != null ? escHtml(statsPctOf(r.measured) + '%') : '&mdash;' } };
     }),
-    after: statsBody(statsNote('₹ per kg. Labour only where 90% of the month is recorded; measured is the cost from records.')) };
+    after: statsBody(statsNote('₹ per kg. Labour where 90% of the month is recorded or paid from the bank; measured is the cost from records.')) };
 }
 /* The cost, for the export: the live cost's parts as its card lists them (cost.js liveCost), each its ₹, ₹ a kilo, share and source. */
 function statsCostTable(pa) {
@@ -46912,7 +46936,7 @@ function statsMonthsData() {
       var real = w.kg > 0 ? w.revKnown / w.kg : null;
       var lab = c.rows.find(function(x) { return x.key === 'labour'; });
       // The app's short month names (insMonthLabel): the browser's en-IN writes "Sept".
-      rows.push({ month: from.slice(0, 7), label: insMonthLabel(from) + (to === today ? ' to date' : ''), short: insMonthLabel(from), toDate: to === today, real: real, cost: c.perKg, kg: w.kg,
+      rows.push({ month: from.slice(0, 7), label: insMonthLabel(from) + (to === today ? ' to date' : ''), short: insMonthLabel(from), toDate: to === today, real: real, cost: c.perKg, kg: w.kg, coverage: w.lines ? w.coverage : null,
         rev: inv.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0),
         contrib: real != null && c.perKg != null ? real - c.perKg : null, labour: lab && w.kg > 0 ? lab.amount / w.kg : null, labCov: lab ? Math.max(lab.coverage || 0, lab.bankShare || 0) : 0, measured: c.measuredShare });
     }
@@ -46952,7 +46976,11 @@ function statsExportCsv() {
   var pa = typeof wcPulseArgs === 'function' ? wcPulseArgs(_statsPeriod) : statsPulseArgs(_statsPeriod), t = statsTable(), model = statsTableModel(t, pa);
   if (!model || !model.rows.length) { showToast('Nothing in this table to export', 'warning'); return; }
   var rows = [model.cols.map(function(c) { return c.label; })].concat(statsSorted(model).rows.map(function(r) {
-    return model.cols.map(function(c) { var v = r.v[c.k]; return v == null ? '' : typeof v === 'number' ? (c.xl === 'money' ? gstRound(v).toFixed(2) : String(gstRound(v, c.dp != null ? c.dp : 2))) : String(v); });
+    return model.cols.map(function(c) {
+      var v = r.v[c.k];
+      if (v == null || (typeof v === 'number' && !isFinite(v))) return '';
+      return typeof v === 'number' ? (c.xl === 'money' ? gstRound(v).toFixed(2) : String(gstRound(v, c.xl === 'int' ? 0 : c.dp != null ? c.dp : 2))) : String(v);
+    });
   }));
   downloadCSV(statsExportName('csv', t), rows);
   showToast(model.title + ' exported: ' + model.rows.length + ' rows');
@@ -46968,7 +46996,9 @@ function statsExportXlsx() {
         var v = r.v[c.k];
         if (v == null || v === '' || (typeof v === 'number' && !isFinite(v))) return null;
         if (c.xl === 'money') return { v: gstRound(v), s: 'money' };
-        if (typeof v === 'number') return gstRound(v, c.xl === 'int' ? 0 : c.dp != null ? c.dp : 2);
+        if (c.xl === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(String(v))) return { v: String(v), s: 'date' };
+        if (c.xl === 'int' && typeof v === 'number') return { v: gstRound(v, 0), s: 'int' };
+        if (typeof v === 'number') return gstRound(v, c.dp != null ? c.dp : 2);
         return String(v);
       });
     });
@@ -47903,7 +47933,8 @@ function statsOverviewOpts(period, filtered, tonnage) {
   return { tone: tone, eyebrow: '<span>The period in figures</span>', title: escHtml(title),
     fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
     // The period's sum short on a board, its exact amount its title (§24k).
-    sub: contrib != null ? (contrib >= 0 ? '+' : '') + inrFigHtml(gstRound(contrib * kg), { inline: true }) + ' on the period' : '',
+    // Its whole revenue less its whole cost (Iuno H-1): contribution × the weighed kilos left the unweighed lines' revenue out.
+    sub: contrib != null ? (sumTaxable(filtered) - c.total >= 0 ? '+' : '') + inrFigHtml(gstRound(sumTaxable(filtered) - c.total), { inline: true }) + ' on the period' : '',
     tiles: tiles, plated: plated, measured: c.measuredShare,
     body: '<div class="inv-hero-sheet">' + tiles + '</div>' + (plated ? '<div class="inv-hero-sheet">' + plated + '</div>' : ''),
     attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };
@@ -62647,7 +62678,7 @@ wdgDefine({ id: 'pricecost', title: 'Price against cost, month by month', q: 'Ar
     };
     if (size !== 'l' || box.h < 220) return lines(box.h);
     var hl = Math.round(box.h * 0.6);
-    return lines(hl) + chartDiverging(rows.map(function(r) { return { key: r.month, label: r.short, value: r.contrib == null ? null : Math.round(r.contrib * 100) / 100 }; }),
+    return lines(hl) + chartDiverging(rows.map(function(r) { return { key: r.month, label: r.short, value: r.contrib == null ? null : gstRound(r.contrib) }; }),
       { unit: 'rate', posLabel: 'Over the cost', negLabel: 'Under the cost', toDate: td, ariaLabel: 'Over and under the live cost, each month', bare: true, w: box.w, h: box.h - hl });
   },
   source: function() { return { facts: ['Invoices, six months, net of credit notes', 'each month at its own live cost'] }; } });
@@ -62662,15 +62693,22 @@ wdgDefine({ id: 'share', title: 'Who fills the plant, who pays for it', q: 'Is o
     var ranked = wdgMemo('rollup:' + ctx.period, function() { return buildClientRollup(a.filtered); });
     if (!ranked.length || !(rev > 0)) return { state: 'empty', title: 'No invoices in this period', body: 'Each client’s share of the tonnes and of the revenue, once the period has invoices.',
       act: { label: 'Create an invoice', action: 'invCreateNew' } };
-    var list = ranked.filter(function(r) { return r.comparable && kg > 0; }).map(function(r) { return { id: r.clientId, name: r.name, rev: r.total / rev * 100, kg: r.kg / kg * 100 }; })
+    // Both shares over the same weighed lines (Vulcanus H-2): a client's weighed revenue of the weighed revenue against its kilos of
+    // the weighed kilos. Against all revenue, an account billed by the piece and unweighed made every other read heavy.
+    var revK = a.tonnage.revKnown;
+    var list = ranked.filter(function(r) { return r.comparable && kg > 0 && revK > 0; }).map(function(r) { return { id: r.clientId, name: r.name, rev: r.revKnown / revK * 100, kg: r.kg / kg * 100 }; })
       .sort(function(x, y) { return y.kg - x.kg; });
     if (!list.length) return { state: 'early', title: 'Nothing weighed enough to share out', body: 'A client’s share of the tonnes needs 90% of its revenue weighed (Clients → Parts).' };
     var top = list[0], heavy = top.kg - top.rev > 10, tone = heavy ? 'warning' : 'ok';
     var top3 = ranked.slice(0, 3).reduce(function(s, r) { return s + r.total; }, 0) / rev * 100, apart = ranked.length - list.length;
-    return { state: 'ok', tone: tone, list: list, top: top, fig: wcFigUnit(Math.round(top.kg) + '%', 'of the tonnes'),
-      // The client named where its short name is short; a long one is the chart's to name (a sentence stays one line's worth).
-      say: (wcClientShort(top.name).length <= 28 ? wcClientShort(top.name) : 'The largest') + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: tone,
-      detail: 'The top three bill ' + Math.round(top3) + '% of the revenue' + (apart ? ' · ' + apart + ' not weighed enough to share out' : ''), detailAttrs: ' data-wdg-opt' };
+    // The largest account unweighed: its share of the plant is unknown, not small, said before any other's.
+    var big = ranked[0], bigOut = big && !big.comparable;
+    // The client named where its short name is short; a long one is the chart's to name (a sentence stays one line's worth).
+    var nm = function(n) { return wcClientShort(n).length <= 28 ? wcClientShort(n) : 'The heaviest weighed'; };
+    return { state: 'ok', tone: bigOut ? 'warning' : tone, list: list, top: top, fig: wcFigUnit(Math.round(top.kg) + '%', 'of the weighed tonnes'),
+      say: bigOut ? (wcClientShort(big.name).length <= 28 ? wcClientShort(big.name) : 'The largest account') + ' has no weights: its share of the plant is unknown'
+        : nm(top.name) + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: bigOut ? 'warning' : tone,
+      detail: apart ? apart + ' not weighed enough to share out' : 'The top three bill ' + Math.round(top3) + '% of the revenue' };
   },
   draw: function() { return ''; },
   viz: function(d, size, box) {
@@ -62686,17 +62724,19 @@ wdgDefine({ id: 'share', title: 'Who fills the plant, who pays for it', q: 'Is o
 wdgDefine({ id: 'labour', title: 'Labour a kilo', short: 'Labour a kilo', q: 'Is labour moving with the work?', section: 'analysis', type: 'ledger', icon: 'wages', sizes: ['s', 'm'], trend: true,
   needs: { page: 'pageStats', wages: true }, go: { tab: 'pageStats', v: 'tables/cost' }, card: 'labour-kg',
   data: function(ctx) {
-    if (!(S.staff || []).length) return { state: 'empty', title: 'Nobody on the roster', body: 'Labour is read off the roster and the days marked (People → Roster).' };
+    if (!(typeof staffActive === 'function' ? staffActive() : S.staff || []).length) return { state: 'empty', title: 'Nobody on the roster', body: 'Labour is read off the roster and the days marked (People → Roster).' };
     var a = wcPulseArgs(ctx.period), r = labourRangeForPeriod(ctx.period);
     if (!r) return { state: 'empty', title: 'No attendance recorded', body: 'A day is marked on People → Attendance, or read from the rolls.' };
     var tonnage = ctx.period === 'all' ? weighLines(a.filtered.filter(function(i) { return i.date >= r.from && i.date <= r.to; })) : a.tonnage;
     var lab = wdgMemo('labour:' + ctx.period, function() { return labourForRange(r.from, r.to); }), v = labourPerKgVerdict(lab, tonnage.kg), cfg = labourCfg();
     if (!v.ok) return { state: 'early', title: 'Labour a kilo is withheld', body: wcCap(wdgUnEsc(String(v.why || ''))) + '.' };
     var model = cfg.modelPerKg > 0 ? cfg.modelPerKg : null, gap = model != null ? v.perKg - model : null;
-    var tone = gap == null ? 'neutral' : gap > model * 0.2 ? 'warning' : 'ok';
+    // 20% either way, as the labour insight reads it (Castor M-1): under the model is a roster short of hands or rates, not a saving.
+    var tone = gap == null ? 'neutral' : Math.abs(gap) > model * 0.2 ? 'warning' : 'ok';
     return { state: 'ok', tone: tone, lab: lab, fig: wcFigUnit(formatCurrency(v.perKg), '/kg', tone === 'warning' ? tone : null),
       say: gap == null ? 'No model to set it against' : Math.abs(gap) < 0.005 ? 'As modelled, ' + formatCurrency(model) + '/kg'
-        : formatCurrency(Math.abs(gap)) + ' ' + (gap > 0 ? 'over' : 'under') + ' the ' + formatCurrency(model) + ' modelled', sayTone: tone,
+        : gap < 0 && tone === 'warning' ? formatCurrency(-gap) + ' under the model: check the roster’s rates'
+        : formatCurrency(Math.abs(gap)) + ' ' + (gap > 0 ? 'over' : 'under') + ' the ' + formatCurrency(model) + ' modelled', sayTone: tone, range: r,
       detail: lab.daysRecorded + ' of ' + lab.workingDays + ' working days recorded', detailNotSmall: true };
   },
   draw: function(d, size) {
@@ -62704,7 +62744,8 @@ wdgDefine({ id: 'labour', title: 'Labour a kilo', short: 'Labour a kilo', q: 'Is
     return wdgLedgerHtml([{ label: 'Fixed', meta: 'the monthly tier, its days and rest', amt: d.lab.fixed, attrs: ' data-lab-part="fixed"' },
       { label: 'Variable', meta: 'hourly, daily, OT and extra', amt: d.lab.variable, attrs: ' data-lab-part="variable"' }], { label: 'Labour', amt: d.lab.total }, { noun: 'part' });
   },
-  source: function(d, size, ctx) { return { facts: ['Attendance ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the tonnage billed in it'] }; } });
+  // On All the range is the attendance record's own span (Castor M-2), said by its days: the live cost's labour row is the invoices'.
+  source: function(d, size, ctx) { return { facts: ['Attendance ' + (ctx.period === 'all' && d.range ? stockShortDate(d.range.from) + ' \u2013 ' + stockShortDate(d.range.to) : ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the tonnage billed in it'] }; } });
 
 /* Six months (§10 `months`, Trends' six months): each month at its own live cost (statsMonthsData), a row each as the Tables' By
    month: its ₹ a kilo, its cost and what it left, in their tones; at Large the tonnes and how much of the cost is measured too. */
@@ -62718,14 +62759,15 @@ wdgDefine({ id: 'months', title: 'Six months', q: 'Each month at its own cost', 
     var kg = known.reduce(function(s, r) { return s + r.kg; }, 0);
     return { state: 'ok', tone: tone, rows: rows, fig: wcFigUnit(formatNum(kg / 1000, 1), 't in six months'),
       say: !priced.length ? 'No month has a cost to judge by' : under.length ? under.length + ' of ' + priced.length + ' months under the live cost' : 'Every month over the live cost',
-      sayTone: under.length ? (under.length * 2 >= priced.length ? 'danger' : 'warning') : priced.length ? 'ok' : 'neutral' };
+      // Toned by the one judge (figToneAgainst at 5%), the worst month's.
+      sayTone: under.length ? wcWorst(under.map(function(r) { return figToneAgainst(r.real, r.cost, 5) || 'warning'; })) : priced.length ? 'ok' : 'neutral' };
   },
   draw: function(d, size) {
     var large = size === 'l', n2 = function(v) { return v == null ? '—' : formatNum(v, 2); };
     var head = large ? ['Month', 't', '₹/kg', 'Cost', 'Left', 'Measured'] : ['Month', '₹/kg', 'Cost', 'Left'];
     var rows = d.rows.slice().reverse().map(function(r) {
       var left = r.contrib == null ? '—' : { text: (r.contrib >= 0 ? '+' : '−') + formatNum(Math.abs(r.contrib), 2), tone: figToneAgainst(r.real, r.cost, 5) || 'ok' };
-      return large ? [r.label, formatNum(r.kg / 1000, 1), n2(r.real), n2(r.cost), left, Math.round((r.measured || 0) * 100) + '%'] : [r.label, n2(r.real), n2(r.cost), left];
+      return large ? [r.label, !(r.kg > 0) && r.rev > 0 ? '\u2014' : formatNum(r.kg / 1000, 1), n2(r.real), n2(r.cost), left, r.measured != null ? statsPctOf(r.measured) + '%' : '\u2014'] : [r.label, n2(r.real), n2(r.cost), left];
     });
     return wdgTableHtml(head, rows, ' data-wc-months');
   },
@@ -62760,7 +62802,7 @@ wdgDefine({ id: 'trend', title: 'Revenue, tonnage and incoming', q: 'Did we bill
     return chartBars(d.data.map(function(x) { return { label: x.label, value: x.value }; }), { unit: d.unit, toDate: d.td, labelHead: 'Month',
       ariaLabel: WC_TREND_WORDS[d.series] + ', twelve months', maxLabels: size === 'l' ? 12 : 6, span: d.span, bare: true, w: box.w, h: box.h });
   },
-  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : 'Invoices by invoice date, net of credit notes', 'twelve months whatever the period']
+  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : d.series === 'tonnage' ? 'Invoices by invoice date, weighed lines only' : 'Invoices by invoice date, net of credit notes', 'twelve months whatever the period']
     .concat(d.spanSay ? [d.spanSay] : []) }; } });
 
 /* Top parts (§10 `topitems`, Trends' top items): the period's parts ranked by what they billed, their tonnes or their price a kilo
@@ -62774,21 +62816,25 @@ wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, 
     var top = wdgMemo('top:' + ctx.period + ':' + by, function() { return buildTopItems(a.filtered, by); }), cost = a.periodCost.perKg;
     if (!top.total) return { state: 'empty', title: 'No part billed in this period', body: 'The parts the period billed, once it has invoices.' };
     if (!top.rows.length) return { state: 'early', title: 'No part in this period has a known weight', body: 'A part’s weight is set on Clients → Parts.' };
-    var first = top.rows[0], name = first.part + (first.gauge && rateKey(first.part).indexOf(rateKey(first.gauge)) < 0 ? ' (' + first.gauge + ')' : '');
+    var first = top.rows[0], name = statsPartLabel(first);
     var below = by === 'rate' && cost > 0 ? top.rows.filter(function(r) { return r.perKg < cost; }).length : 0;
     var fig = by === 'tonnage' ? wcFigUnit(formatNum(first.kg, 0), 'kg') : by === 'rate' ? wcFigUnit(formatCurrency(first.perKg), '/kg', cost > 0 ? figToneAgainst(first.perKg, cost, 5) : null) : inrFigHtml(first.amount);
     return { state: 'ok', tone: below ? 'warning' : 'neutral', top: top, by: by, cost: cost, fig: fig,
       say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: below ? 'warning' : 'neutral',
-      detail: by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
-        : top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : todoPlural(top.total, 'part') + ' billed', detailAttrs: ' data-wdg-opt' };
+      // The parts left out for want of a weight are always said (Vulcanus M-2): a ranking that hides them reads better than the truth.
+      detail: top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
+        : todoPlural(top.total, 'part') + ' billed' };
   },
   draw: function(d) {
-    var by = d.by, rows = d.top.rows, cost = d.cost;
+    var by = d.by, rows = d.top.rows, cost = d.cost, owners = typeof cpCodeOwners === 'function' ? wdgMemo('code-owners', cpCodeOwners) : {};
+    var shared = function(r) { return Object.keys(owners[r.base] || {}).some(function(c) { return String(c) !== String(r.clientId); }); };
     var max = by === 'rate' ? Math.max.apply(null, rows.map(function(r) { return r.perKg; }).concat([cost || 0])) : 0;
     return '<div data-wdg-list data-noun="part">' + chartRankedBars(rows.map(function(r) {
       var value = by === 'tonnage' ? r.kg : by === 'rate' ? r.perKg : r.amount;
-      return { label: r.part, value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
-        sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown'),
+      // Its gauge in its label, as By part names it (Vulcanus H-1): two gauges of one clamp are two prices.
+      return { label: statsPartLabel(r), value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
+        sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown') +
+          (shared(r) ? ' · code also sent by another client' : ''),
         tone: by === 'rate' && cost > 0 ? (r.perKg < cost ? 'danger' : 'good') : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
     }), { unit: by === 'tonnage' ? 'kg' : by === 'rate' ? 'rate' : 'money', max: max, labelHead: 'Part', ariaLabel: 'Top parts', bare: true }) + '</div>';
   },
@@ -62802,15 +62848,17 @@ wdgDefine({ id: 'costcheck', title: 'Recorded against paid', q: 'Does the book a
   data: function(ctx) {
     if (!finHasBank()) return wcNoBank('what the bank paid is');
     var r = statsRangeIso(ctx.period), chk = wdgMemo('costcheck:' + ctx.period, function() { return liveCostPaidCheck(r.from, r.to); });
-    var comp = chk.filter(function(x) { return x.recorded != null; });
+    // Chemicals and zinc set use against purchases, which differ by design: shown, never counted toward the verdict (Iuno M-1).
+    var comp = chk.filter(function(x) { return x.recorded != null && x.key !== 'supplies'; }), supplies = chk.filter(function(x) { return x.recorded != null && x.key === 'supplies'; });
     if (!comp.length) return { state: 'early', title: 'Nothing to compare in this period', body: chk.length ? wcCap(String(chk[0].note || '')) : 'The statement and the record have no month in common.' };
     var flagged = comp.filter(function(x) { return x.flag; }), tone = flagged.length ? 'warning' : 'ok';
-    return { state: 'ok', tone: tone, comp: comp, fig: wcFigUnit(flagged.length + ' of ' + comp.length, 'over 10% apart'),
+    return { state: 'ok', tone: tone, comp: comp, supplies: supplies, fig: wcFigUnit(flagged.length + ' of ' + comp.length, 'over 10% apart'),
       say: flagged.length ? flagged[0].label + ': paid ' + wcRs(flagged[0].paid) + ', recorded ' + wcRs(flagged[0].recorded) : 'Within 10% on every cost compared', sayTone: tone };
   },
   draw: function(d) {
-    return wdgLedgerHtml(d.comp.map(function(x) {
-      return { label: x.label, meta: 'recorded ' + wcRs(x.recorded) + ' · paid ' + wcRs(x.paid), amt: x.delta, tone: x.flag ? 'warning' : null, attrs: ' data-paid="' + escHtml(x.key) + '"' };
+    return wdgLedgerHtml(d.comp.concat(d.supplies).map(function(x) {
+      return { label: x.label, meta: x.key === 'supplies' ? 'used against bought: differ by design' : 'recorded ' + wcRs(x.recorded) + ' · paid ' + wcRs(x.paid), amt: x.delta,
+        tone: x.flag ? 'warning' : null, attrs: ' data-paid="' + escHtml(x.key) + '"' };
     }), null, { signed: true, noun: 'cost' });
   },
   source: function() { return { facts: [wcBankSrc(), 'the months both cover'] }; } });

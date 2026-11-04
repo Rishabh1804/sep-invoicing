@@ -1943,7 +1943,7 @@ wdgDefine({ id: 'pricecost', title: 'Price against cost, month by month', q: 'Ar
     };
     if (size !== 'l' || box.h < 220) return lines(box.h);
     var hl = Math.round(box.h * 0.6);
-    return lines(hl) + chartDiverging(rows.map(function(r) { return { key: r.month, label: r.short, value: r.contrib == null ? null : Math.round(r.contrib * 100) / 100 }; }),
+    return lines(hl) + chartDiverging(rows.map(function(r) { return { key: r.month, label: r.short, value: r.contrib == null ? null : gstRound(r.contrib) }; }),
       { unit: 'rate', posLabel: 'Over the cost', negLabel: 'Under the cost', toDate: td, ariaLabel: 'Over and under the live cost, each month', bare: true, w: box.w, h: box.h - hl });
   },
   source: function() { return { facts: ['Invoices, six months, net of credit notes', 'each month at its own live cost'] }; } });
@@ -1958,15 +1958,22 @@ wdgDefine({ id: 'share', title: 'Who fills the plant, who pays for it', q: 'Is o
     var ranked = wdgMemo('rollup:' + ctx.period, function() { return buildClientRollup(a.filtered); });
     if (!ranked.length || !(rev > 0)) return { state: 'empty', title: 'No invoices in this period', body: 'Each client’s share of the tonnes and of the revenue, once the period has invoices.',
       act: { label: 'Create an invoice', action: 'invCreateNew' } };
-    var list = ranked.filter(function(r) { return r.comparable && kg > 0; }).map(function(r) { return { id: r.clientId, name: r.name, rev: r.total / rev * 100, kg: r.kg / kg * 100 }; })
+    // Both shares over the same weighed lines (Vulcanus H-2): a client's weighed revenue of the weighed revenue against its kilos of
+    // the weighed kilos. Against all revenue, an account billed by the piece and unweighed made every other read heavy.
+    var revK = a.tonnage.revKnown;
+    var list = ranked.filter(function(r) { return r.comparable && kg > 0 && revK > 0; }).map(function(r) { return { id: r.clientId, name: r.name, rev: r.revKnown / revK * 100, kg: r.kg / kg * 100 }; })
       .sort(function(x, y) { return y.kg - x.kg; });
     if (!list.length) return { state: 'early', title: 'Nothing weighed enough to share out', body: 'A client’s share of the tonnes needs 90% of its revenue weighed (Clients → Parts).' };
     var top = list[0], heavy = top.kg - top.rev > 10, tone = heavy ? 'warning' : 'ok';
     var top3 = ranked.slice(0, 3).reduce(function(s, r) { return s + r.total; }, 0) / rev * 100, apart = ranked.length - list.length;
-    return { state: 'ok', tone: tone, list: list, top: top, fig: wcFigUnit(Math.round(top.kg) + '%', 'of the tonnes'),
-      // The client named where its short name is short; a long one is the chart's to name (a sentence stays one line's worth).
-      say: (wcClientShort(top.name).length <= 28 ? wcClientShort(top.name) : 'The largest') + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: tone,
-      detail: 'The top three bill ' + Math.round(top3) + '% of the revenue' + (apart ? ' · ' + apart + ' not weighed enough to share out' : ''), detailAttrs: ' data-wdg-opt' };
+    // The largest account unweighed: its share of the plant is unknown, not small, said before any other's.
+    var big = ranked[0], bigOut = big && !big.comparable;
+    // The client named where its short name is short; a long one is the chart's to name (a sentence stays one line's worth).
+    var nm = function(n) { return wcClientShort(n).length <= 28 ? wcClientShort(n) : 'The heaviest weighed'; };
+    return { state: 'ok', tone: bigOut ? 'warning' : tone, list: list, top: top, fig: wcFigUnit(Math.round(top.kg) + '%', 'of the weighed tonnes'),
+      say: bigOut ? (wcClientShort(big.name).length <= 28 ? wcClientShort(big.name) : 'The largest account') + ' has no weights: its share of the plant is unknown'
+        : nm(top.name) + ' takes ' + Math.round(top.kg) + '% of the tonnes for ' + Math.round(top.rev) + '% of the revenue', sayTone: bigOut ? 'warning' : tone,
+      detail: apart ? apart + ' not weighed enough to share out' : 'The top three bill ' + Math.round(top3) + '% of the revenue' };
   },
   draw: function() { return ''; },
   viz: function(d, size, box) {
@@ -1982,17 +1989,19 @@ wdgDefine({ id: 'share', title: 'Who fills the plant, who pays for it', q: 'Is o
 wdgDefine({ id: 'labour', title: 'Labour a kilo', short: 'Labour a kilo', q: 'Is labour moving with the work?', section: 'analysis', type: 'ledger', icon: 'wages', sizes: ['s', 'm'], trend: true,
   needs: { page: 'pageStats', wages: true }, go: { tab: 'pageStats', v: 'tables/cost' }, card: 'labour-kg',
   data: function(ctx) {
-    if (!(S.staff || []).length) return { state: 'empty', title: 'Nobody on the roster', body: 'Labour is read off the roster and the days marked (People → Roster).' };
+    if (!(typeof staffActive === 'function' ? staffActive() : S.staff || []).length) return { state: 'empty', title: 'Nobody on the roster', body: 'Labour is read off the roster and the days marked (People → Roster).' };
     var a = wcPulseArgs(ctx.period), r = labourRangeForPeriod(ctx.period);
     if (!r) return { state: 'empty', title: 'No attendance recorded', body: 'A day is marked on People → Attendance, or read from the rolls.' };
     var tonnage = ctx.period === 'all' ? weighLines(a.filtered.filter(function(i) { return i.date >= r.from && i.date <= r.to; })) : a.tonnage;
     var lab = wdgMemo('labour:' + ctx.period, function() { return labourForRange(r.from, r.to); }), v = labourPerKgVerdict(lab, tonnage.kg), cfg = labourCfg();
     if (!v.ok) return { state: 'early', title: 'Labour a kilo is withheld', body: wcCap(wdgUnEsc(String(v.why || ''))) + '.' };
     var model = cfg.modelPerKg > 0 ? cfg.modelPerKg : null, gap = model != null ? v.perKg - model : null;
-    var tone = gap == null ? 'neutral' : gap > model * 0.2 ? 'warning' : 'ok';
+    // 20% either way, as the labour insight reads it (Castor M-1): under the model is a roster short of hands or rates, not a saving.
+    var tone = gap == null ? 'neutral' : Math.abs(gap) > model * 0.2 ? 'warning' : 'ok';
     return { state: 'ok', tone: tone, lab: lab, fig: wcFigUnit(formatCurrency(v.perKg), '/kg', tone === 'warning' ? tone : null),
       say: gap == null ? 'No model to set it against' : Math.abs(gap) < 0.005 ? 'As modelled, ' + formatCurrency(model) + '/kg'
-        : formatCurrency(Math.abs(gap)) + ' ' + (gap > 0 ? 'over' : 'under') + ' the ' + formatCurrency(model) + ' modelled', sayTone: tone,
+        : gap < 0 && tone === 'warning' ? formatCurrency(-gap) + ' under the model: check the roster’s rates'
+        : formatCurrency(Math.abs(gap)) + ' ' + (gap > 0 ? 'over' : 'under') + ' the ' + formatCurrency(model) + ' modelled', sayTone: tone, range: r,
       detail: lab.daysRecorded + ' of ' + lab.workingDays + ' working days recorded', detailNotSmall: true };
   },
   draw: function(d, size) {
@@ -2000,7 +2009,8 @@ wdgDefine({ id: 'labour', title: 'Labour a kilo', short: 'Labour a kilo', q: 'Is
     return wdgLedgerHtml([{ label: 'Fixed', meta: 'the monthly tier, its days and rest', amt: d.lab.fixed, attrs: ' data-lab-part="fixed"' },
       { label: 'Variable', meta: 'hourly, daily, OT and extra', amt: d.lab.variable, attrs: ' data-lab-part="variable"' }], { label: 'Labour', amt: d.lab.total }, { noun: 'part' });
   },
-  source: function(d, size, ctx) { return { facts: ['Attendance ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the tonnage billed in it'] }; } });
+  // On All the range is the attendance record's own span (Castor M-2), said by its days: the live cost's labour row is the invoices'.
+  source: function(d, size, ctx) { return { facts: ['Attendance ' + (ctx.period === 'all' && d.range ? stockShortDate(d.range.from) + ' \u2013 ' + stockShortDate(d.range.to) : ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'the tonnage billed in it'] }; } });
 
 /* Six months (§10 `months`, Trends' six months): each month at its own live cost (statsMonthsData), a row each as the Tables' By
    month: its ₹ a kilo, its cost and what it left, in their tones; at Large the tonnes and how much of the cost is measured too. */
@@ -2014,14 +2024,15 @@ wdgDefine({ id: 'months', title: 'Six months', q: 'Each month at its own cost', 
     var kg = known.reduce(function(s, r) { return s + r.kg; }, 0);
     return { state: 'ok', tone: tone, rows: rows, fig: wcFigUnit(formatNum(kg / 1000, 1), 't in six months'),
       say: !priced.length ? 'No month has a cost to judge by' : under.length ? under.length + ' of ' + priced.length + ' months under the live cost' : 'Every month over the live cost',
-      sayTone: under.length ? (under.length * 2 >= priced.length ? 'danger' : 'warning') : priced.length ? 'ok' : 'neutral' };
+      // Toned by the one judge (figToneAgainst at 5%), the worst month's.
+      sayTone: under.length ? wcWorst(under.map(function(r) { return figToneAgainst(r.real, r.cost, 5) || 'warning'; })) : priced.length ? 'ok' : 'neutral' };
   },
   draw: function(d, size) {
     var large = size === 'l', n2 = function(v) { return v == null ? '—' : formatNum(v, 2); };
     var head = large ? ['Month', 't', '₹/kg', 'Cost', 'Left', 'Measured'] : ['Month', '₹/kg', 'Cost', 'Left'];
     var rows = d.rows.slice().reverse().map(function(r) {
       var left = r.contrib == null ? '—' : { text: (r.contrib >= 0 ? '+' : '−') + formatNum(Math.abs(r.contrib), 2), tone: figToneAgainst(r.real, r.cost, 5) || 'ok' };
-      return large ? [r.label, formatNum(r.kg / 1000, 1), n2(r.real), n2(r.cost), left, Math.round((r.measured || 0) * 100) + '%'] : [r.label, n2(r.real), n2(r.cost), left];
+      return large ? [r.label, !(r.kg > 0) && r.rev > 0 ? '\u2014' : formatNum(r.kg / 1000, 1), n2(r.real), n2(r.cost), left, r.measured != null ? statsPctOf(r.measured) + '%' : '\u2014'] : [r.label, n2(r.real), n2(r.cost), left];
     });
     return wdgTableHtml(head, rows, ' data-wc-months');
   },
@@ -2056,7 +2067,7 @@ wdgDefine({ id: 'trend', title: 'Revenue, tonnage and incoming', q: 'Did we bill
     return chartBars(d.data.map(function(x) { return { label: x.label, value: x.value }; }), { unit: d.unit, toDate: d.td, labelHead: 'Month',
       ariaLabel: WC_TREND_WORDS[d.series] + ', twelve months', maxLabels: size === 'l' ? 12 : 6, span: d.span, bare: true, w: box.w, h: box.h });
   },
-  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : 'Invoices by invoice date, net of credit notes', 'twelve months whatever the period']
+  source: function(d) { return { facts: [d.series === 'im' ? 'Challans by challan date, weighed lines' : d.series === 'tonnage' ? 'Invoices by invoice date, weighed lines only' : 'Invoices by invoice date, net of credit notes', 'twelve months whatever the period']
     .concat(d.spanSay ? [d.spanSay] : []) }; } });
 
 /* Top parts (§10 `topitems`, Trends' top items): the period's parts ranked by what they billed, their tonnes or their price a kilo
@@ -2070,21 +2081,25 @@ wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, 
     var top = wdgMemo('top:' + ctx.period + ':' + by, function() { return buildTopItems(a.filtered, by); }), cost = a.periodCost.perKg;
     if (!top.total) return { state: 'empty', title: 'No part billed in this period', body: 'The parts the period billed, once it has invoices.' };
     if (!top.rows.length) return { state: 'early', title: 'No part in this period has a known weight', body: 'A part’s weight is set on Clients → Parts.' };
-    var first = top.rows[0], name = first.part + (first.gauge && rateKey(first.part).indexOf(rateKey(first.gauge)) < 0 ? ' (' + first.gauge + ')' : '');
+    var first = top.rows[0], name = statsPartLabel(first);
     var below = by === 'rate' && cost > 0 ? top.rows.filter(function(r) { return r.perKg < cost; }).length : 0;
     var fig = by === 'tonnage' ? wcFigUnit(formatNum(first.kg, 0), 'kg') : by === 'rate' ? wcFigUnit(formatCurrency(first.perKg), '/kg', cost > 0 ? figToneAgainst(first.perKg, cost, 5) : null) : inrFigHtml(first.amount);
     return { state: 'ok', tone: below ? 'warning' : 'neutral', top: top, by: by, cost: cost, fig: fig,
       say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: below ? 'warning' : 'neutral',
-      detail: by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
-        : top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : todoPlural(top.total, 'part') + ' billed', detailAttrs: ' data-wdg-opt' };
+      // The parts left out for want of a weight are always said (Vulcanus M-2): a ranking that hides them reads better than the truth.
+      detail: top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
+        : todoPlural(top.total, 'part') + ' billed' };
   },
   draw: function(d) {
-    var by = d.by, rows = d.top.rows, cost = d.cost;
+    var by = d.by, rows = d.top.rows, cost = d.cost, owners = typeof cpCodeOwners === 'function' ? wdgMemo('code-owners', cpCodeOwners) : {};
+    var shared = function(r) { return Object.keys(owners[r.base] || {}).some(function(c) { return String(c) !== String(r.clientId); }); };
     var max = by === 'rate' ? Math.max.apply(null, rows.map(function(r) { return r.perKg; }).concat([cost || 0])) : 0;
     return '<div data-wdg-list data-noun="part">' + chartRankedBars(rows.map(function(r) {
       var value = by === 'tonnage' ? r.kg : by === 'rate' ? r.perKg : r.amount;
-      return { label: r.part, value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
-        sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown'),
+      // Its gauge in its label, as By part names it (Vulcanus H-1): two gauges of one clamp are two prices.
+      return { label: statsPartLabel(r), value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
+        sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown') +
+          (shared(r) ? ' · code also sent by another client' : ''),
         tone: by === 'rate' && cost > 0 ? (r.perKg < cost ? 'danger' : 'good') : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
     }), { unit: by === 'tonnage' ? 'kg' : by === 'rate' ? 'rate' : 'money', max: max, labelHead: 'Part', ariaLabel: 'Top parts', bare: true }) + '</div>';
   },
@@ -2098,15 +2113,17 @@ wdgDefine({ id: 'costcheck', title: 'Recorded against paid', q: 'Does the book a
   data: function(ctx) {
     if (!finHasBank()) return wcNoBank('what the bank paid is');
     var r = statsRangeIso(ctx.period), chk = wdgMemo('costcheck:' + ctx.period, function() { return liveCostPaidCheck(r.from, r.to); });
-    var comp = chk.filter(function(x) { return x.recorded != null; });
+    // Chemicals and zinc set use against purchases, which differ by design: shown, never counted toward the verdict (Iuno M-1).
+    var comp = chk.filter(function(x) { return x.recorded != null && x.key !== 'supplies'; }), supplies = chk.filter(function(x) { return x.recorded != null && x.key === 'supplies'; });
     if (!comp.length) return { state: 'early', title: 'Nothing to compare in this period', body: chk.length ? wcCap(String(chk[0].note || '')) : 'The statement and the record have no month in common.' };
     var flagged = comp.filter(function(x) { return x.flag; }), tone = flagged.length ? 'warning' : 'ok';
-    return { state: 'ok', tone: tone, comp: comp, fig: wcFigUnit(flagged.length + ' of ' + comp.length, 'over 10% apart'),
+    return { state: 'ok', tone: tone, comp: comp, supplies: supplies, fig: wcFigUnit(flagged.length + ' of ' + comp.length, 'over 10% apart'),
       say: flagged.length ? flagged[0].label + ': paid ' + wcRs(flagged[0].paid) + ', recorded ' + wcRs(flagged[0].recorded) : 'Within 10% on every cost compared', sayTone: tone };
   },
   draw: function(d) {
-    return wdgLedgerHtml(d.comp.map(function(x) {
-      return { label: x.label, meta: 'recorded ' + wcRs(x.recorded) + ' · paid ' + wcRs(x.paid), amt: x.delta, tone: x.flag ? 'warning' : null, attrs: ' data-paid="' + escHtml(x.key) + '"' };
+    return wdgLedgerHtml(d.comp.concat(d.supplies).map(function(x) {
+      return { label: x.label, meta: x.key === 'supplies' ? 'used against bought: differ by design' : 'recorded ' + wcRs(x.recorded) + ' · paid ' + wcRs(x.paid), amt: x.delta,
+        tone: x.flag ? 'warning' : null, attrs: ' data-paid="' + escHtml(x.key) + '"' };
     }), null, { signed: true, noun: 'cost' });
   },
   source: function() { return { facts: [wcBankSrc(), 'the months both cover'] }; } });

@@ -143,7 +143,8 @@ function statsOverviewOpts(period, filtered, tonnage) {
   return { tone: tone, eyebrow: '<span>The period in figures</span>', title: escHtml(title),
     fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
     // The period's sum short on a board, its exact amount its title (§24k).
-    sub: contrib != null ? (contrib >= 0 ? '+' : '') + inrFigHtml(gstRound(contrib * kg), { inline: true }) + ' on the period' : '',
+    // Its whole revenue less its whole cost (Iuno H-1): contribution × the weighed kilos left the unweighed lines' revenue out.
+    sub: contrib != null ? (sumTaxable(filtered) - c.total >= 0 ? '+' : '') + inrFigHtml(gstRound(sumTaxable(filtered) - c.total), { inline: true }) + ' on the period' : '',
     tiles: tiles, plated: plated, measured: c.measuredShare,
     body: '<div class="inv-hero-sheet">' + tiles + '</div>' + (plated ? '<div class="inv-hero-sheet">' + plated + '</div>' : ''),
     attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };

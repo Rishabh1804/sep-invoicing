@@ -215,7 +215,10 @@ export async function exportsWork(page: Page) {
   expect(csv.suggestedFilename()).toMatch(/^sep-stats-client-ytd-\d{4}-\d{2}-\d{2}\.csv$/);
   const text = (await (await import('fs')).promises.readFile(await csv.path() as string, 'utf8')).replace(/^﻿/, '');
   const lines = text.split('\n');
-  expect(lines[0]).toBe('Client,Revenue,Of revenue,t,Of tonnes,₹/kg,vs var.,vs full,₹ on period,Next challan');
+  expect(lines[0]).toBe('Client,Revenue,Of revenue,t,Weighed,Of tonnes,₹/kg,vs var.,vs full,₹ on period,Next challan');
+  // A client's figures in the file are its row's on screen (Iuno): its revenue to the paisa.
+  const first = await page.locator('#statsTable tbody tr[data-client-row]').first().locator('td').nth(1).innerText();
+  expect(Number(lines[1].split(',')[1])).toBe(Number(first.replace(/[^\d.]/g, '')));
   expect(lines.slice(1).map(l => l.split(',')[0].replace(/^"|"$/g, ''))).toEqual(names);
   const [xl] = await Promise.all([page.waitForEvent('download'), toolbarMore(page, 'Export the tables (Excel)')]);
   expect(xl.suggestedFilename()).toMatch(/\.xlsx$/);
@@ -290,4 +293,45 @@ export async function u3Widgets(page: Page) {
   await ch.click();
   await expect(page.locator('#statsBoard .inv-widget[data-w="trend"][data-size="l"] .inv-widget-say')).toContainText('Plated and billed');
   expect(await g(page, 'wdgOpts("stats", "trend").choose')).toBe('tonnage');
+}
+
+/* The QA chain's (4 Nov 2026). Castor H-1: the labour card is wages, drawn on the Tables' Cost only for an ID that sees them; the
+   labour widget agrees with it to the paisa. Iuno H-1: what the period left after the full cost is its whole revenue less its whole
+   cost. Vulcanus H-1: Top parts names a part with its gauge. */
+export async function qaChain(page: Page) {
+  await loadAppWithState(page, longBook());
+  await openStats(page);
+  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  // The widget's ₹ a kilo is the labour card's measured tile.
+  await g(page, `wdgItemsPut('stats', wdgLay(), [['labour', 'm'], ['topitems', 'l']]); renderStats();`);
+  const w = (await page.locator('#statsBoard .inv-widget[data-w="labour"] .inv-widget-fig').innerText()).replace(/[^\d.]/g, '');
+  await table(page, 'cost');
+  const card = (await page.locator('#statsContent [data-card="labour"] [data-tile="perkg"] .inv-tile-value').innerText()).replace(/[^\d.]/g, '');
+  expect(w).toBe(card);
+  // Left after the full cost: the period's revenue less its whole live cost.
+  const want = await g(page, `(function(){ var a = statsPulseArgs('all'), r = statsRangeIso('all'), c = liveCost(r.from, r.to, a.tonnage.kg); return gstRound(sumTaxable(a.filtered) - c.total); })()`) as number;
+  const tile = (await page.locator('#statsVerdict [data-tile="margin"] .inv-tile-value').innerText()).replace(/[^\d.\u2212-]/g, '').replace('\u2212', '-');
+  expect(Number(tile)).toBeCloseTo(want, 2);
+  // Top parts names each part as By part does, its gauge with it.
+  await view(page, 'board');
+  const labels = await page.locator('#statsBoard .inv-widget[data-w="topitems"] .inv-chart-ranked-label').allInnerTexts();
+  const want2 = await g(page, `buildTopItems(statsPulseArgs('all').filtered, 'value').rows.map(statsPartLabel)`) as string[];
+  expect(labels.length).toBeGreaterThan(0);
+  expect(labels.map(x => x.trim())).toEqual(want2.slice(0, labels.length));
+}
+export async function noWagesNoLabour(page: Page) {
+  await loadAppWithState(page, guardBook());
+  await g(page, `(function(){ var S0 = (0, eval)('S'); S0.guardCfg = S0.guardCfg || {}; S0.guardCfg.roles = S0.guardCfg.roles || {};
+    S0.guardCfg.roles.office = { pages: ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageStats'], may: ['billing'], wages: false, finance: true }; saveState(); })()`);
+  await withUsers(page);
+  await unlock(page, 'U-off', PINS.office);
+  expect(await g(page, 'wdgSees(wdgDef("labour"))')).toBe(false);
+  expect(await g(page, 'wdgSees(wdgDef("kilo"))')).toBe(true);
+  await page.goto('/sep-invoicing.html?tab=pageStats&v=tables/cost');
+  await page.locator('body.inv-booted').waitFor();
+  if (await page.locator('#guardRoot').count()) await unlock(page, 'U-off', PINS.office);
+  await expect(page.locator('#pageStats.inv-page-active')).toHaveCount(1);
+  await expect(page.locator('#statsContent [data-card="labour"]')).toHaveCount(0);
+  await expect(page.locator('#statsContent [data-card="labour-hidden"]')).toHaveCount(1);
+  await expect(page.locator('#statsContent #liveCost')).toHaveCount(1);
 }

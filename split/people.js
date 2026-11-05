@@ -449,26 +449,17 @@ function pplImportKeep() {
   showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (badDates ? ' · ' + badDates + ' date' + (badDates === 1 ? '' : 's') + ' not readable or still to come, left out' : ''), left || badDates ? 'warning' : 'success');
 }
 
-/* ---------- At a glance: the roster's row (W3, the 6-second rule) ---------- */
-/* Three short bars with their figures (reliability, consistency, workload), the tenure, the two strongest skills, and for the
-   owner the motivation index: one look says who is steady, who is stretched, and who to talk to. */
-function pplGlanceHtml(w, memo) {
+/* ---------- At a glance: the roster's card (W3, the 6-second rule; UI pass 3 §12) ---------- */
+/* Three short bars with their figures (reliability, consistency, workload): one look says who is steady and who is stretched. The
+   card (staff.js attRosterCardHtml) says the tenure, the top skills and, as a state, the motivation its own way. */
+function pplGlanceHtml(w) {
   var st = pplStats(w), wt = pplWorkTone(st), stat = function(k, label, v, tone, word) {
     return '<span class="inv-wstat" data-ppl-glance="' + k + '"><span class="inv-wstat-k">' + label + '</span>' + pplBarHtml(v, tone, label + ': ' + word) + '<span class="inv-wstat-v">' + escHtml(word) + '</span></span>';
   };
-  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 2);
-  var h = '<span class="inv-wstats">' +
+  return '<span class="inv-wstats">' +
     stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
     stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
     stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
-  // Two facts (the tab map §3b): how long here (and the days marked while that is too few to judge by), then the top skills; the
-  // owner's motivation index follows them as a status, a dot and a word, never a third fact after a "·".
-  var meta = [pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked'),
-    skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', ')].filter(Boolean).join(' · ');
-  var mo = pplOwner() ? pplMotivation(w, st, memo) : null;
-  h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) +
-    (mo ? (meta ? ' ' : '') + '<span data-ppl-glance-mo>' + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>' : '') + '</span>';
-  return h;
 }
 
 /* ---------- The To-do: a check-in due, a worker to talk to (the owner's) ---------- */

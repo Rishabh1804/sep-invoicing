@@ -140,9 +140,10 @@ test("the roster's rate shows at 1280 with no worker open; the pane carries it o
   await switchTab(page, 'pageStaff');
   await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
   // The list is about 1,000px across here: the Rate column dropped below 1,120 (the first optional column), so a desktop
-  // under about 1,400px never showed a rate on the roster at all.
-  await expect(page.locator('#attRosterTable th', { hasText: 'Rate' })).toBeVisible();
-  await page.locator('#attRosterTable tbody tr').first().click();
+  // under about 1,400px never showed a rate on the roster at all. The roster is cards since UI pass 3 (§12), each with its rate.
+  await expect(page.locator('#attRosterHost [data-roster-meta]').first()).toContainText('₹');
+  await expect(page.locator('#attRosterHost [data-roster-meta]').first()).toBeVisible();
+  await page.locator('#attRosterHost [data-roster-card] [data-action="invAttRosterOpen"]').first().click();
   await expect(page.locator('#attRosterHost')).toHaveClass(/inv-pane-open/);
   await expect(page.locator('#attRosterPane')).toContainText('Rate');
 });

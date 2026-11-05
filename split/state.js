@@ -1220,6 +1220,32 @@ function uiFactorTileHtml(f) {
   return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
 }
 
+/* A view's next steps (docs/UI_PASS_3.md §12, §26c; design §6.23): where the work has an order, the order as one row under the
+   view's toolbar, Today's step pieces laid across: each step a node in its state and a door to where it is done. `steps`
+   [{key, title, meta, state, action, attrs, label}]: state 'in' done (a tick), 'part' begun, 'late' (the warning), 'wait' to come
+   (its number), 'off' not expected (dashed); action the door's data-action (attrs its data), none for a step with no door here;
+   label what a screen reader hears, else the title and the meta. The first step neither done nor off is the one to take next
+   (`data-next`). `key` names the row (`data-next-steps`). Titles and metas are plain text, escaped here. */
+function uiNextStepsHtml(key, steps) {
+  var list = (steps || []).filter(Boolean);
+  if (!list.length) return '';
+  var next = -1;
+  for (var i = 0; i < list.length; i++) if (list[i].state !== 'in' && list[i].state !== 'off') { next = i; break; }
+  var tick = iconSvg('check', 'inv-ico-bold');
+  var word = { in: 'done', part: 'begun', late: 'late', wait: 'to do', off: 'not expected' };
+  return '<div class="inv-panel" data-next-steps="' + escHtml(key) + '"><div class="inv-steps inv-steps-row" role="list" aria-label="Next steps">' +
+    list.map(function(s, i) {
+      var st = /^(in|part|late|wait|off)$/.test(s.state) ? s.state : 'wait';
+      var node = st === 'in' ? tick : st === 'late' ? '!' : String(i + 1);
+      var inner = '<span class="inv-step-title">' + escHtml(s.title) + '</span>' + (s.meta ? '<span class="inv-step-meta">' + escHtml(s.meta) + '</span>' : '');
+      var aria = escHtml(s.label || (s.title + ': ' + word[st] + (s.meta ? ', ' + s.meta : '')));
+      return '<div class="inv-step" role="listitem" data-step="' + escHtml(s.key || String(i)) + '" data-state="' + st + '"' + (i === next ? ' data-next' : '') + '>' +
+        '<span class="inv-step-node" aria-hidden="true">' + node + '</span>' +
+        (s.action ? '<button type="button" class="inv-step-main" data-action="' + escHtml(s.action) + '"' + (s.attrs || '') + ' aria-label="' + aria + '">' + inner + '</button>'
+          : '<span class="inv-step-main" aria-label="' + aria + '">' + inner + '</span>') + '</div>';
+    }).join('') + '</div></div>';
+}
+
 /* A row's end (§1a-11): its figure and its status (a dot and a word), or one action. `fig` HTML (formatted), `status` {tone,
    word}, `action` the one button's HTML. A row with more to do than one action puts the rest in uiRowMoreHtml. */
 function uiRowEndHtml(fig, status, action) {

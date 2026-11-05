@@ -30,16 +30,22 @@ async function roster(page: Page) {
 }
 
 test.describe('P168 at a glance', () => {
-  test('the roster row: three bars with their figures, tenure, top skills, and the owner’s motivation', async ({ page }) => {
+  test('the roster card: three bars with their figures, tenure, the top skills as chips; the motivation a badge only as a state', async ({ page }) => {
     await loadAppWithState(page, book());
     await roster(page);
-    const row = page.locator('[data-action="invAttEditWorker"][data-id="1"]').first();
+    // A card a hand (UI pass 3 §12), its whole face the one button.
+    const row = page.locator('[data-roster-card="1"] [data-action="invAttEditWorker"][data-id="1"]');
     await expect(row.locator('[data-ppl-glance="reliability"]')).toContainText('100');
     await expect(row.locator('[data-ppl-glance="workload"]')).toContainText('h');
-    await expect(row.locator('[data-ppl-glance-meta]')).toContainText('VAT A1 4/5, Barrel 2/5');
-    // The owner's motivation index follows the meta's two facts as a status, never a third fact after a "·" (the tab map §3b).
-    await expect(row.locator('[data-ppl-glance-mo]')).toContainText('Motivation');
-    expect((await row.locator('[data-ppl-glance-meta]').innerText()).split('·').length).toBeLessThanOrEqual(2);
+    await expect(row.locator('[data-ppl-glance-skill]')).toHaveText(['VAT A1 4/5', 'Barrel 2/5']);
+    // The tier and the tenure on one line, two facts at most (the tab map §3b).
+    const tier = await row.locator('[data-roster-tier]').innerText();
+    expect(tier).toContain('Daily');
+    expect(tier.split('·').length).toBeLessThanOrEqual(2);
+    // The owner's motivation index is a badge only as a state: a hand to watch (under 50 on firm figures) says it, as P168's To-do
+    // test below does; a steady hand carries none, and its record holds the index.
+    await expect(row.locator('[data-ppl-glance-mo]')).toHaveCount(0);
+    await expect(row.locator('.inv-badge')).toHaveCount(0);
   });
 
   test('a supervisor’s roster has the bars and never the motivation', async ({ page }) => {
@@ -47,9 +53,9 @@ test.describe('P168 at a glance', () => {
     await withUsers(page);
     await unlock(page, 'U-sup', PINS.super);
     await roster(page);
-    const row = page.locator('[data-action="invAttEditWorker"][data-id="1"]').first();
+    const row = page.locator('[data-roster-card="1"] [data-action="invAttEditWorker"][data-id="1"]');
     await expect(row.locator('[data-ppl-glance="reliability"]')).toBeVisible();
-    await expect(row.locator('[data-ppl-glance-meta]')).not.toContainText('Motivation');
+    await expect(row).not.toContainText('Motivation');
     await expect(row.locator('[data-ppl-glance-mo]')).toHaveCount(0);
   });
 

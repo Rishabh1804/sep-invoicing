@@ -916,7 +916,44 @@ function _areaVerdictHtml(stats, flags, from, to) {
         sub: 'on the areas with a complement', attrs: ' data-tile="booked"' },
       { label: 'To explain', fig: String(n), tone: n ? (danger ? 'danger' : 'warning') : stats.normed ? 'ok' : null, sub: flags.acked.length ? flags.acked.length + ' explained' : 'unit-days and blocks', attrs: ' data-tile="explain"' },
       { label: 'Not checkable', fig: formatNum(unchecked, 1) + '<span class="inv-tile-of"> h</span>', tone: unchecked > 0 ? 'warning' : null, sub: 'counted in the bill', attrs: ' data-tile="unchecked"' }],
+    body: _areaMultiplesHtml(stats, from, to),
     attrs: ' id="areaVerdict"' });
+}
+/* The picture (UI pass 3 §12, §26c): each area's heads against its number over the period, as small multiples: a tile a unit (the
+   units the extra is checked on, areaStats), a bar a day its heads, amber where it stood short, none where it was idle; then a line's
+   night, its heads against the schedule's crew (shiftNightCrew, the reading blockNorm checks a night block by). */
+function _areaMultiplesHtml(stats, from, to) {
+  var tile = function(key, label, days) {
+    var ran = days.filter(function(d) { return !d.idle; }), short = ran.filter(function(d) { return d.short > 0; }).length;
+    if (!ran.length) return '';
+    var bars = days.map(function(d) {
+      return { v: d.idle ? 0 : d.heads, label: attDayName(d.iso) + ' ' + stockShortDate(d.iso), text: d.idle ? 'did not run' : d.heads + ' of ' + d.need + (d.short ? ', ' + d.short + ' short' : ''),
+        tone: !d.idle && d.short ? 'warning' : '' };
+    });
+    return '<div class="inv-tile' + (short ? ' inv-tile-warning' : ' inv-tile-ok') + '" data-area-multiple="' + escHtml(key) + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
+      '<div class="inv-tile-value">' + short + '<span class="inv-tile-of">/' + ran.length + ' days short</span></div>' +
+      '<div class="inv-tile-viz">' + chartMiniBars(bars, { title: label + ': heads a day against the number' }) + '</div></div>';
+  };
+  var tiles = (stats.units || []).map(function(u) {
+    return tile(u.id, u.label, u.days.map(function(d) { return { iso: d.iso, heads: d.heads, need: d.norm, short: d.short, idle: d.idle }; }));
+  });
+  // No complement set: each floor area's heads a day alone, judged against nothing.
+  if (!tiles.some(Boolean)) tiles = (stats.rows || []).filter(function(a) { return a.floor && a.id !== 'flex' && a.headDays > 0; }).map(function(a) {
+    var bars = a.days.map(function(d) { return { v: d.heads, label: attDayName(d.iso) + ' ' + stockShortDate(d.iso), text: d.heads + ' heads' }; });
+    return '<div class="inv-tile" data-area-multiple="' + escHtml(a.id) + '"><div class="inv-tile-label">' + escHtml(a.label) + '</div>' +
+      '<div class="inv-tile-value">' + formatNum(a.avgHeads, 1) + '<span class="inv-tile-of"> heads a day</span></div>' +
+      '<div class="inv-tile-viz">' + chartMiniBars(bars, { title: a.label + ': heads a day' }) + '</div></div>';
+  });
+  SHIFT_LINES.forEach(function(l) {
+    var days = attDatesInRange(from, to).map(function(d) {
+      var n = lineNightOn(l[0], d), c = n ? shiftNightCrew(d, l[0]) : null;
+      if (!n || !c) return null;
+      return { iso: d, heads: c.heads, need: n.need || 0, short: n.need ? Math.max(0, n.need - c.heads) : 0, idle: !c.heads };
+    }).filter(Boolean);
+    if (days.length) tiles.push(tile('night-' + l[0], l[1] + ', the night', days));
+  });
+  tiles = tiles.filter(Boolean);
+  return tiles.length ? '<div class="inv-hero-sheet" data-area-multiples><div class="inv-tiles">' + tiles.join('') + '</div></div>' : '';
 }
 
 /* The extra, checked (the rule: `8 × (norm − heads)` per unit and day, an upper bound, the owner's per-hand scaling; the guide has the

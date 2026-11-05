@@ -24,7 +24,7 @@ test('the phone keeps each screen as it was: no pane, the record where it was', 
 
   await switchTab(page, 'pageStaff');
   await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-  await expect(page.locator('#attRosterTable')).toHaveCount(0);
+  await expect(page.locator('#attRosterHost')).toHaveCount(0);
   await page.locator('#attRoster [data-action="invAttEditWorker"]').first().click();
   await expect(page.locator('.inv-dialog')).toBeVisible();
   await page.keyboard.press('Escape');

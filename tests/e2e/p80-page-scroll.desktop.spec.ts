@@ -56,7 +56,7 @@ const STOPS: Stop[] = [
   {
     name: 'Staff › Roster',
     go: async p => { await switchTab(p, 'pageStaff'); await p.locator('#pageStaff .inv-viewtab[data-view="roster"]').click(); },
-    row: '#attRosterTable tbody tr[data-action="invAttRosterOpen"]',
+    row: '#attRosterHost [data-roster-card] [data-action="invAttRosterOpen"]',
   },
   { name: 'History', go: p => switchTab(p, 'pageHistory'), row: '#historyHost tbody tr[data-action="invHistoryOpen"]' },
 ];

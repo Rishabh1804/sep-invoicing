@@ -175,6 +175,11 @@ var KB_APP_GUIDES = [
   // Attendance (the tab map, TM4b): Day, Week and Month under one tab, and the method each screen used to print above its figures.
   _kbg('day', 'Using the app: attendance', 'Floor → People → Attendance: the day, the week and the month', ['pageStaff', 'pageFloor'],
     'Floor → People → **Attendance** has 3 views on a switch below its toolbar: **Day**, **Week** and **Month**. Each view starts with a card that shows the status. On a phone, tap the card to see its figures.\n\n' +
+    '# The next steps\n' +
+    '- Day and Month show their steps in 1 row below the switch. Each step shows its state: a tick when it is done, its number when it is to do, and **!** when it is late. A ring shows the step to do next.\n' +
+    '- Tap a step to go where you do it. A step that is done has no door.\n' +
+    '- Day: **In-time roll**, **Marks**, **Out-time roll**, then **EXTRA booked**. A line with a night adds its **Night roll**, which comes the next morning. If a sync holds 2 versions of a mark, **Held for you** opens that hand’s day.\n' +
+    '- Month: **Start or import**, **Fill**, **Settle the differences**, then **Mark checked**.\n\n' +
     '# Day\n' +
     '- The card compares the people on site with the roster of the day. It also shows the areas that are short of the number for the day. Its figures are on site, half day, absent and not marked.\n' +
     '- **Board** shows each area as a card. Tap once to set P, H or A. Tap a name to open the day of that hand. It shows the area, the in time, the out time and the area of each overtime shift.\n' +
@@ -196,11 +201,12 @@ var KB_APP_GUIDES = [
     '- If the night is short of its crew, the EXTRA is the length of the night for each missing hand. The To-do tells you about a short night, and about a hand on 2 shifts back to back.\n\n' +
     '# Week\n' +
     '- The card compares the attendance of the week with the rest-day gate (90% and 80%). It also shows the days that nobody recorded, and the payout until now.\n' +
-    '- Tap a cell of the grid to change it. Each tap sets the next state: present, half day, absent, then not marked.\n' +
+    '- **The week** shows each hand as a row and each day as a column. Green is present, amber is a half day, red is absent and blue is a night. A hatched cell is a day that nobody marked. A dot shows a hand on 2 shifts back to back. Tap **Table** to read each cell in words.\n' +
+    '- To change a mark, open **Week grid** below the picture. Tap a cell to change it. Each tap sets the next state: present, half day, absent, then not marked.\n' +
     '- A cell that is not marked is a day that nobody typed. This is not the same as a day that nobody worked. The labour figures keep the 2 separate.\n' +
     '- The figure in a cell is the hours that set the pay. For the hourly pool, it is the full day. For all other hands, it is the overtime.\n\n' +
     '# Month\n' +
-    '- This is the register of the supervisor, 1 page for each month. The app compares it with the day as the app keeps it. The card counts the cells that are different, the cells that are only on the register and the cells that agree.\n' +
+    '- This is the register of the supervisor, 1 page for each month. The app compares it with the day as the app keeps it. The card counts the cells that are different, the cells that are only on the register and the cells that agree. Its bar shows the 4 parts as shares of the month.\n' +
     '- The app shows each cell as it is written. A red cell has a mark that is different from the day. An amber cell has only a different overtime, by 1 hour or more. A plain cell agrees, or it is only on the register. A dashed edge shows a cell that the app was not sure how to read.\n' +
     '- Tap a cell to see the 2 values. Then select one of them: **Day takes the register’s** or **Register takes the day’s**.\n' +
     '- **Fill** puts each cell that is only on the register onto its day. The app asks you first.\n' +
@@ -213,10 +219,12 @@ var KB_APP_GUIDES = [
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
-    { version: 6 }),
+    // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5).
+    { version: 7 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +
+    '- Below its figures, the card shows each area as a small chart: 1 bar for each day, its height the heads on site. An amber bar is a day when the area was short of its number. A line with a night has its own chart, against the crew of the night.\n\n' +
     '# The rule\n' +
     '- If a hand is missing from an area that runs at full capacity, the crew who are there cover the work. The sheet then books **8 hours** to that area for the missing hand. Thus the expected extra is **8 × (the area’s number − the heads)** for each area, each day. The app compares this with the hours booked.\n' +
     '- An OT block books the same way, but at the length of the block, not 8. For example, a 5 PM to midnight block that is short 2 hands books 14. The overtime of the named hands is separate and is not included.\n' +
@@ -238,8 +246,8 @@ var KB_APP_GUIDES = [
     '# The extra, paid pro-rata\n' +
     '- The crew present in the area receive its extra between them (owner, 28 Aug 2026). The extra stays 1 pooled figure under EXTRA on the slip. The supervisor pays it out. The shares are the split that he uses to pay it. Nothing here goes into the wage of a hand.\n' +
     '- The app marks a share that is more than 1 shift a day. For example, 24 hours of cover against 2 hands is 12 hours each. Examine such a share against the record before you read it as pay.',
-    // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 2 }),
+    // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 3: the areas as small charts (UI pass 3, U5).
+    { version: 3 }),
   // Floor's Overview (the tab map, TM4a): how its cards are read, which used to be a note under them (§1a-5).
   _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock, power and turnaround', ['pageFloor'],
     'Floor opens on its **Overview**. It shows the day across the plant, with 1 card for each subject, then 1 card for each line. Use the arrows to go to a different day. Tap **Today** to go back to today.\n\n' +
@@ -403,6 +411,8 @@ var KB_APP_GUIDES = [
     { version: 3 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
+    '- The steps in 1 row below the toolbar show what to do for the week: **Hours** (a hand whose times do not reach a block), **Cash paid out**, **Payout** (to Saturday 5 PM), **Payments** (the weekly hands with an amount due) and **Slips**. Tap a step to go where you do it.\n' +
+    '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +
     '- The shop pays the weekly hands by the week. It pays the monthly hands by the calendar month that contains the week’s Sunday.\n' +
@@ -421,8 +431,9 @@ var KB_APP_GUIDES = [
     // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
-    // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { roles: ['owner'], version: 6 }),
+    // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
+    // pass 3, U5).
+    { roles: ['owner'], version: 7 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="5882665f">
+<meta name="app-build" content="a1fdc8e1">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1805,6 +1805,9 @@ button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-end .inv-btn-link { font-size: var(--fs-13); }
 /* On the phone an end can stack its figure over its status, so the title keeps its room (Power → Cuts). */
 body:not(.inv-desktop) .inv-row-end-stack { flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
+/* Two status badges at a row's end stack on the phone (UI pass 3, U7): each carries its icon now, and side by side they took the
+   room a row's meta line needs (Knowledge's article with *Published* and *Change waiting*). */
+body:not(.inv-desktop) .inv-row-end:has(> .inv-badge ~ .inv-badge) { flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
 /* A row's button reaches the row's top and bottom edges, over its padding, so the row's full height is the tap: it stopped
    short by the padding and was 43px on a two-line row, 31px on a one-line one. */

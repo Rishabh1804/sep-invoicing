@@ -529,6 +529,11 @@ function prodLinesHtml() {
     groups[g].forEach(function(e) { h += prodRunRowHtml(e, false); });
   });
   // One record counts per shift; the others count the same work another way and are never added (the guide says how).
+  // A message run the register does not bear out waits for the owner's approval (owner, 5 Nov 2026), apart from the runs that are
+  // the same work told twice.
+  var wait = also.filter(function(e) { return prodAwaits(e, idx); });
+  also = also.filter(function(e) { return !prodAwaits(e, idx); });
+  if (wait.length) { h += '<div class="inv-row-group" data-prod-await-group><span>Waiting for your approval, not added</span></div>'; wait.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
   if (also.length) { h += '<div class="inv-row-group"><span>Also reported, not added</span></div>'; also.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
   h += '</div>';
   // The pay week around the day: what each line plated, a dash where nothing was recorded, each figure in its day's efficiency's tone.
@@ -675,6 +680,7 @@ function prodRunRowHtml(e, muted) {
   return prodEntryFoldRowHtml(e, prodIndex(), '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta"><span class="inv-badge inv-badge-neutral" data-prod-src>' + prodSrcBadge(e) + '</span>' + (e.rework ? ' <span class="inv-badge inv-badge-info">rework</span>' : '') +
     (prodTwinOf(e) ? ' <span class="inv-badge inv-badge-warning" data-prod-twin-badge>saved twice?</span>' : '') +
+    (prodAwaits(e) ? ' <span class="inv-badge inv-badge-warning" data-prod-await-badge>to approve</span>' : '') +
     (meta ? ' ' + escHtml(meta) : '') + '</span>', '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
     (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span>', muted);
 }
@@ -682,8 +688,13 @@ function prodRunRowHtml(e, muted) {
 /* ---------- Entries ---------- */
 var PROD_ENTRY_KINDS = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
 var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed'],
-  ['check', 'To check'], ['twice', 'Saved twice']];
+  ['check', 'To check'], ['twice', 'Saved twice'], ['approve', 'To approve']];
 /* Whether an entry carries a flag: the To-do counts every date, so a flag lists every date too (P127). */
+/* A run waiting for the owner's approval: a live run of the supervisor's message the register does not bear out (prodCountPlated). */
+function prodAwaits(e, idx) {
+  idx = idx || prodIndex();
+  return e.kind === 'plated' && !e.voidedAt && !idx.replaced[e.id] && ((idx.countWhy || {})[e.id] || {}).how === 'await';
+}
 function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
   if (flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
@@ -694,6 +705,8 @@ function prodEntryFlagged(e, flag, idx) {
   if (flag === 'check') return faceCheckOf(e).length > 0;
   // A register run saved from two sources (a photo and a page, two photos of one page): both count until one is voided.
   if (flag === 'twice') return !!prodTwinOf(e, idx);
+  // A message run of a client the register never names that day: waiting for the owner's approval (prodCountPlated).
+  if (flag === 'approve') return prodAwaits(e, idx);
   return false;
 }
 /* Entries (the tab map, TM4c): its verdict (the record's 60 days, and what needs a look: pieces not weighed, loads with the line
@@ -710,7 +723,7 @@ function prodEntriesHtml() {
   var openCuts = recent.filter(function(e) { return e.kind === 'downtime' && !e.voidedAt && e.downtime && e.downtime.open; }).length;
   // The copies to settle, one fact everywhere (Lines' note, the task): a pair is one copy, though the flag lists both rows (Cipher M-2).
   var copies = Object.keys(idx.twinSkip || {}).filter(function(id) { var x = idx.byId[id]; return x && !x.voidedAt; }).length;
-  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + copies;
+  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + copies + flagN.approve;
   // The four flags that need a look are the card's factors, and filter the list as Stock's status tiles do; the kinds (and No client)
   // are the toolbar's chips, behind Filter on the phone with the flags beside them.
   var flagTile = function(flag, label, sub) {
@@ -718,7 +731,7 @@ function prodEntriesHtml() {
   };
   var h = uiVerdictHtml({ screen: 'Entries · 60 days', verdict: todoPlural(recent.length, 'entry', 'entries') + ' in 60 days' + (look ? ', ' + look + ' to look at' : ''),
     tone: !recent.length ? 'neutral' : look ? 'warning' : 'ok',
-    facts: [copies ? todoPlural(copies, 'copy', 'copies') + ' to settle' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
+    facts: [flagN.approve ? todoPlural(flagN.approve, 'run') + ' to approve' : '', copies ? todoPlural(copies, 'copy', 'copies') + ' to settle' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
       flagN.unknown ? flagN.unknown + ' with the line unknown' : ''].filter(Boolean).slice(0, 3),
     factors: [flagTile('unweighed', 'Not weighed', 'runs in pieces, every date'), flagTile('unknown', 'Line unknown', 'pickled loads'),
       flagTile('nochallan', 'No challan', 'loads, 30 days'), flagTile('gauge', 'Gauge unknown', 'a round no rule names')],
@@ -727,7 +740,7 @@ function prodEntriesHtml() {
     return '<button class="inv-chip" data-action="invProdFilter" ' + attr + '="' + val + '" aria-pressed="' + on + '">' + label + ' <span class="inv-panel-count">' + n + '</span></button>';
   };
   var chips = PROD_ENTRY_KINDS.map(function(c) { return chip('data-kind', c[0], c[1], kindN[c[0]], f.kind === c[0] && !f.flag); }).join('') +
-    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || ((c[0] === 'check' || c[0] === 'twice') && (flagN[c[0]] || f.flag === c[0])); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
+    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || ((c[0] === 'check' || c[0] === 'twice' || c[0] === 'approve') && (flagN[c[0]] || f.flag === c[0])); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
   var on = f.flag ? (PROD_ENTRY_FLAGS.find(function(c) { return c[0] === f.flag; }) || [])[1] : f.kind ? (PROD_ENTRY_KINDS.find(function(c) { return c[0] === f.kind; }) || [])[1] : '';
   // A day: every entry of it, whatever its kind (owner, 10 Oct 2026: a past day's records, to check and correct).
   var dayField = '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">A day</span><input type="date" id="prodEntriesDay" class="inv-input" max="' + today + '" value="' + escHtml(f.day || '') + '" aria-label="A day"></label>';
@@ -833,7 +846,7 @@ function prodEntryMoreHtml(e, idx) {
   // Whether the run counts in the day's plating, and why (owner, 4 Nov 2026: a run also reported could not be moved, nor its
   // reason seen).
   var cw = prodCountWhyText(e, idx);
-  if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
+  if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : cw.await ? 'warning' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
   var tws = prodTwinsOf(e, idx);
   if (tws.length) h += '<div class="inv-callout inv-callout-warning" data-prod-twin-run>' + escHtml('Saved twice? The same run (' + prodQtyText(e.qty, e.unit) + ') also came from ' +
     tws.map(function(tw) { return prodTwinSrc(tw) + ' (' + (tw.time || '') + (tw.to && tw.to !== tw.time ? '–' + tw.to : '') + ')'; }).join(' and ') +
@@ -893,9 +906,10 @@ function prodEntryRowHtml(e, idx, fold) {
   if (prodGaugeFlagged(e)) badges.push(['warning', 'gauge unknown']);
   if (faceCheckOf(e).length) badges.push(['warning', 'to check']);
   if (prodTwinOf(e, idx)) badges.push(['warning', 'saved twice?']);
+  if (prodAwaits(e, idx)) badges.push(['warning', 'to approve']);
   if (e.rework) badges.push(['info', 'rework']);
   if (idx.replaced[e.id]) badges.push(['neutral', 'corrected']);
-  else if (e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt) badges.push(['neutral', 'also reported']);
+  else if (e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !prodAwaits(e, idx)) badges.push(['neutral', 'also reported']);
   if (e.voidedAt) badges.push(['neutral', 'void']);
   var main = '<span class="inv-row-title">' + escHtml(title) + '</span><span class="inv-row-meta">' + escHtml(where + ' · ' + how) + '</span>' +
     (badges.length ? '<span class="inv-row-meta" data-prod-badges>' + badges.map(function(b) { return '<span class="inv-badge inv-badge-' + b[0] + '">' + escHtml(b[1]) + '</span>'; }).join(' ') + '</span>' : '');
@@ -928,6 +942,9 @@ function prodEntryActionsHtml(e, idx, omit) {
   var cw = e.kind === 'plated' ? (idx.countWhy || {})[e.id] : null;
   if (cw && !idx.replaced[e.id]) {
     if (cw.how === 'set') h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCountRule" data-id="' + escHtml(e.id) + '">Back to the rule</button>';
+    // A run waiting for approval is settled either way: added, or left out for good.
+    else if (cw.how === 'await') h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdCountIt" data-id="' + escHtml(e.id) + '">Count it</button>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
     else if (!idx.countedSet[e.id]) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdCountIt" data-id="' + escHtml(e.id) + '">Count it</button>';
     else h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
   }

@@ -691,7 +691,7 @@ function prodIndex() {
    word on an entry wins either way (`countSet: {how: 'count' | 'leave', at, by}`, prodCountSet). `why` says which rule
    placed each entry, for the row that explains it (prodCountWhyText). */
 function prodCountPlated(live, replaced, byId) {
-  var groups = {}, counted = [], also = [], set = {}, why = {}, named = {};
+  var groups = {}, counted = [], also = [], set = {}, why = {}, named = {}, namedReg = {};
   live.forEach(function(e) {
     if (e.kind !== 'plated' || replaced[e.id]) return;
     var basis = e.replaces && byId[e.replaces] ? (byId[e.replaces].basis || 'hand') : (e.basis || 'hand');
@@ -705,12 +705,17 @@ function prodCountPlated(live, replaced, byId) {
     // a register run is split at 5 PM and a hand run typed on the other slot read as other work): by id, and by the name written
     // (M-4, H-1: a run read with no client of the book, or a firm held twice, is still the client its name says).
     if (!x.standalone) {
-      var nk = e.date + '|' + (e.line || '-'), n = named[nk] || (named[nk] = { ids: {}, names: [], blind: false });
-      if (e.clientId != null) n.ids[String(e.clientId)] = true;
-      var key = prodCountNameKey(e.clientId != null ? prodClientName(e.clientId) || e.client : e.client);
-      if (key) n.names.push(key);
-      // A run read with no client of the book: its name may be a spelling the book does not hold, so it may be any client's.
-      if (e.clientId == null) n.blind = true;
+      var nk = e.date + '|' + (e.line || '-'), key = prodCountNameKey(e.clientId != null ? prodClientName(e.clientId) || e.client : e.client);
+      // Twice: every record the day's line holds (what a hand run is set against), and the register's alone (what a message run
+      // is set against: owner, 5 Nov 2026).
+      [named, basis === 'register' ? namedReg : null].forEach(function(m) {
+        if (!m) return;
+        var n = m[nk] || (m[nk] = { ids: {}, names: [], blind: false });
+        if (e.clientId != null) n.ids[String(e.clientId)] = true;
+        if (key) n.names.push(key);
+        // A run read with no client of the book: its name may be a spelling the book does not hold, so it may be any client's.
+        if (e.clientId == null) n.blind = true;
+      });
     }
   });
   var barrelDay = {};
@@ -718,16 +723,22 @@ function prodCountPlated(live, replaced, byId) {
   Object.keys(groups).forEach(function(k) {
     var g = groups[k], best = 0;
     g.forEach(function(x) { if (!x.standalone) best = Math.max(best, PROD_BASIS_RANK[x.basis] || 1); });
-    var parts = k.split('|'), n = named[parts[0] + '|' + parts[1]] || { ids: {}, names: [], blind: false };
+    var parts = k.split('|'), none = { ids: {}, names: [], blind: false }, n = named[parts[0] + '|' + parts[1]] || none, nr = namedReg[parts[0] + '|' + parts[1]] || none;
+    var holds = function(m, x) {
+      var hk = prodCountNameKey(prodClientName(x.e.clientId) || x.e.client);
+      return !!(m.ids[String(x.e.clientId)] || (hk && m.names.some(function(nm) { return prodCountNameSame(nm, hk); })));
+    };
     g.forEach(function(x) {
       var keep, w;
       if (!best) { keep = true; w = 'only'; }
+      // A run of the supervisor's message, of a client the register never names on the line that day, is work the register did not
+      // write: it waits for the owner's approval, then counts (owner, 5 Nov 2026: "Wait for approval and then added towards
+      // plating"). Approved is Count it (`countSet`), declined Leave it out; a run naming no client stays outranked.
+      else if (x.basis === 'relay' && best === PROD_BASIS_RANK.register && x.e.clientId != null && !holds(nr, x)) { keep = false; w = 'await'; }
       else if (!x.standalone) { keep = (PROD_BASIS_RANK[x.basis] || 1) === best; w = keep ? 'rank' : 'outranked'; }
       else if (x.e.clientId == null) { keep = false; w = 'noclient'; }
       else {
-        var hk = prodCountNameKey(prodClientName(x.e.clientId) || x.e.client);
-        var same = n.ids[String(x.e.clientId)] || (hk && n.names.some(function(nm) { return prodCountNameSame(nm, hk); }));
-        if (same) { keep = false; w = 'same'; }
+        if (holds(n, x)) { keep = false; w = 'same'; }
         // A register run naming no client may be this one (Vulcanus H-1): left out, Count it offered.
         else if (n.blind) { keep = false; w = 'unsure'; }
         else { keep = true; w = 'other'; }
@@ -735,7 +746,7 @@ function prodCountPlated(live, replaced, byId) {
       if (keep && parts[1] === 'barrel' && parts[2] === 'ot' && barrelDay[parts[0]] && x.basis === 'relay') { keep = false; w = 'barrelday'; }
       var cs = x.e.countSet;
       if (cs && (cs.how === 'count' || cs.how === 'leave')) { keep = cs.how === 'count'; w = 'set'; }
-      why[x.e.id] = { how: w, basis: x.basis, best: best };
+      why[x.e.id] = { how: w, basis: x.basis, best: best, blind: w === 'await' && nr.blind };
       if (keep) { counted.push(x.e); set[x.e.id] = true; } else also.push(x.e);
     });
   });
@@ -762,6 +773,8 @@ function prodCountWhyText(e, idx) {
   if (w.how === 'same') return { counted: false, text: 'Not added: ' + by + ' holds a run of this client on this line that day, so this is taken as the same work.' };
   if (w.how === 'noclient') return { counted: false, text: 'Not added: ' + by + ' counts this shift, and this run names no client.' };
   if (w.how === 'unsure') return { counted: false, text: 'Not added: ' + by + ' holds a run naming no client on this day, which may be this work. Count it if it is not.' };
+  if (w.how === 'await') return { counted: false, await: true, text: 'Waiting for your approval: the register holds no run of this client on this line that day, so this may be work it did not write' +
+    (w.blind ? ' (it holds a run naming no client, which may be this one)' : '') + '. Add to plating once checked, or leave it out.' };
   if (w.how === 'outranked') return { counted: false, text: 'Not added: ' + by + ' counts this shift.' };
   if (w.how === 'barrelday') return { counted: false, text: 'Not added: the supervisor’s barrel list counts the whole day.' };
   return null;
@@ -1857,7 +1870,8 @@ function prodLabourByLine(from, to) {
    flood on the first day), leave rework out (replating is not billed twice), and carry the tone in their sig so a
    snoozed amber task comes back when it turns red. */
 var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan'], ['prodGaugeUnknown', 'Production: a round no gauge rule names'],
-  ['prodUnweighed', 'Production: pieces plated with no weight'], ['prodTwice', 'Production: a register run saved twice']];
+  ['prodUnweighed', 'Production: pieces plated with no weight'], ['prodTwice', 'Production: a register run saved twice'],
+  ['prodApprove', 'Production: a message run waiting for approval']];
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
@@ -2009,6 +2023,31 @@ TODO_RULE_FNS.prodTwice = function() {
       facts: [['Day', formatDate(day)], ['Copies', String(pairs)], ['Counted twice', Object.keys(d.extra).map(function(u) { return prodQtyText(Math.round(d.extra[u] * 100) / 100, u); }).join(' + ') || '–']],
       clears: 'Void the copy of each pair, or Two runs, keep both where they are two runs. Until then the day’s plating and the line’s efficiency read high.',
       go: prodGo('entries', { flag: 'twice', day: day }), goLabel: 'Open the pairs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
+  });
+};
+
+/* The runs of the supervisor's message waiting for the owner's approval (prodCountPlated's 'await': a client the register never
+   names on the line that day), one task a day, the newest first. Not in the day's plating until approved, so the day reads low by
+   them until then. Amber; the owner's (Count it and Leave it out need the voids permission). The last 30 days, as the other rules. */
+TODO_RULE_NEED.prodApprove = 'owner';
+TODO_RULE_FNS.prodApprove = function() {
+  var idx = prodIndex(), days = {}, since = isoAddDays(localDateStr(), -30);
+  Object.keys(idx.countWhy || {}).forEach(function(id) {
+    var e = idx.byId[id], w = idx.countWhy[id];
+    if (!e || w.how !== 'await' || e.voidedAt || idx.replaced[id] || e.date < since) return;
+    var d = days[e.date] || (days[e.date] = { ids: [], qty: {}, lines: {}, clients: {} });
+    d.ids.push(id); d.lines[e.line || '-'] = true; d.clients[prodClientName(e.clientId) || e.client || '?'] = true;
+    if (e.qty) d.qty[e.unit || 'NOS'] = (d.qty[e.unit || 'NOS'] || 0) + e.qty;
+  });
+  return Object.keys(days).sort().reverse().map(function(day) {
+    var d = days[day], lines = Object.keys(d.lines).map(function(l) { return l === '-' ? 'line unknown' : PROD_LINE_LABEL[l] || l; });
+    return { key: 'prodApprove:' + day, rule: 'prodApprove', tone: 'amber',
+      title: formatDate(day) + ': ' + todoPlural(d.ids.length, 'run') + ' from the supervisor’s message to approve',
+      sub: lines.join(', ') + ' · ' + Object.keys(d.clients).join(', '),
+      why: 'Production · a client the register never names on that line that day: work it may not have written',
+      facts: [['Day', formatDate(day)], ['Runs', String(d.ids.length)], ['Waiting', Object.keys(d.qty).map(function(u) { return prodQtyText(Math.round(d.qty[u] * 100) / 100, u); }).join(' + ') || '–']],
+      clears: 'Count it adds a run to the day’s plating; Leave it out keeps it out. Until then the day’s plating and the line’s efficiency leave it out.',
+      go: prodGo('entries', { flag: 'approve', day: day }), goLabel: 'Open the runs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
   });
 };
 

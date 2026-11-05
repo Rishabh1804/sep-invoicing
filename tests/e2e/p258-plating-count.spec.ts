@@ -214,4 +214,44 @@ test.describe('P258: what counts in a day’s plating', () => {
     // History names the word in words.
     expect(await g(page, `CHG_FIELD_WORDS.twinOk + ' / ' + CHG_FIELD_WORDS.countSet`)).toBe('kept as two runs / counted by hand');
   });
+
+  test('a message run of a client the register never names waits for approval: a task, a flag, its own group; Count it adds it, Leave it out settles it', async ({ page }) => {
+    // Owner, 5 Nov 2026 ("Wait for approval and then added towards plating").
+    const M = (o: any) => E({ basis: 'relay', src: 'paste', msgHash: 'MSG1', ...o });
+    await load(page, [
+      E({ id: 'R1', clientId: 11, qty: 400, time: '09:00', to: '10:00', photoId: 'PH1' }),
+      M({ id: 'M1', clientId: 13, qty: 300, time: '11:00' }),   // a client the register never names: waits
+      M({ id: 'M2', clientId: 11, qty: 400, time: '09:00' }),   // the register's own client: the same work, outranked
+      M({ id: 'M3', clientId: null, qty: 70, time: '12:00' }),  // no client: outranked, never asked
+      M({ id: 'M4', clientId: 12, qty: 90, time: '18:00', slot: 'ot' }),  // a shift the register does not cover: counts as before
+    ]);
+    await page.evaluate(() => localStorage.setItem('sep_inv_stock_by', 'Deepak'));
+    expect(await counted(page)).toEqual({ counted: ['M4', 'R1'], also: ['M1', 'M2', 'M3'] });
+    expect(await g(page, `(function(){ var w = prodIndex().countWhy; return [w.M1.how, w.M2.how, w.M3.how, w.M4.how]; })()`)).toEqual(['await', 'outranked', 'outranked', 'rank']);
+    // One task for the day, the owner's.
+    const t = await g(page, `(function(){ return TODO_RULE_FNS.prodApprove().map(function(x){ return [x.title, x.facts[2][1], TODO_RULE_NEED.prodApprove]; }); })()`);
+    expect(t).toEqual([[expect.stringContaining('1 run from the supervisor’s message to approve'), '300 NOS', 'owner']]);
+    await openLines(page);
+    // Its own group, apart from the work told twice; badged; its fold says why and offers both answers.
+    await expect(page.locator('#prodRuns [data-prod-await-group]')).toBeVisible();
+    await expect(runRow(page, 'M1').locator('[data-prod-await-badge]')).toBeVisible();
+    await expect(runRow(page, 'M2').locator('[data-prod-await-badge]')).toHaveCount(0);
+    const m1 = await openRow(page, 'M1');
+    await expect(m1.locator('[data-prod-count-why]')).toContainText('Waiting for your approval');
+    await expect(m1.locator('[data-action="invProdLeaveOut"]')).toBeVisible();
+    await m1.locator('[data-action="invProdCountIt"]').click();
+    expect(await counted(page)).toEqual({ counted: ['M1', 'M4', 'R1'], also: ['M2', 'M3'] });
+    expect(await g(page, `prodDayLine(${JSON.stringify(D)}, 'vat-a1').nos`)).toBe(790);
+    expect(await g(page, `TODO_RULE_FNS.prodApprove().length`)).toBe(0);
+    // Back to the rule asks again; Leave it out settles it out of the count, with no task.
+    await (await openRow(page, 'M1')).locator('[data-action="invProdCountRule"]').click();
+    expect(await g(page, `TODO_RULE_FNS.prodApprove().length`)).toBe(1);
+    await (await openRow(page, 'M1')).locator('[data-action="invProdLeaveOut"]').click();
+    expect(await counted(page)).toEqual({ counted: ['M4', 'R1'], also: ['M1', 'M2', 'M3'] });
+    expect(await g(page, `TODO_RULE_FNS.prodApprove().length`)).toBe(0);
+    expect((await readStoredState(page)).production.entries.find((e: any) => e.id === 'M1').countSet.how).toBe('leave');
+    // Entries' flag lists what waits.
+    await g(page, `(function(){ var x = prodIndex().byId.M1; delete x.countSet; prodTouch(); })()`);
+    expect(await g(page, `prodData().entries.filter(function(e){ return prodEntryFlagged(e, 'approve', prodIndex()); }).map(function(e){ return e.id; })`)).toEqual(['M1']);
+  });
 });

@@ -2448,7 +2448,13 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   split at 5 PM), matched by id and by name (`prodCountNameKey`: a firm held twice, a run read under another record); a shift that
   no register or message covers is filled by its hand runs, as before, whatever clients the day names. A hand run of a
   client named stays also reported (the same work told twice); so does one naming no client, and one beside a register run read with
-  no client of the book (*unsure*: it may be that work). A correction of a hand run is judged as the run it replaces. **The owner's
+  no client of the book (*unsure*: it may be that work). A correction of a hand run is judged as the run it replaces. **A run of the
+  supervisor's message of a client the register never names on the line that day waits for the owner's approval, then counts** (owner,
+  5 Nov 2026: *"Wait for approval and then added towards plating"*; the review's L-9): matched against the register's clients alone
+  (a message naming the register's client, or no client, is the same work, outranked as before), *to approve* on its row, a group of
+  its own on Lines (*Waiting for your approval, not added*), Entries' *To approve* flag, To-do `prodApprove` (the owner's, 30 days, a
+  day a task); **Count it** approves, **Leave it out** settles it out. A shift the register does not cover counts its message as
+  before. **The owner's
   word on any run wins**: **Count it**, **Leave it out**, **Back to the rule** (`countSet: {how, at, by}`, `prodCountSet`, the voids
   permission, kept by a correction); it can count a barrel OT block beside the day's list too, the one exception to the ruling of 13 Oct
   2026. A run's fold and pane say why it counts or not (`prodCountWhyText`). **A register run saved from two sources is flagged, never

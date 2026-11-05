@@ -321,6 +321,7 @@ var KB_APP_GUIDES = [
     '- **Plated** and **Earned** each compare the day with the usual day of the line. The facts of the card compare the week to the day with the 4 weeks before. Each side uses the average of a recorded day. For how the app calculates earnings, see **Using the app: the floor**.\n' +
     '- **One record counts for each line and shift**. The order is the register, then the relay of the supervisor, then an entry by hand. The app shows the others as *also reported, not added*. They count the same work in a different way.\n' +
     '- An entry by hand of a client that the register of the line does not show that day is other work. It counts with the register. An entry by hand of a client that the register shows stays *also reported*. If a register run has no client, an entry by hand stays *also reported* until you count it. If no register or message covers a shift, the entries by hand of that shift count.\n' +
+    '- A run from the message of the supervisor, of a client that the register of the line does not show that day, shows *to approve*. It does not count until you approve it. Make sure that the work was done, then tap **Count it**. If it was not, tap **Leave it out**. Needs you shows these runs for each day.\n' +
     '- Open a run to see why it counts or not. Tap **Count it** to add a run that is left out. Tap **Leave it out** to remove a run that counts. Tap **Back to the rule** to let the app decide again.\n' +
     '- WARNING: Each register run counts once. If 2 sources record the same run (for example a photo and the page typed on Mine), the app shows **saved twice?** on both. Void the copy, or tap **Two runs, keep both** if they are 2 runs.\n' +
     '- **The week, plated** shows the kilograms that each line plated each day. ≈ shows that a run is an estimate. Pieces that have no weight are added as pieces. Each figure has the colour of the efficiency of its day. A dash is a day with no record for the line.\n' +
@@ -349,7 +350,8 @@ var KB_APP_GUIDES = [
     // Version 7: the unbilled figure is a widget on Home (UI pass 3, 16 Oct 2026). Version 8: a line's units are its tanks and
     // barrels; a rectifier is supporting equipment, with the line it serves (T-IO, 29 Oct 2026).
     // Version 9: a hand run of a client the register does not show counts; Count it, Leave it out; a register run saved twice (4 Nov 2026).
-    { version: 9 }),
+    // Version 10: a run of the supervisor's message of a client the register does not show waits for approval (owner, 5 Nov 2026).
+    { version: 10 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],

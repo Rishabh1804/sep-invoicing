@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="53764aff">
+<meta name="app-build" content="1ebfeeff">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -54043,7 +54043,7 @@ function prodIndex() {
    word on an entry wins either way (`countSet: {how: 'count' | 'leave', at, by}`, prodCountSet). `why` says which rule
    placed each entry, for the row that explains it (prodCountWhyText). */
 function prodCountPlated(live, replaced, byId) {
-  var groups = {}, counted = [], also = [], set = {}, why = {}, named = {};
+  var groups = {}, counted = [], also = [], set = {}, why = {}, named = {}, namedReg = {};
   live.forEach(function(e) {
     if (e.kind !== 'plated' || replaced[e.id]) return;
     var basis = e.replaces && byId[e.replaces] ? (byId[e.replaces].basis || 'hand') : (e.basis || 'hand');
@@ -54057,12 +54057,17 @@ function prodCountPlated(live, replaced, byId) {
     // a register run is split at 5 PM and a hand run typed on the other slot read as other work): by id, and by the name written
     // (M-4, H-1: a run read with no client of the book, or a firm held twice, is still the client its name says).
     if (!x.standalone) {
-      var nk = e.date + '|' + (e.line || '-'), n = named[nk] || (named[nk] = { ids: {}, names: [], blind: false });
-      if (e.clientId != null) n.ids[String(e.clientId)] = true;
-      var key = prodCountNameKey(e.clientId != null ? prodClientName(e.clientId) || e.client : e.client);
-      if (key) n.names.push(key);
-      // A run read with no client of the book: its name may be a spelling the book does not hold, so it may be any client's.
-      if (e.clientId == null) n.blind = true;
+      var nk = e.date + '|' + (e.line || '-'), key = prodCountNameKey(e.clientId != null ? prodClientName(e.clientId) || e.client : e.client);
+      // Twice: every record the day's line holds (what a hand run is set against), and the register's alone (what a message run
+      // is set against: owner, 5 Nov 2026).
+      [named, basis === 'register' ? namedReg : null].forEach(function(m) {
+        if (!m) return;
+        var n = m[nk] || (m[nk] = { ids: {}, names: [], blind: false });
+        if (e.clientId != null) n.ids[String(e.clientId)] = true;
+        if (key) n.names.push(key);
+        // A run read with no client of the book: its name may be a spelling the book does not hold, so it may be any client's.
+        if (e.clientId == null) n.blind = true;
+      });
     }
   });
   var barrelDay = {};
@@ -54070,16 +54075,22 @@ function prodCountPlated(live, replaced, byId) {
   Object.keys(groups).forEach(function(k) {
     var g = groups[k], best = 0;
     g.forEach(function(x) { if (!x.standalone) best = Math.max(best, PROD_BASIS_RANK[x.basis] || 1); });
-    var parts = k.split('|'), n = named[parts[0] + '|' + parts[1]] || { ids: {}, names: [], blind: false };
+    var parts = k.split('|'), none = { ids: {}, names: [], blind: false }, n = named[parts[0] + '|' + parts[1]] || none, nr = namedReg[parts[0] + '|' + parts[1]] || none;
+    var holds = function(m, x) {
+      var hk = prodCountNameKey(prodClientName(x.e.clientId) || x.e.client);
+      return !!(m.ids[String(x.e.clientId)] || (hk && m.names.some(function(nm) { return prodCountNameSame(nm, hk); })));
+    };
     g.forEach(function(x) {
       var keep, w;
       if (!best) { keep = true; w = 'only'; }
+      // A run of the supervisor's message, of a client the register never names on the line that day, is work the register did not
+      // write: it waits for the owner's approval, then counts (owner, 5 Nov 2026: "Wait for approval and then added towards
+      // plating"). Approved is Count it (`countSet`), declined Leave it out; a run naming no client stays outranked.
+      else if (x.basis === 'relay' && best === PROD_BASIS_RANK.register && x.e.clientId != null && !holds(nr, x)) { keep = false; w = 'await'; }
       else if (!x.standalone) { keep = (PROD_BASIS_RANK[x.basis] || 1) === best; w = keep ? 'rank' : 'outranked'; }
       else if (x.e.clientId == null) { keep = false; w = 'noclient'; }
       else {
-        var hk = prodCountNameKey(prodClientName(x.e.clientId) || x.e.client);
-        var same = n.ids[String(x.e.clientId)] || (hk && n.names.some(function(nm) { return prodCountNameSame(nm, hk); }));
-        if (same) { keep = false; w = 'same'; }
+        if (holds(n, x)) { keep = false; w = 'same'; }
         // A register run naming no client may be this one (Vulcanus H-1): left out, Count it offered.
         else if (n.blind) { keep = false; w = 'unsure'; }
         else { keep = true; w = 'other'; }
@@ -54087,7 +54098,7 @@ function prodCountPlated(live, replaced, byId) {
       if (keep && parts[1] === 'barrel' && parts[2] === 'ot' && barrelDay[parts[0]] && x.basis === 'relay') { keep = false; w = 'barrelday'; }
       var cs = x.e.countSet;
       if (cs && (cs.how === 'count' || cs.how === 'leave')) { keep = cs.how === 'count'; w = 'set'; }
-      why[x.e.id] = { how: w, basis: x.basis, best: best };
+      why[x.e.id] = { how: w, basis: x.basis, best: best, blind: w === 'await' && nr.blind };
       if (keep) { counted.push(x.e); set[x.e.id] = true; } else also.push(x.e);
     });
   });
@@ -54114,6 +54125,8 @@ function prodCountWhyText(e, idx) {
   if (w.how === 'same') return { counted: false, text: 'Not added: ' + by + ' holds a run of this client on this line that day, so this is taken as the same work.' };
   if (w.how === 'noclient') return { counted: false, text: 'Not added: ' + by + ' counts this shift, and this run names no client.' };
   if (w.how === 'unsure') return { counted: false, text: 'Not added: ' + by + ' holds a run naming no client on this day, which may be this work. Count it if it is not.' };
+  if (w.how === 'await') return { counted: false, await: true, text: 'Waiting for your approval: the register holds no run of this client on this line that day, so this may be work it did not write' +
+    (w.blind ? ' (it holds a run naming no client, which may be this one)' : '') + '. Add to plating once checked, or leave it out.' };
   if (w.how === 'outranked') return { counted: false, text: 'Not added: ' + by + ' counts this shift.' };
   if (w.how === 'barrelday') return { counted: false, text: 'Not added: the supervisor’s barrel list counts the whole day.' };
   return null;
@@ -55209,7 +55222,8 @@ function prodLabourByLine(from, to) {
    flood on the first day), leave rework out (replating is not billed twice), and carry the tone in their sig so a
    snoozed amber task comes back when it turns red. */
 var PROD_RULES = [['prodPlatedUnbilled', 'Production: plated and not invoiced'], ['prodPickledNoChallan', 'Production: pickled with no open challan'], ['prodGaugeUnknown', 'Production: a round no gauge rule names'],
-  ['prodUnweighed', 'Production: pieces plated with no weight'], ['prodTwice', 'Production: a register run saved twice']];
+  ['prodUnweighed', 'Production: pieces plated with no weight'], ['prodTwice', 'Production: a register run saved twice'],
+  ['prodApprove', 'Production: a message run waiting for approval']];
 PROD_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 TODO_CHECK_DEFAULTS.prodPlatedDays = 3;
 function prodGo(tab, extra) { return Object.assign({ kind: 'production', tab: tab }, extra || {}); }
@@ -55361,6 +55375,31 @@ TODO_RULE_FNS.prodTwice = function() {
       facts: [['Day', formatDate(day)], ['Copies', String(pairs)], ['Counted twice', Object.keys(d.extra).map(function(u) { return prodQtyText(Math.round(d.extra[u] * 100) / 100, u); }).join(' + ') || '–']],
       clears: 'Void the copy of each pair, or Two runs, keep both where they are two runs. Until then the day’s plating and the line’s efficiency read high.',
       go: prodGo('entries', { flag: 'twice', day: day }), goLabel: 'Open the pairs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
+  });
+};
+
+/* The runs of the supervisor's message waiting for the owner's approval (prodCountPlated's 'await': a client the register never
+   names on the line that day), one task a day, the newest first. Not in the day's plating until approved, so the day reads low by
+   them until then. Amber; the owner's (Count it and Leave it out need the voids permission). The last 30 days, as the other rules. */
+TODO_RULE_NEED.prodApprove = 'owner';
+TODO_RULE_FNS.prodApprove = function() {
+  var idx = prodIndex(), days = {}, since = isoAddDays(localDateStr(), -30);
+  Object.keys(idx.countWhy || {}).forEach(function(id) {
+    var e = idx.byId[id], w = idx.countWhy[id];
+    if (!e || w.how !== 'await' || e.voidedAt || idx.replaced[id] || e.date < since) return;
+    var d = days[e.date] || (days[e.date] = { ids: [], qty: {}, lines: {}, clients: {} });
+    d.ids.push(id); d.lines[e.line || '-'] = true; d.clients[prodClientName(e.clientId) || e.client || '?'] = true;
+    if (e.qty) d.qty[e.unit || 'NOS'] = (d.qty[e.unit || 'NOS'] || 0) + e.qty;
+  });
+  return Object.keys(days).sort().reverse().map(function(day) {
+    var d = days[day], lines = Object.keys(d.lines).map(function(l) { return l === '-' ? 'line unknown' : PROD_LINE_LABEL[l] || l; });
+    return { key: 'prodApprove:' + day, rule: 'prodApprove', tone: 'amber',
+      title: formatDate(day) + ': ' + todoPlural(d.ids.length, 'run') + ' from the supervisor’s message to approve',
+      sub: lines.join(', ') + ' · ' + Object.keys(d.clients).join(', '),
+      why: 'Production · a client the register never names on that line that day: work it may not have written',
+      facts: [['Day', formatDate(day)], ['Runs', String(d.ids.length)], ['Waiting', Object.keys(d.qty).map(function(u) { return prodQtyText(Math.round(d.qty[u] * 100) / 100, u); }).join(' + ') || '–']],
+      clears: 'Count it adds a run to the day’s plating; Leave it out keeps it out. Until then the day’s plating and the line’s efficiency leave it out.',
+      go: prodGo('entries', { flag: 'approve', day: day }), goLabel: 'Open the runs', sig: 'amber|' + day + '|' + d.ids.sort().join('|') };
   });
 };
 
@@ -57934,6 +57973,11 @@ function prodLinesHtml() {
     groups[g].forEach(function(e) { h += prodRunRowHtml(e, false); });
   });
   // One record counts per shift; the others count the same work another way and are never added (the guide says how).
+  // A message run the register does not bear out waits for the owner's approval (owner, 5 Nov 2026), apart from the runs that are
+  // the same work told twice.
+  var wait = also.filter(function(e) { return prodAwaits(e, idx); });
+  also = also.filter(function(e) { return !prodAwaits(e, idx); });
+  if (wait.length) { h += '<div class="inv-row-group" data-prod-await-group><span>Waiting for your approval, not added</span></div>'; wait.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
   if (also.length) { h += '<div class="inv-row-group"><span>Also reported, not added</span></div>'; also.forEach(function(e) { h += prodRunRowHtml(e, true); }); }
   h += '</div>';
   // The pay week around the day: what each line plated, a dash where nothing was recorded, each figure in its day's efficiency's tone.
@@ -58080,6 +58124,7 @@ function prodRunRowHtml(e, muted) {
   return prodEntryFoldRowHtml(e, prodIndex(), '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta"><span class="inv-badge inv-badge-neutral" data-prod-src>' + prodSrcBadge(e) + '</span>' + (e.rework ? ' <span class="inv-badge inv-badge-info">rework</span>' : '') +
     (prodTwinOf(e) ? ' <span class="inv-badge inv-badge-warning" data-prod-twin-badge>saved twice?</span>' : '') +
+    (prodAwaits(e) ? ' <span class="inv-badge inv-badge-warning" data-prod-await-badge>to approve</span>' : '') +
     (meta ? ' ' + escHtml(meta) : '') + '</span>', '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
     (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span>', muted);
 }
@@ -58087,8 +58132,13 @@ function prodRunRowHtml(e, muted) {
 /* ---------- Entries ---------- */
 var PROD_ENTRY_KINDS = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
 var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed'],
-  ['check', 'To check'], ['twice', 'Saved twice']];
+  ['check', 'To check'], ['twice', 'Saved twice'], ['approve', 'To approve']];
 /* Whether an entry carries a flag: the To-do counts every date, so a flag lists every date too (P127). */
+/* A run waiting for the owner's approval: a live run of the supervisor's message the register does not bear out (prodCountPlated). */
+function prodAwaits(e, idx) {
+  idx = idx || prodIndex();
+  return e.kind === 'plated' && !e.voidedAt && !idx.replaced[e.id] && ((idx.countWhy || {})[e.id] || {}).how === 'await';
+}
 function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
   if (flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
@@ -58099,6 +58149,8 @@ function prodEntryFlagged(e, flag, idx) {
   if (flag === 'check') return faceCheckOf(e).length > 0;
   // A register run saved from two sources (a photo and a page, two photos of one page): both count until one is voided.
   if (flag === 'twice') return !!prodTwinOf(e, idx);
+  // A message run of a client the register never names that day: waiting for the owner's approval (prodCountPlated).
+  if (flag === 'approve') return prodAwaits(e, idx);
   return false;
 }
 /* Entries (the tab map, TM4c): its verdict (the record's 60 days, and what needs a look: pieces not weighed, loads with the line
@@ -58115,7 +58167,7 @@ function prodEntriesHtml() {
   var openCuts = recent.filter(function(e) { return e.kind === 'downtime' && !e.voidedAt && e.downtime && e.downtime.open; }).length;
   // The copies to settle, one fact everywhere (Lines' note, the task): a pair is one copy, though the flag lists both rows (Cipher M-2).
   var copies = Object.keys(idx.twinSkip || {}).filter(function(id) { var x = idx.byId[id]; return x && !x.voidedAt; }).length;
-  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + copies;
+  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check + copies + flagN.approve;
   // The four flags that need a look are the card's factors, and filter the list as Stock's status tiles do; the kinds (and No client)
   // are the toolbar's chips, behind Filter on the phone with the flags beside them.
   var flagTile = function(flag, label, sub) {
@@ -58123,7 +58175,7 @@ function prodEntriesHtml() {
   };
   var h = uiVerdictHtml({ screen: 'Entries · 60 days', verdict: todoPlural(recent.length, 'entry', 'entries') + ' in 60 days' + (look ? ', ' + look + ' to look at' : ''),
     tone: !recent.length ? 'neutral' : look ? 'warning' : 'ok',
-    facts: [copies ? todoPlural(copies, 'copy', 'copies') + ' to settle' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
+    facts: [flagN.approve ? todoPlural(flagN.approve, 'run') + ' to approve' : '', copies ? todoPlural(copies, 'copy', 'copies') + ' to settle' : '', flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
       flagN.unknown ? flagN.unknown + ' with the line unknown' : ''].filter(Boolean).slice(0, 3),
     factors: [flagTile('unweighed', 'Not weighed', 'runs in pieces, every date'), flagTile('unknown', 'Line unknown', 'pickled loads'),
       flagTile('nochallan', 'No challan', 'loads, 30 days'), flagTile('gauge', 'Gauge unknown', 'a round no rule names')],
@@ -58132,7 +58184,7 @@ function prodEntriesHtml() {
     return '<button class="inv-chip" data-action="invProdFilter" ' + attr + '="' + val + '" aria-pressed="' + on + '">' + label + ' <span class="inv-panel-count">' + n + '</span></button>';
   };
   var chips = PROD_ENTRY_KINDS.map(function(c) { return chip('data-kind', c[0], c[1], kindN[c[0]], f.kind === c[0] && !f.flag); }).join('') +
-    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || ((c[0] === 'check' || c[0] === 'twice') && (flagN[c[0]] || f.flag === c[0])); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
+    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || ((c[0] === 'check' || c[0] === 'twice' || c[0] === 'approve') && (flagN[c[0]] || f.flag === c[0])); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
   var on = f.flag ? (PROD_ENTRY_FLAGS.find(function(c) { return c[0] === f.flag; }) || [])[1] : f.kind ? (PROD_ENTRY_KINDS.find(function(c) { return c[0] === f.kind; }) || [])[1] : '';
   // A day: every entry of it, whatever its kind (owner, 10 Oct 2026: a past day's records, to check and correct).
   var dayField = '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">A day</span><input type="date" id="prodEntriesDay" class="inv-input" max="' + today + '" value="' + escHtml(f.day || '') + '" aria-label="A day"></label>';
@@ -58238,7 +58290,7 @@ function prodEntryMoreHtml(e, idx) {
   // Whether the run counts in the day's plating, and why (owner, 4 Nov 2026: a run also reported could not be moved, nor its
   // reason seen).
   var cw = prodCountWhyText(e, idx);
-  if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
+  if (cw && (!cw.counted || cw.set || (idx.countWhy[e.id] || {}).how === 'other')) h += '<div class="inv-callout inv-callout-' + (cw.counted ? 'info' : cw.await ? 'warning' : 'neutral') + '" data-prod-count-why>' + escHtml(cw.text) + '</div>';
   var tws = prodTwinsOf(e, idx);
   if (tws.length) h += '<div class="inv-callout inv-callout-warning" data-prod-twin-run>' + escHtml('Saved twice? The same run (' + prodQtyText(e.qty, e.unit) + ') also came from ' +
     tws.map(function(tw) { return prodTwinSrc(tw) + ' (' + (tw.time || '') + (tw.to && tw.to !== tw.time ? '–' + tw.to : '') + ')'; }).join(' and ') +
@@ -58298,9 +58350,10 @@ function prodEntryRowHtml(e, idx, fold) {
   if (prodGaugeFlagged(e)) badges.push(['warning', 'gauge unknown']);
   if (faceCheckOf(e).length) badges.push(['warning', 'to check']);
   if (prodTwinOf(e, idx)) badges.push(['warning', 'saved twice?']);
+  if (prodAwaits(e, idx)) badges.push(['warning', 'to approve']);
   if (e.rework) badges.push(['info', 'rework']);
   if (idx.replaced[e.id]) badges.push(['neutral', 'corrected']);
-  else if (e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt) badges.push(['neutral', 'also reported']);
+  else if (e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !prodAwaits(e, idx)) badges.push(['neutral', 'also reported']);
   if (e.voidedAt) badges.push(['neutral', 'void']);
   var main = '<span class="inv-row-title">' + escHtml(title) + '</span><span class="inv-row-meta">' + escHtml(where + ' · ' + how) + '</span>' +
     (badges.length ? '<span class="inv-row-meta" data-prod-badges>' + badges.map(function(b) { return '<span class="inv-badge inv-badge-' + b[0] + '">' + escHtml(b[1]) + '</span>'; }).join(' ') + '</span>' : '');
@@ -58333,6 +58386,9 @@ function prodEntryActionsHtml(e, idx, omit) {
   var cw = e.kind === 'plated' ? (idx.countWhy || {})[e.id] : null;
   if (cw && !idx.replaced[e.id]) {
     if (cw.how === 'set') h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCountRule" data-id="' + escHtml(e.id) + '">Back to the rule</button>';
+    // A run waiting for approval is settled either way: added, or left out for good.
+    else if (cw.how === 'await') h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdCountIt" data-id="' + escHtml(e.id) + '">Count it</button>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
     else if (!idx.countedSet[e.id]) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdCountIt" data-id="' + escHtml(e.id) + '">Count it</button>';
     else h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdLeaveOut" data-id="' + escHtml(e.id) + '">Leave it out</button>';
   }
@@ -74777,6 +74833,7 @@ var KB_APP_GUIDES = [
     '- **Plated** and **Earned** each compare the day with the usual day of the line. The facts of the card compare the week to the day with the 4 weeks before. Each side uses the average of a recorded day. For how the app calculates earnings, see **Using the app: the floor**.\n' +
     '- **One record counts for each line and shift**. The order is the register, then the relay of the supervisor, then an entry by hand. The app shows the others as *also reported, not added*. They count the same work in a different way.\n' +
     '- An entry by hand of a client that the register of the line does not show that day is other work. It counts with the register. An entry by hand of a client that the register shows stays *also reported*. If a register run has no client, an entry by hand stays *also reported* until you count it. If no register or message covers a shift, the entries by hand of that shift count.\n' +
+    '- A run from the message of the supervisor, of a client that the register of the line does not show that day, shows *to approve*. It does not count until you approve it. Make sure that the work was done, then tap **Count it**. If it was not, tap **Leave it out**. Needs you shows these runs for each day.\n' +
     '- Open a run to see why it counts or not. Tap **Count it** to add a run that is left out. Tap **Leave it out** to remove a run that counts. Tap **Back to the rule** to let the app decide again.\n' +
     '- WARNING: Each register run counts once. If 2 sources record the same run (for example a photo and the page typed on Mine), the app shows **saved twice?** on both. Void the copy, or tap **Two runs, keep both** if they are 2 runs.\n' +
     '- **The week, plated** shows the kilograms that each line plated each day. ≈ shows that a run is an estimate. Pieces that have no weight are added as pieces. Each figure has the colour of the efficiency of its day. A dash is a day with no record for the line.\n' +
@@ -74805,7 +74862,8 @@ var KB_APP_GUIDES = [
     // Version 7: the unbilled figure is a widget on Home (UI pass 3, 16 Oct 2026). Version 8: a line's units are its tanks and
     // barrels; a rectifier is supporting equipment, with the line it serves (T-IO, 29 Oct 2026).
     // Version 9: a hand run of a client the register does not show counts; Count it, Leave it out; a register run saved twice (4 Nov 2026).
-    { version: 9 }),
+    // Version 10: a run of the supervisor's message of a client the register does not show waits for approval (owner, 5 Nov 2026).
+    { version: 10 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],

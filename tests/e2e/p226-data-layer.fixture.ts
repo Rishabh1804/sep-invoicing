@@ -208,7 +208,7 @@ export function dataLayerSpec(layout: 'phone' | 'desktop') {
       // As Stats' six months draw them (Trends' until U3, the Tables' By month since): the tonnes and the ₹ a kilo, month by month.
       await openStatsTab(page, 'month');
       const drawn = await page.locator('#statsTable table[data-stats-tbl="month"] tbody tr').evaluateAll((trs) => trs.map((tr) =>
-        ['t', 'real'].map((k) => ((tr.querySelector('td[data-col="' + k + '"]') || {}).textContent || '').trim().replace(/^\u2265 /, ''))));
+        ['t', 'real'].map((k) => ((tr.querySelector('td[data-col="' + k + '"] [data-fig]') || tr.querySelector('td[data-col="' + k + '"]') || {}).textContent || '').trim().replace(/^\u2265 /, ''))));
       expect(drawn).toEqual(months.map((m: any) => m.cells));
 
       // Production → Lines: the pay week before this one, line by line, as prodLineWeek reads it and as its week table draws it.

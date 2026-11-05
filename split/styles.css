@@ -2314,6 +2314,14 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
 /* A strip in a sheet carries no margin of its own; its tiles are each coded. */
 .inv-hero-sheet > .inv-tiles { margin-bottom: 0; }
+/* A note a sheet holds stands in the card's padding, never on its edge (owner, 5 Nov 2026: Stats' verdict line sat on the border). */
+.inv-hero-sheet > .inv-note { padding: var(--sp-8) var(--pad-x); }
+.inv-hero-sheet > .inv-note + .inv-note { padding-top: 0; }
+/* Stats' verdict: four factors go four across only where a tile has room for its line, else two by two (owner, 5 Nov 2026: the
+   tiles' lines wrapped at 1024). The width is written out: 4 × 14rem tiles, their gaps and the card's padding. */
+@container panel-w (max-width: 60rem) {
+  body.inv-desktop #statsVerdict .inv-tiles-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 /* A sheet holding a strip alone lays its tiles on the card: the tiles are the boxes, and the sheet draws none of its own. The
    strip takes the sheet's width, a flush one too: the card's own padding is round it (a panel's would leave the tiles short of
    the row's end, P128). */
@@ -3690,6 +3698,9 @@ body:not(.inv-desktop) button.inv-brief-row { min-height: var(--touch); }
 .inv-corr-pick .inv-select { width: 100%; }
 .inv-corr-picks-sm { flex: 0 1 auto; flex-wrap: nowrap; gap: var(--sp-6); }
 .inv-corr-picks-sm > .inv-corr-pick { flex: 0 1 11rem; }
+/* On the desktop a picker is as wide as its longest figure's name (Power cut minutes had been cut). */
+body.inv-desktop .inv-corr-picks-sm > .inv-corr-pick { flex: 0 0 auto; }
+body.inv-desktop .inv-corr-picks-sm .inv-select { width: auto; field-sizing: content; max-width: 16rem; padding-right: var(--sp-24); }
 .inv-corr-pair { flex: 0 1 auto; min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A kilo's cost as one bar of 100%, each part in its own colour (seriesSlot 'cost'), a gap between parts, in a well. */
 .inv-sharebar { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; background: var(--well); box-shadow: var(--press-1); }

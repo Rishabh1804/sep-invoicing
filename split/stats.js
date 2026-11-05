@@ -663,7 +663,9 @@ function statsVerdictHtml(pa) {
       sub: comparable ? (dRev === 'level' ? 'level with ' : dRev + ' on ') + vs : todoPlural(filtered.length, 'invoice') + ' · ' + formatCurrency(totalGrand) + ' incl. GST',
       badge: credited > 0.005 || cnOut.n ? [cnOut.n ? 'warning' : 'info', 'net of notes'] : null, attrs: ' data-tile="revenue"' },
     { label: 'Plated and billed', fig: ge + formatNum(tonnage.kg / 1000, 2) + ' t', tone: comparable ? figDeltaTone(tonnage.kg, priorT.kg, 'up') : capPct != null ? figToneCapacity(capPct) : null,
-      sub: (comparable && dKg ? (dKg === 'level' ? 'level' : dKg + ' on ' + vs) : formatNum(tonnage.kg, 0) + ' kg') + (capPct != null ? ' · ' + capPct + '% of two shifts' : ''),
+      sub: comparable && dKg ? (dKg === 'level' ? 'level' : dKg + ' on ' + vs) : formatNum(tonnage.kg, 0) + ' kg',
+      // The plant's share of two shifts a line of its own in its capacity tone, never run on after the change (it wrapped mid-phrase).
+      delta: capPct != null ? figHtml(capPct + '% of two shifts', figToneCapacity(capPct)) : '',
       badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="tonnage"' },
     { label: 'Realisation', fig: realisation != null ? escHtml(formatCurrency(realisation)) + perKg : '', tone: realTone,
       sub: costKg > 0 ? pa.periodCost.label + formatCurrency(costKg) + '/kg' : 'set a cost in Settings', attrs: ' data-tile="realisation"' },
@@ -714,21 +716,22 @@ function statsSorted(model) {
 }
 function statsTableHtml(model) {
   var srt = statsSorted(model), s = srt.s;
-  var head = '<tr>' + model.cols.map(function(c) {
+  var cols = model.cols;
+  var head = '<tr>' + cols.map(function(c) {
     var on = s && s.col === c.k;
     return '<th class="' + (c.num ? 'inv-num' : '') + '"' + (on ? ' aria-sort="' + (s.dir === 'asc' ? 'ascending' : 'descending') + '"' : '') + '>' +
       '<button class="inv-table-sort" data-action="invStatsSort" data-table="' + escHtml(model.key) + '" data-col="' + escHtml(c.k) + '">' + escHtml(c.label) +
       (on ? '<span aria-hidden="true">' + (s.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
   }).join('') + '</tr>';
   var rows = srt.rows.map(function(r) {
-    return '<tr' + (r.attrs || '') + '>' + model.cols.map(function(c) {
+    return '<tr' + (r.attrs || '') + '>' + cols.map(function(c) {
       var v = r.v[c.k], h = r.h && r.h[c.k] != null ? r.h[c.k] : escHtml(statsCellText(c, v)) || '&mdash;';
       // Each cell names its column (data-col), so a reader never counts across a column added later.
       return (c.signed && typeof v === 'number' ? statsSignedCell(v, h) : '<td' + (c.num ? ' class="inv-num"' : '') + '>' + h + '</td>').replace(/^<td/, '<td data-col="' + escHtml(c.k) + '"');
     }).join('') + '</tr>';
   });
   return '<div class="inv-scroll-x"><table class="inv-table" data-stats-tbl="' + escHtml(model.key) + '"><thead>' + head + '</thead><tbody>' +
-    uiMoreHtml('stats-tbl-' + model.key, rows, { n: UI_MORE_ROWS, noun: model.noun || 'rows', tr: model.cols.length }) + '</tbody></table></div>';
+    uiMoreHtml('stats-tbl-' + model.key, rows, { n: UI_MORE_ROWS, noun: model.noun || 'rows', tr: cols.length }) + '</tbody></table></div>';
 }
 function statsTableViewHtml(t, pa) {
   if (t === 'cost') {
@@ -775,6 +778,7 @@ function statsClientTable(pa) {
   predCadence().forEach(function(c) { if (c.median != null && c.count >= 3 && insClientActive(c.id)) next[String(c.id)] = c; });
   var rows = ranked.map(function(x) {
     var id = String(x.clientId), mx = byId[id] || null, net = mx && mx.comparable ? mx.net : null, mo = money[id], nc = next[id];
+    var pst = m && net != null ? statsPriceState(net, m.fullKg) : null;
     var nameH = '<div class="inv-row-title">' + escHtml(x.name) + '</div>' + (mx && mx.cn ? '<div class="inv-row-meta">net of ' + statsMoney(mx.cn) + ' credit notes</div>' : '') +
       (!x.comparable ? '<div class="inv-row-meta">weights on ' + Math.round(x.coverage * 100) + '% of revenue: not ranked</div>' : '') +
       (mo ? '<div class="inv-row-meta" data-client-owed>owes ' + figHtml(statsMoney(Math.max(0, mo.owed)), mo.owed > 0.005 ? finOwedTone(mo.oldest) : null) +
@@ -786,7 +790,8 @@ function statsClientTable(pa) {
         weighed: x.coverage * 100,
         kgShare: tonnage.kg > 0 && x.comparable ? x.kg / tonnage.kg * 100 : null, net: net, vsVar: mx && net != null ? mx.vsVar : null,
         vsFull: mx && net != null ? mx.vsFull : null, money: mx && net != null ? mx.money : null, next: nc ? nc.next : null },
-      h: { name: nameH, net: net != null ? figHtml(formatNum(net, 2), m ? figToneAgainst(net, m.fullKg, 5) : null) : uiDot('neutral', 'n/a'),
+      // The price's chip under its figure (the table had run past 1280 with a column of its own).
+      h: { name: nameH, net: net != null ? '<span class="inv-row-stack"><span data-fig>' + figHtml(formatNum(net, 2), m ? figToneAgainst(net, m.fullKg, 5) : null) + '</span>' + (pst ? statsPriceChip(pst) : '') + '</span>' : uiDot('neutral', 'n/a'),
         t: x.kg > 0 ? (x.comparable ? formatNum(x.kg / 1000, 2) : '<span title="' + escHtml('Weights on ' + statsPctOf(x.coverage) + '% of its revenue: at least this') + '">\u2265 ' + formatNum(x.kg / 1000, 2) + '</span>') : '&mdash;',
         weighed: escHtml(statsPctOf(x.coverage) + '%'), next: nextH, rev: escHtml(formatCurrency(x.total)) },
       attrs: ' data-action="invStatsClientDrill" data-client-id="' + escHtml(id) + '" data-client-row' + (net == null ? ' data-partial' : '') };
@@ -824,6 +829,15 @@ function statsClientTable(pa) {
       { k: 'money', label: '₹ on period', num: true, xl: 'money', signed: true }, { k: 'next', label: 'Next challan', xl: 'date' }],
     rows: rows, after: head + (m ? statsWorstHtml(m) : '') };
 }
+/* A price against the cost as a chip (DR-8: the colour beside its word; owner, 5 Nov 2026: the tables' colour-coded chips were
+   missing): under the cost by more than 5% Below cost, within it Just under cost, at or over it Covers cost; the one judge
+   (figToneAgainst at 5%). {word, tone} for the export and the cell, null where there is no price or no cost. */
+function statsPriceState(perKg, cost) {
+  if (perKg == null || !(cost > 0)) return null;
+  var tone = figToneAgainst(perKg, cost, 5);
+  return tone === 'danger' ? { word: 'Below cost', tone: 'danger' } : tone === 'warning' ? { word: 'Just under cost', tone: 'warning' } : { word: 'Covers cost', tone: 'ok' };
+}
+function statsPriceChip(st) { return st ? '<span class="inv-badge inv-badge-' + st.tone + '" data-price-chip="' + st.tone + '">' + escHtml(st.word) + '</span>' : '&mdash;'; }
 /* By part: every part of the period, one client's (a code two clients send is two rows, each saying so), what it billed, its kilos
    where known and its price a kilo; the parts with no weight are kept, their kilos a dash, so the table never reads better than the
    truth. The largest first. */
@@ -833,12 +847,14 @@ function statsPartTable(pa) {
     var label = statsPartLabel(r);
     var shared = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
     var known = r.kgKnown && r.kg > 0;
+    var pst = statsPriceState(r.perKg, pa.periodCost.perKg);
     return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: r.perKg },
       // The other client named short, and how many more: a row's words stay under 120 characters (P195).
       h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml((function() {
           var cc = (S.clients || []).find(function(x) { return String(x.id) === String(shared[0]); }); return cc ? clientShortName(cc.name) : 'another client'; })() +
           (shared.length > 1 ? ' and ' + (shared.length - 1) + ' more' : '')) + ', counted apart</div>' : ''),
-        perKg: r.perKg != null ? figHtml(formatNum(r.perKg, 2), pa.periodCost.perKg > 0 ? figToneAgainst(r.perKg, pa.periodCost.perKg, 5) : null) : '&mdash;' } };
+        perKg: r.perKg != null ? '<span class="inv-row-stack"><span data-fig>' + figHtml(formatNum(r.perKg, 2), pa.periodCost.perKg > 0 ? figToneAgainst(r.perKg, pa.periodCost.perKg, 5) : null) + '</span>' +
+          (pst ? statsPriceChip(pst) : '') + '</span>' : '&mdash;' } };
   });
   var unknown = top.rows.filter(function(r) { return !(r.kgKnown && r.kg > 0); }).length;
   return { key: 'part', noun: 'parts', title: (PERIOD_LABELS[_statsPeriod] || '') + ' by part', note: 'one client’s part a row', empty: 'No part billed in this period',
@@ -859,14 +875,16 @@ function statsMonthTable() {
   if (!rows.some(function(r) { return r.kg > 0 || r.rev > 0; })) return { key: 'month', title: 'Six months', rows: [], cols: [], empty: 'No invoices in six months' };
   return { key: 'month', noun: 'months', title: 'Six months', note: 'each at its own live cost',
     cols: [{ k: 'month', label: 'Month', xl: 'text' }, { k: 'rev', label: 'Revenue', num: true, xl: 'money' }, { k: 't', label: 't', num: true, xl: 'num', dp: 1 },
-      { k: 'real', label: '₹/kg', num: true, xl: 'num' }, { k: 'cost', label: 'Cost', num: true, xl: 'num' }, { k: 'contrib', label: 'Contrib.', num: true, xl: 'num', signed: true },
+      { k: 'real', label: '₹/kg', num: true, xl: 'num' }, { k: 'cost', label: 'Cost', num: true, xl: 'num' },
+      { k: 'contrib', label: 'Contrib.', num: true, xl: 'num', signed: true },
       { k: 'labour', label: 'Labour', num: true, xl: 'num' }, { k: 'measured', label: 'Measured', num: true, xl: 'pct' }],
     rows: rows.map(function(r) {
       // A month billed with nothing weighed has no tonnes to say (a dash, never 0.0); a month part weighed reads as a floor.
-      var tNone = !(r.kg > 0) && r.rev > 0;
+      var tNone = !(r.kg > 0) && r.rev > 0, pst = statsPriceState(r.real, r.cost);
       return { v: { month: r.label, rev: gstRound(r.rev), t: tNone ? null : r.kg / 1000, real: r.real, cost: r.cost, contrib: r.contrib, labour: r.labour != null && r.labCov >= 0.9 ? r.labour : null,
         measured: r.measured != null ? r.measured * 100 : null, _sort: r.month },
-        h: { month: '<span class="inv-nowrap">' + escHtml(r.label) + '</span>', t: tNone ? '&mdash;' : (r.coverage != null && r.coverage < 0.999 ? '\u2265 ' : '') + formatNum(r.kg / 1000, 1),
+        h: { month: '<span class="inv-nowrap">' + escHtml(r.label) + '</span>',
+          real: r.real != null ? '<span class="inv-row-stack"><span data-fig>' + figHtml(formatNum(r.real, 2), pst ? pst.tone : null) + '</span>' + (pst ? statsPriceChip(pst) : '') + '</span>' : '&mdash;', t: tNone ? '&mdash;' : (r.coverage != null && r.coverage < 0.999 ? '\u2265 ' : '') + formatNum(r.kg / 1000, 1),
           measured: r.measured != null ? escHtml(statsPctOf(r.measured) + '%') : '&mdash;' } };
     }),
     after: statsBody(statsNote('₹ per kg. Labour where 90% of the month is recorded or paid from the bank; measured is the cost from records.')) };

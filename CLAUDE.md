@@ -1111,6 +1111,12 @@ rewritten to the same facts where they now live (§21), never weakened.
   Stats* is version 5.
 - **The breakdown under By client** (the worst large account settled on the live cost) is a coded block (`inv-coded`,
   `[data-worst-tiles]`): its judged tiles wells of their tones, *Pays its share at* plain (owner, 4 Nov 2026, on the tiles drawn grey).
+- **The desktop pass** (owner, 5 Nov 2026: *"there are issues in the desktop version … text is wrapping, color coded chips are
+  missing"*): each ₹/kg on the Tables (By client, By part, By month) carries its chip under the figure, *Below cost*, *Just under cost*
+  or *Covers cost*, in the one judge's tone (`statsPriceState`, `statsPriceChip`, `[data-price-chip]`; the figure itself `[data-fig]`;
+  the exports unchanged); the verdict's capacity share is a line of its own in its capacity tone, and its four factors go two by two
+  where the card is under 60rem (1024); a note in a hero's sheet stands in the card's padding (`.inv-hero-sheet > .inv-note`), where
+  the verdict's loss line had sat on its edge; *Does one move the other?*'s pickers are as wide as their names on the desktop.
 - **A data flow**: none. The book does not change; a board's layout is the device's (`sep_inv_layout`), at S1 the person's `prefs`.
 
 ### UI pass 3: every Enter by hand a guided flow (U4)

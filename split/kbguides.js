@@ -411,7 +411,10 @@ var KB_APP_GUIDES = [
     { version: 3 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
-    '- The steps in 1 row below the toolbar show what to do for the week: **Hours** (a hand whose times do not reach a block), **Cash paid out**, **Payout** (to Saturday 5 PM), **Weekly payments** (the weekly hands with an amount due) and **Slips**. Tap a step to go where you do it.\n' +
+    '- The steps in 1 row below the toolbar show what to do for the week. Tap a step to go where you do it:\n' +
+    '- **Hours**: a hand whose times do not reach a block.\n' +
+    '- **Cash paid out**, then **Payout** (to Saturday 5 PM).\n' +
+    '- **Weekly payments**: the weekly hands with an amount due. Then **Slips**.\n' +
     '- **Payout** shows a tick only when the week is closed and every working day is recorded. If days are not recorded, it says how many.\n' +
     '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +

@@ -697,6 +697,9 @@ function chartStack(labels, series, opts) {
   var barW = group ? Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX * n + CHART_GAP * (n - 1)) : Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
   var w = group ? Math.max((barW - CHART_GAP * (n - 1)) / n, 1) : barW;
   var inks = series.map(function(s, si) { return chartInk(s, si); });
+  // opts.total names the bar's whole (Payout): each part reads it beside its own figure, and the table has it as a column, so the
+  // figure a screen states for the bar is on the chart (Iuno L-2, the QA chain of 5 Nov 2026). Stacked bars of two parts or more only.
+  var tot = opts.total && !group && series.length > 1 ? opts.total : '';
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Bars') + '">' + f.svg;
   var stride = _chartLabelStride(labels.length, opts.maxLabels), td = _chartToDate(opts, labels.length);
   // A period not yet ended (opts.toDate): its bars lighter, its label "to date".
@@ -711,7 +714,7 @@ function chartStack(labels, series, opts) {
       if (!(v > 0)) return;
       var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * (w + CHART_GAP) : x0, by = base - h;
       var gap = !group && drawn ? Math.min(CHART_GAP, h / 2) : 0;
-      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit);
+      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit) + (tot ? ' · ' + tot + ': ' + chartFull(totals[i], unit) : '');
       svg += '<rect x="' + bx + '" y="' + by + '" width="' + w + '" height="' + (h - gap) + '" class="inv-chart-seg ' + inks[si] + (group || si === top ? ' inv-chart-up' : '') + (i === td ? ' inv-chart-todate' : '') + '"' +
         ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
@@ -723,8 +726,11 @@ function chartStack(labels, series, opts) {
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
   var keyed = series.map(function(s, si) { return Object.assign({}, s, { ink: inks[si] }); });
-  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; })),
-    rows: shown.map(function(l, i) { return [l].concat(series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; })); }) });
+  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; }), tot ? [{ label: tot, unit: unit }] : []),
+    rows: shown.map(function(l, i) {
+      var vals = series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; });
+      return [l].concat(vals, tot ? [vals.some(function(v) { return v != null; }) ? gstRound(totals[i]) : null] : []);
+    }) });
 }
 
 /* A pie that filters what is under it: each wedge and legend row carries data-key and the action;
@@ -1093,6 +1099,45 @@ function chartHeat(cells, opts) {
       rows: shownDates.map(function(d) { var c = by[d]; return [_chartDay(d, true) + (d === td ? ' to date' : ''), has(c) ? Number(c.value) : null, has(c) ? word.ok : word[c.state] || word.none]; }) });
 }
 
+/* Marks on a grid (UI pass 3 §12): a row a person and a column a day, each cell in the status tone of what it records (present ok,
+   a half day warning, absent danger, a night info), a cell nobody marked hatched, a day not worked left empty; a cell `flag`ged
+   (two shifts back to back) carries a dot in its corner. rows: [{label, cells: [{tone, word, flag, off}]}]; cols: [{label, sub,
+   today}]; opts: keys [{tone | hatch, label}], wide (larger cells and names: the desktop), ariaLabel, id, emptyText. The table behind it says each cell in words. First for
+   the attendance of a pay week. */
+function chartMarks(rows, cols, opts) {
+  opts = opts || {};
+  rows = (rows || []).filter(Boolean); cols = cols || [];
+  if (!rows.length || !cols.length) return _chartEmpty(opts.emptyText);
+  var LW = opts.wide ? 150 : 96, TH = 30, C = opts.wide ? 30 : 22, P = C + CHART_GAP + 1, W = LW + cols.length * P, H = TH + rows.length * P;
+  var room = opts.wide ? 22 : 13, cut = function(t) { t = String(t || ''); return t.length > room ? t.slice(0, room - 1) + '…' : t; };
+  var svg = '<svg class="inv-chart-heat" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Marks') + '">';
+  cols.forEach(function(c, j) {
+    var x = LW + j * P + C / 2;
+    svg += '<text x="' + _chartN(x) + '" y="11" text-anchor="middle" class="inv-chart-axis"' + (c.today ? ' font-weight="700"' : '') + '>' + escHtml(c.label) + '</text>' +
+      (c.sub != null ? '<text x="' + _chartN(x) + '" y="24" text-anchor="middle" class="inv-chart-axis">' + escHtml(c.sub) + '</text>' : '');
+  });
+  rows.forEach(function(r, i) {
+    var y = TH + i * P;
+    svg += '<text x="0" y="' + _chartN(y + C - 7) + '" class="inv-chart-axis"><title>' + escHtml(r.label) + '</title>' + escHtml(cut(r.label)) + '</text>';
+    (r.cells || []).forEach(function(c, j) {
+      if (!c) return;
+      var x = LW + j * P, hit = { x: x - 1, y: y - 1, w: P, h: P }, read = r.label + ', ' + cols[j].label + (cols[j].sub != null ? ' ' + cols[j].sub : '') + ': ' + (c.word || '');
+      var mark = c.tone ? '<rect class="inv-chart-cell ' + chartInk({ tone: c.tone }) + '" x="' + x + '" y="' + y + '" width="' + C + '" height="' + C + '" rx="3"/>'
+        : '<rect class="inv-chart-cell-none" x="' + x + '" y="' + y + '" width="' + C + '" height="' + C + '" rx="3"/>' + (c.off ? '' : _chartHatch(x, y, C));
+      if (c.flag) mark += '<circle class="inv-chart-flag" cx="' + (x + C - 5) + '" cy="' + (y + 5) + '" r="3"/>';
+      svg += _chartDatum(read, mark, hit, { key: r.label + '|' + j });
+    });
+  });
+  svg += '</svg>';
+  var keys = (opts.keys || []).length ? '<div class="inv-chart-keys">' + opts.keys.map(function(k) {
+    var sw = k.hatch ? 'inv-chart-swatch-hatch' : k.flag ? 'inv-chart-swatch-flag' : chartInk({ tone: k.tone });
+    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + sw + '"></span>' + escHtml(k.label) + '</span>';
+  }).join('') + '</div>' : '';
+  return _chartBox('<div class="inv-chart-heat-wrap">' + svg + '</div>' + keys, Object.assign({ readHint: 'Tap a day to read it' }, opts),
+    { cols: [{ label: opts.labelHead || '' }].concat(cols.map(function(c) { return { label: c.label + (c.sub != null ? ' ' + c.sub : ''), unit: 'text' }; })),
+      rows: rows.map(function(r) { return [r.label].concat(cols.map(function(_, j) { var c = (r.cells || [])[j]; return c ? c.word || '' : ''; })); }) });
+}
+
 /* Per row a rule from `a` (a mark, ┃) to `b` (a dot, ●), the dot in the row's tone. rows: [{key, label, a, b, tone?|slot?}];
    opts: unit, aLabel, bLabel, fit (round the data, else from zero), id, emptyText. First for the days to pay against the terms. */
 function chartDumbbell(rows, opts) {
@@ -1123,20 +1168,21 @@ function chartDumbbell(rows, opts) {
     { cols: [{ label: opts.labelHead || '' }, { label: aL, unit: unit }, { label: bL, unit: unit }], rows: list.map(function(r) { return [r.label, ok(r.a) ? Number(r.a) : null, ok(r.b) ? Number(r.b) : null]; }) });
 }
 
-/* One bar of 100%: the parts of a whole side by side, a surface gap apart, each in its own slot's colour (`slot`, seriesSlot), its
-   share in its title, and the keys under it with each share. First for where a kilo's cost goes (Home's `kilo` widget). */
+/* One bar of 100%: the parts of a whole side by side, a surface gap apart, each in its own slot's colour (`slot`, seriesSlot) or, where
+   the colour judges, its status `tone` (chartInk), its share in its title, and the keys under it with each share. First for where a
+   kilo's cost goes (Home's `kilo` widget); the monthly register's agreement with the days in its status tones. */
 function chartShareBar(parts, title) {
   var sum = parts.reduce(function(s, p) { return s + p.v; }, 0);
   if (!(sum > 0)) return '';
   var W = 400, gap = 2, x = 0, live = parts.filter(function(p) { return p.v > 0; });
   var rects = live.map(function(p, i) {
-    var w = p.v / sum * W, r = '<rect class="inv-sharebar-part ' + chartSlotClass(p.slot) + '" x="' + _chartN(x) + '" y="0" width="' + _chartN(Math.max(0.5, w - (i < live.length - 1 ? gap : 0))) +
+    var w = p.v / sum * W, r = '<rect class="inv-sharebar-part ' + (p.tone != null ? chartInk(p) : chartSlotClass(p.slot)) + '" x="' + _chartN(x) + '" y="0" width="' + _chartN(Math.max(0.5, w - (i < live.length - 1 ? gap : 0))) +
       '" height="10"><title>' + escHtml(p.label + ': ' + formatNum(p.v / sum * 100, 1) + '%') + '</title></rect>';
     x += w;
     return r;
   }).join('');
   var keys = '<div class="inv-chart-keys">' + live.map(function(p) {
-    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + chartSlotClass(p.slot) + '"></span>' + escHtml(p.label + ' ' + Math.round(p.v / sum * 100) + '%') + '</span>';
+    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + (p.tone != null ? chartInk(p) : chartSlotClass(p.slot)) + '"></span>' + escHtml(p.label + ' ' + Math.round(p.v / sum * 100) + '%') + '</span>';
   }).join('') + '</div>';
   return '<svg class="inv-sharebar" viewBox="0 0 ' + W + ' 10" preserveAspectRatio="none" role="img" aria-label="' + escHtml(title) + '"><title>' + escHtml(title) + '</title>' + rects + '</svg>' + keys;
 }

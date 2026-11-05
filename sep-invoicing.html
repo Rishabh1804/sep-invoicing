@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="c977ba99">
+<meta name="app-build" content="cdffd427">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1060,6 +1060,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-chart-swatch-dash { height: 0; border-radius: 0; background: none; border-top: var(--rule) dashed var(--ink, var(--series-other)); }
 .inv-chart-swatch-dot { border-radius: var(--r-full); }
 .inv-chart-swatch-tick, .inv-chart-swatch-rule { width: var(--rule); height: var(--sp-12); border-radius: 0; background: var(--text-2); }
+/* A marks grid's flag (two shifts back to back): a dot in the cell's corner, and its key. */
+.inv-chart-flag { fill: var(--text-1); stroke: var(--surface); stroke-width: var(--hair); }
+.inv-chart-swatch-flag { width: var(--sp-6); height: var(--sp-6); border-radius: var(--r-full); background: var(--text-1); }
 .inv-chart-swatch-hatch { background: repeating-linear-gradient(45deg, var(--text-3) 0 var(--hair), transparent var(--hair) var(--sp-4)); box-shadow: inset 0 0 0 var(--hair) var(--border); }
 .inv-chart-ramp { display: inline-flex; gap: var(--sp-2); }
 
@@ -2430,6 +2433,21 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-step-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-step-meta { font-size: var(--fs-12); color: var(--text-2); }
 .inv-step[data-state="late"] .inv-step-meta { color: var(--warning); }
+/* A view's next steps (UI pass 3 §12): the same steps laid across one row under the toolbar, the rail between the nodes, each
+   step's words under its node, centred; the step to take next ringed in the accent. More steps than the row holds scroll sideways
+   inside it. */
+.inv-steps-row { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+.inv-steps-row > .inv-step { flex: 1 0 calc(var(--sp-16) * 4.5); grid-template-columns: minmax(0, 1fr); row-gap: var(--sp-4); justify-items: center; align-items: start; min-height: 0; text-align: center; }
+.inv-steps-row > .inv-step::before { left: 0; right: 0; top: calc(var(--step-node) / 2 - var(--hair)); bottom: auto; width: auto; height: var(--rule); }
+.inv-steps-row > .inv-step:first-child::before { left: 50%; top: calc(var(--step-node) / 2 - var(--hair)); }
+.inv-steps-row > .inv-step:last-child::before { right: 50%; bottom: auto; }
+.inv-steps-row > .inv-step:only-child::before { display: none; }
+.inv-steps-row .inv-step-main { align-items: center; justify-content: flex-start; width: 100%; padding: 0 var(--sp-4); text-align: center; }
+.inv-steps-row .inv-step-title { font-size: var(--fs-12); line-height: 1.3; }
+.inv-steps-row .inv-step-meta { font-size: var(--fs-11); line-height: 1.3; }
+.inv-step[data-next]:not([data-state="late"]) .inv-step-node { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 var(--hair) var(--accent); }
+body.inv-desktop .inv-steps-row .inv-step-title { font-size: var(--fs-13); }
+body.inv-desktop .inv-steps-row .inv-step-meta { font-size: var(--fs-12); }
 
 /* §6.24 Sparkline and meter: a figure's last months as a line (the current month's point in the accent, §DR-2), a share
    as a bar in its tone with a mark at the line it is judged by. Drawn small, inside a card; every one carries its <title>. */
@@ -2939,6 +2957,16 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 
 /* A worker's record (people.js): skill dots out of five, and a short bar for a figure out of 100 in its status's tone. */
 .inv-skill { display: inline-flex; gap: var(--sp-2); }
+/* A roster card (UI pass 3 §12): the hand's initials in a disc, the top skills as small chips (no tap of their own: the card opens). */
+.inv-avatar { flex: 0 0 auto; display: grid; place-items: center; width: var(--step-node); height: var(--step-node); border-radius: var(--r-full);
+  background: var(--accent-soft); color: var(--accent-deep); font-family: var(--ff-num); font-size: var(--fs-11); font-weight: 600; }
+.inv-skill-chips { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.inv-skill-chip { display: inline-flex; align-items: center; padding: 0 var(--sp-6); border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-1);
+  font-size: var(--fs-11); line-height: 1.6; color: var(--text-2); white-space: nowrap; }
+[data-roster-card][data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface); }
+[data-roster-card] .inv-wstats { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
+[data-roster-card] [data-roster-tier] { -webkit-line-clamp: 1; }
+[data-roster-deck] .inv-deck-main[aria-current="true"]::after { box-shadow: 0 0 0 var(--rule) var(--accent); }
 .inv-skill-dot { width: var(--sp-8); height: var(--sp-8); border-radius: 50%; background: var(--surface-3); }
 .inv-skill-dot[data-on] { background: var(--accent); }
 .inv-stat-bar { display: block; width: 100%; height: var(--sp-4); border-radius: var(--r-full); overflow: hidden; }
@@ -5289,6 +5317,34 @@ function uiFactorTileHtml(f) {
   if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
     (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
   return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
+}
+
+/* A view's next steps (docs/UI_PASS_3.md §12, §26c; design §6.23): where the work has an order, the order as one row under the
+   view's toolbar, Today's step pieces laid across: each step a node in its state and a door to where it is done. `steps`
+   [{key, title, meta, state, action, attrs, label}]: state 'in' done (a tick), 'part' begun, 'late' (the warning), 'wait' to come
+   (its number), 'off' not expected (dashed); action the door's data-action (attrs its data), none for a step with no door here;
+   label what a screen reader hears, else the title and the meta. The first step neither done nor off is the one to take next
+   (`data-next`). `key` names the row (`data-next-steps`). Titles and metas are plain text, escaped here. */
+function uiNextStepsHtml(key, steps) {
+  var list = (steps || []).filter(Boolean);
+  if (!list.length) return '';
+  var next = -1;
+  // The step to take next is one the person can take here: a step with no door (to come, the owner's to settle) is never ringed
+  // (Cipher L-3, the QA chain of 5 Nov 2026).
+  for (var i = 0; i < list.length; i++) if (list[i].state !== 'in' && list[i].state !== 'off' && list[i].action) { next = i; break; }
+  var tick = iconSvg('check', 'inv-ico-bold');
+  var word = { in: 'done', part: 'begun', late: 'late', wait: 'to do', off: 'not expected' };
+  return '<div class="inv-panel" data-next-steps="' + escHtml(key) + '"><div class="inv-steps inv-steps-row" role="list" aria-label="Next steps">' +
+    list.map(function(s, i) {
+      var st = /^(in|part|late|wait|off)$/.test(s.state) ? s.state : 'wait';
+      var node = st === 'in' ? tick : st === 'late' ? '!' : String(i + 1);
+      var inner = '<span class="inv-step-title">' + escHtml(s.title) + '</span>' + (s.meta ? '<span class="inv-step-meta">' + escHtml(s.meta) + '</span>' : '');
+      var aria = escHtml(s.label || (s.title + ': ' + word[st] + (s.meta ? ', ' + s.meta : '')));
+      return '<div class="inv-step" role="listitem" data-step="' + escHtml(s.key || String(i)) + '" data-state="' + st + '"' + (i === next ? ' data-next' : '') + '>' +
+        '<span class="inv-step-node" aria-hidden="true">' + node + '</span>' +
+        (s.action ? '<button type="button" class="inv-step-main" data-action="' + escHtml(s.action) + '"' + (s.attrs || '') + ' aria-label="' + aria + '">' + inner + '</button>'
+          : '<span class="inv-step-main" aria-label="' + aria + '">' + inner + '</span>') + '</div>';
+    }).join('') + '</div></div>';
 }
 
 /* A row's end (§1a-11): its figure and its status (a dot and a word), or one action. `fig` HTML (formatted), `status` {tone,
@@ -23324,6 +23380,9 @@ function chartStack(labels, series, opts) {
   var barW = group ? Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX * n + CHART_GAP * (n - 1)) : Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
   var w = group ? Math.max((barW - CHART_GAP * (n - 1)) / n, 1) : barW;
   var inks = series.map(function(s, si) { return chartInk(s, si); });
+  // opts.total names the bar's whole (Payout): each part reads it beside its own figure, and the table has it as a column, so the
+  // figure a screen states for the bar is on the chart (Iuno L-2, the QA chain of 5 Nov 2026). Stacked bars of two parts or more only.
+  var tot = opts.total && !group && series.length > 1 ? opts.total : '';
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Bars') + '">' + f.svg;
   var stride = _chartLabelStride(labels.length, opts.maxLabels), td = _chartToDate(opts, labels.length);
   // A period not yet ended (opts.toDate): its bars lighter, its label "to date".
@@ -23338,7 +23397,7 @@ function chartStack(labels, series, opts) {
       if (!(v > 0)) return;
       var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * (w + CHART_GAP) : x0, by = base - h;
       var gap = !group && drawn ? Math.min(CHART_GAP, h / 2) : 0;
-      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit);
+      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit) + (tot ? ' · ' + tot + ': ' + chartFull(totals[i], unit) : '');
       svg += '<rect x="' + bx + '" y="' + by + '" width="' + w + '" height="' + (h - gap) + '" class="inv-chart-seg ' + inks[si] + (group || si === top ? ' inv-chart-up' : '') + (i === td ? ' inv-chart-todate' : '') + '"' +
         ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
@@ -23350,8 +23409,11 @@ function chartStack(labels, series, opts) {
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
   var keyed = series.map(function(s, si) { return Object.assign({}, s, { ink: inks[si] }); });
-  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; })),
-    rows: shown.map(function(l, i) { return [l].concat(series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; })); }) });
+  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; }), tot ? [{ label: tot, unit: unit }] : []),
+    rows: shown.map(function(l, i) {
+      var vals = series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; });
+      return [l].concat(vals, tot ? [vals.some(function(v) { return v != null; }) ? gstRound(totals[i]) : null] : []);
+    }) });
 }
 
 /* A pie that filters what is under it: each wedge and legend row carries data-key and the action;
@@ -23720,6 +23782,45 @@ function chartHeat(cells, opts) {
       rows: shownDates.map(function(d) { var c = by[d]; return [_chartDay(d, true) + (d === td ? ' to date' : ''), has(c) ? Number(c.value) : null, has(c) ? word.ok : word[c.state] || word.none]; }) });
 }
 
+/* Marks on a grid (UI pass 3 §12): a row a person and a column a day, each cell in the status tone of what it records (present ok,
+   a half day warning, absent danger, a night info), a cell nobody marked hatched, a day not worked left empty; a cell `flag`ged
+   (two shifts back to back) carries a dot in its corner. rows: [{label, cells: [{tone, word, flag, off}]}]; cols: [{label, sub,
+   today}]; opts: keys [{tone | hatch, label}], wide (larger cells and names: the desktop), ariaLabel, id, emptyText. The table behind it says each cell in words. First for
+   the attendance of a pay week. */
+function chartMarks(rows, cols, opts) {
+  opts = opts || {};
+  rows = (rows || []).filter(Boolean); cols = cols || [];
+  if (!rows.length || !cols.length) return _chartEmpty(opts.emptyText);
+  var LW = opts.wide ? 150 : 96, TH = 30, C = opts.wide ? 30 : 22, P = C + CHART_GAP + 1, W = LW + cols.length * P, H = TH + rows.length * P;
+  var room = opts.wide ? 22 : 13, cut = function(t) { t = String(t || ''); return t.length > room ? t.slice(0, room - 1) + '…' : t; };
+  var svg = '<svg class="inv-chart-heat" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Marks') + '">';
+  cols.forEach(function(c, j) {
+    var x = LW + j * P + C / 2;
+    svg += '<text x="' + _chartN(x) + '" y="11" text-anchor="middle" class="inv-chart-axis"' + (c.today ? ' font-weight="700"' : '') + '>' + escHtml(c.label) + '</text>' +
+      (c.sub != null ? '<text x="' + _chartN(x) + '" y="24" text-anchor="middle" class="inv-chart-axis">' + escHtml(c.sub) + '</text>' : '');
+  });
+  rows.forEach(function(r, i) {
+    var y = TH + i * P;
+    svg += '<text x="0" y="' + _chartN(y + C - 7) + '" class="inv-chart-axis"><title>' + escHtml(r.label) + '</title>' + escHtml(cut(r.label)) + '</text>';
+    (r.cells || []).forEach(function(c, j) {
+      if (!c) return;
+      var x = LW + j * P, hit = { x: x - 1, y: y - 1, w: P, h: P }, read = r.label + ', ' + cols[j].label + (cols[j].sub != null ? ' ' + cols[j].sub : '') + ': ' + (c.word || '');
+      var mark = c.tone ? '<rect class="inv-chart-cell ' + chartInk({ tone: c.tone }) + '" x="' + x + '" y="' + y + '" width="' + C + '" height="' + C + '" rx="3"/>'
+        : '<rect class="inv-chart-cell-none" x="' + x + '" y="' + y + '" width="' + C + '" height="' + C + '" rx="3"/>' + (c.off ? '' : _chartHatch(x, y, C));
+      if (c.flag) mark += '<circle class="inv-chart-flag" cx="' + (x + C - 5) + '" cy="' + (y + 5) + '" r="3"/>';
+      svg += _chartDatum(read, mark, hit, { key: r.label + '|' + j });
+    });
+  });
+  svg += '</svg>';
+  var keys = (opts.keys || []).length ? '<div class="inv-chart-keys">' + opts.keys.map(function(k) {
+    var sw = k.hatch ? 'inv-chart-swatch-hatch' : k.flag ? 'inv-chart-swatch-flag' : chartInk({ tone: k.tone });
+    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + sw + '"></span>' + escHtml(k.label) + '</span>';
+  }).join('') + '</div>' : '';
+  return _chartBox('<div class="inv-chart-heat-wrap">' + svg + '</div>' + keys, Object.assign({ readHint: 'Tap a day to read it' }, opts),
+    { cols: [{ label: opts.labelHead || '' }].concat(cols.map(function(c) { return { label: c.label + (c.sub != null ? ' ' + c.sub : ''), unit: 'text' }; })),
+      rows: rows.map(function(r) { return [r.label].concat(cols.map(function(_, j) { var c = (r.cells || [])[j]; return c ? c.word || '' : ''; })); }) });
+}
+
 /* Per row a rule from `a` (a mark, ┃) to `b` (a dot, ●), the dot in the row's tone. rows: [{key, label, a, b, tone?|slot?}];
    opts: unit, aLabel, bLabel, fit (round the data, else from zero), id, emptyText. First for the days to pay against the terms. */
 function chartDumbbell(rows, opts) {
@@ -23750,20 +23851,21 @@ function chartDumbbell(rows, opts) {
     { cols: [{ label: opts.labelHead || '' }, { label: aL, unit: unit }, { label: bL, unit: unit }], rows: list.map(function(r) { return [r.label, ok(r.a) ? Number(r.a) : null, ok(r.b) ? Number(r.b) : null]; }) });
 }
 
-/* One bar of 100%: the parts of a whole side by side, a surface gap apart, each in its own slot's colour (`slot`, seriesSlot), its
-   share in its title, and the keys under it with each share. First for where a kilo's cost goes (Home's `kilo` widget). */
+/* One bar of 100%: the parts of a whole side by side, a surface gap apart, each in its own slot's colour (`slot`, seriesSlot) or, where
+   the colour judges, its status `tone` (chartInk), its share in its title, and the keys under it with each share. First for where a
+   kilo's cost goes (Home's `kilo` widget); the monthly register's agreement with the days in its status tones. */
 function chartShareBar(parts, title) {
   var sum = parts.reduce(function(s, p) { return s + p.v; }, 0);
   if (!(sum > 0)) return '';
   var W = 400, gap = 2, x = 0, live = parts.filter(function(p) { return p.v > 0; });
   var rects = live.map(function(p, i) {
-    var w = p.v / sum * W, r = '<rect class="inv-sharebar-part ' + chartSlotClass(p.slot) + '" x="' + _chartN(x) + '" y="0" width="' + _chartN(Math.max(0.5, w - (i < live.length - 1 ? gap : 0))) +
+    var w = p.v / sum * W, r = '<rect class="inv-sharebar-part ' + (p.tone != null ? chartInk(p) : chartSlotClass(p.slot)) + '" x="' + _chartN(x) + '" y="0" width="' + _chartN(Math.max(0.5, w - (i < live.length - 1 ? gap : 0))) +
       '" height="10"><title>' + escHtml(p.label + ': ' + formatNum(p.v / sum * 100, 1) + '%') + '</title></rect>';
     x += w;
     return r;
   }).join('');
   var keys = '<div class="inv-chart-keys">' + live.map(function(p) {
-    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + chartSlotClass(p.slot) + '"></span>' + escHtml(p.label + ' ' + Math.round(p.v / sum * 100) + '%') + '</span>';
+    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + (p.tone != null ? chartInk(p) : chartSlotClass(p.slot)) + '"></span>' + escHtml(p.label + ' ' + Math.round(p.v / sum * 100) + '%') + '</span>';
   }).join('') + '</div>';
   return '<svg class="inv-sharebar" viewBox="0 0 ' + W + ' 10" preserveAspectRatio="none" role="img" aria-label="' + escHtml(title) + '"><title>' + escHtml(title) + '</title>' + rects + '</svg>' + keys;
 }
@@ -24606,6 +24708,7 @@ function _attDayView() {
       '<button class="inv-btn inv-btn-secondary" data-action="invAttAllPresent">All present</button>') +
     '<button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
     uiToolbarMoreHtml(more, { icon: phone }) + '</div>' + _attPeriodSwitchHtml();
+  html += _attDayStepsHtml(iso, rec, roster, { unmarked: unmarked, extraHours: extraHours });
 
   // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
   // hand with P / H / A one tap away; the area, the in and out, hours and OT open on the name (the guide says so). Absent
@@ -24690,6 +24793,87 @@ function _attDayVerdictHtml(iso, rec, roster, c) {
       { label: 'Absent', fig: '<span id="attAbsent">' + c.absent + '</span>', tone: c.absent ? 'danger' : null },
       { label: 'Unmarked', fig: '<span id="attUnmarked">' + c.unmarked + '</span>', sub: c.unmarked ? 'nobody typed' : '' }],
     attrs: ' id="attDayVerdict"' });
+}
+/* A day the plant is not expected to work, by the calendar: a day marked shut (flowShutOn), a paid holiday, a Sunday; whether
+   anybody came is not asked (plantDayOff's question, which is null on a day somebody worked, so a worked Sunday had read as a working
+   day with everyone else missing: Cipher H-1, the QA chain of 5 Nov 2026). {kind, why} or null; worded by plantDayOffText. */
+function attDayNotExpected(iso) {
+  var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+  if (shut) return { kind: 'shut', why: shut.why };
+  if (labourIsHoliday(iso)) return { kind: 'holiday', why: '' };
+  return attParseIso(iso).getDay() === 0 ? { kind: 'sunday', why: '' } : null;
+}
+/* The day's next steps (UI pass 3 §12, §26c): the in-time roll (in at its minute, or late against its usual, Today's own reading,
+   tdyInput), the marks (how many of the day's roster), a version a sync held for the owner while one waits, the out-time roll, the
+   night's roll where a line has a night (sent the next morning), the EXTRA booked. Each a door to where it is done. */
+function _attDayStepsHtml(iso, rec, roster, c) {
+  var def = function(k) { return TDY_INPUTS.filter(function(x) { return x.k === k; })[0]; };
+  var today = localDateStr(), isToday = iso === today, ahead = iso > today, total = roster.length, marked = total - c.unmarked;
+  // A day not come is no day late (Castor M-1, the QA chain of 5 Nov 2026): its rolls are to come.
+  var roll = function(k, title) {
+    if (ahead) return { key: k, title: title, meta: 'to come', state: 'wait', action: '' };
+    var r = tdyInput(def(k), iso);
+    var meta = r.state === 'in' ? (r.text.indexOf('entered by hand') >= 0 ? 'by hand' : 'in ' + String(r.text).split(' · ')[0])
+      : r.state === 'off' ? 'not expected' : r.after != null ? 'after ' + relayClockLabel(r.after)
+      : r.state === 'late' ? 'late' : r.usual != null ? 'usually ' + relayClockLabel(r.usual) : 'not yet';
+    return { key: k, title: title, meta: meta, state: r.state === 'part' ? 'wait' : r.state, action: r.state === 'in' ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
+  };
+  var held = typeof mrgHeldOpen === 'function' ? mrgHeldOpen().filter(function(h) { return h.coll === 'attendance' && String(h.rid) === iso && /^marks\./.test(h.field || ''); }) : [];
+  var nights = nightLinesOn(iso).map(function(n) {
+    var crew = shiftNightCrew(iso, n.line), heads = crew ? crew.heads : 0;
+    // The night's roll is sent the next morning: late only once that morning is past its end and half an hour (yesterday's night at
+    // 6:10 AM is still due), never on a night not come (Castor M-1).
+    var dueMin = (n.end % 1440) + 30, due = relayClockLabel(dueMin);
+    var waiting = isToday || ahead || (iso === isoAddDays(today, -1) && tdyNowMin() < dueMin);
+    return { key: 'night-' + n.line, title: 'Night roll', meta: heads ? heads + ' on the night' : ahead ? 'to come' : isToday ? 'due ' + due + ' tomorrow' : waiting ? 'due ' + due : 'not in',
+      state: heads ? 'in' : waiting ? 'wait' : 'late', action: heads || ahead ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
+  });
+  var rows = attExtraRows(rec), short = _attDayShort(iso, rec);
+  var extra = { key: 'extra', title: 'EXTRA booked', action: 'invAttStepGo', attrs: ' data-go="extra"',
+    meta: rows.length ? formatNum(c.extraHours, 1).replace(/\.0$/, '') + ' h on ' + todoPlural(rows.length, 'row') : !marked ? 'after the marks' : short.length ? 'none yet' : 'none needed',
+    state: rows.length || (!short.length && marked) ? 'in' : 'wait' };
+  // A day the plant does not work (a Sunday, a paid holiday, a day marked shut) expects no marks: the hands who came are its work,
+  // nobody is missing (Castor M-2).
+  var off = !ahead ? attDayNotExpected(iso) : null;
+  var marks = !total ? { meta: 'nobody on the roster', state: 'off' }
+    : off && !marked ? { meta: 'not expected', state: 'off' }
+    : off ? { meta: todoPlural(marked, 'hand') + ' worked', state: 'in' }
+    : { meta: marked + ' of ' + total, state: !c.unmarked ? 'in' : marked ? 'part' : 'wait' };
+  // What a sync held is the owner's to settle (mrgGate): late for the owner, waiting on the owner for anyone else (Castor L-5).
+  var heldMine = typeof grdIsOwner !== 'function' || grdIsOwner();
+  return uiNextStepsHtml('day', [roll('roll-in', 'In-time roll'),
+    { key: 'marks', title: 'Marks', meta: marks.meta, state: marks.state,
+      action: c.unmarked && !off ? 'invAttStepGo' : '', attrs: ' data-go="marks"' },
+    held.length ? { key: 'held', title: 'Held for you', meta: todoPlural(held.length, 'mark') + ' held' + (heldMine ? '' : ', the owner picks'), state: heldMine ? 'late' : 'wait',
+      action: heldMine ? 'invAttStepGo' : '', attrs: ' data-go="held"' } : null,
+    roll('roll-out', 'Out-time roll')].concat(nights, [extra]));
+}
+/* A next step's door that stays on the page: the board's first hand not marked, the EXTRA, a version held (its hand's day). */
+function attStepGo(go) {
+  if (go === 'paste') { attSetView('paste'); viewTop(); return; }
+  if (go === 'marks') {
+    var rec = attDay(_attDate, false), first = attDayRoster(rec).filter(function(w) { return !(rec && rec.marks[w.id]); })[0];
+    var el = first && document.querySelector('[data-att-row="' + first.id + '"], [data-att-sheet-row="' + first.id + '"]');
+    uiRevealEl(el || document.getElementById('attMarks'));
+    var btn = el && el.querySelector('button');
+    if (btn && !touchScreen()) btn.focus();
+    return;
+  }
+  if (go === 'extra') {
+    var card = document.getElementById('attExtra');
+    if (card && card.tagName === 'DETAILS') card.open = true;
+    uiRevealEl(card);
+    return;
+  }
+  // The month's steps act as the toolbar's own buttons do (attreg.js).
+  if (go === 'areg-start') { aregStart(); return; }
+  if (go === 'areg-fill') { aregFill(); return; }
+  if (go === 'areg-verify') { aregVerify(); return; }
+  if (go === 'areg-diff') { uiRevealEl(document.querySelector('[data-card="areg-diff"]')); return; }
+  if (go === 'held') {
+    var h = (typeof mrgHeldOpen === 'function' ? mrgHeldOpen() : []).filter(function(x) { return x.coll === 'attendance' && String(x.rid) === _attDate && /^marks\./.test(x.field || ''); })[0];
+    if (h) attEditOpen(h.field.slice(6));
+  }
 }
 /* The floor areas short of the day's number, counted as the board counts its cards: a hand present or on a half day where the
    mark says, else at home. */
@@ -25089,7 +25273,10 @@ function _attWeekView() {
   // Shut on both layouts: open, it put the grid (the week's work) a screen down on the desktop.
   html += uiFoldCard('att-weeks', attWeeksPanelHtml(), false);
 
-  html += '<div class="inv-panel inv-panel-flush" id="attWeekGrid"><div class="inv-panel-head"><span class="inv-panel-title">Week grid</span>' +
+  // The picture (UI pass 3 §12, §26c): the week as a grid, a hand a row and a day a column, each cell its mark's tone, a night on its
+  // own tone of present, a hand on two shifts back to back marked on the cell. The table under it is where a mark is changed, folded.
+  html += _attWeekMarksHtml(roster, days, today);
+  var grid = '<div class="inv-panel inv-panel-flush" id="attWeekGrid"><div class="inv-panel-head"><span class="inv-panel-title">Week grid</span>' +
     '<span class="inv-panel-count">' + escHtml(stockShortDate(_attWeekStart) + ' – ' + stockShortDate(last)) + '</span></div>' +
     '<div class="inv-scroll-x"><table class="inv-table inv-table-grid">' +
     '<thead><tr><th scope="col">Worker</th>' +
@@ -25102,7 +25289,7 @@ function _attWeekView() {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
     var left = w.active === false;
-    html += '<tr' + (left ? ' data-left' : '') + '><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label + (left ? ' · left' : '')) + '">' + escHtml(w.name) +
+    grid += '<tr' + (left ? ' data-left' : '') + '><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label + (left ? ' · left' : '')) + '">' + escHtml(w.name) +
       ' <span class="inv-unit">' + cls.short + (left ? ' · left' : '') + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
@@ -25110,17 +25297,17 @@ function _attWeekView() {
       // The figure is the hours that decide this worker's pay: the whole
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
-      html += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
+      grid += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
         (st ? ATT_STATE_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
         (st || '&middot;') + (badge ? '<span class="inv-unit">' + formatNum(badge, 0) + '</span>' : '') +
         '</button></td>';
     });
-    html += '</tr>';
+    grid += '</tr>';
   });
 
-  html += '</tbody><tfoot><tr><th scope="row">On site</th>' +
+  grid += '</tbody><tfoot><tr><th scope="row">On site</th>' +
     days.map(function(d) {
       var rec = attDay(d, false);
       if (!rec) return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>&mdash;</td>';
@@ -25131,10 +25318,44 @@ function _attWeekView() {
       });
       return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
+  html += uiFoldCard('att-week-grid', grid, false);
 
   // A role that may not see wages sees the week's marks, never its cost (one hand per tier gives a rate away). The rest: folded.
   if (attSeesWages()) html += uiFoldCard('att-week-cost', renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost'), false);
   return html;
+}
+/* The week as marks on a grid (chartMarks): P ok, H warning, A danger, P on a night info, a day nobody marked hatched (a Sunday or a
+   paid holiday not worked left empty), a hand on two shifts back to back (shiftBackToBack) flagged on that day's cell. */
+function _attWeekMarksHtml(roster, days, today) {
+  var b2b = {}, night = false, flagged = false;
+  days.forEach(function(d) { shiftBackToBack(d).forEach(function(x) { b2b[d + '|' + x.id] = x.kind; }); });
+  var rows = roster.map(function(w) {
+    return { label: w.name, cells: days.map(function(d) {
+      var m = attMark(d, w.id), k = b2b[d + '|' + w.id];
+      if (k) flagged = true;
+      var fl = k ? (k === 'after' ? ', on the shift after the night before' : ', on the shift and the night') : '';
+      if (!m) {
+        // Left empty, never hatched: a day the plant is not expected to work (a Sunday, a paid holiday, a day marked shut, by the
+        // calendar even where somebody came: attDayNotExpected, Castor M-2, Cipher H-1), a day to come, and a day the hand was not
+        // on the roster (before they joined, or any unmarked day of a hand who has left, since no leaving day is kept: Castor L-4).
+        var off = attDayNotExpected(d);
+        var notOn = (w.profile && w.profile.joined && w.profile.joined > d) || w.active === false;
+        return { tone: null, off: !!off || d > today || notOn,
+          word: off ? (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'Holiday' : plantDayOffText(off)) : d > today ? 'To come' : notOn ? 'Not on the roster' : 'Not marked' };
+      }
+      var onNight = m.st !== 'A' && attMarkOnNight(m, d);
+      if (onNight) night = true;
+      // A half day on the night keeps its half day's tone and word (Castor L-3).
+      return { tone: onNight && m.st !== 'H' ? 'info' : ATT_STATE_TONE[m.st] || null, flag: !!k,
+        word: (onNight ? (m.st === 'H' ? 'Half day, the night' : 'Present, the night') : ATT_STATE_LABELS[m.st] || m.st) + fl };
+    }) };
+  });
+  var keys = [{ tone: 'ok', label: 'Present' }, { tone: 'warning', label: 'Half day' }, { tone: 'danger', label: 'Absent' }].concat(
+    night ? [{ tone: 'info', label: 'The night' }] : [], [{ hatch: true, label: 'Not marked' }], flagged ? [{ flag: true, label: 'Two shifts back to back' }] : []);
+  var cols = days.map(function(d) { return { label: CHART_DAY_NAMES[attParseIso(d).getDay()], sub: String(attParseIso(d).getDate()), today: d === today }; });
+  return '<div class="inv-panel inv-panel-flush" id="attWeekMarks" data-card="week-marks"><div class="inv-panel-head"><span class="inv-panel-title">The week</span>' +
+    '<span class="inv-panel-count">' + todoPlural(roster.length, 'hand') + '</span></div><div class="inv-panel-body">' +
+    chartMarks(rows, cols, { ariaLabel: 'The week’s marks, a hand a row', labelHead: 'Hand', keys: keys, wide: !!_isDesktop, emptyText: 'Nobody on the roster' }) + '</div></div>';
 }
 /* The week's verdict (§3e): its attendance against the rest-day gate (attPresenceForRange, the figure Staff's Overview and the
    reports read), the working days not recorded by name, and the payout so far for a role that sees wages. */
@@ -25144,7 +25365,8 @@ function _attWeekVerdictHtml(ws, days) {
   // Today not yet entered is a day still coming in, not a day missing (Needs you says when its roll is late): it is left out of the
   // count and said as a fact.
   var pending = days.indexOf(today) >= 0 && attParseIso(today).getDay() !== 0 && !labourIsHoliday(today) && unmarked(today);
-  var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d); });
+  // A day marked shut is no working day either, as the grid under the verdict draws it (Cipher M-2).
+  var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && !attDayNotExpected(d); });
   // The working days recorded, of the working days: a paid holiday somebody worked is in r.days but is no working day (it had read
   // "6 days recorded of 5").
   var gaps = work.filter(unmarked), recorded = work.length - gaps.length;
@@ -25161,7 +25383,7 @@ function _attWeekVerdictHtml(ws, days) {
       { label: 'Present', fig: pct == null ? '' : formatNum(pct, 1) + '%', tone: figTonePct(pct, 90, 80), sub: 'of the marks typed' },
       { label: 'Days recorded', fig: recorded + '<span class="inv-tile-of">/' + work.length + '</span>', tone: gaps.length ? 'warning' : work.length ? 'ok' : null, sub: gaps.length ? gapWords + ' missing' : 'working days' },
       { label: 'On site a day', fig: r.avg == null ? '' : formatNum(r.avg, 1), sub: 'heads, on average' },
-      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'weekly tiers and the EXTRA' } : null].filter(Boolean),
+      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'as Pay counts it' } : null].filter(Boolean),
     attrs: ' id="attWeekVerdict"' });
 }
 
@@ -25186,47 +25408,78 @@ function _attRosterView() {
   var filt = _attRosterFilter === 'watch' ? watch : _attRosterFilter === 'due' ? due : null;
   if (filt && !Object.keys(filt).length) { _attRosterFilter = ''; filt = null; }
   var owner = typeof pplOwner !== 'function' || pplOwner();
+  // The Filter (UI pass 3 §12): the area, the tier, and the hands to watch or due a check-in (the verdict's two tiles too). On the
+  // phone a dialog with its tokens under the row, on the desktop the controls inline (§6.6).
+  var areas = STAFF_AREAS.filter(function(a) { return all.some(function(w) { return w.area === a.id; }); });
+  if (_attRosterArea && !areas.some(function(a) { return a.id === _attRosterArea; })) _attRosterArea = '';
+  var opt = function(v, label, on) { return '<option value="' + escHtml(v) + '"' + (on ? ' selected' : '') + '>' + escHtml(label) + '</option>'; };
+  var controls = '<select class="inv-select inv-select-sm" id="attRosterArea" aria-label="Area">' + opt('', 'Every area', !_attRosterArea) +
+      areas.map(function(a) { return opt(a.id, a.label, _attRosterArea === a.id); }).join('') + '</select>' +
+    '<select class="inv-select inv-select-sm" id="attRosterTier" aria-label="Tier">' + opt('', 'Every tier', !_attRosterTier) +
+      COMP_CLASSES.map(function(c) { return opt(c.id, c.label, _attRosterTier === c.id); }).join('') + '</select>' +
+    '<select class="inv-select inv-select-sm" id="attRosterShow" aria-label="Show">' + opt('', 'Everyone', !_attRosterFilter) +
+      (Object.keys(watch).length ? opt('watch', 'To watch', _attRosterFilter === 'watch') : '') +
+      (Object.keys(due).length ? opt('due', 'Check-ins due', _attRosterFilter === 'due') : '') + '</select>';
+  var areaName = _attRosterArea ? areaLabel(_attRosterArea) : '', tierName = _attRosterTier ? compClass(_attRosterTier).label : '';
   var html = _attRosterVerdictHtml(all, activeCount, watch, due) + '<div class="inv-toolbar" data-att-toolbar="roster">' +
+    uiFilterHtml({ key: 'roster', controls: controls, count: (_attRosterArea ? 1 : 0) + (_attRosterTier ? 1 : 0) + (_attRosterFilter ? 1 : 0) }) +
     '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
     uiToolbarMoreHtml([{ label: 'Import a roster', action: 'invAttImportRoster' }, owner ? { label: 'ID cards', action: 'invIdcPrint' } : null,
-      owner ? { label: 'Office QR', action: 'invCkSetup' } : null]) + '</div>' +
-    uiTokensHtml([{ key: 'Show', value: filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : '', action: 'invAttRosterFilter', attrs: ' data-v="' + _attRosterFilter + '"' }]);
+      owner ? { label: 'Office QR', action: 'invCkSetup' } : null], { icon: !_isDesktop }) + '</div>' +
+    uiTokensHtml([{ key: 'Area', value: areaName, action: 'invAttRosterClear', attrs: ' data-clear="area"' },
+      { key: 'Tier', value: tierName, action: 'invAttRosterClear', attrs: ' data-clear="tier"' },
+      { key: 'Show', value: filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : '', action: 'invAttRosterFilter', attrs: ' data-v="' + _attRosterFilter + '"' }]);
 
   // A role that may not see wages sees the roster without its rates (the guard's "wages" setting).
   var wages = typeof grdSeesWages !== 'function' || grdSeesWages();
   var isW = function(w) { return !!watch[String(w.id)]; };
-  var shown = filt ? all.filter(function(w) { return filt[String(w.id)]; }) : all;
+  var shown = all.filter(function(w) {
+    return (!filt || filt[String(w.id)]) && (!_attRosterArea || w.area === _attRosterArea) && (!_attRosterTier || compClass(w.comp).id === _attRosterTier);
+  });
   var watched = shown.filter(isW), on = shown.filter(function(w) { return !isW(w) && w.active !== false; }),
     left = shown.filter(function(w) { return !isW(w) && w.active === false; });
-  if (_isDesktop && all.length) return html + _attRosterDesktop(watched.concat(on, left), wages, watch);
-  html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' +
-    (filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : 'Roster') + ' <span class="inv-panel-count">' + shown.length + '</span></span></div>';
+  var head = (filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : 'Roster') + ' <span class="inv-panel-count">' + shown.length + '</span>';
+  if (_isDesktop && all.length) return html + _attRosterDesktop(watched.concat(on), left, wages, watch, head);
+  html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
-
-  // Each worker at a glance (people.js, the 6-second rule): tenure, reliability, consistency and workload as short bars with
-  // their figures, the top skills, and for the owner the motivation index. The meta line is two facts, the area and the pay
-  // (the base rate with what an overtime hour pays); the tier is the group (the roster is ordered by it). A badge is a state (to
-  // watch, left), and only a row holding one draws the line of badges under the name.
-  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
-  var row = function(w) {
-    var inactive = w.active === false;
-    var badges = (watch[String(w.id)] || []).map(function(x) { return '<span class="inv-badge inv-badge-' + x.tone + '">' + escHtml(x.word) + '</span>'; }).join('') +
-      (inactive ? '<span class="inv-badge inv-badge-neutral">Inactive</span>' : '');
-    return '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '"' + (isW(w) ? ' data-roster-watch' : '') + '>' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta" data-roster-meta>' + escHtml([areaLabel(w.area) + (w.onFloor === false ? ', off the floor' : '')].concat(wages ? [workerRateShort(w)] : []).join(' · ')) + '</span>' +
-      (inactive ? '' : pplGlanceHtml(w, memo)) + '</span>' +
-      (badges ? '<span class="inv-row-end inv-row-actions">' + badges + '</span>' : '') + '</button>';
-  };
-  var group = function(key, label, list) { return '<div class="inv-row-group" data-roster-group="' + key + '"><span>' + escHtml(label) + '</span><span class="inv-num">' + list.length + '</span></div>'; };
-  if (watched.length) html += group('watch', 'To watch', watched) + watched.map(row).join('');
-  // A tier the roster does not know is paid as the daily tier (compClass), so it is listed there.
-  COMP_CLASSES.forEach(function(c) {
-    var tier = on.filter(function(w) { return compClass(w.comp).id === c.id; });
-    if (tier.length) html += group('tier-' + c.id, c.label, tier) + tier.map(row).join('');
-  });
-  if (left.length) html += group('left', 'Left', left) + left.map(row).join('');
+  if (!shown.length) return html + '<div class="inv-empty">Nobody here: change the filter</div></div>';
+  // The roster as cards (UI pass 3 §12): the hands to watch first, then the active by tier; the hands who left under Left, folded.
+  html += '<div class="inv-panel-body"><div class="inv-deck" data-deck-sm data-roster-deck>' + watched.concat(on).map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>';
+  if (left.length) html += _attRosterLeftHtml(left, wages, watch);
   return html + '</div>';
+}
+var _attRosterArea = '', _attRosterTier = '';
+/* The hands who left, folded under Left: kept with their days, their cards plain. */
+function _attRosterLeftHtml(left, wages, watch) {
+  return '<details class="inv-row-fold" data-fold="roster-left" data-roster-group="left"' + (uiFoldOpen('roster-left', false) ? ' open' : '') + '>' +
+    '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Left</span></span><span class="inv-row-end inv-panel-count">' + left.length + '</span></summary>' +
+    '<div class="inv-panel-body"><div class="inv-deck" data-deck-sm>' + left.map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div></details>';
+}
+/* One hand as a card (UI pass 3 §12): an avatar of initials, the name; the area and the rate (for a role that sees wages) as its meta;
+   the designation (the owner's: a personal detail) and the tier; tenure; reliability, consistency and workload as bars (pplStats);
+   the top three skills as chips; a badge only for a state (to watch with the motivation index, inactive). A check-in due is no badge
+   on the card (TM4f: the rule names every hand not checked in for 45 days, on the owner's book 21 of 23): the verdict's tile and the
+   Filter show those hands alone. The card opens the hand's record: the pane on the desktop, the sheet on the phone. */
+function attRosterCardHtml(w, wages, watch) {
+  var id = String(w.id), inactive = w.active === false, owner = typeof pplOwner !== 'function' || pplOwner();
+  var initials = String(w.name || '?').split(/[\s\-–(]+/).filter(Boolean).slice(0, 2).map(function(x) { return x.charAt(0).toUpperCase(); }).join('');
+  var badges = (watch[id] || []).map(function(x) { return '<span class="inv-badge inv-badge-' + x.tone + '">' + escHtml(x.word) + '</span>'; }).join('') +
+    (inactive ? '<span class="inv-badge inv-badge-neutral">Inactive</span>' : '');
+  var desig = owner && w.profile && w.profile.designation ? w.profile.designation : '';
+  // The motivation index is a badge only as a state, the owner's: under 50 on firm figures, the hand to watch (Motivation 42). The
+  // index itself is the record's (pplRecordHtml).
+  var st = inactive ? null : pplStats(w);
+  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 3);
+  var open = _isDesktop ? 'invAttRosterOpen' : 'invAttEditWorker';
+  var cur = _isDesktop && _attRosterOpen != null && String(_attRosterOpen) === id;
+  return '<div class="inv-deck-item' + (inactive ? ' inv-row-muted' : '') + '" data-tone="' + (watch[id] ? 'danger' : 'neutral') + '" data-roster-card="' + escHtml(id) + '"' + (watch[id] ? ' data-roster-watch' : '') + '>' +
+    '<button type="button" class="inv-deck-main" data-action="' + open + '" data-id="' + escHtml(id) + '"' + (cur ? ' aria-current="true"' : '') + '>' +
+    '<span class="inv-deck-head"><span class="inv-avatar" aria-hidden="true">' + escHtml(initials) + '</span><span class="inv-deck-title">' + escHtml(w.name) + '</span></span>' +
+    '<span class="inv-deck-sub" data-roster-meta>' + escHtml([areaLabel(w.area) + (w.onFloor === false ? ', off the floor' : '')].concat(wages ? [workerRateShort(w)] : []).join(' · ')) + '</span>' +
+    '<span class="inv-deck-sub" data-roster-tier>' + escHtml([(desig ? desig + ', ' : '') + compClass(w.comp).label, st ? pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked') : ''].filter(Boolean).join(' · ')) + '</span>' +
+    (inactive ? '' : pplGlanceHtml(w)) +
+    (skills.length || badges ? '<span class="inv-skill-chips" data-roster-tags>' + badges + skills.map(function(a) { return '<span class="inv-skill-chip" data-ppl-glance-skill>' + escHtml(areaLabel(a) + ' ' + w.skills[a] + '/5') + '</span>'; }).join('') + '</span>' : '') +
+    '</button></div>';
 }
 /* The rate a roster row shows, as one fact beside the area: the base rate and what an overtime hour pays (WB9), the day rate a
    month's wage works out to left to the worker's sheet (workerRateLabel). */
@@ -25252,12 +25505,13 @@ function _attRosterVerdictHtml(all, active, watch, due) {
   var ids = Object.keys(watch), dueN = Object.keys(due || {}).length;
   var onFloor = all.filter(function(w) { return w.active !== false && w.onFloor !== false; }).length, left = all.length - active;
   return uiVerdictHtml({ screen: 'Roster', verdict: all.length ? active + ' active' + (ids.length ? ', ' + ids.length + ' to watch' : '') : 'Nobody on the roster yet',
-    tone: !all.length ? 'neutral' : ids.length ? 'warning' : dueN ? 'info' : 'ok', fig: String(active),
+    // A hand to watch is the To-do's red (pplWatch, firm figures only): the verdict, the tile and the card say it in one tone (Castor L-8).
+    tone: !all.length ? 'neutral' : ids.length ? 'danger' : dueN ? 'info' : 'ok', fig: String(active),
     facts: [all.length + ' on file', dueN ? todoPlural(dueN, 'check-in') + ' due' : ''],
     factors: [
       { label: 'Active', fig: String(active), sub: onFloor + ' on the floor' },
       // To watch and the check-ins due show their hands alone, as Stock's status tiles do (a second press shows everyone).
-      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'warning' : null, sub: 'motivation under 50',
+      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'danger' : null, sub: 'motivation under 50',
         action: ids.length ? 'invAttRosterFilter' : '', attrs: ' data-v="watch"', pressed: ids.length ? _attRosterFilter === 'watch' : null },
       { label: 'Check-ins due', fig: String(dueN), tone: dueN ? 'info' : null, sub: 'none in 45 days',
         action: dueN ? 'invAttRosterFilter' : '', attrs: ' data-v="due"', pressed: dueN ? _attRosterFilter === 'due' : null },
@@ -25265,26 +25519,17 @@ function _attRosterVerdictHtml(all, active, watch, due) {
     attrs: ' id="attRosterVerdict"' });
 }
 
-/* The desktop's roster: a table beside the open worker (UX overhaul 2, step 7). The phone opens the worker's edit sheet. */
-function _attRosterDesktop(all, wages, watch) {
-  watch = watch || {};
+/* The desktop's roster: its cards beside the open worker (UX overhaul 2, step 7; the cards since UI pass 3 §12). The phone opens the
+   worker's edit sheet. */
+function _attRosterDesktop(list, left, wages, watch, head) {
   var open = _attRosterOpen != null ? staffById(_attRosterOpen) : null;
   if (!open) _attRosterOpen = null;
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
-    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
-    '<th>Area</th><th>Status</th></tr></thead><tbody>';
-  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
-  all.forEach(function(w) {
-    var inactive = w.active === false, id = escHtml(String(w.id));
-    h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
-      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button>' + (inactive ? '' : pplGlanceHtml(w, memo)) + '</td>' +
-      '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
-      (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
-      '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
-      '<td>' + (watch[String(w.id)] ? watch[String(w.id)].map(function(x) { return '<span class="inv-badge inv-badge-' + x.tone + '">' + escHtml(x.word) + '</span>'; }).join(' ')
-        : inactive ? '<span class="inv-dot inv-dot-neutral">Inactive</span>' : '<span class="inv-dot inv-dot-ok">Active</span>') + '</td></tr>';
-  });
-  return h + '</tbody></table></div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
+    '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>' +
+    (list.length || left.length ? '' : '<div class="inv-empty">Nobody here: change the filter</div>') +
+    (list.length ? '<div class="inv-panel-body"><div class="inv-deck" data-roster-deck>' + list.map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>' : '') +
+    (left.length ? _attRosterLeftHtml(left, wages, watch) : '') + '</div>';
+  return h + '</div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
 }
 
 /* One worker: who they are on the roster, and the last four pay weeks as the marks have them. */
@@ -28246,7 +28491,49 @@ function _areaVerdictHtml(stats, flags, from, to) {
         sub: 'on the areas with a complement', attrs: ' data-tile="booked"' },
       { label: 'To explain', fig: String(n), tone: n ? (danger ? 'danger' : 'warning') : stats.normed ? 'ok' : null, sub: flags.acked.length ? flags.acked.length + ' explained' : 'unit-days and blocks', attrs: ' data-tile="explain"' },
       { label: 'Not checkable', fig: formatNum(unchecked, 1) + '<span class="inv-tile-of"> h</span>', tone: unchecked > 0 ? 'warning' : null, sub: 'counted in the bill', attrs: ' data-tile="unchecked"' }],
+    body: _areaMultiplesHtml(stats, from, to),
     attrs: ' id="areaVerdict"' });
+}
+/* The picture (UI pass 3 §12, §26c): each area's heads against its number over the period, as small multiples: a tile a unit (the
+   units the extra is checked on, areaStats), a bar a day its heads, amber where it stood short, none where it was idle; then a line's
+   night, its heads against the schedule's crew (shiftNightCrew, the reading blockNorm checks a night block by). */
+function _areaMultiplesHtml(stats, from, to) {
+  var tile = function(key, label, days) {
+    var ran = days.filter(function(d) { return !d.idle; }), short = ran.filter(function(d) { return d.short > 0; }).length;
+    if (!ran.length) return '';
+    var bars = days.map(function(d) {
+      return { v: d.idle ? 0 : d.heads, label: attDayName(d.iso) + ' ' + stockShortDate(d.iso), text: d.idle ? 'did not run' : d.heads + ' of ' + d.need + (d.short ? ', ' + d.short + ' short' : ''),
+        tone: !d.idle && d.short ? 'warning' : '' };
+    });
+    return '<div class="inv-tile' + (short ? ' inv-tile-warning' : ' inv-tile-ok') + '" data-area-multiple="' + escHtml(key) + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
+      '<div class="inv-tile-value">' + short + '<span class="inv-tile-of">/' + ran.length + ' days short</span></div>' +
+      '<div class="inv-tile-viz">' + chartMiniBars(bars, { title: label + ': heads a day against the number' }) + '</div></div>';
+  };
+  var tiles = (stats.units || []).map(function(u) {
+    return tile(u.id, u.label, u.days.map(function(d) { return { iso: d.iso, heads: d.heads, need: d.norm, short: d.short, idle: d.idle }; }));
+  });
+  // No complement set: each floor area's heads a day alone, judged against nothing.
+  if (!tiles.some(Boolean)) tiles = (stats.rows || []).filter(function(a) { return a.floor && a.id !== 'flex' && a.headDays > 0; }).map(function(a) {
+    var bars = a.days.map(function(d) { return { v: d.heads, label: attDayName(d.iso) + ' ' + stockShortDate(d.iso), text: d.heads + ' heads' }; });
+    // The figure is the bars' own average (the general shift's heads), never avgHeads, which counts the night's marks too (Castor L-9).
+    var avg = bars.length ? bars.reduce(function(t, b) { return t + b.v; }, 0) / bars.length : 0;
+    return '<div class="inv-tile" data-area-multiple="' + escHtml(a.id) + '"><div class="inv-tile-label">' + escHtml(a.label) + '</div>' +
+      '<div class="inv-tile-value">' + formatNum(avg, 1) + '<span class="inv-tile-of"> heads a day</span></div>' +
+      '<div class="inv-tile-viz">' + chartMiniBars(bars, { title: a.label + ': heads a day' }) + '</div></div>';
+  });
+  // A night is drawn only once its day is recorded and come (Castor M-3): a night not yet worked, or a day nobody typed, is no night
+  // that did not run, as the units' tiles keep only the days recorded.
+  var today = localDateStr();
+  SHIFT_LINES.forEach(function(l) {
+    var days = attDatesInRange(from, to).map(function(d) {
+      var n = d <= today ? lineNightOn(l[0], d) : null, c = n ? shiftNightCrew(d, l[0]) : null;
+      if (!n || !c || !c.recorded || (d === today && !c.heads)) return null;
+      return { iso: d, heads: c.heads, need: n.need || 0, short: n.need ? Math.max(0, n.need - c.heads) : 0, idle: !c.heads };
+    }).filter(Boolean);
+    if (days.length) tiles.push(tile('night-' + l[0], l[1] + ', the night', days));
+  });
+  tiles = tiles.filter(Boolean);
+  return tiles.length ? '<div class="inv-hero-sheet" data-area-multiples><div class="inv-tiles">' + tiles.join('') + '</div></div>' : '';
 }
 
 /* The extra, checked (the rule: `8 × (norm − heads)` per unit and day, an upper bound, the owner's per-hand scaling; the guide has the
@@ -28899,15 +29186,19 @@ function _attPayView() {
   // One look (the tab map, TM4b): the payout as the verdict (it was the Weekly payout card's head), one toolbar row (the week, Pay
   // slips, More), labour ₹/kg and the payroll against the bank (they led Staff's Overview), then what is due by worker, each
   // opening to its arithmetic; the history, the slips as paid and the bank's legs folded.
-  var html = _payVerdictHtml(ws) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
+  // One forecast and one week's gaps for the render: the verdict and the steps read the same figures, worked out once (Iuno L-5,
+  // Castor L-7: Pay had worked out payForecast twice and payDue twice a draw).
+  var f = payForecast(ws), gaps = payCrewGaps(ws, isoAddDays(ws, 6)), due = payDue(ws);
+  var html = _payVerdictHtml(ws, f, gaps) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
     _attStepInRow('invAttWeekStep', '<span class="inv-stepper-title">Week ' + attPayWeekNumber(ws) + '</span>', 'Previous week', 'Next week') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') +
     // The slips are printed from the due rows (payslip.js).
     '<button class="inv-btn inv-btn-secondary" data-action="invPsOpen">Pay slips</button>' +
     uiToolbarMoreHtml([phone && !thisWeek ? { label: 'Go to this week', action: 'invAttThisWeek' } : null, { label: 'Import the payroll as paid', action: 'invPayrollImport' }], { icon: phone }) +
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
+  html += _payStepsHtml(ws, f, gaps, due);
   html += payLabourPanelsHtml();
-  html += _payDueCard(ws);
+  html += _payDueCard(ws, due);
   if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
@@ -28918,8 +29209,10 @@ function _attPayView() {
 }
 /* Pay's verdict (§3e): the week's payout, heading for it while the week is open, and its change against the usual week (the median
    of the twelve before), toned by the swing: well above the usual is a caution, below says nothing on its own. */
-function _payVerdictHtml(ws) {
-  var f = payForecast(ws), wk = f.week, sat = isoAddDays(ws, 6), amount = f.open ? f.predicted : wk.total, gaps = payCrewGaps(ws, sat);
+function _payVerdictHtml(ws, f, gaps) {
+  var sat = isoAddDays(ws, 6);
+  f = f || payForecast(ws); gaps = gaps || payCrewGaps(ws, sat);
+  var wk = f.week, amount = f.open ? f.predicted : wk.total;
   var pct = f.swingPct != null ? (f.swing >= 0 ? '+' : '−') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%' : '';
   var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : f.median != null ? 'ok' : 'neutral';
   // A hand on a block their own times do not reach has hours nobody is paid for: the payout reads low until the day is put right,
@@ -28942,10 +29235,76 @@ function _payVerdictHtml(ws) {
       uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
         sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
       (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
-      _payGapsHtml(gaps) + '</div>',
+      _payGapsHtml(gaps) + '</div>' + _payWeeksChartHtml(ws, wk),
     attrs: ' id="payForecast"' });
 }
 
+/* Pay's picture (UI pass 3 §12, §26c): the week shown and the eleven before it, a bar a pay week, the cash the supervisor paid out
+   its own part of the bar (cashPayCardHtml lists it under), each bar reading its payout whole (opts.total). A week nobody typed is a
+   gap, not a ₹0 week: chartStack draws no bar for it, and a week holding only cash paid out has its cash and no wages part (Iuno
+   M-3, Castor M-5). A pay week still running is drawn as to date (TM6b), at its total so far (the verdict says where it heads). */
+function _payWeeksChartHtml(ws, shown) {
+  var weeks = [];
+  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(i === 0 && shown ? shown : payWeek(isoAddDays(ws, -7 * i)));
+  var typed = function(w) { return w.recordedDays || w.sundays; };
+  var cash = weeks.some(function(w) { return w.cashOut > 0; });
+  // The weekly tiers alone: the monthly crew is paid on its month, never in a week's payout (Iuno L-3).
+  var series = [{ label: cash ? 'Weekly hands, EXTRA and snacks' : 'Payout', values: weeks.map(function(w) { return typed(w) ? gstRound(w.total - (w.cashOut || 0)) : null; }) }];
+  if (cash) series.push({ label: 'Cash paid out', values: weeks.map(function(w) { return w.cashOut > 0 || typed(w) ? w.cashOut || 0 : null; }) });
+  return '<div class="inv-hero-sheet" data-pay-weeks><div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }), series,
+    { ariaLabel: 'The payout, week by week', emptyText: 'No week recorded in the twelve', total: 'Payout', labelHead: 'Week',
+      toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div></div>';
+}
+/* Pay's next steps (UI pass 3 §12, §26c): the hours to check (a hand on a block their own times do not reach), the cash the
+   supervisor paid out, the payout (Sunday to Saturday 5 PM, payLate), the payments to record (the weekly hands with something due),
+   the slips. Each is Pay's own figure (payCrewGaps, cashForWeek, payForecast, payDue), a door to where it is done. */
+function _payStepsHtml(ws, f, gaps, d) {
+  var sat = isoAddDays(ws, 6), today = localDateStr();
+  f = f || payForecast(ws); gaps = gaps || payCrewGaps(ws, sat); d = d || payDue(ws);
+  var cash = typeof cashForWeek === 'function' ? cashForWeek(ws) : [];
+  var due = d.rows.filter(function(r) { return r.weekly && r.due > 0.005; });
+  // The payout's cut-off is Saturday at 5 PM (payLate's PAY_CUTOFF), read as the week's end here too (Castor L-2).
+  var closed = sat < today || (sat === today && tdyNowMin() >= PAY_CUTOFF);
+  // The payout is done only when the week is closed and every working day is recorded with no hours to check: a week part-typed
+  // reads low, and a tick over it said the figure BM disburses was known (Castor H-1, Iuno M-1). A week nobody typed says so, never
+  // ₹0; one still running says where it heads.
+  // A day marked shut is no day missing (Cipher M-2): it is taken off what is looked for here alone, never off the pay arithmetic
+  // (the rest-day gate reads its own working days).
+  var shutDays = attWeekDays(ws).filter(function(d) { var x = attDayNotExpected(d); return x && x.kind === 'shut' && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d) && !(S.attendance || {})[d]; }).length;
+  var wk = f.week, missing = Math.max(0, wk.workingDays - wk.recordedDays - shutDays), figured = wk.recordedDays > 0 || wk.sundays > 0;
+  var payout = !figured ? { meta: closed ? 'not recorded' : f.basis === 'median' ? 'about ' + finRs(f.predicted) : 'to Sat 5 PM', state: closed ? 'late' : 'wait' }
+    : !closed ? { meta: (f.open ? 'heading for ' + finRs(f.predicted) : finRs(wk.total)) + ', to Sat 5 PM', state: 'wait' }
+    : missing ? { meta: finRs(wk.total) + ', ' + todoPlural(missing, 'day') + ' not recorded', state: 'late' }
+    : gaps.length ? { meta: finRs(wk.total) + ', hours to check', state: 'late' }
+    : { meta: finRs(wk.total), state: 'in' };
+  return uiNextStepsHtml('pay', [
+    { key: 'hours', title: 'Hours', meta: gaps.length ? todoPlural(gaps.length, 'hand') + ' to check' : 'none to check', state: gaps.length ? 'late' : 'in',
+      action: gaps.length ? 'invPayStepGo' : '', attrs: ' data-go="hours"' },
+    { key: 'cash', title: 'Cash paid out', meta: cash.length ? todoPlural(cash.length, 'line') : 'none sent', state: cash.length ? 'in' : closed ? 'off' : 'wait',
+      action: 'invPayStepGo', attrs: ' data-go="cash"' },
+    { key: 'payout', title: 'Payout', meta: payout.meta, state: payout.state, action: 'invPayStepGo', attrs: ' data-go="payout"' },
+    // The weekly hands paid on Saturday: the monthly crew's salaries are Due by worker's Monthly group, paid on their month
+    // (Iuno M-2: "nothing due" had sat over monthly hands owed).
+    { key: 'pay', title: 'Weekly payments', meta: due.length ? todoPlural(due.length, 'weekly hand') + ' due' : 'none due', state: due.length ? (closed ? 'late' : 'wait') : 'in',
+      action: 'invPayStepGo', attrs: ' data-go="pay"' },
+    { key: 'slips', title: 'Slips', meta: 'two to a page', state: 'wait', action: 'invPayStepGo', attrs: ' data-go="slips"' }]);
+}
+/* A Pay step's door that stays on the page: the hours to check (the card open at them), the cash paid out, the payout's card, the
+   payment form. */
+function payStepGo(go) {
+  var open = function(el) { if (el && el.tagName === 'DETAILS') el.open = true; return el; };
+  if (go === 'hours') { open(document.getElementById('payForecast')); uiRevealEl(open(document.querySelector('[data-pay-gaps]')) || document.getElementById('payForecast')); return; }
+  if (go === 'cash') {
+    var card = document.querySelector('[data-card="cashout"]');
+    if (card) { uiRevealEl(card); return; }
+    // None sent yet: the supervisor's message of cash spent is read where every message is pasted.
+    attSetView('paste');
+    return;
+  }
+  if (go === 'payout') { uiRevealEl(open(document.getElementById('payForecast'))); return; }
+  if (go === 'slips') { psOpen(); return; }
+  if (go === 'pay') { var form = open(document.getElementById('payFormFold')); uiRevealEl(form); var sel = document.getElementById('payWorker'); if (sel && !touchScreen()) sel.focus(); }
+}
 /* The week's hands named on a block their own times do not reach (payCrewGaps), folded under one row, each with the day it opens:
    the hours a block paid nobody for until the day is put right. */
 function _payGapsHtml(gaps) {
@@ -28964,8 +29323,8 @@ function _payRow(title, sub, end, attrs, cls) {
     '<span class="inv-row-end">' + end + '</span></' + tag + '>';
 }
 
-function _payDueCard(ws) {
-  var d = payDue(ws);
+function _payDueCard(ws, d) {
+  d = d || payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   // How earned, paid and a balance carried are worked out is the guide's (Using the app: pay); a hand opens to its own arithmetic.
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
@@ -29238,10 +29597,6 @@ function _payHistoryCard(ws) {
   var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
     '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
   // A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar (and no ₹0 reading) for it.
-  h += '<div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }),
-    [{ label: 'Payout', values: weeks.map(function(w) { return w.recordedDays || w.sundays ? w.total : null; }) }],
-    // A pay week still running is drawn as to date (TM6b).
-    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve', toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
     // The row's figure and its change against the median at the end; the days and what was paid its two facts.
@@ -45251,7 +45606,7 @@ function aregViewHtml() {
     _attStepInRow('invAregStep', phone ? '' : '<span class="inv-stepper-title">' + escHtml(aregMonthLabel(month)) + '</span>', 'Previous month', 'Next month') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAregNow"' + (month === now ? ' disabled' : '') + '>This month</button>') + primary +
     uiToolbarMoreHtml(more, { icon: phone }) +
-    '<input type="file" id="aregFile" accept=".json,application/json" hidden></div>' + _attPeriodSwitchHtml();
+    '<input type="file" id="aregFile" accept=".json,application/json" hidden></div>' + _attPeriodSwitchHtml() + aregStepsHtml(mo, cmp);
   // No page yet: the card says so and the toolbar holds the two doors; what each does is the guide's (Using the app: attendance).
   if (!mo) return html;
   html += aregDiffHtml(mo, cmp) + aregGridHtml(mo, cmp) + uiFoldCard('aregTotals', aregTotalsHtml(mo, cmp), !!_isDesktop);
@@ -45260,6 +45615,20 @@ function aregViewHtml() {
       mo.notes.map(function(n) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(n) + '</span></span></div>'; }).join('') + '</div>', false);
   }
   return html;
+}
+/* The month's next steps (UI pass 3 §12): the page started or imported, the cells only on the register filled onto their days, the
+   differences settled a cell at a time, the page marked checked. Each a door to where it is done. */
+function aregStepsHtml(mo, cmp) {
+  var n = mo ? cmp.n : null, differ = n ? n.state + n.ot + n.day : 0;
+  return uiNextStepsHtml('register', [
+    { key: 'start', title: 'Start or import', meta: mo ? (mo.src === 'hand' ? 'by hand' : mo.src === 'photo' ? 'from a photo' : 'imported') : 'not started',
+      state: mo ? 'in' : 'wait', action: mo ? '' : 'invAttStepGo', attrs: ' data-go="areg-start"' },
+    { key: 'fill', title: 'Fill', meta: !mo ? '' : n.reg ? todoPlural(n.reg, 'cell') + ' to fill' : 'nothing to fill', state: mo && !n.reg ? 'in' : 'wait', action: mo && n.reg ? 'invAttStepGo' : '', attrs: ' data-go="areg-fill"' },
+    // Two counts, as the verdict has them: the cells that differ (its Differ tile) and the marks only on the day (Iuno L-4).
+    { key: 'settle', title: 'Settle the differences', meta: !mo ? '' : !differ ? 'none' : [n.state + n.ot ? (n.state + n.ot) + ' differ' : '', n.day ? n.day + ' only on the day' : ''].filter(Boolean).join(', '), state: !mo ? 'wait' : !differ ? 'in' : n.state ? 'late' : 'wait',
+      action: mo && differ ? 'invAttStepGo' : '', attrs: ' data-go="areg-diff"' },
+    { key: 'check', title: 'Mark checked', meta: mo && mo.verifiedAt ? 'checked ' + stockShortDate(isoOf(new Date(mo.verifiedAt))) : 'not yet',
+      state: mo && mo.verifiedAt ? 'in' : 'wait', action: mo && !mo.verifiedAt ? 'invAttStepGo' : '', attrs: ' data-go="areg-verify"' }]);
 }
 /* The month's verdict (§3e): how the register and the day agree, the four counts its factors (they were the summary's tiles). */
 function aregVerdictHtml(month, mo, cmp) {
@@ -45275,6 +45644,10 @@ function aregVerdictHtml(month, mo, cmp) {
       { label: 'Only on the register', fig: String(n.reg), sub: 'days the app holds no mark for', attrs: ' data-tile="reg"' },
       { label: 'To check', fig: String(check), tone: check ? 'warning' : null,
         sub: (cmp.unsure + cmp.unread) + ' unsure or unread · ' + todoPlural(cols, 'column') + ' with no worker', attrs: ' data-tile="unsure"' }],
+    // The picture (UI pass 3 §12): the register and the days as one bar of 100%, each part in the tone a cell of it takes.
+    body: n.agree + differ + n.reg + n.day ? '<div class="inv-hero-sheet"><div class="inv-panel-body" data-areg-bar>' + chartShareBar([
+      { label: 'Agree', v: n.agree, tone: 'ok' }, { label: 'Differ', v: differ, tone: n.state ? 'danger' : 'warning' },
+      { label: 'Only on the register', v: n.reg, tone: 'info' }, { label: 'Only on the day', v: n.day, tone: 'warning' }], 'The register against the days') + '</div></div>' : '',
     attrs: ' id="aregSummary"' });
 }
 function aregSourceText(mo) {
@@ -51441,7 +51814,7 @@ function advWageMoves(ctx) {
     : f.basis === 'median' ? 'nothing recorded this week yet: the median week stands in' : 'every working day recorded';
   var weekly = staffActive().filter(function(w) { return w.comp === 'hourly' || w.comp === 'daily'; }).length;
   return [{ key: 'wages:' + sat, tone: until === 0 ? 'amber' : 'info', soon: until, cat: 1, what: 'the payout ' + (until === 0 ? 'today' : 'on Saturday'),
-    row: { title: 'The payout is due ' + (until === 0 ? 'today' : until === 1 ? 'tomorrow' : 'on Saturday'), meta: (weekly ? todoPlural(weekly, 'weekly hand') + ' and the EXTRA' : 'The weekly tiers and the EXTRA'),
+    row: { title: 'The payout is due ' + (until === 0 ? 'today' : until === 1 ? 'tomorrow' : 'on Saturday'), meta: (weekly ? todoPlural(weekly, 'weekly hand') + ', the EXTRA and snacks' : 'The weekly hands, the EXTRA, snacks and cash paid out'),
       amt: gstRound(f.predicted) },
     say: 'Have ' + advRs(f.predicted) + ' ready for ' + (until === 0 ? 'today’s' : 'Saturday’s') + ' payout',
     worth: { amount: f.predicted, sign: -1, label: 'due ' + (until === 0 ? 'today' : formatDate(sat)) },
@@ -56547,26 +56920,17 @@ function pplImportKeep() {
   showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (badDates ? ' · ' + badDates + ' date' + (badDates === 1 ? '' : 's') + ' not readable or still to come, left out' : ''), left || badDates ? 'warning' : 'success');
 }
 
-/* ---------- At a glance: the roster's row (W3, the 6-second rule) ---------- */
-/* Three short bars with their figures (reliability, consistency, workload), the tenure, the two strongest skills, and for the
-   owner the motivation index: one look says who is steady, who is stretched, and who to talk to. */
-function pplGlanceHtml(w, memo) {
+/* ---------- At a glance: the roster's card (W3, the 6-second rule; UI pass 3 §12) ---------- */
+/* Three short bars with their figures (reliability, consistency, workload): one look says who is steady and who is stretched. The
+   card (staff.js attRosterCardHtml) says the tenure, the top skills and, as a state, the motivation its own way. */
+function pplGlanceHtml(w) {
   var st = pplStats(w), wt = pplWorkTone(st), stat = function(k, label, v, tone, word) {
     return '<span class="inv-wstat" data-ppl-glance="' + k + '"><span class="inv-wstat-k">' + label + '</span>' + pplBarHtml(v, tone, label + ': ' + word) + '<span class="inv-wstat-v">' + escHtml(word) + '</span></span>';
   };
-  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 2);
-  var h = '<span class="inv-wstats">' +
+  return '<span class="inv-wstats">' +
     stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
     stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
     stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
-  // Two facts (the tab map §3b): how long here (and the days marked while that is too few to judge by), then the top skills; the
-  // owner's motivation index follows them as a status, a dot and a word, never a third fact after a "·".
-  var meta = [pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked'),
-    skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', ')].filter(Boolean).join(' · ');
-  var mo = pplOwner() ? pplMotivation(w, st, memo) : null;
-  h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) +
-    (mo ? (meta ? ' ' : '') + '<span data-ppl-glance-mo>' + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>' : '') + '</span>';
-  return h;
 }
 
 /* ---------- The To-do: a check-in due, a worker to talk to (the owner's) ---------- */
@@ -60271,6 +60635,15 @@ function tdyInput(def, day) {
       // Entered by hand, or from paper: the day is in, with no roll behind it.
       o.state = 'in';
       o.text = (att.p + att.half) + ' on site, ' + att.absent.length + ' absent · entered by hand';
+    } else if (def.k === 'roll-out' && att.marked) {
+      // Entered by hand too: every hand on site has an out typed or scanned (no roll wrote it, no shift's default), so the day's
+      // outs are in with no roll behind them (Castor M-4, the QA chain of 5 Nov 2026: a day typed from the sheet read late for ever).
+      var orec = (S.attendance || {})[day], on = attDayRoster(orec).map(function(w) { return orec.marks[w.id]; })
+        .filter(function(m) { return m && (m.st === 'P' || m.st === 'H') && !attMarkOnNight(m, day); });   // the night's out is the next morning's (Cipher L-1)
+      if (on.length && on.every(function(m) { return m.outMin != null && m.src !== 'relay'; })) {
+        o.state = 'in';
+        o.text = todoPlural(on.length, 'out') + ' · entered by hand';
+      }
     }
   } else if (def.k === 'pickling') {
     var loads = prodDayLoads(day);
@@ -74716,6 +75089,11 @@ var KB_APP_GUIDES = [
   // Attendance (the tab map, TM4b): Day, Week and Month under one tab, and the method each screen used to print above its figures.
   _kbg('day', 'Using the app: attendance', 'Floor → People → Attendance: the day, the week and the month', ['pageStaff', 'pageFloor'],
     'Floor → People → **Attendance** has 3 views on a switch below its toolbar: **Day**, **Week** and **Month**. Each view starts with a card that shows the status. On a phone, tap the card to see its figures.\n\n' +
+    '# The next steps\n' +
+    '- Day and Month show their steps in 1 row below the switch. Each step shows its state: a tick when it is done, its number when it is to do, and **!** when it is late. A ring shows the step to do next.\n' +
+    '- Tap a step to go where you do it. A step that is done has no door.\n' +
+    '- Day: **In-time roll**, **Marks**, **Out-time roll**, then **EXTRA booked**. A line with a night adds its **Night roll**, which comes the next morning. If a sync holds 2 versions of a mark, **Held for you** opens that hand’s day.\n' +
+    '- Month: **Start or import**, **Fill**, **Settle the differences**, then **Mark checked**.\n\n' +
     '# Day\n' +
     '- The card compares the people on site with the roster of the day. It also shows the areas that are short of the number for the day. Its figures are on site, half day, absent and not marked.\n' +
     '- **Board** shows each area as a card. Tap once to set P, H or A. Tap a name to open the day of that hand. It shows the area, the in time, the out time and the area of each overtime shift.\n' +
@@ -74737,11 +75115,12 @@ var KB_APP_GUIDES = [
     '- If the night is short of its crew, the EXTRA is the length of the night for each missing hand. The To-do tells you about a short night, and about a hand on 2 shifts back to back.\n\n' +
     '# Week\n' +
     '- The card compares the attendance of the week with the rest-day gate (90% and 80%). It also shows the days that nobody recorded, and the payout until now.\n' +
-    '- Tap a cell of the grid to change it. Each tap sets the next state: present, half day, absent, then not marked.\n' +
+    '- **The week** shows each hand as a row and each day as a column. Green is present, amber is a half day, red is absent and blue is a night. A hatched cell is a day that nobody marked. A dot shows a hand on 2 shifts back to back. Tap **Table** to read each cell in words.\n' +
+    '- To change a mark, open **Week grid** below the picture. Tap a cell to change it. Each tap sets the next state: present, half day, absent, then not marked.\n' +
     '- A cell that is not marked is a day that nobody typed. This is not the same as a day that nobody worked. The labour figures keep the 2 separate.\n' +
     '- The figure in a cell is the hours that set the pay. For the hourly pool, it is the full day. For all other hands, it is the overtime.\n\n' +
     '# Month\n' +
-    '- This is the register of the supervisor, 1 page for each month. The app compares it with the day as the app keeps it. The card counts the cells that are different, the cells that are only on the register and the cells that agree.\n' +
+    '- This is the register of the supervisor, 1 page for each month. The app compares it with the day as the app keeps it. The card counts the cells that are different, the cells that are only on the register and the cells that agree. Its bar shows the 4 parts as shares of the month.\n' +
     '- The app shows each cell as it is written. A red cell has a mark that is different from the day. An amber cell has only a different overtime, by 1 hour or more. A plain cell agrees, or it is only on the register. A dashed edge shows a cell that the app was not sure how to read.\n' +
     '- Tap a cell to see the 2 values. Then select one of them: **Day takes the register’s** or **Register takes the day’s**.\n' +
     '- **Fill** puts each cell that is only on the register onto its day. The app asks you first.\n' +
@@ -74754,10 +75133,12 @@ var KB_APP_GUIDES = [
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
-    { version: 6 }),
+    // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5).
+    { version: 7 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +
+    '- Below its figures, the card shows each area as a small chart: 1 bar for each day, its height the heads on site. An amber bar is a day when the area was short of its number. A line with a night has its own chart, against the crew of the night.\n\n' +
     '# The rule\n' +
     '- If a hand is missing from an area that runs at full capacity, the crew who are there cover the work. The sheet then books **8 hours** to that area for the missing hand. Thus the expected extra is **8 × (the area’s number − the heads)** for each area, each day. The app compares this with the hours booked.\n' +
     '- An OT block books the same way, but at the length of the block, not 8. For example, a 5 PM to midnight block that is short 2 hands books 14. The overtime of the named hands is separate and is not included.\n' +
@@ -74779,8 +75160,8 @@ var KB_APP_GUIDES = [
     '# The extra, paid pro-rata\n' +
     '- The crew present in the area receive its extra between them (owner, 28 Aug 2026). The extra stays 1 pooled figure under EXTRA on the slip. The supervisor pays it out. The shares are the split that he uses to pay it. Nothing here goes into the wage of a hand.\n' +
     '- The app marks a share that is more than 1 shift a day. For example, 24 hours of cover against 2 hands is 12 hours each. Examine such a share against the record before you read it as pay.',
-    // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 2 }),
+    // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 3: the areas as small charts (UI pass 3, U5).
+    { version: 3 }),
   // Floor's Overview (the tab map, TM4a): how its cards are read, which used to be a note under them (§1a-5).
   _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock, power and turnaround', ['pageFloor'],
     'Floor opens on its **Overview**. It shows the day across the plant, with 1 card for each subject, then 1 card for each line. Use the arrows to go to a different day. Tap **Today** to go back to today.\n\n' +
@@ -74944,6 +75325,12 @@ var KB_APP_GUIDES = [
     { version: 3 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
+    '- The steps in 1 row below the toolbar show what to do for the week. Tap a step to go where you do it:\n' +
+    '- **Hours**: a hand whose times do not reach a block.\n' +
+    '- **Cash paid out**, then **Payout** (to Saturday 5 PM).\n' +
+    '- **Weekly payments**: the weekly hands with an amount due. Then **Slips**.\n' +
+    '- **Payout** shows a tick only when the week is closed, every working day is recorded and no hours are to check. If days are not recorded, it says how many.\n' +
+    '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +
     '- The shop pays the weekly hands by the week. It pays the monthly hands by the calendar month that contains the week’s Sunday.\n' +
@@ -74962,8 +75349,9 @@ var KB_APP_GUIDES = [
     // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
-    // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { roles: ['owner'], version: 6 }),
+    // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
+    // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
+    { roles: ['owner'], version: 8 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +
@@ -80487,6 +80875,8 @@ function onDocClick(e) {
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttDayAs': attDayAsSet(btn.dataset.v); renderAttendance(); break;
     case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttStepGo': attStepGo(btn.dataset.go); break;
+    case 'invPayStepGo': payStepGo(btn.dataset.go); break;
     case 'invAttEdit': attEditOpen(btn.dataset.id); break;
     case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;
@@ -80507,6 +80897,7 @@ function onDocClick(e) {
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
     case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
     case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
+    case 'invAttRosterClear': if (btn.dataset.clear === 'area') _attRosterArea = ''; else _attRosterTier = ''; keepScroll(renderAttendance); break;
     case 'invAttRosterFilter': _attRosterFilter = _attRosterFilter === btn.dataset.v ? '' : btn.dataset.v; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
@@ -80909,6 +81300,14 @@ function onDocChange(e) {
   }
   // Attendance. A <select> speaks through change, never click — and the date
   // input re-renders because the date is what the whole view is showing.
+  // The roster's Filter (UI pass 3 §12): the area, the tier, the hands to watch or due a check-in.
+  if (e.target.id === 'attRosterArea' || e.target.id === 'attRosterTier' || e.target.id === 'attRosterShow') {
+    if (e.target.id === 'attRosterArea') _attRosterArea = e.target.value;
+    else if (e.target.id === 'attRosterTier') _attRosterTier = e.target.value;
+    else _attRosterFilter = e.target.value;
+    if (!e.target.closest('[data-tb-filter-dialog]')) renderAttendance();
+    return;
+  }
   if (e.target.id === 'attDate') {
     attSetDate(e.target.value);
     return;
@@ -83246,14 +83645,24 @@ function srchGo(go) {
       if (!w) { srchMissing('That worker'); return; }
       // The desktop: People → Roster with the worker open in its pane, as its row opens it (UX overhaul 2, step 7; it opened
       // Edit worker: QA3-6). The phone's roster has no pane: the worker's sheet over it.
+      // A jump shows what it names: the roster's filters are cleared first, so the worker's card is in the list (Castor L-6, the QA
+      // chain of 5 Nov 2026: a worker hidden by an area or tier opened in the pane with no card), and a hand who left is revealed in
+      // the Left fold, opened.
+      _attRosterArea = ''; _attRosterTier = ''; _attRosterFilter = '';
+      var reveal = function() {
+        var card = document.querySelector('#pageStaff [data-roster-card="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]');
+        var fold = card && card.closest('details');
+        if (fold) fold.open = true;
+        uiRevealEl(card);
+      };
       if (_isDesktop) {
         srchGoPlace({ tab: 'pageStaff', v: 'roster', id: String(w.id) });
-        uiRevealEl(document.querySelector('#attRosterTable tr[data-id="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]'));
+        reveal();
         return;
       }
       _attView = 'roster';
       switchTab('pageStaff');
-      uiRevealEl(document.querySelector('#pageStaff [data-action="invAttEditWorker"][data-id="' + w.id + '"]'));
+      reveal();
       openWorkerEdit(w.id);
       return;
     }

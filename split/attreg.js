@@ -165,7 +165,7 @@ function aregViewHtml() {
     _attStepInRow('invAregStep', phone ? '' : '<span class="inv-stepper-title">' + escHtml(aregMonthLabel(month)) + '</span>', 'Previous month', 'Next month') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAregNow"' + (month === now ? ' disabled' : '') + '>This month</button>') + primary +
     uiToolbarMoreHtml(more, { icon: phone }) +
-    '<input type="file" id="aregFile" accept=".json,application/json" hidden></div>' + _attPeriodSwitchHtml();
+    '<input type="file" id="aregFile" accept=".json,application/json" hidden></div>' + _attPeriodSwitchHtml() + aregStepsHtml(mo, cmp);
   // No page yet: the card says so and the toolbar holds the two doors; what each does is the guide's (Using the app: attendance).
   if (!mo) return html;
   html += aregDiffHtml(mo, cmp) + aregGridHtml(mo, cmp) + uiFoldCard('aregTotals', aregTotalsHtml(mo, cmp), !!_isDesktop);
@@ -174,6 +174,20 @@ function aregViewHtml() {
       mo.notes.map(function(n) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(n) + '</span></span></div>'; }).join('') + '</div>', false);
   }
   return html;
+}
+/* The month's next steps (UI pass 3 §12): the page started or imported, the cells only on the register filled onto their days, the
+   differences settled a cell at a time, the page marked checked. Each a door to where it is done. */
+function aregStepsHtml(mo, cmp) {
+  var n = mo ? cmp.n : null, differ = n ? n.state + n.ot + n.day : 0;
+  return uiNextStepsHtml('register', [
+    { key: 'start', title: 'Start or import', meta: mo ? (mo.src === 'hand' ? 'by hand' : mo.src === 'photo' ? 'from a photo' : 'imported') : 'not started',
+      state: mo ? 'in' : 'wait', action: mo ? '' : 'invAttStepGo', attrs: ' data-go="areg-start"' },
+    { key: 'fill', title: 'Fill', meta: !mo ? '' : n.reg ? todoPlural(n.reg, 'cell') + ' to fill' : 'nothing to fill', state: mo && !n.reg ? 'in' : 'wait', action: mo && n.reg ? 'invAttStepGo' : '', attrs: ' data-go="areg-fill"' },
+    // Two counts, as the verdict has them: the cells that differ (its Differ tile) and the marks only on the day (Iuno L-4).
+    { key: 'settle', title: 'Settle the differences', meta: !mo ? '' : !differ ? 'none' : [n.state + n.ot ? (n.state + n.ot) + ' differ' : '', n.day ? n.day + ' only on the day' : ''].filter(Boolean).join(', '), state: !mo ? 'wait' : !differ ? 'in' : n.state ? 'late' : 'wait',
+      action: mo && differ ? 'invAttStepGo' : '', attrs: ' data-go="areg-diff"' },
+    { key: 'check', title: 'Mark checked', meta: mo && mo.verifiedAt ? 'checked ' + stockShortDate(isoOf(new Date(mo.verifiedAt))) : 'not yet',
+      state: mo && mo.verifiedAt ? 'in' : 'wait', action: mo && !mo.verifiedAt ? 'invAttStepGo' : '', attrs: ' data-go="areg-verify"' }]);
 }
 /* The month's verdict (§3e): how the register and the day agree, the four counts its factors (they were the summary's tiles). */
 function aregVerdictHtml(month, mo, cmp) {
@@ -189,6 +203,10 @@ function aregVerdictHtml(month, mo, cmp) {
       { label: 'Only on the register', fig: String(n.reg), sub: 'days the app holds no mark for', attrs: ' data-tile="reg"' },
       { label: 'To check', fig: String(check), tone: check ? 'warning' : null,
         sub: (cmp.unsure + cmp.unread) + ' unsure or unread · ' + todoPlural(cols, 'column') + ' with no worker', attrs: ' data-tile="unsure"' }],
+    // The picture (UI pass 3 §12): the register and the days as one bar of 100%, each part in the tone a cell of it takes.
+    body: n.agree + differ + n.reg + n.day ? '<div class="inv-hero-sheet"><div class="inv-panel-body" data-areg-bar>' + chartShareBar([
+      { label: 'Agree', v: n.agree, tone: 'ok' }, { label: 'Differ', v: differ, tone: n.state ? 'danger' : 'warning' },
+      { label: 'Only on the register', v: n.reg, tone: 'info' }, { label: 'Only on the day', v: n.day, tone: 'warning' }], 'The register against the days') + '</div></div>' : '',
     attrs: ' id="aregSummary"' });
 }
 function aregSourceText(mo) {

@@ -904,7 +904,8 @@ and the tapped datum is ringed.
   than from zero, where a few percent is invisible; `opts.xs` places each label at its distance in time (a day count),
   so bills weeks apart and market days side by side share one honest axis, labels thinned by room.
 - `chartStack(labels, series, {mode: 'stack'|'group'})` — a whole of parts, or two figures side by side; a segment
-  carries `data-key` and an optional action, and the selected key is ringed.
+  carries `data-key` and an optional action, and the selected key is ringed. `total: '<name>'` (U5) names a stacked bar's whole: each
+  part reads it beside its own figure and the table has it as a column (Pay's payouts week by week).
 - `chartPieTap(slices, {action, selected})` — a pie that filters: wedge and legend row (a button) carry the action
   and key; the selected wedge is pulled out. The centre shows the total and never takes a tap.
 - `chartRangeHtml(active, action)` — `3M · 6M · FY · All` chips; `chartRangeMonths(range, months)` says which months.
@@ -931,7 +932,13 @@ lets a tap through to the datum under it.
   `--seq-*`, a hatch for no record), `chartDumbbell` (a rule from `a` to a dot at `b`, the dot in the row's tone),
   `chartStack100` (shares summing to 100%, 2 px surface gaps) and `chartRing` (one share of a whole, its figure in the centre).
   A dial is never drawn: a figure against a mark is a meter or a diverging bar. A whole's parts on one line, in a widget, is
-  `chartShareBar` (U2: one bar of 100%, each part its slot's colour, its keys under it with each share; `inv-sharebar`).
+  `chartShareBar` (U2: one bar of 100%, each part its slot's colour, or its status `tone` where the colour judges (U5: the monthly
+  register's agreement with the days), its keys under it with each share; `inv-sharebar`). **`chartMarks(rows, cols, opts)`** (U5)
+  is marks on a grid: a row a person and a column a day, each cell in the status tone of what it records (present ok, a half day
+  warning, absent danger, a night info), a cell nobody marked hatched (`inv-chart-cell-none`), a day the plant is not expected to work, a day to come and a day the person was not on the roster
+  empty, a flag a dot in
+  the corner (`inv-chart-flag`, its key `inv-chart-swatch-flag`), the table behind it each cell in words; `wide` draws larger cells
+  and names on the desktop. People → Attendance → Week.
 - **A colour follows the thing, never its rank** (`seriesSlot(kind, id)`, §3.3 *Series*): slots `inv-chart-s1…s6` read
   `--series-1…6`, `inv-chart-other` reads `--series-other`, `inv-chart-one` the accent (the period on show against the rest, in
   Other); a status series `inv-chart-ok`, `-warning`, `-danger`, `-info` reads the `--*-mark` tones, `-neutral` `--text-3`; the heat
@@ -1022,6 +1029,13 @@ What arrives in a day, in the order it comes, on one rail: each `inv-step` a nod
 `inv-step-main` (a button: `inv-step-title` over `inv-step-meta`) and its door at the end. The node says where it stands by
 `data-state`: `in` filled ok, `part` ok over its background, `late` warning, `off` dashed, waiting in the card's own tint; a
 late step's meta is in the warning tone. The rail is the card's tone mixed into `--border`. Today's five inputs.
+
+**A view's next steps** (UI pass 3 §12, `uiNextStepsHtml(key, steps)`, state.js): where a view's work has an order (People →
+Attendance's Day and Month, Pay), the same steps laid across one row in a plain panel under the toolbar (`inv-steps-row`,
+`data-next-steps`): the rail between the nodes, each step's words centred under its node (12 px on the phone, 13 on the desktop),
+more steps than the row holds scrolling sideways inside it. The first step neither done nor off, with a door, is the one to take next (`data-next`),
+its node ringed in the accent. A step's door is its own action (a `data-go` on the view's step action), never a copy of a button the
+toolbar or a tab already carries.
 
 ### 6.24 Sparkline and meter — `chartSpark`, `chartMeter` (charts.js)
 Drawings small enough for a card's head or a tile. `chartSpark(values, {ref, tone, dot})`: a line over the values

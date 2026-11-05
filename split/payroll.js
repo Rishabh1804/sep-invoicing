@@ -463,15 +463,19 @@ function _attPayView() {
   // One look (the tab map, TM4b): the payout as the verdict (it was the Weekly payout card's head), one toolbar row (the week, Pay
   // slips, More), labour ₹/kg and the payroll against the bank (they led Staff's Overview), then what is due by worker, each
   // opening to its arithmetic; the history, the slips as paid and the bank's legs folded.
-  var html = _payVerdictHtml(ws) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
+  // One forecast and one week's gaps for the render: the verdict and the steps read the same figures, worked out once (Iuno L-5,
+  // Castor L-7: Pay had worked out payForecast twice and payDue twice a draw).
+  var f = payForecast(ws), gaps = payCrewGaps(ws, isoAddDays(ws, 6)), due = payDue(ws);
+  var html = _payVerdictHtml(ws, f, gaps) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
     _attStepInRow('invAttWeekStep', '<span class="inv-stepper-title">Week ' + attPayWeekNumber(ws) + '</span>', 'Previous week', 'Next week') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') +
     // The slips are printed from the due rows (payslip.js).
     '<button class="inv-btn inv-btn-secondary" data-action="invPsOpen">Pay slips</button>' +
     uiToolbarMoreHtml([phone && !thisWeek ? { label: 'Go to this week', action: 'invAttThisWeek' } : null, { label: 'Import the payroll as paid', action: 'invPayrollImport' }], { icon: phone }) +
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
+  html += _payStepsHtml(ws, f, gaps, due);
   html += payLabourPanelsHtml();
-  html += _payDueCard(ws);
+  html += _payDueCard(ws, due);
   if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
@@ -482,8 +486,10 @@ function _attPayView() {
 }
 /* Pay's verdict (§3e): the week's payout, heading for it while the week is open, and its change against the usual week (the median
    of the twelve before), toned by the swing: well above the usual is a caution, below says nothing on its own. */
-function _payVerdictHtml(ws) {
-  var f = payForecast(ws), wk = f.week, sat = isoAddDays(ws, 6), amount = f.open ? f.predicted : wk.total, gaps = payCrewGaps(ws, sat);
+function _payVerdictHtml(ws, f, gaps) {
+  var sat = isoAddDays(ws, 6);
+  f = f || payForecast(ws); gaps = gaps || payCrewGaps(ws, sat);
+  var wk = f.week, amount = f.open ? f.predicted : wk.total;
   var pct = f.swingPct != null ? (f.swing >= 0 ? '+' : '−') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%' : '';
   var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : f.median != null ? 'ok' : 'neutral';
   // A hand on a block their own times do not reach has hours nobody is paid for: the payout reads low until the day is put right,
@@ -506,10 +512,76 @@ function _payVerdictHtml(ws) {
       uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
         sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
       (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
-      _payGapsHtml(gaps) + '</div>',
+      _payGapsHtml(gaps) + '</div>' + _payWeeksChartHtml(ws, wk),
     attrs: ' id="payForecast"' });
 }
 
+/* Pay's picture (UI pass 3 §12, §26c): the week shown and the eleven before it, a bar a pay week, the cash the supervisor paid out
+   its own part of the bar (cashPayCardHtml lists it under), each bar reading its payout whole (opts.total). A week nobody typed is a
+   gap, not a ₹0 week: chartStack draws no bar for it, and a week holding only cash paid out has its cash and no wages part (Iuno
+   M-3, Castor M-5). A pay week still running is drawn as to date (TM6b), at its total so far (the verdict says where it heads). */
+function _payWeeksChartHtml(ws, shown) {
+  var weeks = [];
+  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(i === 0 && shown ? shown : payWeek(isoAddDays(ws, -7 * i)));
+  var typed = function(w) { return w.recordedDays || w.sundays; };
+  var cash = weeks.some(function(w) { return w.cashOut > 0; });
+  // The weekly tiers alone: the monthly crew is paid on its month, never in a week's payout (Iuno L-3).
+  var series = [{ label: cash ? 'Weekly hands, EXTRA and snacks' : 'Payout', values: weeks.map(function(w) { return typed(w) ? gstRound(w.total - (w.cashOut || 0)) : null; }) }];
+  if (cash) series.push({ label: 'Cash paid out', values: weeks.map(function(w) { return w.cashOut > 0 || typed(w) ? w.cashOut || 0 : null; }) });
+  return '<div class="inv-hero-sheet" data-pay-weeks><div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }), series,
+    { ariaLabel: 'The payout, week by week', emptyText: 'No week recorded in the twelve', total: 'Payout', labelHead: 'Week',
+      toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div></div>';
+}
+/* Pay's next steps (UI pass 3 §12, §26c): the hours to check (a hand on a block their own times do not reach), the cash the
+   supervisor paid out, the payout (Sunday to Saturday 5 PM, payLate), the payments to record (the weekly hands with something due),
+   the slips. Each is Pay's own figure (payCrewGaps, cashForWeek, payForecast, payDue), a door to where it is done. */
+function _payStepsHtml(ws, f, gaps, d) {
+  var sat = isoAddDays(ws, 6), today = localDateStr();
+  f = f || payForecast(ws); gaps = gaps || payCrewGaps(ws, sat); d = d || payDue(ws);
+  var cash = typeof cashForWeek === 'function' ? cashForWeek(ws) : [];
+  var due = d.rows.filter(function(r) { return r.weekly && r.due > 0.005; });
+  // The payout's cut-off is Saturday at 5 PM (payLate's PAY_CUTOFF), read as the week's end here too (Castor L-2).
+  var closed = sat < today || (sat === today && tdyNowMin() >= PAY_CUTOFF);
+  // The payout is done only when the week is closed and every working day is recorded with no hours to check: a week part-typed
+  // reads low, and a tick over it said the figure BM disburses was known (Castor H-1, Iuno M-1). A week nobody typed says so, never
+  // ₹0; one still running says where it heads.
+  // A day marked shut is no day missing (Cipher M-2): it is taken off what is looked for here alone, never off the pay arithmetic
+  // (the rest-day gate reads its own working days).
+  var shutDays = attWeekDays(ws).filter(function(d) { var x = attDayNotExpected(d); return x && x.kind === 'shut' && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d) && !(S.attendance || {})[d]; }).length;
+  var wk = f.week, missing = Math.max(0, wk.workingDays - wk.recordedDays - shutDays), figured = wk.recordedDays > 0 || wk.sundays > 0;
+  var payout = !figured ? { meta: closed ? 'not recorded' : f.basis === 'median' ? 'about ' + finRs(f.predicted) : 'to Sat 5 PM', state: closed ? 'late' : 'wait' }
+    : !closed ? { meta: (f.open ? 'heading for ' + finRs(f.predicted) : finRs(wk.total)) + ', to Sat 5 PM', state: 'wait' }
+    : missing ? { meta: finRs(wk.total) + ', ' + todoPlural(missing, 'day') + ' not recorded', state: 'late' }
+    : gaps.length ? { meta: finRs(wk.total) + ', hours to check', state: 'late' }
+    : { meta: finRs(wk.total), state: 'in' };
+  return uiNextStepsHtml('pay', [
+    { key: 'hours', title: 'Hours', meta: gaps.length ? todoPlural(gaps.length, 'hand') + ' to check' : 'none to check', state: gaps.length ? 'late' : 'in',
+      action: gaps.length ? 'invPayStepGo' : '', attrs: ' data-go="hours"' },
+    { key: 'cash', title: 'Cash paid out', meta: cash.length ? todoPlural(cash.length, 'line') : 'none sent', state: cash.length ? 'in' : closed ? 'off' : 'wait',
+      action: 'invPayStepGo', attrs: ' data-go="cash"' },
+    { key: 'payout', title: 'Payout', meta: payout.meta, state: payout.state, action: 'invPayStepGo', attrs: ' data-go="payout"' },
+    // The weekly hands paid on Saturday: the monthly crew's salaries are Due by worker's Monthly group, paid on their month
+    // (Iuno M-2: "nothing due" had sat over monthly hands owed).
+    { key: 'pay', title: 'Weekly payments', meta: due.length ? todoPlural(due.length, 'weekly hand') + ' due' : 'none due', state: due.length ? (closed ? 'late' : 'wait') : 'in',
+      action: 'invPayStepGo', attrs: ' data-go="pay"' },
+    { key: 'slips', title: 'Slips', meta: 'two to a page', state: 'wait', action: 'invPayStepGo', attrs: ' data-go="slips"' }]);
+}
+/* A Pay step's door that stays on the page: the hours to check (the card open at them), the cash paid out, the payout's card, the
+   payment form. */
+function payStepGo(go) {
+  var open = function(el) { if (el && el.tagName === 'DETAILS') el.open = true; return el; };
+  if (go === 'hours') { open(document.getElementById('payForecast')); uiRevealEl(open(document.querySelector('[data-pay-gaps]')) || document.getElementById('payForecast')); return; }
+  if (go === 'cash') {
+    var card = document.querySelector('[data-card="cashout"]');
+    if (card) { uiRevealEl(card); return; }
+    // None sent yet: the supervisor's message of cash spent is read where every message is pasted.
+    attSetView('paste');
+    return;
+  }
+  if (go === 'payout') { uiRevealEl(open(document.getElementById('payForecast'))); return; }
+  if (go === 'slips') { psOpen(); return; }
+  if (go === 'pay') { var form = open(document.getElementById('payFormFold')); uiRevealEl(form); var sel = document.getElementById('payWorker'); if (sel && !touchScreen()) sel.focus(); }
+}
 /* The week's hands named on a block their own times do not reach (payCrewGaps), folded under one row, each with the day it opens:
    the hours a block paid nobody for until the day is put right. */
 function _payGapsHtml(gaps) {
@@ -528,8 +600,8 @@ function _payRow(title, sub, end, attrs, cls) {
     '<span class="inv-row-end">' + end + '</span></' + tag + '>';
 }
 
-function _payDueCard(ws) {
-  var d = payDue(ws);
+function _payDueCard(ws, d) {
+  d = d || payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   // How earned, paid and a balance carried are worked out is the guide's (Using the app: pay); a hand opens to its own arithmetic.
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
@@ -802,10 +874,6 @@ function _payHistoryCard(ws) {
   var h = '<div class="inv-panel inv-panel-flush" id="payHistory"><div class="inv-panel-head"><span class="inv-panel-title">Weekly payouts</span>' +
     '<span class="inv-panel-count">median ' + (median == null ? '&mdash;' : payMoney(median)) + '</span></div>';
   // A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar (and no ₹0 reading) for it.
-  h += '<div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }),
-    [{ label: 'Payout', values: weeks.map(function(w) { return w.recordedDays || w.sundays ? w.total : null; }) }],
-    // A pay week still running is drawn as to date (TM6b).
-    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve', toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
     // The row's figure and its change against the median at the end; the days and what was paid its two facts.

@@ -582,6 +582,7 @@ function _attDayView() {
       '<button class="inv-btn inv-btn-secondary" data-action="invAttAllPresent">All present</button>') +
     '<button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
     uiToolbarMoreHtml(more, { icon: phone }) + '</div>' + _attPeriodSwitchHtml();
+  html += _attDayStepsHtml(iso, rec, roster, { unmarked: unmarked, extraHours: extraHours });
 
   // The day as a board (owner, 30 Sep 2026: "Attendance sheet for Day scrolls way too far"): a card per area, a line per
   // hand with P / H / A one tap away; the area, the in and out, hours and OT open on the name (the guide says so). Absent
@@ -666,6 +667,87 @@ function _attDayVerdictHtml(iso, rec, roster, c) {
       { label: 'Absent', fig: '<span id="attAbsent">' + c.absent + '</span>', tone: c.absent ? 'danger' : null },
       { label: 'Unmarked', fig: '<span id="attUnmarked">' + c.unmarked + '</span>', sub: c.unmarked ? 'nobody typed' : '' }],
     attrs: ' id="attDayVerdict"' });
+}
+/* A day the plant is not expected to work, by the calendar: a day marked shut (flowShutOn), a paid holiday, a Sunday; whether
+   anybody came is not asked (plantDayOff's question, which is null on a day somebody worked, so a worked Sunday had read as a working
+   day with everyone else missing: Cipher H-1, the QA chain of 5 Nov 2026). {kind, why} or null; worded by plantDayOffText. */
+function attDayNotExpected(iso) {
+  var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+  if (shut) return { kind: 'shut', why: shut.why };
+  if (labourIsHoliday(iso)) return { kind: 'holiday', why: '' };
+  return attParseIso(iso).getDay() === 0 ? { kind: 'sunday', why: '' } : null;
+}
+/* The day's next steps (UI pass 3 §12, §26c): the in-time roll (in at its minute, or late against its usual, Today's own reading,
+   tdyInput), the marks (how many of the day's roster), a version a sync held for the owner while one waits, the out-time roll, the
+   night's roll where a line has a night (sent the next morning), the EXTRA booked. Each a door to where it is done. */
+function _attDayStepsHtml(iso, rec, roster, c) {
+  var def = function(k) { return TDY_INPUTS.filter(function(x) { return x.k === k; })[0]; };
+  var today = localDateStr(), isToday = iso === today, ahead = iso > today, total = roster.length, marked = total - c.unmarked;
+  // A day not come is no day late (Castor M-1, the QA chain of 5 Nov 2026): its rolls are to come.
+  var roll = function(k, title) {
+    if (ahead) return { key: k, title: title, meta: 'to come', state: 'wait', action: '' };
+    var r = tdyInput(def(k), iso);
+    var meta = r.state === 'in' ? (r.text.indexOf('entered by hand') >= 0 ? 'by hand' : 'in ' + String(r.text).split(' · ')[0])
+      : r.state === 'off' ? 'not expected' : r.after != null ? 'after ' + relayClockLabel(r.after)
+      : r.state === 'late' ? 'late' : r.usual != null ? 'usually ' + relayClockLabel(r.usual) : 'not yet';
+    return { key: k, title: title, meta: meta, state: r.state === 'part' ? 'wait' : r.state, action: r.state === 'in' ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
+  };
+  var held = typeof mrgHeldOpen === 'function' ? mrgHeldOpen().filter(function(h) { return h.coll === 'attendance' && String(h.rid) === iso && /^marks\./.test(h.field || ''); }) : [];
+  var nights = nightLinesOn(iso).map(function(n) {
+    var crew = shiftNightCrew(iso, n.line), heads = crew ? crew.heads : 0;
+    // The night's roll is sent the next morning: late only once that morning is past its end and half an hour (yesterday's night at
+    // 6:10 AM is still due), never on a night not come (Castor M-1).
+    var dueMin = (n.end % 1440) + 30, due = relayClockLabel(dueMin);
+    var waiting = isToday || ahead || (iso === isoAddDays(today, -1) && tdyNowMin() < dueMin);
+    return { key: 'night-' + n.line, title: 'Night roll', meta: heads ? heads + ' on the night' : ahead ? 'to come' : isToday ? 'due ' + due + ' tomorrow' : waiting ? 'due ' + due : 'not in',
+      state: heads ? 'in' : waiting ? 'wait' : 'late', action: heads || ahead ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
+  });
+  var rows = attExtraRows(rec), short = _attDayShort(iso, rec);
+  var extra = { key: 'extra', title: 'EXTRA booked', action: 'invAttStepGo', attrs: ' data-go="extra"',
+    meta: rows.length ? formatNum(c.extraHours, 1).replace(/\.0$/, '') + ' h on ' + todoPlural(rows.length, 'row') : !marked ? 'after the marks' : short.length ? 'none yet' : 'none needed',
+    state: rows.length || (!short.length && marked) ? 'in' : 'wait' };
+  // A day the plant does not work (a Sunday, a paid holiday, a day marked shut) expects no marks: the hands who came are its work,
+  // nobody is missing (Castor M-2).
+  var off = !ahead ? attDayNotExpected(iso) : null;
+  var marks = !total ? { meta: 'nobody on the roster', state: 'off' }
+    : off && !marked ? { meta: 'not expected', state: 'off' }
+    : off ? { meta: todoPlural(marked, 'hand') + ' worked', state: 'in' }
+    : { meta: marked + ' of ' + total, state: !c.unmarked ? 'in' : marked ? 'part' : 'wait' };
+  // What a sync held is the owner's to settle (mrgGate): late for the owner, waiting on the owner for anyone else (Castor L-5).
+  var heldMine = typeof grdIsOwner !== 'function' || grdIsOwner();
+  return uiNextStepsHtml('day', [roll('roll-in', 'In-time roll'),
+    { key: 'marks', title: 'Marks', meta: marks.meta, state: marks.state,
+      action: c.unmarked && !off ? 'invAttStepGo' : '', attrs: ' data-go="marks"' },
+    held.length ? { key: 'held', title: 'Held for you', meta: todoPlural(held.length, 'mark') + ' held' + (heldMine ? '' : ', the owner picks'), state: heldMine ? 'late' : 'wait',
+      action: heldMine ? 'invAttStepGo' : '', attrs: ' data-go="held"' } : null,
+    roll('roll-out', 'Out-time roll')].concat(nights, [extra]));
+}
+/* A next step's door that stays on the page: the board's first hand not marked, the EXTRA, a version held (its hand's day). */
+function attStepGo(go) {
+  if (go === 'paste') { attSetView('paste'); viewTop(); return; }
+  if (go === 'marks') {
+    var rec = attDay(_attDate, false), first = attDayRoster(rec).filter(function(w) { return !(rec && rec.marks[w.id]); })[0];
+    var el = first && document.querySelector('[data-att-row="' + first.id + '"], [data-att-sheet-row="' + first.id + '"]');
+    uiRevealEl(el || document.getElementById('attMarks'));
+    var btn = el && el.querySelector('button');
+    if (btn && !touchScreen()) btn.focus();
+    return;
+  }
+  if (go === 'extra') {
+    var card = document.getElementById('attExtra');
+    if (card && card.tagName === 'DETAILS') card.open = true;
+    uiRevealEl(card);
+    return;
+  }
+  // The month's steps act as the toolbar's own buttons do (attreg.js).
+  if (go === 'areg-start') { aregStart(); return; }
+  if (go === 'areg-fill') { aregFill(); return; }
+  if (go === 'areg-verify') { aregVerify(); return; }
+  if (go === 'areg-diff') { uiRevealEl(document.querySelector('[data-card="areg-diff"]')); return; }
+  if (go === 'held') {
+    var h = (typeof mrgHeldOpen === 'function' ? mrgHeldOpen() : []).filter(function(x) { return x.coll === 'attendance' && String(x.rid) === _attDate && /^marks\./.test(x.field || ''); })[0];
+    if (h) attEditOpen(h.field.slice(6));
+  }
 }
 /* The floor areas short of the day's number, counted as the board counts its cards: a hand present or on a half day where the
    mark says, else at home. */
@@ -1065,7 +1147,10 @@ function _attWeekView() {
   // Shut on both layouts: open, it put the grid (the week's work) a screen down on the desktop.
   html += uiFoldCard('att-weeks', attWeeksPanelHtml(), false);
 
-  html += '<div class="inv-panel inv-panel-flush" id="attWeekGrid"><div class="inv-panel-head"><span class="inv-panel-title">Week grid</span>' +
+  // The picture (UI pass 3 §12, §26c): the week as a grid, a hand a row and a day a column, each cell its mark's tone, a night on its
+  // own tone of present, a hand on two shifts back to back marked on the cell. The table under it is where a mark is changed, folded.
+  html += _attWeekMarksHtml(roster, days, today);
+  var grid = '<div class="inv-panel inv-panel-flush" id="attWeekGrid"><div class="inv-panel-head"><span class="inv-panel-title">Week grid</span>' +
     '<span class="inv-panel-count">' + escHtml(stockShortDate(_attWeekStart) + ' – ' + stockShortDate(last)) + '</span></div>' +
     '<div class="inv-scroll-x"><table class="inv-table inv-table-grid">' +
     '<thead><tr><th scope="col">Worker</th>' +
@@ -1078,7 +1163,7 @@ function _attWeekView() {
     var cls = compClass(w.comp);
     var hourly = compIsHourly(w);
     var left = w.active === false;
-    html += '<tr' + (left ? ' data-left' : '') + '><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label + (left ? ' · left' : '')) + '">' + escHtml(w.name) +
+    grid += '<tr' + (left ? ' data-left' : '') + '><th scope="row" title="' + escHtml(w.name + ' · ' + cls.label + (left ? ' · left' : '')) + '">' + escHtml(w.name) +
       ' <span class="inv-unit">' + cls.short + (left ? ' · left' : '') + '</span></th>';
     days.forEach(function(d) {
       var m = attMark(d, w.id);
@@ -1086,17 +1171,17 @@ function _attWeekView() {
       // The figure is the hours that decide this worker's pay: the whole
       // day for the hourly pool, the overtime on top for everyone else.
       var badge = m ? (hourly ? (m.hours || 0) : (m.ot || 0)) : 0;
-      html += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
+      grid += '<td' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '><button class="inv-cell inv-cell-' +
         (st ? ATT_STATE_TONE[st] : 'empty') + '" data-action="invAttCycle" data-id="' + w.id + '" data-date="' + d +
         '" aria-label="' + escHtml(w.name) + ' ' + attDayName(d) + ' ' + (st ? ATT_STATE_LABELS[st] : 'unmarked') +
         (badge ? ', ' + formatNum(badge, 1) + ' hours' : '') + '">' +
         (st || '&middot;') + (badge ? '<span class="inv-unit">' + formatNum(badge, 0) + '</span>' : '') +
         '</button></td>';
     });
-    html += '</tr>';
+    grid += '</tr>';
   });
 
-  html += '</tbody><tfoot><tr><th scope="row">On site</th>' +
+  grid += '</tbody><tfoot><tr><th scope="row">On site</th>' +
     days.map(function(d) {
       var rec = attDay(d, false);
       if (!rec) return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>&mdash;</td>';
@@ -1107,10 +1192,44 @@ function _attWeekView() {
       });
       return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
+  html += uiFoldCard('att-week-grid', grid, false);
 
   // A role that may not see wages sees the week's marks, never its cost (one hand per tier gives a rate away). The rest: folded.
   if (attSeesWages()) html += uiFoldCard('att-week-cost', renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost'), false);
   return html;
+}
+/* The week as marks on a grid (chartMarks): P ok, H warning, A danger, P on a night info, a day nobody marked hatched (a Sunday or a
+   paid holiday not worked left empty), a hand on two shifts back to back (shiftBackToBack) flagged on that day's cell. */
+function _attWeekMarksHtml(roster, days, today) {
+  var b2b = {}, night = false, flagged = false;
+  days.forEach(function(d) { shiftBackToBack(d).forEach(function(x) { b2b[d + '|' + x.id] = x.kind; }); });
+  var rows = roster.map(function(w) {
+    return { label: w.name, cells: days.map(function(d) {
+      var m = attMark(d, w.id), k = b2b[d + '|' + w.id];
+      if (k) flagged = true;
+      var fl = k ? (k === 'after' ? ', on the shift after the night before' : ', on the shift and the night') : '';
+      if (!m) {
+        // Left empty, never hatched: a day the plant is not expected to work (a Sunday, a paid holiday, a day marked shut, by the
+        // calendar even where somebody came: attDayNotExpected, Castor M-2, Cipher H-1), a day to come, and a day the hand was not
+        // on the roster (before they joined, or any unmarked day of a hand who has left, since no leaving day is kept: Castor L-4).
+        var off = attDayNotExpected(d);
+        var notOn = (w.profile && w.profile.joined && w.profile.joined > d) || w.active === false;
+        return { tone: null, off: !!off || d > today || notOn,
+          word: off ? (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'Holiday' : plantDayOffText(off)) : d > today ? 'To come' : notOn ? 'Not on the roster' : 'Not marked' };
+      }
+      var onNight = m.st !== 'A' && attMarkOnNight(m, d);
+      if (onNight) night = true;
+      // A half day on the night keeps its half day's tone and word (Castor L-3).
+      return { tone: onNight && m.st !== 'H' ? 'info' : ATT_STATE_TONE[m.st] || null, flag: !!k,
+        word: (onNight ? (m.st === 'H' ? 'Half day, the night' : 'Present, the night') : ATT_STATE_LABELS[m.st] || m.st) + fl };
+    }) };
+  });
+  var keys = [{ tone: 'ok', label: 'Present' }, { tone: 'warning', label: 'Half day' }, { tone: 'danger', label: 'Absent' }].concat(
+    night ? [{ tone: 'info', label: 'The night' }] : [], [{ hatch: true, label: 'Not marked' }], flagged ? [{ flag: true, label: 'Two shifts back to back' }] : []);
+  var cols = days.map(function(d) { return { label: CHART_DAY_NAMES[attParseIso(d).getDay()], sub: String(attParseIso(d).getDate()), today: d === today }; });
+  return '<div class="inv-panel inv-panel-flush" id="attWeekMarks" data-card="week-marks"><div class="inv-panel-head"><span class="inv-panel-title">The week</span>' +
+    '<span class="inv-panel-count">' + todoPlural(roster.length, 'hand') + '</span></div><div class="inv-panel-body">' +
+    chartMarks(rows, cols, { ariaLabel: 'The week’s marks, a hand a row', labelHead: 'Hand', keys: keys, wide: !!_isDesktop, emptyText: 'Nobody on the roster' }) + '</div></div>';
 }
 /* The week's verdict (§3e): its attendance against the rest-day gate (attPresenceForRange, the figure Staff's Overview and the
    reports read), the working days not recorded by name, and the payout so far for a role that sees wages. */
@@ -1120,7 +1239,8 @@ function _attWeekVerdictHtml(ws, days) {
   // Today not yet entered is a day still coming in, not a day missing (Needs you says when its roll is late): it is left out of the
   // count and said as a fact.
   var pending = days.indexOf(today) >= 0 && attParseIso(today).getDay() !== 0 && !labourIsHoliday(today) && unmarked(today);
-  var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d); });
+  // A day marked shut is no working day either, as the grid under the verdict draws it (Cipher M-2).
+  var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && !attDayNotExpected(d); });
   // The working days recorded, of the working days: a paid holiday somebody worked is in r.days but is no working day (it had read
   // "6 days recorded of 5").
   var gaps = work.filter(unmarked), recorded = work.length - gaps.length;
@@ -1137,7 +1257,7 @@ function _attWeekVerdictHtml(ws, days) {
       { label: 'Present', fig: pct == null ? '' : formatNum(pct, 1) + '%', tone: figTonePct(pct, 90, 80), sub: 'of the marks typed' },
       { label: 'Days recorded', fig: recorded + '<span class="inv-tile-of">/' + work.length + '</span>', tone: gaps.length ? 'warning' : work.length ? 'ok' : null, sub: gaps.length ? gapWords + ' missing' : 'working days' },
       { label: 'On site a day', fig: r.avg == null ? '' : formatNum(r.avg, 1), sub: 'heads, on average' },
-      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'weekly tiers and the EXTRA' } : null].filter(Boolean),
+      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'as Pay counts it' } : null].filter(Boolean),
     attrs: ' id="attWeekVerdict"' });
 }
 
@@ -1162,47 +1282,78 @@ function _attRosterView() {
   var filt = _attRosterFilter === 'watch' ? watch : _attRosterFilter === 'due' ? due : null;
   if (filt && !Object.keys(filt).length) { _attRosterFilter = ''; filt = null; }
   var owner = typeof pplOwner !== 'function' || pplOwner();
+  // The Filter (UI pass 3 §12): the area, the tier, and the hands to watch or due a check-in (the verdict's two tiles too). On the
+  // phone a dialog with its tokens under the row, on the desktop the controls inline (§6.6).
+  var areas = STAFF_AREAS.filter(function(a) { return all.some(function(w) { return w.area === a.id; }); });
+  if (_attRosterArea && !areas.some(function(a) { return a.id === _attRosterArea; })) _attRosterArea = '';
+  var opt = function(v, label, on) { return '<option value="' + escHtml(v) + '"' + (on ? ' selected' : '') + '>' + escHtml(label) + '</option>'; };
+  var controls = '<select class="inv-select inv-select-sm" id="attRosterArea" aria-label="Area">' + opt('', 'Every area', !_attRosterArea) +
+      areas.map(function(a) { return opt(a.id, a.label, _attRosterArea === a.id); }).join('') + '</select>' +
+    '<select class="inv-select inv-select-sm" id="attRosterTier" aria-label="Tier">' + opt('', 'Every tier', !_attRosterTier) +
+      COMP_CLASSES.map(function(c) { return opt(c.id, c.label, _attRosterTier === c.id); }).join('') + '</select>' +
+    '<select class="inv-select inv-select-sm" id="attRosterShow" aria-label="Show">' + opt('', 'Everyone', !_attRosterFilter) +
+      (Object.keys(watch).length ? opt('watch', 'To watch', _attRosterFilter === 'watch') : '') +
+      (Object.keys(due).length ? opt('due', 'Check-ins due', _attRosterFilter === 'due') : '') + '</select>';
+  var areaName = _attRosterArea ? areaLabel(_attRosterArea) : '', tierName = _attRosterTier ? compClass(_attRosterTier).label : '';
   var html = _attRosterVerdictHtml(all, activeCount, watch, due) + '<div class="inv-toolbar" data-att-toolbar="roster">' +
+    uiFilterHtml({ key: 'roster', controls: controls, count: (_attRosterArea ? 1 : 0) + (_attRosterTier ? 1 : 0) + (_attRosterFilter ? 1 : 0) }) +
     '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
     uiToolbarMoreHtml([{ label: 'Import a roster', action: 'invAttImportRoster' }, owner ? { label: 'ID cards', action: 'invIdcPrint' } : null,
-      owner ? { label: 'Office QR', action: 'invCkSetup' } : null]) + '</div>' +
-    uiTokensHtml([{ key: 'Show', value: filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : '', action: 'invAttRosterFilter', attrs: ' data-v="' + _attRosterFilter + '"' }]);
+      owner ? { label: 'Office QR', action: 'invCkSetup' } : null], { icon: !_isDesktop }) + '</div>' +
+    uiTokensHtml([{ key: 'Area', value: areaName, action: 'invAttRosterClear', attrs: ' data-clear="area"' },
+      { key: 'Tier', value: tierName, action: 'invAttRosterClear', attrs: ' data-clear="tier"' },
+      { key: 'Show', value: filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : '', action: 'invAttRosterFilter', attrs: ' data-v="' + _attRosterFilter + '"' }]);
 
   // A role that may not see wages sees the roster without its rates (the guard's "wages" setting).
   var wages = typeof grdSeesWages !== 'function' || grdSeesWages();
   var isW = function(w) { return !!watch[String(w.id)]; };
-  var shown = filt ? all.filter(function(w) { return filt[String(w.id)]; }) : all;
+  var shown = all.filter(function(w) {
+    return (!filt || filt[String(w.id)]) && (!_attRosterArea || w.area === _attRosterArea) && (!_attRosterTier || compClass(w.comp).id === _attRosterTier);
+  });
   var watched = shown.filter(isW), on = shown.filter(function(w) { return !isW(w) && w.active !== false; }),
     left = shown.filter(function(w) { return !isW(w) && w.active === false; });
-  if (_isDesktop && all.length) return html + _attRosterDesktop(watched.concat(on, left), wages, watch);
-  html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' +
-    (filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : 'Roster') + ' <span class="inv-panel-count">' + shown.length + '</span></span></div>';
+  var head = (filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : 'Roster') + ' <span class="inv-panel-count">' + shown.length + '</span>';
+  if (_isDesktop && all.length) return html + _attRosterDesktop(watched.concat(on), left, wages, watch, head);
+  html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
-
-  // Each worker at a glance (people.js, the 6-second rule): tenure, reliability, consistency and workload as short bars with
-  // their figures, the top skills, and for the owner the motivation index. The meta line is two facts, the area and the pay
-  // (the base rate with what an overtime hour pays); the tier is the group (the roster is ordered by it). A badge is a state (to
-  // watch, left), and only a row holding one draws the line of badges under the name.
-  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
-  var row = function(w) {
-    var inactive = w.active === false;
-    var badges = (watch[String(w.id)] || []).map(function(x) { return '<span class="inv-badge inv-badge-' + x.tone + '">' + escHtml(x.word) + '</span>'; }).join('') +
-      (inactive ? '<span class="inv-badge inv-badge-neutral">Inactive</span>' : '');
-    return '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '"' + (isW(w) ? ' data-roster-watch' : '') + '>' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta" data-roster-meta>' + escHtml([areaLabel(w.area) + (w.onFloor === false ? ', off the floor' : '')].concat(wages ? [workerRateShort(w)] : []).join(' · ')) + '</span>' +
-      (inactive ? '' : pplGlanceHtml(w, memo)) + '</span>' +
-      (badges ? '<span class="inv-row-end inv-row-actions">' + badges + '</span>' : '') + '</button>';
-  };
-  var group = function(key, label, list) { return '<div class="inv-row-group" data-roster-group="' + key + '"><span>' + escHtml(label) + '</span><span class="inv-num">' + list.length + '</span></div>'; };
-  if (watched.length) html += group('watch', 'To watch', watched) + watched.map(row).join('');
-  // A tier the roster does not know is paid as the daily tier (compClass), so it is listed there.
-  COMP_CLASSES.forEach(function(c) {
-    var tier = on.filter(function(w) { return compClass(w.comp).id === c.id; });
-    if (tier.length) html += group('tier-' + c.id, c.label, tier) + tier.map(row).join('');
-  });
-  if (left.length) html += group('left', 'Left', left) + left.map(row).join('');
+  if (!shown.length) return html + '<div class="inv-empty">Nobody here: change the filter</div></div>';
+  // The roster as cards (UI pass 3 §12): the hands to watch first, then the active by tier; the hands who left under Left, folded.
+  html += '<div class="inv-panel-body"><div class="inv-deck" data-deck-sm data-roster-deck>' + watched.concat(on).map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>';
+  if (left.length) html += _attRosterLeftHtml(left, wages, watch);
   return html + '</div>';
+}
+var _attRosterArea = '', _attRosterTier = '';
+/* The hands who left, folded under Left: kept with their days, their cards plain. */
+function _attRosterLeftHtml(left, wages, watch) {
+  return '<details class="inv-row-fold" data-fold="roster-left" data-roster-group="left"' + (uiFoldOpen('roster-left', false) ? ' open' : '') + '>' +
+    '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Left</span></span><span class="inv-row-end inv-panel-count">' + left.length + '</span></summary>' +
+    '<div class="inv-panel-body"><div class="inv-deck" data-deck-sm>' + left.map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div></details>';
+}
+/* One hand as a card (UI pass 3 §12): an avatar of initials, the name; the area and the rate (for a role that sees wages) as its meta;
+   the designation (the owner's: a personal detail) and the tier; tenure; reliability, consistency and workload as bars (pplStats);
+   the top three skills as chips; a badge only for a state (to watch with the motivation index, inactive). A check-in due is no badge
+   on the card (TM4f: the rule names every hand not checked in for 45 days, on the owner's book 21 of 23): the verdict's tile and the
+   Filter show those hands alone. The card opens the hand's record: the pane on the desktop, the sheet on the phone. */
+function attRosterCardHtml(w, wages, watch) {
+  var id = String(w.id), inactive = w.active === false, owner = typeof pplOwner !== 'function' || pplOwner();
+  var initials = String(w.name || '?').split(/[\s\-–(]+/).filter(Boolean).slice(0, 2).map(function(x) { return x.charAt(0).toUpperCase(); }).join('');
+  var badges = (watch[id] || []).map(function(x) { return '<span class="inv-badge inv-badge-' + x.tone + '">' + escHtml(x.word) + '</span>'; }).join('') +
+    (inactive ? '<span class="inv-badge inv-badge-neutral">Inactive</span>' : '');
+  var desig = owner && w.profile && w.profile.designation ? w.profile.designation : '';
+  // The motivation index is a badge only as a state, the owner's: under 50 on firm figures, the hand to watch (Motivation 42). The
+  // index itself is the record's (pplRecordHtml).
+  var st = inactive ? null : pplStats(w);
+  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 3);
+  var open = _isDesktop ? 'invAttRosterOpen' : 'invAttEditWorker';
+  var cur = _isDesktop && _attRosterOpen != null && String(_attRosterOpen) === id;
+  return '<div class="inv-deck-item' + (inactive ? ' inv-row-muted' : '') + '" data-tone="' + (watch[id] ? 'danger' : 'neutral') + '" data-roster-card="' + escHtml(id) + '"' + (watch[id] ? ' data-roster-watch' : '') + '>' +
+    '<button type="button" class="inv-deck-main" data-action="' + open + '" data-id="' + escHtml(id) + '"' + (cur ? ' aria-current="true"' : '') + '>' +
+    '<span class="inv-deck-head"><span class="inv-avatar" aria-hidden="true">' + escHtml(initials) + '</span><span class="inv-deck-title">' + escHtml(w.name) + '</span></span>' +
+    '<span class="inv-deck-sub" data-roster-meta>' + escHtml([areaLabel(w.area) + (w.onFloor === false ? ', off the floor' : '')].concat(wages ? [workerRateShort(w)] : []).join(' · ')) + '</span>' +
+    '<span class="inv-deck-sub" data-roster-tier>' + escHtml([(desig ? desig + ', ' : '') + compClass(w.comp).label, st ? pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked') : ''].filter(Boolean).join(' · ')) + '</span>' +
+    (inactive ? '' : pplGlanceHtml(w)) +
+    (skills.length || badges ? '<span class="inv-skill-chips" data-roster-tags>' + badges + skills.map(function(a) { return '<span class="inv-skill-chip" data-ppl-glance-skill>' + escHtml(areaLabel(a) + ' ' + w.skills[a] + '/5') + '</span>'; }).join('') + '</span>' : '') +
+    '</button></div>';
 }
 /* The rate a roster row shows, as one fact beside the area: the base rate and what an overtime hour pays (WB9), the day rate a
    month's wage works out to left to the worker's sheet (workerRateLabel). */
@@ -1228,12 +1379,13 @@ function _attRosterVerdictHtml(all, active, watch, due) {
   var ids = Object.keys(watch), dueN = Object.keys(due || {}).length;
   var onFloor = all.filter(function(w) { return w.active !== false && w.onFloor !== false; }).length, left = all.length - active;
   return uiVerdictHtml({ screen: 'Roster', verdict: all.length ? active + ' active' + (ids.length ? ', ' + ids.length + ' to watch' : '') : 'Nobody on the roster yet',
-    tone: !all.length ? 'neutral' : ids.length ? 'warning' : dueN ? 'info' : 'ok', fig: String(active),
+    // A hand to watch is the To-do's red (pplWatch, firm figures only): the verdict, the tile and the card say it in one tone (Castor L-8).
+    tone: !all.length ? 'neutral' : ids.length ? 'danger' : dueN ? 'info' : 'ok', fig: String(active),
     facts: [all.length + ' on file', dueN ? todoPlural(dueN, 'check-in') + ' due' : ''],
     factors: [
       { label: 'Active', fig: String(active), sub: onFloor + ' on the floor' },
       // To watch and the check-ins due show their hands alone, as Stock's status tiles do (a second press shows everyone).
-      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'warning' : null, sub: 'motivation under 50',
+      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'danger' : null, sub: 'motivation under 50',
         action: ids.length ? 'invAttRosterFilter' : '', attrs: ' data-v="watch"', pressed: ids.length ? _attRosterFilter === 'watch' : null },
       { label: 'Check-ins due', fig: String(dueN), tone: dueN ? 'info' : null, sub: 'none in 45 days',
         action: dueN ? 'invAttRosterFilter' : '', attrs: ' data-v="due"', pressed: dueN ? _attRosterFilter === 'due' : null },
@@ -1241,26 +1393,17 @@ function _attRosterVerdictHtml(all, active, watch, due) {
     attrs: ' id="attRosterVerdict"' });
 }
 
-/* The desktop's roster: a table beside the open worker (UX overhaul 2, step 7). The phone opens the worker's edit sheet. */
-function _attRosterDesktop(all, wages, watch) {
-  watch = watch || {};
+/* The desktop's roster: its cards beside the open worker (UX overhaul 2, step 7; the cards since UI pass 3 §12). The phone opens the
+   worker's edit sheet. */
+function _attRosterDesktop(list, left, wages, watch, head) {
   var open = _attRosterOpen != null ? staffById(_attRosterOpen) : null;
   if (!open) _attRosterOpen = null;
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
-    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
-    '<th>Area</th><th>Status</th></tr></thead><tbody>';
-  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
-  all.forEach(function(w) {
-    var inactive = w.active === false, id = escHtml(String(w.id));
-    h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
-      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button>' + (inactive ? '' : pplGlanceHtml(w, memo)) + '</td>' +
-      '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
-      (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
-      '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
-      '<td>' + (watch[String(w.id)] ? watch[String(w.id)].map(function(x) { return '<span class="inv-badge inv-badge-' + x.tone + '">' + escHtml(x.word) + '</span>'; }).join(' ')
-        : inactive ? '<span class="inv-dot inv-dot-neutral">Inactive</span>' : '<span class="inv-dot inv-dot-ok">Active</span>') + '</td></tr>';
-  });
-  return h + '</tbody></table></div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
+    '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>' +
+    (list.length || left.length ? '' : '<div class="inv-empty">Nobody here: change the filter</div>') +
+    (list.length ? '<div class="inv-panel-body"><div class="inv-deck" data-roster-deck>' + list.map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>' : '') +
+    (left.length ? _attRosterLeftHtml(left, wages, watch) : '') + '</div>';
+  return h + '</div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
 }
 
 /* One worker: who they are on the roster, and the last four pay weeks as the marks have them. */

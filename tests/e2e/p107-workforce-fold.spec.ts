@@ -440,7 +440,8 @@ test.describe('P107: Pay', () => {
       attendance: { [wd(-2, 1)]: { marks: { 2: mark(8) }, extra: [], note: '' }, [wd(-5, 1)]: { marks: { 2: mark(8) }, extra: [], note: '' } } });
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
-    await expect(page.locator('#payHistory .inv-chart-seg')).toHaveCount(2);
+    // The payouts week by week are Pay's picture since UI pass 3 (§12): its verdict card's body.
+    await expect(page.locator('#payForecast [data-pay-weeks] .inv-chart-seg')).toHaveCount(2);
     // Six months back, most with no attendance at all: each of those is null. A month that was typed keeps its reading.
     const pb = await g(page, `dashPayrollVsBank().map(function(x){ return [Object.keys(S.attendance).some(function(k){ return k.slice(0, 7) === x.month; }), x.payroll]; })`) as any[];
     expect(pb.filter(([typed]) => !typed).length).toBeGreaterThan(0);

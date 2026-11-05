@@ -45,7 +45,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | ↻ | **The refresh of U3–U9** (owner, 4 Nov 2026: *"Start the refresh"*): §10–§15 and §19–§23 brought up to the code as it stands after U2R, U2H and the builds of 21 Oct – 3 Nov; what changed and why is §26 | Written, 4 Nov 2026 |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Built, 4 Nov 2026 (P229): the Dashboard and the Tables, one verdict, the seven widgets, the redirects; §26a's preset as built (§26h) |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Built 4 Nov 2026 (§26i) |
-| U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
+| U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Built 5 Nov 2026 (P231; §26j) |
 | U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Not built |
 | U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Not built |
 | U8 | Sign-in and the 4-digit PIN; the app's icon, splash and favicon from the new mark (§15) | Not built |
@@ -2495,4 +2495,69 @@ Where the build departs from §11 and §26b, and why:
   own ledger with the record put in for one reading; a merged line is found as the line kept everywhere an id comes in
   (`stockLive`, `stockMergedRepoint`); real, different salts are never raised as twins and the owner's *They are different* keeps a
   pair apart. P230's *QA chain* tests hold each.
+
+### 26j. U5 as built (5 Nov 2026)
+
+Where the build departs from §12 and §26c, and why:
+- **The next steps** are one component, `uiNextStepsHtml(key, steps)` (state.js; design §6.23): Today's step pieces laid across one row
+  in a plain panel under the view's toolbar (and Attendance's switch), each a node in its state (done a tick, late a warning, to do
+  its number, not expected dashed) and its words under it; the first step neither done nor off is ringed in the accent (`data-next`).
+  More steps than the row holds scroll sideways inside it. **Every door is the step's own action** (`invAttStepGo`, `invPayStepGo`
+  with `data-go`), never a copy of a toolbar's or a tab's: the first build reused Paste message's, Start this month's, Fill's and Pay
+  slips' actions, and a screen then carried two of each.
+- **Day**: In-time roll (in at its minute, *by hand*, *late*, or *usually* its minute: Today's own reading, `tdyInput`) → Marks (*21 of
+  23*; its door brings the first hand not marked into view) → *Held for you* while a sync holds a version of a hand's mark (its door the
+  hand's day) → Out-time roll → the night's roll for each line with a night (*due 6:30 AM tomorrow*) → EXTRA booked (*none needed*
+  where no area is short). The board stays as it was (§12's *the board as now*): no meter was added to its cards' heads.
+- **Month**: Start or import → Fill → Settle the differences (its door the list of differences) → Mark checked, each acting as the
+  toolbar's own button does.
+- **Pay**: Hours → Cash paid out → Payout (*₹N to Sat 5 PM*) → Weekly payments (the weekly hands with something due) → Slips. The titles are a
+  word or two (a phone holds five across); each step's whole sentence is its label for a screen reader.
+- **The pictures** are the verdict card's body where §12 says so: shut on the phone, open on the desktop. **Pay**: the payouts of the
+  twelve weeks as bars (`_payWeeksChartHtml`), the cash paid out its own part of each bar; the chart moved there from *Weekly payouts*,
+  which keeps its rows. **Month**: one bar of 100% (`chartShareBar`, which now takes a status `tone` as well as a slot). **Areas**: a tile
+  a unit, its days as small bars (`chartMiniBars`), amber where it stood short, then a line's night against its crew; with no
+  complement set, each floor area's heads alone.
+- **Week**: the grid is a panel of its own over the table (`chartMarks`, charts.js, new: a hand a row, a day a column, each cell its
+  mark's tone, a night info, a day not marked hatched, two shifts back to back a dot in the corner; its table says each cell in words),
+  never inside the shut card: the table it replaces folds under it (`att-week-grid`, shut), so the phone would otherwise have lost its week.
+- **The Roster as cards** (`attRosterCardHtml`): initials, the name; the area and the rate (`data-roster-meta`, unchanged); the tier and
+  the tenure on one line, the designation before the tier for the owner (a personal detail); the three bars (`pplGlanceHtml`, now the
+  bars alone); the top three skills as chips. **A badge only for a state**: *Motivation 42* is the hand to watch's badge and *Inactive*
+  the left's; a check-in due stays the verdict's tile and the Filter's (TM4f: on every card it points at no one), and a motivation that
+  is no state is the record's. The Filter (area, tier, and *To watch* or *Check-ins due*) is the toolbar's, tokens under the row on the
+  phone. The hands who left fold under *Left*. On the desktop the cards stand beside the record (`#attRosterHost`), the open one marked
+  current.
+- **Measured** (P195's long book, the phone, today): Day 2.07 → 2.23, Week 1.69 → 1.48, Month 1.00 → 1.00, Pay 2.12 → 2.28, Areas
+  1.83 → 1.83, Roster 2.43 → 1.93; no budget changed. **Day and Pay are longer by their step row** (about 0.16 of a screen each), the one
+  addition §12 makes that no picture replaces; both stay within their budgets (2.5), said here and in the PR (I10).
+- **A data flow**: none. The book does not change.
+
+- **The QA chain** (5 Nov 2026; Castor and Iuno, then Cipher; no BLOCKER; P231's *QA chain* tests, each failing on the build before):
+  a record missing or not yet due is never drawn as done, as zero, or as late.
+  - **Pay's Payout step is done only on a week closed (Saturday at 5 PM, `PAY_CUTOFF`) with every working day recorded and no hours to
+    check** (Castor H-1, Iuno M-1): a part-typed week is late, *₹N, 4 days not recorded*; a week nobody typed *not recorded*, never ₹0;
+    one running *heading for ₹N*. **Weekly payments** names whom the step counts (Iuno M-2: the monthly crew is Due by worker's own
+    group). *2 hands to check* (it read *2 to checks*).
+  - **The payouts' chart** reads the week shown and the eleven before it; a week holding only cash paid out has its cash and no wages
+    part (Castor M-5, Iuno M-3); the part is *Weekly hands, EXTRA and snacks* (the monthly crew is never in a week's payout); each bar
+    reads its payout whole and the table has it as a column (`chartStack`'s `total`, Iuno L-2). One forecast, one week's gaps and one
+    `payDue` a render, passed to the verdict, the steps and Due by worker (Castor L-7, Iuno L-5).
+  - **Day**: a day not come has its rolls *to come*; yesterday's night roll is due until its morning is half an hour past the night's end
+    (Castor M-1). A day the plant is not expected to work by the calendar (`attDayNotExpected`: a Sunday, a paid holiday, a day marked
+    shut, whether anybody came or not) expects no marks: *not expected*, or *N hands worked* (M-2; Cipher H-1: `plantDayOff`, the first
+    fold's test, is null on any day somebody worked). A day whose every hand on site, the night's aside, has an out typed or scanned
+    has its out-time roll in, *by hand* (`tdyInput`, so Needs you and Mine's out-time roll duty read it too; M-4, Cipher L-1). A step
+    with no door (to come, the owner's to settle) is never ringed as the next (Cipher L-3).
+    What a sync held is late for the owner and *the owner picks*, with no door, for anyone else (L-5).
+  - **Week**: an unmarked cell on a day the plant is not expected to work (a day marked shut included, a worked Sunday too), a day to
+    come, or a day the hand was not on the roster (before the joining day; for a hand who has left, every unmarked day, since no leaving
+    day is kept) is left empty, never hatched (M-2, L-4, Cipher H-1); a half day on the night keeps its half day (L-3). A day marked
+    shut is no day missing on Week's verdict or on Pay's Payout step, whose pay arithmetic is untouched (Cipher M-2).
+  - **Areas**: a line's night is drawn only on the nights recorded and come (M-3); with no complement set, an area's heads a day are its
+    bars' own average, never the night's marks too (L-9).
+  - **Month**: Settle says the two counts the verdict has, *2 differ, 1 only on the day* (Iuno L-4).
+  - **Roster**: a hand to watch is the To-do's red on the card, the verdict and its tile alike (L-8); a search's jump to a worker clears
+    the roster's filters and reveals the card, the *Left* fold opened (L-6). The Week verdict's payout tile says *as Pay counts it* (it
+    said the weekly tiers and the EXTRA, before the snacks and the cash paid out were in it).
 

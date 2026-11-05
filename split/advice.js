@@ -237,7 +237,7 @@ function advWageMoves(ctx) {
     : f.basis === 'median' ? 'nothing recorded this week yet: the median week stands in' : 'every working day recorded';
   var weekly = staffActive().filter(function(w) { return w.comp === 'hourly' || w.comp === 'daily'; }).length;
   return [{ key: 'wages:' + sat, tone: until === 0 ? 'amber' : 'info', soon: until, cat: 1, what: 'the payout ' + (until === 0 ? 'today' : 'on Saturday'),
-    row: { title: 'The payout is due ' + (until === 0 ? 'today' : until === 1 ? 'tomorrow' : 'on Saturday'), meta: (weekly ? todoPlural(weekly, 'weekly hand') + ' and the EXTRA' : 'The weekly tiers and the EXTRA'),
+    row: { title: 'The payout is due ' + (until === 0 ? 'today' : until === 1 ? 'tomorrow' : 'on Saturday'), meta: (weekly ? todoPlural(weekly, 'weekly hand') + ', the EXTRA and snacks' : 'The weekly hands, the EXTRA, snacks and cash paid out'),
       amt: gstRound(f.predicted) },
     say: 'Have ' + advRs(f.predicted) + ' ready for ' + (until === 0 ? 'today’s' : 'Saturday’s') + ' payout',
     worth: { amount: f.predicted, sign: -1, label: 'due ' + (until === 0 ? 'today' : formatDate(sat)) },

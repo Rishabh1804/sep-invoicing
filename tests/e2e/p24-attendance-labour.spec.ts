@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import {
-  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab, workdayIso, openAttendance } from './fixtures';
+  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab, workdayIso, openAttendance, openFoldAt } from './fixtures';
 
 /**
  * Staff tab + labour breakdown.
@@ -117,6 +117,8 @@ test('an hourly worker has no half day to reach, in either view', async ({ page 
   await expect(page.locator(`[data-action="invAttSet"][data-id="${LEAD.id}"][data-st="H"]`)).toBeVisible();
 
   await openAttendance(page, 'week');
+  // The week is a picture first (UI pass 3 §12); its table, where a cell cycles, folds under it.
+  await openFoldAt(page, 'att-week-grid');
   const cell = page.locator(`[data-action="invAttCycle"][data-id="${POOL.id}"][data-date="${todayIso()}"]`);
   await cell.click();
   await expect(cell).toHaveText('P');
@@ -130,6 +132,7 @@ test('the week grid cycles a monthly worker through the half day', async ({ page
   await loadAppWithState(page, staffState());
   await openStaff(page);
   await openAttendance(page, 'week');
+  await openFoldAt(page, 'att-week-grid');
 
   const cell = page.locator(`[data-action="invAttCycle"][data-id="${LEAD.id}"][data-date="${todayIso()}"]`);
   await expect(cell).toHaveText('·');

@@ -65,8 +65,10 @@ test('Staff → Roster: a worker opens in the pane; a role that may not see wage
   await loadAppWithState(page, sweepState());
   await switchTab(page, 'pageStaff');
   await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-  await expect(page.locator('#attRosterTable thead')).toContainText('Rate');
-  const row = page.locator('#attRosterTable tbody tr').first();
+  // The roster is cards (UI pass 3 §12): each card's meta carries the rate for a role that sees wages.
+  const card = page.locator('#attRosterHost [data-roster-card]').first();
+  await expect(card.locator('[data-roster-meta]')).toContainText('₹');
+  const row = card.locator('[data-action="invAttRosterOpen"]');
   const id = await row.getAttribute('data-id');
   await row.click();
   const pane = page.locator(`#attRosterPane [data-worker-pane="${id}"]`);
@@ -79,9 +81,9 @@ test('Staff → Roster: a worker opens in the pane; a role that may not see wage
   await expect(page.locator('.inv-dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.inv-dialog')).toHaveCount(0);
-  // Without the wages, neither the table nor the pane carries a rate (the guard's "wages" setting).
+  // Without the wages, neither the cards nor the pane carries a rate (the guard's "wages" setting).
   await page.evaluate(() => { (window as any).grdSeesWages = () => false; (window as any).renderAttendance(); });
-  await expect(page.locator('#attRosterTable thead')).not.toContainText('Rate');
+  await expect(page.locator('#attRosterHost [data-roster-meta]').first()).not.toContainText('₹');
   await expect(page.locator(`#attRosterPane [data-worker-pane="${id}"]`)).not.toContainText('Rate');
 });
 

@@ -833,14 +833,24 @@ function srchGo(go) {
       if (!w) { srchMissing('That worker'); return; }
       // The desktop: People → Roster with the worker open in its pane, as its row opens it (UX overhaul 2, step 7; it opened
       // Edit worker: QA3-6). The phone's roster has no pane: the worker's sheet over it.
+      // A jump shows what it names: the roster's filters are cleared first, so the worker's card is in the list (Castor L-6, the QA
+      // chain of 5 Nov 2026: a worker hidden by an area or tier opened in the pane with no card), and a hand who left is revealed in
+      // the Left fold, opened.
+      _attRosterArea = ''; _attRosterTier = ''; _attRosterFilter = '';
+      var reveal = function() {
+        var card = document.querySelector('#pageStaff [data-roster-card="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]');
+        var fold = card && card.closest('details');
+        if (fold) fold.open = true;
+        uiRevealEl(card);
+      };
       if (_isDesktop) {
         srchGoPlace({ tab: 'pageStaff', v: 'roster', id: String(w.id) });
-        uiRevealEl(document.querySelector('#attRosterTable tr[data-id="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]'));
+        reveal();
         return;
       }
       _attView = 'roster';
       switchTab('pageStaff');
-      uiRevealEl(document.querySelector('#pageStaff [data-action="invAttEditWorker"][data-id="' + w.id + '"]'));
+      reveal();
       openWorkerEdit(w.id);
       return;
     }

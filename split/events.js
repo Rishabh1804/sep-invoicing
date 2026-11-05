@@ -203,6 +203,8 @@ function onDocClick(e) {
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttDayAs': attDayAsSet(btn.dataset.v); renderAttendance(); break;
     case 'invAttAllPresent': attAllPresent(); break;
+    case 'invAttStepGo': attStepGo(btn.dataset.go); break;
+    case 'invPayStepGo': payStepGo(btn.dataset.go); break;
     case 'invAttEdit': attEditOpen(btn.dataset.id); break;
     case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;
@@ -223,6 +225,7 @@ function onDocClick(e) {
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
     case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
     case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
+    case 'invAttRosterClear': if (btn.dataset.clear === 'area') _attRosterArea = ''; else _attRosterTier = ''; keepScroll(renderAttendance); break;
     case 'invAttRosterFilter': _attRosterFilter = _attRosterFilter === btn.dataset.v ? '' : btn.dataset.v; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
@@ -625,6 +628,14 @@ function onDocChange(e) {
   }
   // Attendance. A <select> speaks through change, never click — and the date
   // input re-renders because the date is what the whole view is showing.
+  // The roster's Filter (UI pass 3 §12): the area, the tier, the hands to watch or due a check-in.
+  if (e.target.id === 'attRosterArea' || e.target.id === 'attRosterTier' || e.target.id === 'attRosterShow') {
+    if (e.target.id === 'attRosterArea') _attRosterArea = e.target.value;
+    else if (e.target.id === 'attRosterTier') _attRosterTier = e.target.value;
+    else _attRosterFilter = e.target.value;
+    if (!e.target.closest('[data-tb-filter-dialog]')) renderAttendance();
+    return;
+  }
   if (e.target.id === 'attDate') {
     attSetDate(e.target.value);
     return;

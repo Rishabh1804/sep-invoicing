@@ -34,7 +34,7 @@ test.describe('P151 on the desktop', () => {
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
     await expect(page.locator('#attRosterHost')).toHaveClass(/inv-pane-open/);
     await expect(page.locator('#attRosterPane [data-worker-pane="1"]')).toBeVisible();
-    await expect(page.locator('#attRosterTable tr[data-id="1"]')).toHaveAttribute('aria-current', 'true');
+    await expect(page.locator('#attRosterHost [data-roster-card="1"] [data-action="invAttRosterOpen"]')).toHaveAttribute('aria-current', 'true');
     await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
     await expect.poll(() => where(page)).toEqual(['pageStaff', 'roster', '1']);
     // A step of its own: back leaves it.

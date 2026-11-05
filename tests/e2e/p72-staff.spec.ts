@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openFoldAt } from './fixtures';
 
 // P72 (phone): People on the v2.0 components (design principles §7, §9 step 3), its row Attendance · Pay · Areas · Roster since
 // the tab map (TM4b). View tabs that scroll the open one into view (the survey's cut-off sub-tabs); Paste message the one primary on Day,
@@ -72,14 +72,16 @@ test.describe('P72: Staff', () => {
       return r.left >= list.left - 1 && r.right <= list.right + 1;
     });
     expect(inView).toBe(true);
-    // Roster: whole-row buttons, an inactive hand muted and badged. The tier is the group, the area and the rate the row's meta
-    // (TM4f: the tier and the area as badges took a line of their own on every row), and the hands who left close the list.
-    const chand = page.locator('#attRoster [data-action="invAttEditWorker"][data-id="3"]');
-    await expect(chand).toHaveClass(/inv-row-muted/);
+    // Roster: a card a hand, its whole face one button (UI pass 3 §12), an inactive hand muted and badged. The area and the rate are
+    // the card's meta, the tier its own line (TM4f: never a badge), and the hands who left close the list, folded under Left.
+    await expect(page.locator('#attRoster [data-roster-group="left"]')).toContainText('Left');
+    await openFoldAt(page, 'roster-left');
+    const card = page.locator('#attRoster [data-roster-card="3"]');
+    const chand = card.locator('[data-action="invAttEditWorker"][data-id="3"]');
+    await expect(card).toHaveClass(/inv-row-muted/);
     await expect(chand.locator('[data-roster-meta]')).toHaveText('VAT A2 · ₹47.50/h, every hour');
     await expect(chand.locator('.inv-badge')).toHaveText(['Inactive']);
-    await expect(page.locator('#attRoster [data-roster-group="left"]')).toContainText('Left');
-    await expect(page.locator('#attRoster [data-roster-group^="tier-"]').first()).toBeVisible();
+    await expect(page.locator('#attRoster [data-roster-tier]').first()).toContainText(/Monthly|Hourly|Daily/);
     await chand.click();
     await expect(page.locator('.inv-dialog .inv-field-label[for="wedName"]')).toHaveText('Name');
     await expect(page.locator('.inv-dialog .inv-form-group, .inv-dialog .inv-form-input')).toHaveCount(0);
@@ -129,6 +131,8 @@ test.describe('P72: Staff', () => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStaff');
     await period(page, 'week').click();
+    // The week is a picture first (UI pass 3 §12); the table it is changed in folds under it.
+    await openFoldAt(page, 'att-week-grid');
     const grid = page.locator('#attWeekGrid table.inv-table.inv-table-grid');
     await expect(grid.locator('thead th')).toHaveCount(8);
     await expect(grid.locator('thead th').nth(1)).toHaveAttribute('data-sun', '');

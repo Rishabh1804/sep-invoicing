@@ -181,9 +181,10 @@ test.describe('P188: Floor’s map', () => {
     await tabs(page, 'pageStaff').filter({ hasText: 'Roster' }).click();
     const rows = page.locator('#attRoster [data-action="invAttEditWorker"]');
     await expect(rows).toHaveCount(10);
-    // No row repeats the verdict's count as a badge; the tier is the group, the area and the rate the meta line's two facts.
+    // No card repeats the verdict's count as a badge; the tier is the card's own line (UI pass 3 §12, never a badge), the area and
+    // the rate the meta line's two facts.
     await expect(page.locator('#attRoster .inv-badge')).toHaveCount(0);
-    await expect(page.locator('#attRoster [data-roster-group^="tier-"]').first()).toBeVisible();
+    await expect(page.locator('#attRoster [data-roster-tier]').first()).toBeVisible();
     const meta = await page.locator('#attRoster [data-roster-meta]').allInnerTexts();
     expect(meta.every(m => m.split('·').length <= 2)).toBe(true);
     await openVerdict(page);

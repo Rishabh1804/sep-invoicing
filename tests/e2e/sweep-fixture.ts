@@ -227,7 +227,7 @@ export type Stop = { where: string; v1: string[]; unstyled: string[]; selectActi
    read as OKLab lightness; a colour more than half transparent is the fill behind it showing through. A tick box or a radio the
    browser draws paints its box white whatever its computed fill says, so every one on screen must be drawn by the app. */
 export const WHITE_CEIL = 0.97;
-export const PAPER = '.inv-print-body, .inv-rpt-doc, .inv-sr-doc, .inv-qt-doc, .inv-ps-sheet, .inv-idc-sheet, .inv-ck-sheet, .inv-as-page, .inv-qc-page, .inv-cn-doc, .inv-print-invoice, .inv-qr';
+export const PAPER = '.inv-print-body, .inv-rpt-doc, .inv-pcp-doc, .inv-sr-doc, .inv-qt-doc, .inv-ps-sheet, .inv-idc-sheet, .inv-ck-sheet, .inv-as-page, .inv-qc-page, .inv-cn-doc, .inv-print-invoice, .inv-qr';
 
 /* Everything checked at one stop, read from the rendered DOM (the page and whatever dialog is open). */
 export async function sweep(page: Page, where: string): Promise<Stop> {

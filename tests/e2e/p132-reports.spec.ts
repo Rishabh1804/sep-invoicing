@@ -46,8 +46,8 @@ test("Reports is in Home's Insights, after Stats; each kind draws with its title
     await expect(doc(page).locator('.inv-rpt-meta')).toContainText(/build/);
     await expect(page.locator('#reportsContent .inv-stepper-sub, #reportsContent .inv-stepper-label')).not.toHaveCount(0);
     await expect(page.locator('#reportsContent .inv-stepper')).toContainText('to date');
-    // The page's one primary.
-    await expect(page.locator('#pageReports .inv-btn-primary:visible')).toHaveText(['Print']);
+    // The page's one primary: the picture's print (UI pass 3, U6), the picture and the report beside it.
+    await expect(page.locator('#pageReports .inv-btn-primary:visible')).toHaveText(['Print the picture']);
   }
   // A weekly is the pay week, Sunday to Saturday; the stepper moves it back a week and the next one is reachable again.
   await page.locator('[data-action="invRptKind"][data-kind="weekly"]').click();

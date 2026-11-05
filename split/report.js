@@ -283,6 +283,25 @@ function rptHtml(kind, from, to) {
   return h + '</td></tr></tbody></table></div>';
 }
 
+/* The period's parts, for the table under the tiles and the picture's charts: a week's days, a month's pay weeks, a quarter's or a
+   year's months. `short` is the chart's axis label. */
+function rptSubs(p) {
+  var subs = [];
+  if (p.kind === 'weekly') attWeekDays(p.from).forEach(function(d) {
+    var dn = RPT_DAYS[new Date(d + 'T00:00:00').getDay()].slice(0, 3);
+    subs.push({ from: d, to: d, label: dn + ' ' + rptShort(d), short: dn });
+  });
+  else if (p.kind === 'monthly') {
+    for (var ws = attWeekStartOf(p.from), g = 0; ws <= p.to && g < 7; ws = isoAddDays(ws, 7), g++) {
+      var a = ws < p.from ? p.from : ws, b = isoAddDays(ws, 6) > p.to ? p.to : isoAddDays(ws, 6);
+      subs.push({ from: a, to: b, label: 'W' + attPayWeekNumber(ws) + ' · ' + rptShort(a) + (a !== b ? ' – ' + rptShort(b) : ''), short: 'W' + attPayWeekNumber(ws) });
+    }
+  } else if (p.kind !== 'daily') {
+    for (var m = p.from, k = 0; m <= p.to && k < 12; m = isoAddDays(payMonthEnd(m), 1), k++) subs.push({ from: m, to: payMonthEnd(m), label: insMonthLabel(m) + ' ' + m.slice(0, 4), short: insMonthLabel(m) });
+  }
+  return subs;
+}
+
 /* 2. The table under the tiles. */
 function rptBreakdownHtml(p, end, ctx) {
   if (p.kind === 'daily') {
@@ -305,16 +324,7 @@ function rptBreakdownHtml(p, end, ctx) {
       PROD_LINES.filter(function(l) { return cov[l].days; }).length + ' of ' + PROD_LINES.length + ' lines recorded.'),
       rptTable([['Line'], ['Heads', 1], ['Plated kg', 1], ['Pieces', 1], ['Rounds', 1]], rows, null, 'lines'));
   }
-  var subs = [];
-  if (p.kind === 'weekly') attWeekDays(p.from).forEach(function(d) { subs.push({ from: d, to: d, label: RPT_DAYS[new Date(d + 'T00:00:00').getDay()].slice(0, 3) + ' ' + rptShort(d) }); });
-  else if (p.kind === 'monthly') {
-    for (var ws = attWeekStartOf(p.from), g = 0; ws <= p.to && g < 7; ws = isoAddDays(ws, 7), g++) {
-      var a = ws < p.from ? p.from : ws, b = isoAddDays(ws, 6) > p.to ? p.to : isoAddDays(ws, 6);
-      subs.push({ from: a, to: b, label: 'W' + attPayWeekNumber(ws) + ' · ' + rptShort(a) + (a !== b ? ' – ' + rptShort(b) : '') });
-    }
-  } else {
-    for (var m = p.from, k = 0; m <= p.to && k < 12; m = isoAddDays(payMonthEnd(m), 1), k++) subs.push({ from: m, to: payMonthEnd(m), label: insMonthLabel(m) + ' ' + m.slice(0, 4) });
-  }
+  var subs = rptSubs(p);
   // The foot totals only what its rows carry (QA5-10): a column of dashes foots to a dash, never to a 0; ₹/kg is the
   // weighed revenue over the weighed kilos of every row, and present the marks of every row, as each row reads them.
   var tot = { inv: 0, kg: 0, revKnown: 0, rec: 0, nos: 0, pl: 0, plDays: 0, present: 0, marked: 0, cuts: 0, cutsKnown: false };
@@ -562,7 +572,89 @@ function rptSourcesHtml(p, current) {
   return rptSec('sources', 'Sources', '', '<ul class="inv-rpt-list">' + items.map(function(x) { return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>');
 }
 
+/* ---------- The picture (UI pass 3 §13, §26d) ----------
+   One A4 page in front of the report: four tiles (revenue, tonnes, realisation against the live cost, cash), two charts by kind (a
+   day by line; a week by day; a month by pay week; a quarter or a year by month), and the three things to look at (the period's red
+   and amber tasks while it runs, else its worst figures). Every figure is the report's own: the same functions rptHtml reads. */
+function rptPictureHtml(kind, from, to) {
+  var p = rptPeriodOf(kind, from);
+  if (to) p.to = to;
+  var today = localDateStr(), end = p.to > today ? today : p.to, current = p.from <= today && p.to >= today;
+  var co = String((S.company && S.company.name) || '').trim(), title = rptTitle(p);
+  var h = '<div class="inv-pcp-doc" data-rpt-picture data-kind="' + p.kind + '" data-from="' + p.from + '">' + (co ? '<div class="inv-pcp-co">' + escHtml(co) + '</div>' : '') +
+    '<div class="inv-pcp-title">' + escHtml(title) + '</div>' +
+    '<div class="inv-pcp-meta">' + escHtml((p.from === p.to ? formatDate(p.from) : formatDate(p.from) + ' to ' + formatDate(p.to)) + (current ? ' · figures to ' + formatDate(end) : '') +
+      ' · the picture: the report follows it when printed with it') + '</div>';
+  if (p.from > today) return h + '<p class="inv-pcp-none">This period has not begun.</p></div>';
+  var all = statsInvoices().filter(function(i) { return i.date; }), pr = rptPrior(p, end);
+  var invs = all.filter(function(i) { return i.date >= p.from && i.date <= end; }), pinvs = all.filter(function(i) { return i.date >= pr.from && i.date <= pr.to; });
+  var w = weighLines(invs), pw = weighLines(pinvs), taxable = sumTaxable(invs), ptaxable = sumTaxable(pinvs);
+  var lc = w.kg > 0 ? liveCost(p.from, end, w.kg) : null, real = w.kg > 0 ? w.revKnown / w.kg : null;
+  var bank = finHasBank(), cover = bank ? bankCover() : null, reach = cover && cover.from <= end && cover.to >= p.from;
+  var brows = reach ? rptBankRows(p.from, end) : [];
+  var cin = brows.reduce(function(t, r) { return t + r.cr; }, 0), cout = brows.reduce(function(t, r) { return t + r.dr; }, 0);
+  var ch = function(cur, prev) {
+    if (!(prev > 0) || cur == null) return '';
+    var d = (cur - prev) / prev * 100;
+    return (d >= 0 ? '+' : '−') + formatNum(Math.abs(d), 0) + '% on ' + pr.label;
+  };
+  var tile = function(key, label, value, sub, tone) {
+    return '<div class="inv-pcp-tile" data-pcp-tile="' + key + '"><div class="inv-pcp-tile-l">' + label + '</div><div class="inv-pcp-tile-v' + (tone ? ' inv-pcp-' + tone : '') + '">' + value + '</div>' +
+      (sub ? '<div class="inv-pcp-tile-s">' + sub + '</div>' : '') + '</div>';
+  };
+  var realTone = real != null && lc && lc.perKg > 0 ? figToneAgainst(real, lc.perKg, 5) : null;
+  h += '<div class="inv-pcp-tiles">' +
+    tile('revenue', 'Revenue', invs.length ? escHtml(finRs(taxable)) : '&mdash;', escHtml(invs.length ? todoPlural(invs.length, 'invoice') + (ch(taxable, ptaxable) ? ' · ' + ch(taxable, ptaxable) : '') : 'no invoice dated in the period')) +
+    tile('tonnes', 'Tonnes billed', w.kg > 0 ? escHtml(rptKg(w.kg)) : '&mdash;', escHtml(w.kg > 0 ? (w.coverage < 0.999 ? rptPct(w.coverage) + ' of revenue weighed' : 'every line weighed') + (ch(w.kg, pw.kg) ? ' · ' + ch(w.kg, pw.kg) : '') : invs.length ? 'nothing weighed' : 'nothing invoiced')) +
+    tile('real', 'Realisation', real != null ? escHtml(formatCurrency(real) + '/kg') : '&mdash;', escHtml(real != null && lc && lc.perKg > 0 ? (real >= lc.perKg ? 'clears' : 'below') + ' the live cost ' + formatCurrency(lc.perKg) + '/kg' : 'no live cost to set it against'), realTone) +
+    tile('cash', 'Cash in · out', reach ? escHtml(finRs(cin) + ' · ' + finRs(cout)) : '&mdash;', escHtml(reach ? 'on the bank statement' + (cover.to < end ? ', to ' + formatDate(cover.to) : '') : bank ? 'the statement does not reach the period' : 'no bank statement imported')) +
+    '</div>';
+  // Two charts by kind: a day's lines (plated and their heads), else the period's parts (invoiced and plated on complete days).
+  var c1 = '', c2 = '', t1 = '', t2 = '';
+  // A chart with nothing in it says so in words: an empty frame reads as a zero.
+  var chartBars = function(data, o) {
+    return data.some(function(d) { return d.value != null && d.value > 0; }) ? window.chartBars(data, o) : '<p class="inv-pcp-none">' + escHtml(o.emptyText) + '</p>';
+  };
+  if (p.kind === 'daily') {
+    var ln = PROD_LINES.map(function(l) { return { l: l, r: prodDayLine(p.from, l) }; });
+    t1 = 'Plated by line, kg'; t2 = 'Rounds by line';
+    c1 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.kg) : null }; }), { unit: 'kg', paper: true, slot: 3, ariaLabel: t1, emptyText: 'Nothing plated on record' });
+    c2 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.rounds || 0) : null }; }), { unit: 'count', paper: true, slot: 1, ariaLabel: t2, emptyText: 'No rounds on record' });
+  } else {
+    var ctx = { today: today, invs: all, power: powerAnalysis() };
+    var subs = rptSubs(p), figs = subs.map(function(sb) { return rptRowFigures(ctx, sb.from, sb.to); });
+    var td = subs.findIndex(function(sb) { return sb.from <= today && sb.to >= today; });
+    var by = p.kind === 'weekly' ? 'by day' : p.kind === 'monthly' ? 'by pay week' : 'by month';
+    t1 = 'Invoiced ' + by; t2 = 'Plated ' + by + ', kg (complete days)';
+    c1 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future ? null : f.inv ? gstRound(f.taxable, 0) : 0 }; }),
+      { unit: 'money', paper: true, slot: 1, ariaLabel: t1, toDate: td >= 0 ? td : null, emptyText: 'Nothing invoiced' });
+    c2 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future || !f.plated ? null : Math.round(f.plated.kg) }; }),
+      { unit: 'kg', paper: true, slot: 3, ariaLabel: t2, toDate: td >= 0 ? td : null, emptyText: 'No complete day recorded' });
+  }
+  h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="chart1"><div class="inv-pcp-h">' + escHtml(t1) + '</div>' + c1 + '</div>' +
+    '<div class="inv-pcp-sec" data-pcp-sec="chart2"><div class="inv-pcp-h">' + escHtml(t2) + '</div>' + c2 + '</div></div>';
+  // The three things to look at: the red and amber tasks while the period runs (the report's Open items), else its worst figures.
+  var look = [];
+  if (current) look = todoRanked().filter(function(r) { return r.tone === 'red' || r.tone === 'amber'; }).slice(0, 3).map(function(r) {
+    return { tone: r.tone === 'red' ? 'danger' : 'warning', text: r.app ? r.app.title : r.mine.text };
+  });
+  else {
+    if (realTone === 'danger' || realTone === 'warning') look.push({ tone: realTone, text: 'Realisation ' + formatCurrency(real) + '/kg against the live cost ' + formatCurrency(lc.perKg) + '/kg' });
+    if (ptaxable > 0 && taxable < ptaxable * 0.9) look.push({ tone: 'warning', text: 'Revenue ' + ch(taxable, ptaxable) });
+    var att = rptAttendance(p.from, end);
+    if (att.pct != null && att.pct < 90) look.push({ tone: att.pct < 80 ? 'danger' : 'warning', text: 'Attendance ' + Math.round(att.pct) + '% of the marks typed' });
+    var cs = rptCutSum(rptCuts(powerAnalysis(), p.from, end));
+    if (cs.n) look.push({ tone: 'warning', text: todoPlural(cs.n, 'power cut') + ', ' + powerDur(cs.min) + ' dark in working hours' });
+    look = look.slice(0, 3);
+  }
+  h += '<div class="inv-pcp-sec" data-pcp-sec="look"><div class="inv-pcp-h">' + (current ? 'To look at now' : 'To look at') + '</div>' +
+    (look.length ? '<ul class="inv-pcp-list">' + look.map(function(x) { return '<li data-pcp-look="' + x.tone + '"><b class="inv-pcp-' + x.tone + '">' + (x.tone === 'danger' ? 'Red' : 'Amber') + '</b> · ' + escHtml(x.text) + '</li>'; }).join('') + '</ul>'
+      : '<p class="inv-pcp-none">' + (current ? 'Nothing red or amber on the To-do.' : 'Nothing in the period’s figures stands out.') + '</p>') + '</div>';
+  return h + '<div class="inv-pcp-foot">Revenue is taxable, net of credit notes; tonnes and realisation are the weighed lines; plated counts complete days only. The report that follows has every figure.</div></div>';
+}
+
 /* ---------- The page ---------- */
+var _rptFull = false;
 function renderReports() {
   var el = document.getElementById('reportsContent');
   if (!el) return;
@@ -597,23 +689,35 @@ function renderReports() {
   var doc = rptHtml(p.kind, p.from);
   // Print is the screen's one primary, in the action bar under the sheet, as Create's is (the tab map, TM6: two toolbar rows on
   // the phone, where it had taken a third and its note a fourth).
-  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>' +
-    '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">A4, drawn from the records each time it is shown or printed</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invRptPrint">Print</button></div>';
+  // The picture first (U6), then the report itself under Read the full report, drawn with the page and hidden until opened; the
+  // action bar's two prints: the picture (the one primary) and the picture with the report.
+  var pic = rptPictureHtml(p.kind, p.from);
+  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptPictureSheet">' + pic + '</div>' +
+    '<div class="inv-paper-more"><button type="button" class="inv-btn inv-btn-secondary" data-action="invRptFull" aria-expanded="' + _rptFull + '" aria-controls="rptSheet">' +
+      (_rptFull ? 'Hide the full report' : 'Read the full report') + '</button></div>' +
+    '<div class="inv-rpt-sheet" id="rptSheet"' + (_rptFull ? '' : ' hidden') + '>' + doc + '</div>' +
+    '<div class="inv-actionbar" data-paper-prints><button class="inv-btn inv-btn-secondary" data-action="invRptPrint">Print the picture and the report</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invRptPrintPicture">Print the picture</button></div>';
   // The sheet as it prints, fitted to the screen (TM2f): a phone shows the whole A4 width, zoomed out, never its tables cut.
+  paperFit(document.getElementById('rptPictureSheet'));
   paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-rpt-picture]')) {
+    body.innerHTML = pic + (body.querySelector('[data-rpt-doc]') ? doc : ''); printFit();
+  }
 }
 
-window.addEventListener('resize', function() { var s = document.getElementById('rptSheet'); if (s && s.offsetParent) paperFit(s); });
+window.addEventListener('resize', function() {
+  ['rptPictureSheet', 'rptSheet'].forEach(function(id) { var s = document.getElementById(id); if (s && s.offsetParent) paperFit(s); });
+});
 
-function rptPrint() {
+/* Print the picture (one page), or the picture and the report after it. */
+function rptPrint(pictureOnly) {
   var body = document.getElementById('invPrintBody');
   if (!body) return;
   var p = rptCurrent();
-  body.innerHTML = rptHtml(p.kind, p.from);
+  body.innerHTML = rptPictureHtml(p.kind, p.from) + (pictureOnly ? '' : rptHtml(p.kind, p.from));
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
   // A report of the current period lists the sender's own open tasks (rptOpenHtml reads todoRanked as this ID sees it, each task by
@@ -625,7 +729,7 @@ function rptPrint() {
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   // The PDF's file name: "SEP monthly report 2026-09".
-  document.title = 'SEP ' + p.kind + ' report ' + (p.kind === 'monthly' ? p.from.slice(0, 7) : p.kind === 'yearly' ? rptFyLabel(rptFy(p.from)).replace(' ', '-') :
+  document.title = 'SEP ' + p.kind + (pictureOnly ? ' picture ' : ' report ') + (p.kind === 'monthly' ? p.from.slice(0, 7) : p.kind === 'yearly' ? rptFyLabel(rptFy(p.from)).replace(' ', '-') :
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
@@ -667,6 +771,16 @@ function rptAction(action, btn) {
     }
     case 'invRptNow': rptSet(p.kind, localDateStr()); renderReports(); break;
     case 'invRptPrint': rptPrint(); break;
+    case 'invRptPrintPicture': rptPrint(true); break;
+    case 'invRptFull': {
+      // The report, opened or shut in place (a control inside the view: the page keeps its place).
+      _rptFull = !_rptFull;
+      var sh = document.getElementById('rptSheet');
+      if (sh) { sh.hidden = !_rptFull; if (_rptFull) { paperFit(sh); uiRevealEl(sh); } }
+      btn.setAttribute('aria-expanded', String(_rptFull));
+      btn.textContent = _rptFull ? 'Hide the full report' : 'Read the full report';
+      break;
+    }
     case 'invRptFromStats': rptFromStats(btn.dataset.period); break;
     default: return false;
   }

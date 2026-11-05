@@ -60,7 +60,7 @@ test('white is written in the stylesheet only on paper: the printed documents, t
   const css = fs.readFileSync(path.join(__dirname, '..', '..', 'split', 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   // What prints, prints on white: @media print is paper as a whole.
   const flat = css.replace(/@media print\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
-  const PAPER = /\.inv-(as-|print-invoice|pi-|qc-|cn-|sr-|rpt-|qt-|ps-|soa-|qr|idc|ck-)/;
+  const PAPER = /\.inv-(as-|print-invoice|pi-|qc-|cn-|sr-|rpt-|pcp-|qt-|ps-|soa-|qr|idc|ck-)/;
   const WHITE = /#fff\b|#ffffff\b|(?<![-\w])white(?![-\w])|rgba?\(\s*255[\s,]+255[\s,]+255/i;
   const bad: string[] = [];
   for (const m of flat.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {

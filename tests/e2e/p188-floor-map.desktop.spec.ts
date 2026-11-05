@@ -76,8 +76,10 @@ test.describe('P188: Floor’s map on the desktop', () => {
     await tabs(page, 'pagePower').filter({ hasText: 'Load & bills' }).click();
     await expect(page.locator('#powerContent [data-power-toolbar="load"] .inv-btn')).toHaveText(['Edit load']);
     await tabs(page, 'pagePower').filter({ hasText: 'Case' }).click();
-    await expect(page.locator('#powerContent [data-power-toolbar="case"] .inv-btn')).toHaveText(['Print the case', 'Options’ figures']);
-    const zoom = await page.locator('#powerCaseSheet').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--pp-zoom')));
+    // The picture first (U6): the toolbar keeps Options' figures, the prints are the action bar's.
+    await expect(page.locator('#powerContent [data-power-toolbar="case"] .inv-btn')).toHaveText(['Options’ figures']);
+    await expect(page.locator('#powerContent .inv-actionbar .inv-btn')).toHaveText(['Print the full case', 'Print the picture']);
+    const zoom = await page.locator('#powerPictureSheet').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--pp-zoom')));
     expect(zoom).toBe(1);
   });
 

@@ -315,6 +315,8 @@ test.describe('P185: Today on the phone', () => {
   test('the report on the page fits the phone’s width; the paper itself is unchanged', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageReports');
+    // The report is under its picture (U6): opened, it is fitted as the picture is.
+    await page.locator('[data-action="invRptFull"]').click();
     const fit = await page.evaluate(() => {
       const sheet = document.getElementById('rptSheet')!, doc = sheet.querySelector('.inv-rpt-doc') as HTMLElement;
       return { zoom: parseFloat(getComputedStyle(doc).zoom || '1'), docRight: doc.getBoundingClientRect().right, vw: document.documentElement.clientWidth,

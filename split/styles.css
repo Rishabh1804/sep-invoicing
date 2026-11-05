@@ -1411,6 +1411,94 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   .inv-rpt-scroll { overflow: visible; }
 }
 
+/* The picture page (UI pass 3 §13, U6): the power case and a report as one A4 page, a picture first, the text after it as our copy.
+   Paper, as every printed document: its own pt and mm tokens, white, the palette and the theme read nowhere. The charts inside it are
+   the screens' builders (charts.js, opts.paper), and this root gives them the series' printed colours and type in pt: the interface's
+   tokens are redeclared here, once, so a chart on paper reads the same on every palette, in dark as in light. */
+.inv-pcp-doc {
+  color-scheme: light;
+  --ff-base: 'Inter', sans-serif;
+  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+  --pcp-ink: #000;
+  --pcp-paper: #fff;
+  --pcp-rule: #000;
+  --pcp-band: #ececec;
+  --pcp-muted: #555;
+  --pcp-rec: #1d6b3a;
+  --pcp-fs: 9pt;
+  --pcp-fs-sm: 8pt;
+  --pcp-fs-xs: 7pt;
+  --pcp-fs-h: 10pt;
+  --pcp-fs-co: 10pt;
+  --pcp-fs-tile: 13pt;
+  --pcp-fs-title: 15pt;
+  --pcp-rule-w: 0.5pt;
+  --pcp-sheet-w: 210mm;
+  --pcp-sheet-h: 297mm;
+  --pcp-gutter-side: 12mm;
+  --pcp-gutter-top: 10mm;
+  --pcp-gutter-bottom: 8mm;
+  --pcp-tile-min: 40mm;
+  --pcp-card-min: 52mm;
+  --pcp-bar-h: 4mm;
+  --pcp-r: 1mm;
+  /* The interface's tokens the chart builders read, in the printed colours. */
+  --text-1: #000; --text-2: #333; --text-3: #555; --surface: #fff; --border: #000; --well: #ececec;
+  --series-1: #2e75b6; --series-2: #c0622b; --series-3: #1f8a6a; --series-4: #a87c00; --series-5: #c2508a; --series-6: #6b55c9; --series-other: #9aa4ae;
+  --ok-mark: #2f8a50; --warning-mark: #c08a2a; --danger-mark: #c4382b; --info-mark: #3f6e9a;
+  --ff-num: var(--ff-mono); --plot-fs-axis: 9pt; --plot-fs-centre: 11pt; --fs-11: 7pt; --fs-12: 7.5pt; --fs-13: 8pt; --swatch: 2.5mm; --hair: 0.3pt; --rule: 1pt;
+
+  background: var(--pcp-paper); color: var(--pcp-ink);
+  font-family: var(--ff-base); font-size: var(--pcp-fs); line-height: 1.35;
+  font-variant-numeric: slashed-zero tabular-nums lining-nums;
+  width: 100%; max-width: var(--pcp-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--pcp-gutter-top) var(--pcp-gutter-side) var(--pcp-gutter-bottom);
+  border: var(--hair) solid var(--border);
+  break-after: page; page-break-after: always;
+}
+.inv-rpt-sheet > .inv-pcp-doc { width: var(--pcp-sheet-w); max-width: none; zoom: var(--pp-zoom, 1); }
+.inv-print-body .inv-pcp-doc { width: var(--pcp-sheet-w); max-width: none; }
+.inv-pcp-co { font-weight: 700; font-size: var(--pcp-fs-co); }
+.inv-pcp-title { font-size: var(--pcp-fs-title); font-weight: 700; line-height: 1.25; margin: var(--sp-2) 0; }
+.inv-pcp-meta { font-size: var(--pcp-fs-sm); color: var(--pcp-muted); padding-bottom: var(--sp-6); border-bottom: var(--pcp-rule-w) solid var(--pcp-rule); }
+.inv-pcp-none { margin: var(--sp-8) 0; color: var(--pcp-muted); font-style: italic; }
+.inv-pcp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--pcp-tile-min), 1fr)); gap: var(--sp-6); margin-top: var(--sp-8); }
+.inv-pcp-tile { min-width: 0; padding: var(--sp-6); border: var(--pcp-rule-w) solid var(--pcp-rule); border-radius: var(--pcp-r); break-inside: avoid; }
+.inv-pcp-tile-l { font-size: var(--pcp-fs-xs); font-weight: 600; color: var(--pcp-muted); }
+.inv-pcp-tile-v { font-size: var(--pcp-fs-tile); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; font-family: var(--ff-mono); }
+.inv-pcp-tile-s { font-size: var(--pcp-fs-xs); color: var(--pcp-muted); margin-top: var(--sp-2); }
+.inv-pcp-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
+.inv-pcp-sec { margin-top: var(--sp-10); break-inside: avoid; page-break-inside: avoid; min-width: 0; }
+.inv-pcp-h { font-size: var(--pcp-fs-h); font-weight: 700; margin-bottom: var(--sp-4); border-bottom: var(--pcp-rule-w) solid var(--pcp-rule); }
+.inv-pcp-note { font-size: var(--pcp-fs-xs); color: var(--pcp-muted); margin-top: var(--sp-2); }
+.inv-pcp-amounts { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12); font-size: var(--pcp-fs-sm); margin-top: var(--sp-4); }
+.inv-pcp-amounts b { font-family: var(--ff-mono); }
+.inv-pcp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--pcp-card-min), 1fr)); gap: var(--sp-6); }
+.inv-pcp-card { padding: var(--sp-6); border: var(--pcp-rule-w) solid var(--pcp-rule); border-radius: var(--pcp-r); break-inside: avoid; }
+.inv-pcp-card-rec { border-width: calc(var(--pcp-rule-w) * 4); border-color: var(--pcp-rec); }
+.inv-pcp-badge { display: inline-block; font-size: var(--pcp-fs-xs); font-weight: 700; color: var(--pcp-paper); background: var(--pcp-rec); padding: 0 var(--sp-4); border-radius: var(--pcp-r); margin-bottom: var(--sp-2); }
+.inv-pcp-card-t { font-weight: 700; margin-bottom: var(--sp-2); }
+.inv-pcp-row { display: flex; justify-content: space-between; gap: var(--sp-6); font-size: var(--pcp-fs-sm); }
+.inv-pcp-row b { font-family: var(--ff-mono); }
+.inv-pcp-list { margin: var(--sp-2) 0 0 var(--sp-16); }
+.inv-pcp-list li { margin: var(--sp-2) 0; }
+/* A judged figure on the picture, in the paper's own colours (the report's): the interface's tones switch with the theme. */
+.inv-pcp-ok { color: #1d6b3a; }
+.inv-pcp-warning { color: #8a5a00; }
+.inv-pcp-danger { color: #b02a1f; }
+.inv-pcp-info { color: #1d4f8a; }
+.inv-pcp-foot { margin-top: var(--sp-8); padding-top: var(--sp-4); border-top: var(--pcp-rule-w) solid var(--pcp-rule); font-size: var(--pcp-fs-xs); color: var(--pcp-muted); }
+/* A chart on paper: the drawing at the page's own size, no readout, no Table; a bar's figure over it. */
+.inv-chart-paper { min-width: 0; }
+.inv-pcp-doc .inv-chart-svg { width: 100%; height: auto; max-height: none; }
+.inv-pcp-doc .inv-sharebar { height: var(--pcp-bar-h); box-shadow: none; background: var(--pcp-band); border-radius: var(--pcp-r); }
+.inv-chart-val { font-size: var(--plot-fs-axis); fill: var(--text-2); font-family: var(--ff-num); }
+/* The toggle under a picture, on the screen: the full text, our copy. */
+.inv-paper-more { display: flex; justify-content: center; margin: 0 0 var(--sp-16); }
+@media print {
+  .inv-print-body .inv-pcp-doc { border: none; margin: 0; width: auto; max-width: none; height: var(--pcp-sheet-h); overflow: hidden; }
+}
+
 /* ===== THE BAR'S RED COUNTS (a workspace's red rows) =====
    On the mark's top corner, as on the phone's bar and the desktop's rail, ringed in their surface. */
 .inv-navbar-count {
@@ -1977,6 +2065,8 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
    takes the row, and the buttons wrap under it, still at the right. */
 .inv-actionbar-total { flex: 1 1 0; min-width: min-content; }
 .inv-actionbar-total + * { margin-left: auto; }
+/* A picture's two prints stand at the row's end (U6), the one primary last. */
+.inv-actionbar[data-paper-prints] { justify-content: flex-end; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
 .inv-actionbar-value { font-family: var(--ff-num); font-size: var(--fs-18); font-weight: 600; white-space: nowrap; }
 /* A tick box and its words on one line, the whole line its touch target (a To-do rule, auto backup). */

@@ -328,8 +328,10 @@ test.describe('P194: TM6c–TM6f', () => {
       return n;
     });
     expect(rows).toBeLessThanOrEqual(2);
-    await expect(page.locator('#reportsContent .inv-actionbar [data-action="invRptPrint"].inv-btn-primary')).toBeVisible();
-    await expect(page.locator('#reportsContent .inv-toolbar [data-action="invRptPrint"]')).toHaveCount(0);
+    // The prints are the action bar's (U6: the picture the one primary, the picture with the report beside it), never the toolbar's.
+    await expect(page.locator('#reportsContent .inv-actionbar [data-action="invRptPrintPicture"].inv-btn-primary')).toBeVisible();
+    await expect(page.locator('#reportsContent .inv-actionbar [data-action="invRptPrint"]')).toBeVisible();
+    await expect(page.locator('#reportsContent .inv-toolbar [data-action="invRptPrint"], #reportsContent .inv-toolbar [data-action="invRptPrintPicture"]')).toHaveCount(0);
     await switchTab(page, 'pageIM');
     await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
     await expect(page.locator('#imVerdict [data-im-invoiced] .inv-hero-title')).toHaveText(/^\d+ challans? invoiced in [A-Z][a-z]{2} \d{4} · ₹/);

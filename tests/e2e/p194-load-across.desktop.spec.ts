@@ -93,7 +93,8 @@ test.describe('P194 (desktop): across the app', () => {
   test('TM6f: Reports’ Print is its action bar’s, under the sheet; its toolbar keeps the kind and the period', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageReports');
-    await expect(page.locator('#reportsContent .inv-actionbar [data-action="invRptPrint"].inv-btn-primary')).toBeVisible();
+    await expect(page.locator('#reportsContent .inv-actionbar [data-action="invRptPrintPicture"].inv-btn-primary')).toBeVisible();
+    await expect(page.locator('#reportsContent .inv-actionbar [data-action="invRptPrint"]')).toBeVisible();
     await expect(page.locator('#reportsContent .inv-toolbar .inv-btn-primary')).toHaveCount(0);
     await expect(page.locator('#reportsContent .inv-toolbar [data-action="invRptKind"]')).toHaveCount(5);
   });

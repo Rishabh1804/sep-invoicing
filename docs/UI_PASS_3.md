@@ -46,7 +46,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Built, 4 Nov 2026 (P229): the Dashboard and the Tables, one verdict, the seven widgets, the redirects; §26a's preset as built (§26h) |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Built 4 Nov 2026 (§26i) |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Built 5 Nov 2026 (P231; §26j) |
-| U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Not built |
+| U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Built 5 Nov 2026 (P232; §26k) |
 | U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Not built |
 | U8 | Sign-in and the 4-digit PIN; the app's icon, splash and favicon from the new mark (§15) | Not built |
 | U9 | Docs, the full suite, every screen measured, the draft PR made ready; then the QA chain on the owner's word | Not built |
@@ -2560,4 +2560,35 @@ Where the build departs from §12 and §26c, and why:
   - **Roster**: a hand to watch is the To-do's red on the card, the verdict and its tile alike (L-8); a search's jump to a worker clears
     the roster's filters and reveals the card, the *Left* fold opened (L-6). The Week verdict's payout tile says *as Pay counts it* (it
     said the weekly tiers and the EXTRA, before the snacks and the cash paid out were in it).
+
+### 26k. U6 as built (5 Nov 2026)
+
+Where the build departs from §13 and §26d, and why:
+- **The picture page is one family, `inv-pcp-*`**, for the power case and a report alike: its own paper tokens (pt and mm, white, the
+  palette and the theme read nowhere: `color-scheme: light`, and the interface's tokens the chart builders read, `--series-*`,
+  `--*-mark`, `--text-*`, `--plot-fs-*`, redeclared once in the printed colours). One A4 page under print media; it breaks after
+  itself, so the text printed with it starts on a page of its own.
+- **Charts on paper are the screens' builders** with `opts.paper` (charts.js): the drawing alone, no readout line and no *Table* (paper
+  has no tap), each bar its figure over it (`inv-chart-val`), a bar known to read low hatched (`d.hatch`, its reason in its `<title>`).
+  A chart with nothing to draw says so in words on the report's picture, never an empty frame read as a zero.
+- **The power case's picture** (`powerCasePictureHtml`, power.js): four tiles (cuts in the last 12 months, hours dark in working hours
+  over them, a year as the complete months' range with the last 90 days' rate beside it, the soonest payback); cuts by month (the last
+  12, a month holding a run of likely-unreported days hatched) and when they start (by the hour, 6 AM to 10 PM, the night's few said)
+  side by side; the damage on record as one bar of 100% in its four parts, each with its rupees; the three options as cards, the TSUISL
+  switch marked *Recommended* (the full case's section 8); the first three open items. Money on the picture is whole rupees (`finRs`);
+  the full case keeps its paise. Every figure is `powerAnalysis`'s own.
+- **A report's picture** (`rptPictureHtml`, report.js): Revenue (net of credit notes, its change on the period before), Tonnes billed,
+  Realisation against the live cost (in the one judge's tone, on paper's own colours), Cash in and out (the bank statement); two charts,
+  a day's by line (plated kg, rounds), a week's by day, a month's by pay week, a quarter's or a year's by month (invoiced, plated on
+  complete days), the period's parts read by `rptSubs` (the table's own, pulled out of `rptBreakdownHtml`); and *To look at now*, the
+  first three red and amber tasks while the period runs (the report's Open items), else *To look at*, its worst figures: realisation
+  under the cost, revenue down a tenth on the period before, attendance under 90%, the power cuts.
+- **On the screens**: the picture leads (`#powerPictureSheet`, `#rptPictureSheet`, fitted by `paperFit`), then **Read the full case** /
+  **Read the full report** (`invPowerCaseFull`, `invRptFull`, `aria-expanded`), the full text drawn with the page and hidden until
+  opened, so it is there the moment it is asked for and every reading of it stands. The action bar holds the two prints, the picture the
+  one primary (`invPowerPrintPicture`, `invRptPrintPicture`) and the picture with the text beside it (`invPowerPrint`, `invRptPrint`);
+  the case's toolbar keeps *Options' figures*. A report's picture keeps `rptPrint`'s queue rule: the period still running is the owner's
+  to open from the queue (`printNeed`'s `owner`), its picture listing the sender's own tasks too.
+- **Measured** (P195's long book, the phone): Power → Case 2.16 → 1.08 screens, Reports 2.64 → 1.07; both budgets lowered to 1.5.
+- **A data flow**: none. The book does not change.
 

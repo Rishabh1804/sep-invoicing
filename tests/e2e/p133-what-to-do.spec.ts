@@ -186,7 +186,9 @@ test.describe('P133: what to do', () => {
     await go(`{ kind: 'reorder' }`);
     await expect(page.locator('#stockContent .inv-pagehead-title')).toHaveText('Reorder list');
     await go(`{ kind: 'powerCase' }`);
-    await expect(page.locator('#pagePower.inv-page-active [data-power-case]')).toBeVisible();
+    // The case leads with its picture (U6); the full case is under it, opened on asking.
+    await expect(page.locator('#pagePower.inv-page-active [data-power-picture]')).toBeVisible();
+    await expect(page.locator('#pagePower.inv-page-active [data-power-case]')).toBeAttached();
     await go(`{ kind: 'areas' }`);
     await expect(page.locator('#pageStaff.inv-page-active [data-action="invAttView"][data-view="areas"]')).toHaveAttribute('aria-selected', 'true');
     await go(`{ kind: 'payWeek' }`);

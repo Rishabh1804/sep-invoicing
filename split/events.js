@@ -84,6 +84,8 @@ function onDocClick(e) {
   switch(action) {
     // A workspace tab naming one of a page's own views (Today's) carries data-v (workspace.js).
     case 'invSwitchTab': wsSwitchTab(btn.dataset.tab, btn.dataset.v); break;
+    // A guided flow's step opens its guide at the section it names (state.js uiFlowGuideGo).
+    case 'invFlowGuide': uiFlowGuideGo(btn.dataset.id, btn.dataset.sec); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
@@ -1125,6 +1127,8 @@ document.addEventListener('keydown', function(e) {
     return;
   }
   if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
+    // In a guided flow, Enter in a field that finishes its step goes on to the step Next (state.js uiFlowEnter).
+    if (uiFlowEnter(e)) return;
     e.preventDefault();
     var container = e.target.closest('[data-form], .inv-page-active, .inv-dialog');
     if (!container) container = document.body;
@@ -1158,3 +1162,10 @@ document.addEventListener('focusout', function(e) {
   }, 200);
 });
 
+
+/* The guided flows (state.js, UI pass 3 §11a) kept in step with what is typed: after every input, change and click has been
+   handled (these listeners are the last registered), the steps' state, the progress and the preview are worked out again. Enter
+   in a field of a step it finishes goes on to the first field of the step Next (the Enter chain above). */
+['input', 'change', 'click'].forEach(function(t) {
+  document.addEventListener(t, function() { if (document.querySelector('[data-flow]')) uiFlowSync(); });
+});

@@ -952,6 +952,202 @@ function uiBlankHtml(o) {
     (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : '') + '</div>' +
     (o.action ? '<div class="inv-blank-act">' + o.action + '</div>' : '') + '</div>';
 }
+/* ===== A GUIDED FLOW (docs/UI_PASS_3.md §11a, §26b; design §6.37) =====
+   The owner, 15 Oct 2026: "The Enter by hand screen is primitive in design, and doesn't engage or leads the user, increases the
+   learning curve." Every form a person fills by hand is cut into numbered steps that lead without hiding: each step its number in
+   a node, its title a question, its fields, a line of help and a book to its guide; done when its required fields hold a value (the
+   node ticks and the head says what it holds); the first step not done is Next. Every step stays open and fillable in any order.
+   Over the steps a progress line; beside them (the desktop) or under them (the phone) the preview, *What Save records*, saying in
+   words and figures what Save writes and the checks the app makes. Save stays in the action bar; after it a receipt.
+
+   A flow is a model its form works out from its own state (`uiFlowDefine(name, fn)`; fn returns {steps, preview}), drawn once by
+   `uiFlowHtml(name, model, o)` and kept in step as it is typed by `uiFlowSync()` (events.js, after every input, change and click),
+   which touches the steps' state, their heads and the preview, never a field. A step: {key, title, help, guide: [articleId,
+   section title], body (HTML), done, says (text: what it holds once done), optional}; `live: true` on the model for a form that saves
+   each change as it is made (the progress then says so, never *Ready to save*). The preview: {lines: [HTML], checks: [{tone,
+   text}], empty (text, while nothing is filled)}. Nothing a test or the keyboard reads changes: the forms' own ids, data-action and
+   data-change stay on their fields. */
+var UI_FLOWS = {};
+function uiFlowDefine(name, fn) { UI_FLOWS[name] = fn; }
+function uiFlowNext(steps) {
+  for (var i = 0; i < steps.length; i++) if (!steps[i].done && !steps[i].optional) return i;
+  return -1;
+}
+function uiFlowState(s, i, next) { return s.done ? 'done' : i === next ? 'next' : s.optional ? 'opt' : 'todo'; }
+function uiFlowCount(steps) {
+  var req = steps.filter(function(s) { return !s.optional; });
+  return { done: req.filter(function(s) { return s.done; }).length, of: req.length };
+}
+function uiFlowProgressInner(steps, live) {
+  var c = uiFlowCount(steps), segs = '';
+  steps.forEach(function(s) { if (!s.optional) segs += '<span class="inv-flow-seg"' + (s.done ? ' data-done=""' : '') + '></span>'; });
+  return '<span class="inv-flow-count">' + (c.done === c.of ? (live ? 'All filled · saved as you go' : 'Ready to save') : '<b class="inv-num">' + c.done + '</b> of ' + c.of + ' done') + '</span>' +
+    '<span class="inv-flow-meter" role="meter" aria-label="Steps done" aria-valuemin="0" aria-valuemax="' + c.of + '" aria-valuenow="' + c.done + '">' + segs + '</span>';
+}
+function uiFlowPreviewInner(p) {
+  p = p || {};
+  var lines = (p.lines || []).filter(Boolean), checks = (p.checks || []).filter(Boolean);
+  var h = '<div class="inv-flow-pv-head">' + (typeof iconSvg === 'function' ? iconSvg('clipboardCheck') : '') + '<span>' + escHtml(p.title || 'What Save records') + '</span></div>';
+  if (!lines.length) h += '<p class="inv-flow-pv-empty">' + escHtml(p.empty || 'Fill in the steps and this says what will be saved.') + '</p>';
+  else h += '<div class="inv-flow-pv-lines">' + lines.map(function(l) { return '<p class="inv-flow-pv-line">' + l + '</p>'; }).join('') + '</div>';
+  if (checks.length) {
+    h += '<div class="inv-flow-pv-checks">' + checks.map(function(c) {
+      var tone = ['ok', 'warning', 'danger', 'info', 'neutral'].indexOf(c.tone) >= 0 ? c.tone : 'warning';
+      return '<div class="inv-flow-pv-check" data-tone="' + tone + '"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(c.text) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  return h;
+}
+function uiFlowGuideBtn(g) {
+  if (!g || !g[0] || typeof kbFind !== 'function') return '';
+  var a = kbFind(g[0]);
+  if (!a || (typeof kbCanRead === 'function' && !kbCanRead(a))) return '';
+  return '<button type="button" class="inv-flow-guide" data-action="invFlowGuide" data-id="' + escHtml(g[0]) + '" data-sec="' + escHtml(g[1] || '') + '"' +
+    ' aria-label="The guide: ' + escHtml(a.title + (g[1] ? ', ' + g[1] : '')) + '" title="The guide: ' + escHtml(g[1] || a.title) + '">' + iconSvg('book') + '</button>';
+}
+function uiFlowStepHtml(s, i, next) {
+  var st = uiFlowState(s, i, next);
+  return '<li class="inv-flow-step" data-flow-step="' + escHtml(s.key) + '" data-state="' + st + '">' +
+    '<div class="inv-flow-head"><span class="inv-flow-node" aria-hidden="true"><span class="inv-flow-num">' + (i + 1) + '</span>' + iconSvg('check') + '</span>' +
+    '<span class="inv-flow-q"><span class="inv-flow-title">' + escHtml(s.title) + '</span>' +
+    '<span class="inv-flow-says" data-flow-says>' + escHtml(s.done ? s.says || '' : '') + '</span></span>' +
+    '<span class="inv-flow-tag" data-flow-tag>' + (st === 'next' ? 'Next' : st === 'opt' ? 'If needed' : '') + '</span>' + uiFlowGuideBtn(s.guide) + '</div>' +
+    (s.help ? '<p class="inv-flow-help">' + escHtml(s.help) + '</p>' : '') +
+    '<div class="inv-flow-body">' + (s.body || '') + '</div></li>';
+}
+/* o: before (HTML over the steps: a back bar, a notice), after (HTML under the preview: the day's list), receipt (HTML: the
+   last save's card, uiFlowReceiptHtml), cls (more classes on the flow). */
+function uiFlowHtml(name, m, o) {
+  o = o || {};
+  var steps = m.steps || [], next = uiFlowNext(steps);
+  return '<div class="inv-flow' + (o.cls ? ' ' + o.cls : '') + '" data-flow="' + escHtml(name) + '">' + (o.before || '') +
+    (o.receipt || '') +
+    '<div class="inv-flow-progress" data-flow-progress>' + uiFlowProgressInner(steps, m.live) + '</div>' +
+    '<div class="inv-flow-main"><ol class="inv-flow-steps">' + steps.map(function(s, i) { return uiFlowStepHtml(s, i, next); }).join('') + '</ol>' +
+    '<aside class="inv-flow-preview" data-flow-preview>' + uiFlowPreviewInner(m.preview) + '</aside></div>' +
+    // What a screen reader hears (Cipher L-3, U4's Edict V): not the preview, which changed with every key and was read again each
+    // time, but one line saying how the form stands, once typing pauses and only when it has changed (uiFlowAnnounce).
+    '<p class="inv-visually-hidden" role="status" data-flow-say data-said="' + escHtml(uiFlowSay(m)) + '"></p>' +
+    (o.after || '') + '</div>';
+}
+/* The flows on screen kept in step with what is typed: the steps' state and heads, the progress and the preview. A field is never
+   replaced, so the cursor and the keyboard stay where they are. */
+function uiFlowSync(root) {
+  var r = root || document, els = r.querySelectorAll ? Array.prototype.slice.call(r.querySelectorAll('[data-flow]')) : [];
+  if (r.matches && r.matches('[data-flow]')) els.unshift(r);
+  for (var k = 0; k < els.length; k++) {
+    var el = els[k], fn = UI_FLOWS[el.getAttribute('data-flow')], m = null;
+    if (!fn) continue;
+    try { m = fn(); } catch (e) { m = null; }
+    if (!m || !m.steps) continue;
+    var next = uiFlowNext(m.steps);
+    m.steps.forEach(function(s, i) {
+      var li = el.querySelector('[data-flow-step="' + (window.CSS && CSS.escape ? CSS.escape(s.key) : s.key) + '"]');
+      if (!li) return;
+      var st = uiFlowState(s, i, next);
+      if (li.getAttribute('data-state') !== st) li.setAttribute('data-state', st);
+      var says = li.querySelector('[data-flow-says]'), tag = li.querySelector('[data-flow-tag]');
+      var sv = s.done ? s.says || '' : '', tv = st === 'next' ? 'Next' : st === 'opt' ? 'If needed' : '';
+      if (says && says.textContent !== sv) says.textContent = sv;
+      if (tag && tag.textContent !== tv) tag.textContent = tv;
+    });
+    var pr = el.querySelector('[data-flow-progress]'), ph = uiFlowProgressInner(m.steps, m.live);
+    if (pr && pr.innerHTML !== ph) pr.innerHTML = ph;
+    var pv = el.querySelector('[data-flow-preview]'), vh = uiFlowPreviewInner(m.preview);
+    if (pv && pv._flowHtml !== vh) { pv.innerHTML = vh; pv._flowHtml = vh; }
+    uiFlowAnnounce(el, m);
+  }
+}
+/* How the form stands, in one line for a screen reader: the steps done (or ready), and what the checks ask: the first that stops
+   Save in its own words, else how many to look at. */
+function uiFlowSay(m) {
+  var c = uiFlowCount(m.steps || []), checks = ((m.preview && m.preview.checks) || []).filter(Boolean);
+  var say = c.done === c.of ? (m.live ? 'All filled.' : 'Ready to save.') : c.done + ' of ' + c.of + ' steps done.';
+  var stop = checks.filter(function(x) { return x.tone === 'danger'; })[0], look = checks.filter(function(x) { return x.tone === 'warning'; }).length;
+  if (stop) say += ' ' + stop.text;
+  else if (look) say += ' ' + (look === 1 ? '1 check' : look + ' checks') + ' to look at in the preview.';
+  return say;
+}
+/* Said once typing pauses (UI_FLOW_SAY_MS) and only when the line differs from the last said: uiFlowSync runs on every key, and a
+   live region written on every key is read out on every key. The first line (as drawn) is never said: the form opening says it. */
+var UI_FLOW_SAY_MS = 1200;
+function uiFlowAnnounce(el, m) {
+  var p = el.querySelector('[data-flow-say]');
+  if (!p) return;
+  var say = uiFlowSay(m);
+  clearTimeout(p._sayTimer);
+  if (p.getAttribute('data-said') === say) return;
+  p._sayTimer = setTimeout(function() {
+    if (!p.isConnected || p.getAttribute('data-said') === say) return;
+    p.setAttribute('data-said', say);
+    p.textContent = say;
+  }, UI_FLOW_SAY_MS);
+}
+/* The first field of the step Next: focused when a form opens (never on a touch screen, which would raise the keyboard over it),
+   and when Enter finishes the step before it. */
+function uiFlowFirstField(li) {
+  return li ? li.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])') : null;
+}
+function uiFlowFocusNext(root) {
+  if (touchScreen()) return;
+  var flow = (root || document).querySelector ? (root || document).querySelector('[data-flow]') : null;
+  var li = flow ? flow.querySelector('[data-flow-step][data-state="next"]') : null;
+  var f = uiFlowFirstField(li);
+  if (f) focusSoon(f);
+}
+/* Called by the Enter chain (events.js) before it moves to the next field in the page's order: true when it moved instead. */
+function uiFlowEnter(e) {
+  if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing) return false;
+  var t = e.target;
+  if (!t || t.tagName !== 'INPUT' || /^(button|submit|checkbox|radio)$/.test(t.type)) return false;
+  var li = t.closest && t.closest('[data-flow-step]'), flow = li && li.closest('[data-flow]');
+  if (!flow || flow.hasAttribute('data-flow-ownkeys')) return false;
+  uiFlowSync(flow);
+  if (li.getAttribute('data-state') !== 'done') return false;
+  // Only the field that finishes its step goes on: the step's last field (Cipher M-1, U4's Edict V). From any other field the Enter
+  // chain moves to the next field as it always did, so a delivery's price after its quantity is never skipped.
+  var fields = li.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+  if (!fields.length || fields[fields.length - 1] !== t) return false;
+  var nx = flow.querySelector('[data-flow-step][data-state="next"]'), f = uiFlowFirstField(nx);
+  if (!f || f === t) return false;
+  e.preventDefault();
+  f.focus();
+  if (f.select && (f.type === 'number' || f.type === 'text')) f.select();
+  return true;
+}
+/* A kind is a row of tiles (§11a): each its icon, its word and a line, pressed when chosen. `kinds`: [{value, icon, word, line}];
+   `o`: action (data-action), attr (the data attribute naming the value, 'mode' by default), cur, label (the group's name), more
+   (more attributes on each tile). */
+function uiKindTilesHtml(kinds, o) {
+  o = o || {};
+  var attr = o.attr || 'mode';
+  return '<div class="inv-kinds" role="group" aria-label="' + escHtml(o.label || 'What is entered') + '">' + kinds.map(function(k) {
+    return '<button type="button" class="inv-kind" data-action="' + escHtml(o.action) + '" data-' + attr + '="' + escHtml(k.value) + '"' + (o.more || '') +
+      ' aria-pressed="' + (String(o.cur) === String(k.value)) + '"><span class="inv-kind-ico">' + iconSvg(k.icon || 'note') + '</span>' +
+      '<span class="inv-kind-text"><span class="inv-kind-word">' + escHtml(k.word) + '</span>' + (k.line ? '<span class="inv-kind-line">' + escHtml(k.line) + '</span>' : '') + '</span></button>';
+  }).join('') + '</div>';
+}
+/* The receipt after a save: what was recorded, in words, and the form's own actions (Correct, Void) where it has them. */
+function uiFlowReceiptHtml(o) {
+  if (!o) return '';
+  return '<div class="inv-flow-receipt" data-flow-receipt role="status"><span class="inv-flow-receipt-ico">' + iconSvg('done') + '</span>' +
+    '<div class="inv-flow-receipt-text"><p class="inv-flow-receipt-title">' + escHtml(o.title || 'Saved') + '</p>' +
+    (o.lines || []).filter(Boolean).map(function(l) { return '<p class="inv-flow-receipt-line">' + l + '</p>'; }).join('') + '</div>' +
+    (o.actions ? '<div class="inv-flow-receipt-acts">' + o.actions + '</div>' : '') + '</div>';
+}
+/* A step's book: the guide opened at the section it names (the Reader at that section, kbread.js). */
+function uiFlowGuideGo(id, sec) {
+  var a = typeof kbFind === 'function' ? kbFind(id) : null;
+  if (!a) return;
+  var i = 0;
+  if (sec && typeof kbParse === 'function') {
+    var want = String(sec).toLowerCase();
+    (kbParse(a.body).sections || []).some(function(s, k) { if (s.title && s.title.toLowerCase().indexOf(want) >= 0) { i = k; return true; } return false; });
+  }
+  if (dialogsTypedAsk(function() { uiFlowGuideGo(id, sec); })) return;
+  var loc = { tab: 'pageKnow', v: kbTabFor(a.kind), id: a.id };
+  kbGo(loc, function() { _kbMode = 'read'; _kbSec = i; loc.v = kbTabFor(a.kind) + kbModeV(a); });
+}
 /* ===== ONE LOOK'S PIECES (docs/TAB_MAP.md §3e; design §6.28, §6.6, §6.7) =====
    The owner, 9 Oct 2026: "UI still feels inconsistent to me". The components were alike everywhere; how each screen was put
    together was not: of 60 phone screens, 34 led with no summary and the rest five different ways. These are the pieces every

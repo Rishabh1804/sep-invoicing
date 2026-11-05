@@ -171,6 +171,67 @@ function shiftBackToBack(iso) {
 }
 
 /* ===== Settings → Labour → Shifts by line ===== */
+/* A schedule as a guided flow (UI pass 3 §26b): Which line, from when · The night's times and its break · The crew and the spare ·
+   (the barrel) its running hours and windows · Sundays and a note. A line works one or the other: the barrel's running hours, or a
+   VAT line's night. The preview is the night as each day will read it (shiftNightOf, the reading lineNightOn makes of a schedule in
+   force), its plating time less the break; the barrel's running day and its windows with no crew. */
+function _shiftRowVals(i, x) {
+  var has = !!document.getElementById('setShLine' + i);
+  var v = function(id, d) { if (!has) return d == null ? '' : String(d); var el = document.getElementById(id + i); return el ? String(el.value || '').trim() : ''; };
+  x = x || {};
+  var crew = x.crew || {}, sun = document.getElementById('setShSun' + i);
+  return { line: v('setShLine', x.line), from: v('setShFrom', x.from), to: v('setShTo', x.to), start: v('setShStart', x.start), end: v('setShEnd', x.end), stop: v('setShStop', x.stop),
+    breakMin: v('setShBreak', x.breakMin), crewL: v('setShCrewL', x.line ? crew[x.line] : null), crewP: v('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel']),
+    spare: v('setShSpare', x.spare), runFrom: v('setShRunFrom', x.runFrom), runTo: v('setShRunTo', x.runTo), exOne: v('setShExOne', x.extraOne), exFew: v('setShExFew', x.extraFew),
+    exMany: v('setShExMany', x.extraMany), sunday: has ? !!(sun && sun.checked) : !!x.sunday, note: v('setShNote', x.note) };
+}
+function _shiftRowModel(i, x) {
+  var t = _shiftRowVals(i, x), barrel = t.line === 'barrel', vat = !!t.line && !barrel;
+  var hm = function(m) { return relayClockLabel(((m % 1440) + 1440) % 1440); };
+  var lines = [], checks = [];
+  var head = !!t.line && /^\d{4}-\d{2}-\d{2}$/.test(t.from);
+  if (t.to && t.from && t.to < t.from) checks.push({ tone: 'danger', text: 'Its last day is before its first.' });
+  if (head) lines.push(escHtml(shiftLineName(t.line)) + ' from ' + escHtml(formatDate(t.from)) + (t.to ? ' to ' + escHtml(formatDate(t.to)) : ', open') + (t.sunday ? ', Sundays too' : ', not on Sundays'));
+  var crewN = function(s) { var n = Number(s); return s === '' || !isFinite(n) ? 0 : Math.max(0, Math.round(n)); };
+  var n = vat ? shiftNightOf({ line: t.line, start: t.start, end: t.end, stop: t.stop, breakMin: t.breakMin, crew: (function() { var c = {}; if (crewN(t.crewL)) c[t.line] = crewN(t.crewL); if (crewN(t.crewP)) c['pickling-vat'] = crewN(t.crewP); return c; })(), spare: t.spare }, t.from || localDateStr()) : null;
+  if (n) {
+    lines.push('The night: ' + escHtml(hm(n.start)) + ' to ' + escHtml(hm(n.end)) + ', ' + escHtml(String(Math.floor(n.paidMin / 60))) + ' h as pay counts it' +
+      (n.stop < n.end ? '; plating stops ' + escHtml(hm(n.stop)) : '') + '; plating time ' + escHtml(formatNum(n.plateMin / 60, 1)) + ' h after the ' + n.breakMin + '-minute break');
+    lines.push(n.need ? 'Its crew: ' + n.need + (n.spare ? ' and ' + n.spare + ' spare, who books no shortfall' : '') : 'No crew set: a night short of its crew is not asked.');
+  } else if (vat && (head || t.start || t.end)) checks.push({ tone: 'danger', text: 'Set when the night starts and ends: Save refuses a night line without them.' });
+  var ra = relayParseHhmm(t.runFrom), rb = relayParseHhmm(t.runTo);
+  if (barrel && ra != null && rb != null && rb > ra) {
+    var wins = [];
+    if (ra < RELAY_GENERAL) wins.push(hm(ra) + '–' + hm(RELAY_GENERAL));
+    if (rb > RELAY_GENERAL_OUT) wins.push(hm(RELAY_GENERAL_OUT) + '–' + hm(rb));
+    lines.push('Running ' + escHtml(hm(ra)) + ' to ' + escHtml(hm(rb)) + (wins.length ? '; with no crew ' + escHtml(wins.join(' and ')) : ''));
+    var ex = [t.exOne ? t.exOne + ' h for 1 barrel' : '', t.exFew ? t.exFew + ' h for 2 to 4' : '', t.exMany ? t.exMany + ' h for 5 or 6' : ''].filter(Boolean);
+    lines.push(ex.length ? 'EXTRA a window: ' + escHtml(ex.join(', ')) : 'No EXTRA set for loading in those windows.');
+  } else if (barrel && (head || t.runFrom || t.runTo)) checks.push({ tone: 'danger', text: 'Set the hours it runs: Save refuses the barrel without them.' });
+  // Two schedules for one line from one day: Save refuses them (shiftSettingsSave; Castor L-5).
+  if (head) {
+    for (var j = 0; document.getElementById('setShLine' + j); j++) {
+      if (j === i) continue;
+      var o = _shiftRowVals(j);
+      if (o.line === t.line && o.from === t.from) { checks.push({ tone: 'danger', text: shiftLineName(t.line) + ' has another schedule from ' + formatDate(t.from) + ': Save refuses two.' }); break; }
+    }
+  }
+  var nightDone = vat && !!n, crewDone = vat && crewN(t.crewL) + crewN(t.crewP) > 0, runDone = barrel && ra != null && rb != null && rb > ra;
+  return {
+    steps: [
+      { key: 'line', title: 'Which line, and from when?', help: 'Blank From takes the row off. A later From starts a new schedule.', guide: ['app-day', 'The night shift'], done: head,
+        says: head ? shiftLineName(t.line) + ' from ' + formatDate(t.from) : '', body: '' },
+      { key: 'night', title: 'When does the night run?', help: barrel ? 'A VAT line’s night: the barrel takes its running hours below.' : 'Its start and end, when plating stops, and the break inside it.',
+        optional: !vat, done: nightDone, says: n ? hm(n.start) + '–' + hm(n.end) + ' · break ' + n.breakMin + ' min' : '', body: '' },
+      { key: 'crew', title: 'Who works it?', help: barrel ? 'A VAT line’s night crew.' : 'The line’s hands and the pickling hands it pulls; a spare covers an absence.', optional: !vat, done: crewDone,
+        says: crewDone ? (crewN(t.crewL) + crewN(t.crewP)) + ' on the night' + (crewN(t.spare) ? ' + ' + crewN(t.spare) + ' spare' : '') : '', body: '' },
+      { key: 'run', title: 'When does the barrel run?', help: barrel ? 'Its running hours, and the EXTRA booked for loading in the hours with no crew.' : 'The barrel’s: a VAT line takes its night above.',
+        optional: !barrel, done: runDone, says: runDone ? hm(ra) + '–' + hm(rb) : '', body: '' },
+      { key: 'more', title: 'Sundays, and a note?', optional: true, done: t.sunday || !!t.note, says: [t.sunday ? 'Sundays too' : '', t.note].filter(Boolean).join(' · '), body: '' }
+    ],
+    preview: { title: 'How each day reads it', lines: lines, checks: checks, empty: 'Pick the line and its first day, then its night or its running hours.' }
+  };
+}
 function _shiftRowHtml(x, i) {
   x = x || {};
   var lineSel = '<select class="inv-input" id="setShLine' + i + '"><option value="">—</option>' + SHIFT_LINES.map(function(l) {
@@ -178,20 +239,24 @@ function _shiftRowHtml(x, i) {
   }).join('') + '</select>';
   var t = function(id, v) { return '<input type="time" class="inv-input inv-id" id="' + id + i + '" value="' + escHtml(v || '') + '">'; };
   var n = function(id, v) { return _sNum(id + i, v == null ? '' : v, 1, 0); };
-  var crew = x.crew || {};
-  return '<div class="inv-callout inv-callout-neutral inv-mt-8" data-shift-row="' + i + '"><div class="inv-field-label">' + (x.from ? escHtml(shiftLineName(x.line) + ' from ' + formatDate(x.from)) : 'Add a schedule') + '</div>' +
-    _sRow(_sfg('Line', 'setShLine' + i, lineSel), _sfg('From', 'setShFrom' + i, '<input type="date" class="inv-input inv-id" id="setShFrom' + i + '" value="' + escHtml(x.from || '') + '">', 'blank takes the row off'),
-      _sfg('To (blank: open)', 'setShTo' + i, '<input type="date" class="inv-input inv-id" id="setShTo' + i + '" value="' + escHtml(x.to || '') + '">')) +
-    _sRow(_sfg('Night from', 'setShStart' + i, t('setShStart', x.start)), _sfg('Night to', 'setShEnd' + i, t('setShEnd', x.end)),
-      _sfg('Plating stops', 'setShStop' + i, t('setShStop', x.stop)), _sfg('Break, minutes', 'setShBreak' + i, n('setShBreak', x.breakMin))) +
-    _sRow(_sfg('Crew on the line', 'setShCrewL' + i, n('setShCrewL', x.line ? crew[x.line] : null)), _sfg('Crew on pickling', 'setShCrewP' + i, n('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel'])),
-      _sfg('Spare', 'setShSpare' + i, n('setShSpare', x.spare))) +
-    _sRow(_sfg('Barrel runs from', 'setShRunFrom' + i, t('setShRunFrom', x.runFrom)), _sfg('to', 'setShRunTo' + i, t('setShRunTo', x.runTo)),
+  var crew = x.crew || {}, name = 'shift-' + i, xs = x;
+  uiFlowDefine(name, function() { return _shiftRowModel(i, xs); });
+  var model = _shiftRowModel(i, x), body = {
+    line: _sRow(_sfg('Line', 'setShLine' + i, lineSel), _sfg('From', 'setShFrom' + i, '<input type="date" class="inv-input inv-id" id="setShFrom' + i + '" value="' + escHtml(x.from || '') + '">', 'blank takes the row off'),
+      _sfg('To (blank: open)', 'setShTo' + i, '<input type="date" class="inv-input inv-id" id="setShTo' + i + '" value="' + escHtml(x.to || '') + '">')),
+    night: _sRow(_sfg('Night from', 'setShStart' + i, t('setShStart', x.start)), _sfg('Night to', 'setShEnd' + i, t('setShEnd', x.end)),
+      _sfg('Plating stops', 'setShStop' + i, t('setShStop', x.stop)), _sfg('Break, minutes', 'setShBreak' + i, n('setShBreak', x.breakMin))),
+    crew: _sRow(_sfg('Crew on the line', 'setShCrewL' + i, n('setShCrewL', x.line ? crew[x.line] : null)), _sfg('Crew on pickling', 'setShCrewP' + i, n('setShCrewP', crew['pickling-vat'] != null ? crew['pickling-vat'] : crew['pickling-barrel'])),
+      _sfg('Spare', 'setShSpare' + i, n('setShSpare', x.spare))),
+    run: _sRow(_sfg('Barrel runs from', 'setShRunFrom' + i, t('setShRunFrom', x.runFrom)), _sfg('to', 'setShRunTo' + i, t('setShRunTo', x.runTo)),
       _sfg('EXTRA a window, 1 barrel (h)', 'setShExOne' + i, n('setShExOne', x.extraOne)), _sfg('2 to 4 (h)', 'setShExFew' + i, n('setShExFew', x.extraFew)),
-      _sfg('5 or 6 (h)', 'setShExMany' + i, n('setShExMany', x.extraMany))) +
-    '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="setShSun' + i + '"' + (x.sunday ? ' checked' : '') + '> Runs on Sundays too</label>' +
-    _sfg('Note', 'setShNote' + i, '<input class="inv-input" id="setShNote' + i + '" value="' + escHtml(x.note || '') + '">', 'the material it runs, the rotation') +
-    '</div>';
+      _sfg('5 or 6 (h)', 'setShExMany' + i, n('setShExMany', x.extraMany))),
+    more: '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="setShSun' + i + '"' + (x.sunday ? ' checked' : '') + '> Runs on Sundays too</label>' +
+      _sfg('Note', 'setShNote' + i, '<input class="inv-input" id="setShNote' + i + '" value="' + escHtml(x.note || '') + '">', 'the material it runs, the rotation')
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  return '<div class="inv-mt-8" data-shift-row="' + i + '"><div class="inv-field-label">' + (x.from ? escHtml(shiftLineName(x.line) + ' from ' + formatDate(x.from)) : 'Add a schedule') + '</div>' +
+    uiFlowHtml(name, model) + '</div>';
 }
 function shiftSummary() {
   var l = lineShifts();

@@ -44,7 +44,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | ⏸ | **Stop: the owner looks** at Home again, both layouts | Looked, 4 Nov 2026: *"Home screen test - pass"*. U3 may start |
 | ↻ | **The refresh of U3–U9** (owner, 4 Nov 2026: *"Start the refresh"*): §10–§15 and §19–§23 brought up to the code as it stands after U2R, U2H and the builds of 21 Oct – 3 Nov; what changed and why is §26 | Written, 4 Nov 2026 |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Built, 4 Nov 2026 (P229): the Dashboard and the Tables, one verdict, the seven widgets, the redirects; §26a's preset as built (§26h) |
-| U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
+| U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Built 4 Nov 2026 (§26i) |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
 | U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Not built |
 | U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Not built |
@@ -1314,7 +1314,8 @@ list is not synced until it is listed*).
 | The models followed | `S.market.models`, a list | yes | one record | store `market.models`, id `-` |
 | Weather days | `S.market.weather`, a map by day | **no** (a fetched copy) | **quiet**: this device's, the other filling what it lacks, never held | store `market.weather`, quiet |
 | The feeds' settings | `S.feedsCfg` | yes | one record | id `-` |
-| A merged stock line | `mergedInto`, `retiredAt` on the line; `mergedFrom` on its entries | yes | as their stores | as their stores |
+| A merged stock line | `mergedInto`, `retiredAt` on the line; `mergedFrom` on its entries; the kept line's `mergedFrom` (ids) and the merged line's names in its `aliases`; an entry or a price quoted naming the retired line moved to the kept line on load (`stockMergedRepoint`, structural and idempotent, as built) | yes | as their stores | as their stores |
+| Two stock lines kept apart | `stock.notTwins`: sorted pairs of ids the owner said are different chemicals (*They are different*); written only when said | yes | yes (*stock pair kept apart*) | as its store |
 | The PIN's length | `len` on a user's secret | as the users' store (the secret never compared) | as users | as users; no PIN is sent (SERVER.md §6) |
 | A board's layout | the device (`sep_inv_layout`) | — | — | store `prefs`, id the person; the later wins; served to that person only (§7h) |
 | A widget's Choose (U2R) | the layout's `opts.<id>.choose`, on the device | — | — | with the layout, in the person's `prefs` (§24n) |
@@ -1333,6 +1334,9 @@ list is not synced until it is listed*).
 
 TAB_MAP's I1–I11 hold, with these words for this pass:
 - **I1. The book changes only as §16 lists.** No record is rewritten by a migration. The device keys may change as each step says.
+  *As built at U4:* one structural pass moves an entry or a price quoted that names a retired stock line to the line it was merged
+  into (`stockMergedRepoint`): it changes only which line a record is on, keeping where it came from (`mergedFrom`), and runs again
+  to no effect.
 - **I2. Every old address still opens** where its screen went, through `navRedirect` (§18): a bookmark, the manifest's shortcut, the
   Windows widget's launch, a trail step an older build saved, a new window, a guide's link, a search's Recent, a task's saved `go`.
 - **I3. No dangling door.** A step that moves a place re-points every door to it in the same step (`todoGo`, `advGoTo`, `WS_GO_PAGE`,
@@ -2453,3 +2457,42 @@ Where the build departs from §10 and §26a, and why:
 - **Measured** (phone screens, P195's long book; before → after): By client 2.18, Cost 2.82, Trends 1.89 → the Dashboard 2.94, the
   Tables by client 1.57, by part 1.35, by month 1.29, Cost 2.90; each budget the next half screen up (3, 2, 1.5, 1.5, 3), none over the
   three tabs' budgets (3.5, 3, 2).
+
+### 26i. U4 as built (4 Nov 2026)
+
+Where the build departs from §11 and §26b, and why:
+- **The flow** is `uiFlowHtml` with a model per form (`uiFlowDefine`), kept in step by `uiFlowSync` after every input, change and click;
+  it touches the steps, the progress and the preview, never a field. The design is §6.37 of the design principles.
+- **A step only filled if needed** is `optional` (*If needed*; never *Next*, and not counted in the progress): Create's details, the
+  rolls' blocks, a hand's times and OT shifts, a bill's arrears.
+- **Create's optional details stay folded** until something is in them: P67 holds that fold, and §11a's *nothing folded* gives way to it;
+  the step is *If needed*.
+- **A hand's day saves each change** as it did; its progress says *All filled · saved as you go* (`live`), its preview *What the day
+  holds*.
+- **Production by hand's rounds** (*How many rounds?*, *If needed*, added after U4's QA chain on the owner's word, 4 Nov 2026): the
+  rounds and, for a run in pieces, the pieces a round held, saved as the register saves a batch written as rounds of a rack (one round
+  row, `batch`, `n`, `rack`, no time of its own: `prodHandRounds`), so the efficiency's rounds and racks, the rack sizes seen and the
+  gauge rules read them as they read the register's. The preview checks the figure against the rounds, a rack the part has not run at
+  on the line, and the gauge the owner's rules read off the round (`prodHandRoundChecks`); Save refuses a round that is not whole, and
+  a part written with no gauge takes it from the round (or is flagged gauge unknown, as a register's). A correction shows the rounds
+  the form saved; a register's (a row a round) are kept unless rounds are typed over them.
+- **The preview is no live region** (Cipher L-3, U4's Edict V): it changed at every key and was read again each time. A line under
+  the flow (`role="status"`, `uiFlowSay`) says how the form stands (*3 of 4 steps done.*, *Ready to save.*, the check that stops Save,
+  or how many to look at), once typing pauses 1.2 s and only when it differs from the last said (`uiFlowAnnounce`).
+- **A power cut's cost** in its preview is the record's as the dialog opened, not worked again as a time is typed.
+- **Mine's own screen** (its day, its duties as step cards, *What you entered* in a panel) was already §11a's look; only its six forms
+  changed.
+- **Spend and prices** is three cards (spend by supplier, use by week, the price trend), not four: zinc against the market is the price
+  trend's card on zinc (`dashZincHtml`), so a fourth card would draw it twice. The phone's door is a row at the list's foot, not a
+  button in the toolbar, which holds one row (P195).
+- **The merge** is a button on the line's own card (*The line*), beside *Save name and unit*: the line's page has no More. Lines of two
+  units are refused; `stockFindByKey` finds a merged line as the line kept.
+- **The guides**: *Using the app: stock* gained the section its book opens at (version 6); the challan's and the invoice's open at
+  their top, where their steps are written; a bill has no guide, so its steps carry no book.
+- **The QA chain** (Iuno, Castor, Vulcanus) found previews that subtracted where Save's ledger matches, dedupes and dates (a monthly
+  salary dated by the 20th, a cheque already deposited, a supplier payment that clears a statement row), a power cut's cost shown past
+  Power's gate, and a merge that a device not yet merged could undo by adding to the retired line. Each preview now reads the screen's
+  own ledger with the record put in for one reading; a merged line is found as the line kept everywhere an id comes in
+  (`stockLive`, `stockMergedRepoint`); real, different salts are never raised as twins and the owner's *They are different* keeps a
+  pair apart. P230's *QA chain* tests hold each.
+

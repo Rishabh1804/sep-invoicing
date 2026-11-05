@@ -380,7 +380,9 @@ function stockEditHtml(item) {
     '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
     units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
     (stockAliases(item).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + stockAliases(item).map(escHtml).join(', ') + '</div>' : '') +
-    '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div></div>';
+    '<div class="inv-toolbar inv-toolbar-flush"><button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button>' +
+    // Two lines that are one (UI pass 3 §11c): this line's entries to another, its name kept as a spelling there.
+    '<button class="inv-btn inv-btn-ghost" data-action="invStockMerge" data-id="' + escHtml(item.id) + '">Merge into another line</button></div></div></div>';
 }
 
 /* ---------- Actions ---------- */

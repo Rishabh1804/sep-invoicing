@@ -100,13 +100,16 @@ test.describe('Stats — tonnage and realisation', () => {
     await expect(rows).toHaveCount(2);
     // Worst priced first — the ordering is the point of the table.
     await expect(rows.nth(0)).toContainText('BELOW COST CLIENT');
-    await expect(rows.nth(0).locator('td[data-col="net"]')).toHaveText('5.40');
+    await expect(rows.nth(0).locator('td[data-col="net"] [data-fig]')).toHaveText('5.40');
     await expect(rows.nth(1)).toContainText('GOOD RATE CLIENT');
-    await expect(rows.nth(1).locator('td[data-col="net"]')).toHaveText('13.00');
+    await expect(rows.nth(1).locator('td[data-col="net"] [data-fig]')).toHaveText('13.00');
 
     // The under-cost figure is called out, not just listed: coloured in the danger tone beside the cost it is judged against.
     await expect(rows.nth(0).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(1);
     await expect(rows.nth(1).locator('td[data-col="net"]').locator('.inv-fig-danger')).toHaveCount(0);
+    // And it says so in a word, a chip in its tone under the figure (DR-8; owner, 5 Nov 2026: the colour-coded chips were missing).
+    await expect(rows.nth(0).locator('td[data-col="net"] [data-price-chip="danger"]')).toHaveText('Below cost');
+    await expect(rows.nth(1).locator('td[data-col="net"] [data-price-chip="danger"]')).toHaveCount(0);
   });
 
   test('says so when tonnage could not be established for every line', async ({ page }) => {

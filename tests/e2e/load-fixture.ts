@@ -390,6 +390,9 @@ export const LOOKS: string[] = [
   'fill edge:T1 r0 flat p8/12',      // inv-actionbar, a form's sticky bar (design §6.15): under Reports' sheet since TM6e, its Print
   'fill edge:none r8 flat p10/12',   // inv-callout
   'fill edge:none r4 flat p6/8',     // inv-quote, the text as sent (design §6): in an entry's fold on Production → Entries since TM4c
+  // U4, the guided flow (design §6.37): a step is a card of its own, lifted with a card's corners; on Pay its form sits in a fold of
+  // the page's surface, so the walk reads its fill as the fold's.
+  'nofill edge:all1 r14 lift p12/12', // inv-flow-step, a flow's step (People → Pay's payment form)
 ];
 
 /* The screens assembled to one look, by the place walkMap names them; each joins in the step that assembles it (TM1: none). */

@@ -397,7 +397,7 @@ function costMonthShare(month, from, to) {
 /* Zinc from its bills: what was bought in the 90 days to `to`, per kg plated (weighed) over the same days. Null unless every
    zinc bill in the window is priced and something was plated: a gap is filled at the model, never read as cheap. */
 function costZincByBills(to) {
-  var it = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var it = stockFindByKey('ZINC');
   if (!it) return null;
   // The window starts no earlier than the first zinc bill on record: before it, nothing was entered, which is not nothing
   // bought (June read ₹0.93/kg over a window two-thirds before the bills began).
@@ -542,7 +542,7 @@ function liveCost(from, to, kg) {
   var landed = zincLandedRate();
   // Modelled zinc kilos are priced at what was last PAID by the end of the
   // period, and only failing that at today's market rate.
-  var zincItem = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var zincItem = stockFindByKey('ZINC');
   var zincPaid = zincItem ? stockPriceAt(zincItem.id, to) : null;
   if (zincPaid && zincPaid.date > to) zincPaid = null;
   var zp = zincPaid ? zincPaid.price : landed;
@@ -846,19 +846,88 @@ function _costBillHtml() {
     (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span>' : '') + '</div>';
 }
 
-/* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). */
+/* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). A guided flow (UI
+   pass 3 §11a): Which bill · Amount and units · Arrears and penalty · Note; the preview its cost (costBillCost) and the month's live
+   cost a kilo before and after it, worked out by liveCost with the bill put in the book for the reading and taken out at once. */
+var _costBillPv = null;   // the live cost read for the preview, kept until the bill or the book changes
+function costBillFormModel() {
+  var root = costBillRoot(), form = root.querySelector('[data-bill-form]') || root;
+  var v = function(id) { var el = form.querySelector('#' + id); return el ? String(el.value || '').trim() : ''; };
+  var o = _costBillOpen || {};
+  var drawn = !!form.querySelector('#costBillKind');
+  var kind = (drawn ? v('costBillKind') : o.kind) === 'other' ? 'other' : 'power', month = drawn ? v('costBillMonth') : (o.month || localDateStr().slice(0, 7));
+  var amount = gstRound(parseFloat(v('costBillAmount')) || 0), units = parseFloat(v('costBillUnits'));
+  var arrears = gstRound(parseFloat(v('costBillArrears')) || 0), penalty = gstRound(parseFloat(v('costBillPenalty')) || 0), arrearsOf = v('costBillArrearsOf'), note = v('costBillNote');
+  var okMonth = /^\d{4}-\d{2}$/.test(month || ''), lines = [], checks = [];
+  if (okMonth && amount > 0) {
+    var b = { kind: kind, month: month, amount: amount, arrears: arrears > 0 ? arrears : null, penalty: penalty > 0 ? penalty : null };
+    var cost = costBillCost(b);
+    lines.push(escHtml(COST_BILL_KINDS[kind]) + ' bill for ' + escHtml(billsMonthLabel(month)) + ': ' + escHtml(formatCurrency(amount)) + ' before GST' + (units > 0 ? ', ' + escHtml(formatNum(units, 0)) + ' units' : ''));
+    lines.push('Its cost: ' + escHtml(formatCurrency(cost)) + (arrears > 0 ? ' (the ' + escHtml(formatCurrency(arrears)) + ' of arrears' + (arrearsOf ? ' for ' + escHtml(billsMonthLabel(arrearsOf)) : '') + ' left out: they were that month’s cost)' : '') +
+      (penalty > 0 ? ', the ' + escHtml(formatCurrency(penalty)) + ' penalty counted in it' : ''));
+    var pv = costBillLivePreview(b);
+    if (pv) lines.push(escHtml(billsMonthLabel(month)) + '’s live cost: ' + escHtml(formatCurrency(pv.before)) + '/kg → ' + escHtml(formatCurrency(pv.after)) + '/kg');
+    if (arrears < 0 || penalty < 0) checks.push({ tone: 'danger', text: 'Arrears and a penalty are parts of the bill: neither can be below 0.' });
+    if (gstRound(arrears + penalty) > amount) checks.push({ tone: 'danger', text: 'Arrears and penalty are parts of the bill: together they are more than its amount.' });
+    if (arrearsOf && arrearsOf >= month) checks.push({ tone: 'danger', text: 'Arrears are for a month before the one the bill covers.' });
+    var twin = kind === 'power' && costBills().find(function(x) { return x.kind === 'power' && !x.voided && x.month === month; });
+    if (twin && !(arrears > 0)) checks.push({ tone: 'warning', text: 'There is already an electricity bill for ' + billsMonthLabel(month) + ' (' + formatCurrency(twin.amount) + '). A second usually carries arrears: enter them, or all of this counts as the month’s cost.' });
+  }
+  return {
+    steps: [
+      { key: 'which', title: 'Which bill?', help: 'The kind, and the month it covers.', done: okMonth, says: okMonth ? COST_BILL_KINDS[kind] + ' · ' + billsMonthLabel(month) : '', body: '' },
+      { key: 'amount', title: 'How much, and how many units?', help: 'The amount before GST. Units for an electricity bill.', done: amount > 0, says: amount > 0 ? formatCurrency(amount) + (units > 0 ? ' · ' + formatNum(units, 0) + ' units' : '') : '', body: '' },
+      { key: 'parts', title: 'Any arrears or penalty in it?', help: 'A second bill in a month usually carries an earlier month’s arrears and a penalty.', optional: true, done: arrears > 0 || penalty > 0,
+        says: [arrears > 0 ? 'arrears ' + formatCurrency(arrears) : '', penalty > 0 ? 'penalty ' + formatCurrency(penalty) : ''].filter(Boolean).join(' · '), body: '' },
+      { key: 'note', title: 'A note?', optional: true, done: !!note, says: note, body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Type the month and the amount, and this says what the bill costs and what it does to the month’s live cost.' }
+  };
+}
+uiFlowDefine('costBill', costBillFormModel);
+/* The month's live cost a kilo, before and after the bill: liveCost's own reading, the bill in the book only while it is read. */
+/* Kept per book (its object as well as its saves: a book another window, a pull or an import replaced is another book) and per day;
+   the live cost before the bill apart from after it, since only the after changes as the amount is typed (U4's QA chain, Iuno L-1, L-8). */
+var _costBillPv0 = null;
+function costBillLivePreview(b) {
+  var book = [typeof _bookWrites === 'number' ? _bookWrites : 0, localDateStr()].join('|');
+  var key = [b.kind, b.month, b.amount, b.arrears || 0, b.penalty || 0, book].join('|');
+  if (_costBillPv && _costBillPv.key === key && _costBillPv.S === S) return _costBillPv.v;
+  var v = null;
+  try {
+    var from = b.month + '-01', to = payMonthEnd(from), today = localDateStr();
+    if (to > today) to = today;
+    var w = from <= today ? weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; })) : null;
+    if (w && w.kg > 0) {
+      var k0 = [from, to, w.kg, book].join('|');
+      if (!_costBillPv0 || _costBillPv0.key !== k0 || _costBillPv0.S !== S) _costBillPv0 = { key: k0, S: S, v: liveCost(from, to, w.kg) };
+      var c0 = _costBillPv0.v, list = costBills(), tmp = { id: '_flow_preview', kind: b.kind, month: b.month, amount: b.amount, arrears: b.arrears, penalty: b.penalty, at: Date.now() };
+      list.push(tmp);
+      var c1;
+      try { c1 = liveCost(from, to, w.kg); } finally { var i = list.indexOf(tmp); if (i >= 0) list.splice(i, 1); }
+      if (c0 && c1 && c0.perKg != null && c1.perKg != null) v = { before: c0.perKg, after: c1.perKg };
+    }
+  } catch (e) { v = null; }
+  _costBillPv = { key: key, S: S, v: v };
+  return v;
+}
 function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
-  return '<div class="inv-fields">' +
+  var model = costBillFormModel(), body = {};
+  body.which = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Kind</span><select class="inv-select" id="costBillKind">' +
     '<option value="power">Electricity</option><option value="other"' + (o.kind === 'other' ? ' selected' : '') + '>Consumables, ETP, maintenance</option></select></label>' +
-    '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Month it covers</span><input class="inv-input" id="costBillMonth" type="month" value="' + escHtml(m) + '"></label></div>';
+  body.amount = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Amount, before GST</span><input class="inv-input inv-input-num" id="costBillAmount" type="number" step="0.01" min="0" inputmode="decimal"></label>' +
-    '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Units (electricity)</span><input class="inv-input inv-input-num" id="costBillUnits" type="number" step="1" min="0" inputmode="numeric"></label></div>';
+  body.parts = '<div class="inv-fields">' +
     '<label class="inv-field"><span class="inv-field-label">Arrears in it, of an earlier month</span><input class="inv-input inv-input-num" id="costBillArrears" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Month the arrears are for</span><input class="inv-input" id="costBillArrearsOf" type="month"></label>' +
-    '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>' +
-    '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label></div>' +
+    '<label class="inv-field"><span class="inv-field-label">Penalty or extra charge in it</span><input class="inv-input inv-input-num" id="costBillPenalty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label></div>';
+  body.note = '<label class="inv-field inv-kv-wide"><span class="inv-field-label">Note</span><input class="inv-input" id="costBillNote" placeholder="e.g. JBVNL bill, ETP sludge"></label>';
+  model.steps.forEach(function(s) { s.body = body[s.key] || ''; });
+  return uiFlowHtml('costBill', model, { receipt: o.receipt ? uiFlowReceiptHtml(o.receipt) : '' }) +
     (o.saved ? '<div class="inv-note">' + o.saved + (o.saved === 1 ? ' bill' : ' bills') + ' saved from this form. The next month is filled in.</div>' : '') +
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
@@ -900,7 +969,9 @@ async function costBillSave() {
     var nk = next;
     if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
   }
-  _costBillOpen = { where: 'finance', month: next, kind: kind, saved: (was.saved || 0) + 1 };
+  _costBillOpen = { where: 'finance', month: next, kind: kind, saved: (was.saved || 0) + 1,
+    receipt: { title: 'Saved: ' + COST_BILL_KINDS[kind] + ' bill for ' + billsMonthLabel(month) + ', ' + formatCurrency(amount),
+      lines: [escHtml('Its cost ' + formatCurrency(costBillCost({ amount: amount, arrears: arrears })) + (penalty > 0 ? ', a penalty of ' + formatCurrency(penalty) + ' in it' : '') + '. Listed under the bills, with Void.')] } };
   saveState();
   costBillRedraw();
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);

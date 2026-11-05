@@ -402,26 +402,113 @@ function suppLedgerHtml(sp, L) {
   }
   return h;
 }
+/* A supplier's payment, its balance and a price quoted as guided flows (UI pass 3 §26b). The fields are read where they stand (in
+   the supplier's dialog, or Compare suppliers'); each form keeps the attribute its Save reads by (data-supp-pay-form and the rest) on
+   a wrapper whose parent holds every field, as suppFormVal looks for them. */
+function suppFlowVal(sel, id) { return document.querySelector(sel) ? suppFormVal(sel, id) : ''; }
+/* The ledger as it would read with a payment recorded, or a balance set (U4's QA chain, Iuno H-3 and M-2): never a subtraction, since a
+   payment that clears as a statement row already counted, or one dated on or before the balance's day, moves nothing. The payment is
+   put into the book for one reading, or the record's balance set for one reading, and taken straight out; the index's memo is let go
+   before and after, so it never keeps the reading. */
+function suppLedgerWith(sp, pay, opening) {
+  var r = sp && sp.rec;
+  if (!r) return null;
+  var list = suppPays(), keep = { has: 'opening' in r, op: r.opening, has2: 'inOpening' in r, inOp: r.inOpening };
+  if (pay) list.push(pay);
+  if (opening) { r.opening = opening; if (!keep.op || keep.op.date !== opening.date) delete r.inOpening; }
+  _suppMemo = null;
+  try { var now = suppById(r.id); return now ? suppLedger(now) : null; }
+  finally {
+    if (pay) { var i = list.indexOf(pay); if (i >= 0) list.splice(i, 1); }
+    if (opening) {
+      if (keep.has) r.opening = keep.op; else delete r.opening;
+      if (keep.has2) r.inOpening = keep.inOp; else delete r.inOpening;
+    }
+    _suppMemo = null;
+  }
+}
+var SUPP_HOW = { cheque: 'Cheque handed over', transfer: 'Transfer', cash: 'Cash' };
+function suppPayModel() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return null;
+  var v = function(id) { return suppFlowVal('[data-supp-pay-form]', id); };
+  var drawn = !!document.querySelector('[data-supp-pay-form]'), today = localDateStr();
+  var date = drawn ? v('suppPayDate') : today, amount = gstRound(parseFloat(v('suppPayAmount')) || 0), how = (drawn && v('suppPayHow')) || 'cheque', chq = v('suppPayChq').replace(/\s+/g, '');
+  var okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today, lines = [], checks = [];
+  if (amount > 0) {
+    lines.push(escHtml(SUPP_HOW[how] || 'A payment') + ' of ' + escHtml(formatCurrency(amount)) + ' to ' + escHtml(sp.name) + (okDay ? ' on ' + escHtml(formatDate(date)) : '') + (how === 'cheque' && chq ? ', cheque ' + escHtml(chq) : ''));
+    var L = suppLedger(sp);
+    if (L.op) {
+      var LA = okDay ? suppLedgerWith(sp, { id: '_flow_preview', supplierId: sp.rec.id, date: date, amount: amount, how: how === 'transfer' || how === 'cash' ? how : 'cheque', chq: chq || null, at: Date.now() }) : null;
+      var after = LA ? LA.balance : null;
+      lines.push('Owed to them: ' + escHtml(formatCurrency(L.balance)) + (after == null ? '' : ' → ' + (after < 0 ? escHtml(formatCurrency(-after)) + ' paid ahead' : escHtml(formatCurrency(after)))));
+      if (after != null && Math.abs(after - L.balance) < 0.005) {
+        checks.push({ tone: 'info', text: okDay && date <= L.op.date ? 'Dated on or before the balance’s day (' + formatDate(L.op.date) + '): the balance already holds it.' :
+          'It clears as a payment the statement already shows: what is owed does not change.' });
+      }
+    } else lines.push('What is owed to them is not set: set the balance from their statement to see it.');
+    if (how === 'cheque') lines.push('It counts from the day it is handed over; when the statement shows it clear by its number, that row is this payment.');
+  }
+  if (how === 'cheque' && chq && !/^\d+$/.test(chq)) checks.push({ tone: 'danger', text: 'A cheque number is digits only.' });
+  var ck = how === 'cheque' ? bankChequeKey(chq) : '';
+  if (ck && suppPays().some(function(p) { return !p.voidedAt && p.how === 'cheque' && bankChequeKey(p.chq) === ck; })) checks.push({ tone: 'danger', text: 'Cheque ' + chq + ' is already recorded.' });
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day it was paid cannot be after today.' });
+  return {
+    steps: [
+      { key: 'who', title: 'Who is paid?', guide: ['app-suppliers', ''], done: true, says: sp.name, body: '' },
+      { key: 'how', title: 'How, and how much?', help: 'A cheque’s number lets the statement find it when it clears.', done: amount > 0, says: amount > 0 ? (SUPP_HOW[how] || '') + ' · ' + formatCurrency(amount) : '', body: '' },
+      { key: 'when', title: 'When was it paid?', done: okDay, says: okDay ? formatDate(date) : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Type the amount and this says what is owed to them after it.' }
+  };
+}
+uiFlowDefine('suppPay', suppPayModel);
 function suppPayFormHtml(sp) {
-  var today = localDateStr();
-  return '<div class="inv-fields" data-supp-pay-form>' +
-    suppField('suppPayDate', 'Paid on', '<input class="inv-input" id="suppPayDate" type="date" max="' + today + '" value="' + today + '">') +
-    suppField('suppPayAmount', 'Amount', '<input class="inv-input inv-input-num" id="suppPayAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
-    suppField('suppPayHow', 'How', '<select class="inv-select" id="suppPayHow"><option value="cheque">Cheque handed over</option><option value="transfer">Transfer</option><option value="cash">Cash</option></select>') +
-    suppField('suppPayChq', 'Cheque or reference no.', '<input class="inv-input" id="suppPayChq" autocomplete="off">') +
-    suppField('suppPayNote', 'Note', '<input class="inv-input" id="suppPayNote" autocomplete="off">', true) +
-    '</div><div class="inv-note">A cheque counts from the day it is handed over, as their book counts it; when the statement shows it clear by its number, that row is this payment, never a second one.</div>' +
+  var today = localDateStr(), model = suppPayModel(), body = {
+    who: '<p class="inv-note">' + escHtml(sp.name) + '</p>',
+    how: '<div class="inv-fields">' + suppField('suppPayHow', 'How', '<select class="inv-select" id="suppPayHow"><option value="cheque">Cheque handed over</option><option value="transfer">Transfer</option><option value="cash">Cash</option></select>') +
+      suppField('suppPayAmount', 'Amount', '<input class="inv-input inv-input-num" id="suppPayAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
+      suppField('suppPayChq', 'Cheque or reference no.', '<input class="inv-input" id="suppPayChq" autocomplete="off">') + '</div>',
+    when: '<div class="inv-fields">' + suppField('suppPayDate', 'Paid on', '<input class="inv-input" id="suppPayDate" type="date" max="' + today + '" value="' + today + '">') +
+      suppField('suppPayNote', 'Note', '<input class="inv-input" id="suppPayNote" autocomplete="off">', true) + '</div>'
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  return '<div data-supp-pay-form>' + uiFlowHtml('suppPay', model) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSuppSavePay">Save payment</button></div>';
 }
+function suppBalanceModel() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return null;
+  var L = suppLedger(sp), op = L.op || {}, drawn = !!document.querySelector('[data-supp-balance-form]');
+  var v = function(id) { return suppFlowVal('[data-supp-balance-form]', id); };
+  var amount = drawn ? v('suppBalAmount') : (op.amount != null ? String(op.amount) : ''), date = drawn ? v('suppBalDate') : (op.date || ''), today = localDateStr();
+  var a = parseFloat(amount), okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today, okAmt = amount !== '' && !isNaN(a);
+  var lines = ['<span id="suppBalPreview">' + escHtml(suppBalPreview(sp, amount, date)) + '</span>'], checks = [];
+
+  if (okDay && okAmt) {
+    var near = isoAddDays(date, SUPP_NEAR_DAYS), counted = sp.pays.filter(function(p) { return p.kind === 'bank' && p.date > date && p.date <= near; });
+    if (counted.length) lines.push(todoPlural(counted.length, 'payment') + ' on the statement in the ' + SUPP_NEAR_DAYS + ' days after it: mark each one their figure already counts as In their balance.');
+  }
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day cannot be after today.' });
+  return {
+    steps: [
+      { key: 'day', title: 'The end of which day?', help: 'The day of the last entry on their statement.', guide: ['app-suppliers', ''], done: okDay, says: okDay ? formatDate(date) : '', body: '' },
+      { key: 'amount', title: 'What does their statement say was owed?', help: 'The figure after that entry. The bills and payments after the day are counted on it.', done: okAmt, says: okAmt ? formatCurrency(a) : '', body: '' },
+      { key: 'note', title: 'A note?', optional: true, done: !!v('suppBalNote') || (!drawn && !!op.note), says: drawn ? v('suppBalNote') : (op.note || ''), body: '' }
+    ],
+    preview: { title: 'What it comes to now', lines: lines, checks: checks }
+  };
+}
+uiFlowDefine('suppBalance', suppBalanceModel);
 function suppBalanceFormHtml(sp, L) {
-  var op = L.op || {}, today = localDateStr();
-  return '<div class="inv-fields" data-supp-balance-form>' +
-    suppField('suppBalAmount', 'Owed to them', '<input class="inv-input inv-input-num" id="suppBalAmount" type="number" step="0.01" inputmode="decimal" value="' + escHtml(op.amount != null ? String(op.amount) : '') + '">') +
-    suppField('suppBalDate', 'At the end of', '<input class="inv-input" id="suppBalDate" type="date" max="' + today + '" value="' + escHtml(op.date || '') + '">') +
-    suppField('suppBalNote', 'Note', '<input class="inv-input" id="suppBalNote" autocomplete="off" placeholder="Their statement, the page for the month" value="' + escHtml(op.note || '') + '">', true) +
-    '</div><div class="inv-note" id="suppBalPreview" aria-live="polite">' + escHtml(suppBalPreview(sp, op.amount, op.date)) + '</div>' +
-    '<div class="inv-note">The figure on their statement after its last entry, and that entry’s day. The bills and payments after it are counted; a cheque they had credited before the day that clears after it can be marked as in their figure.</div>' +
+  var op = L.op || {}, today = localDateStr(), model = suppBalanceModel(), body = {
+    day: suppField('suppBalDate', 'At the end of', '<input class="inv-input" id="suppBalDate" type="date" max="' + today + '" value="' + escHtml(op.date || '') + '">'),
+    amount: suppField('suppBalAmount', 'Owed to them', '<input class="inv-input inv-input-num" id="suppBalAmount" type="number" step="0.01" inputmode="decimal" value="' + escHtml(op.amount != null ? String(op.amount) : '') + '">'),
+    note: suppField('suppBalNote', 'Note', '<input class="inv-input" id="suppBalNote" autocomplete="off" placeholder="Their statement, the page for the month" value="' + escHtml(op.note || '') + '">', true)
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  return '<div data-supp-balance-form>' + uiFlowHtml('suppBalance', model) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invSuppSaveBalance">Save balance</button></div>';
 }
@@ -429,10 +516,16 @@ function suppBalanceFormHtml(sp, L) {
 function suppBalPreview(sp, amount, date) {
   var a = parseFloat(amount);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || isNaN(a)) return 'Type the figure and its day to see what it comes to now.';
-  var billed = 0, paid = 0;
-  sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
-  sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
-  var now = gstRound(a + billed - paid);
+  // The ledger's own figure with this balance set (suppLedgerWith): the payments already marked In their balance are left out while
+  // the day is unchanged, as Save keeps them (U4's QA chain, Iuno M-2). A supplier with no record yet has no marks to keep.
+  var LB = sp.rec ? suppLedgerWith(sp, null, { amount: gstRound(a), date: date }) : null;
+  var billed = 0, paid = 0, now;
+  if (LB) { billed = LB.billed; paid = LB.paid; now = LB.balance; }
+  else {
+    sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
+    sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
+    now = gstRound(a + billed - paid);
+  }
   return 'Owed now: ' + formatCurrency(now) + ' (bills ' + finRs(billed) + ' and payments ' + finRs(paid) + ' after ' + formatDate(date) + ').';
 }
 function suppSetFormHtml(sp, lead) {
@@ -959,20 +1052,58 @@ function suppCandCardHtml(item, K, c) {
     '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(c.name) + '</span>' + (sub ? '<span class="inv-deck-sub">' + escHtml(sub) + '</span>' : '') + body + '</div>' +
     (foot ? '<div class="inv-deck-foot">' + foot + '</div>' : '') + '</article>';
 }
-/* A price a supplier quoted for the line: weighed beside the bills for SUPP_QUOTE_DAYS, kept on the supplier's record. */
+/* A price a supplier quoted for the line: weighed beside the bills for SUPP_QUOTE_DAYS, kept on the supplier's record. A guided flow
+   (UI pass 3 §26b): Which supplier · The price and its unit · When; the preview the comparison's card it changes (suppCompare's own
+   candidates: the supplier's price now, the cheapest now, what this order would come to). */
+var _suppQuoteK = null;   // the comparison the form is drawn over
+function suppQuoteModel() {
+  var item = stockItem(_suppCmpItem), K = _suppQuoteK;
+  if (!item || !K) return null;
+  var v = function(id) { return suppFlowVal('[data-supp-quote-form]', id); };
+  var drawn = !!document.querySelector('[data-supp-quote-form]'), today = localDateStr(), unit = item.unit || 'unit';
+  var spId = v('suppQuoteSp'), nm = v('suppQuoteName').replace(/\s+/g, ' '), price = parseFloat(v('suppQuotePrice')), date = drawn ? v('suppQuoteDate') : today;
+  var sp = spId && spId !== '+' ? suppById(spId) : null, name = sp ? sp.name : spId === '+' ? nm : '';
+  var okWho = !!sp || (spId === '+' && suppKey(nm).length >= 3), okPrice = price > 0, okDay = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && date <= today;
+  var per = function(x) { return formatCurrency(x) + '/' + unit; }, lines = [], checks = [];
+  if (okWho && okPrice) {
+    lines.push(escHtml(name) + ' at ' + escHtml(per(price)) + ' before GST' + (okDay ? ', quoted ' + escHtml(stockShortDate(date)) : '') + ': weighed beside the bills for ' + SUPP_QUOTE_DAYS + ' days');
+    var mine = K.cands.find(function(c) { return c.sp && sp && c.sp.id === sp.id; });
+    if (mine && mine.price != null) lines.push('Their price now: ' + escHtml(per(mine.price)) + (mine.basis === 'quote' ? ', quoted ' : ', bill of ') + escHtml(stockShortDate(mine.date)));
+    var low = K.cands.filter(function(c) { return c.sp && c.price != null && c.fresh && (!sp || c.sp.id !== sp.id); }).sort(function(a, b) { return a.price - b.price; })[0];
+    if (low) {
+      var d = gstRound(price - low.price, 2);
+      lines.push('The cheapest of the others: ' + escHtml(low.name) + ' at ' + escHtml(per(low.price)) + (d < 0 ? ', so this is ' + escHtml(per(-d)) + ' less' : d > 0 ? ', so this is ' + escHtml(per(d)) + ' more' : ', the same'));
+    }
+    if (K.qty > 0) lines.push('This order: ' + escHtml(formatCurrency(gstRound(K.qty * price))) + ' for ' + escHtml(stockFmtQty(K.qty) + ' ' + (item.unit || '')));
+  }
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day it was quoted cannot be after today.' });
+  if (item.key === 'ZINC') checks.push({ tone: 'info', text: 'Zinc follows the market: a quote holds only for the day.' });
+  return {
+    steps: [
+      { key: 'who', title: 'Which supplier?', help: 'One not in the book is made a supplier when the price is saved.', guide: ['app-suppliers', 'Compare suppliers'], done: okWho, says: okWho ? name : '', body: '' },
+      { key: 'price', title: 'At what price a ' + unit + '?', help: 'Before GST.', done: okPrice, says: okPrice ? per(price) : '', body: '' },
+      { key: 'when', title: 'When was it quoted?', done: okDay, says: okDay ? formatDate(date) + (v('suppQuoteNote') ? ' · ' + v('suppQuoteNote') : '') : '', body: '' }
+    ],
+    preview: { title: 'What it changes', lines: lines, checks: checks, empty: 'Pick the supplier and type the price, and this says how it sits beside the others.' }
+  };
+}
+uiFlowDefine('suppQuote', suppQuoteModel);
 function suppQuoteFormHtml(item, K) {
+  _suppQuoteK = K;
   var today = localDateStr(), list = suppIndex().list.slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
   var opts = '<option value="">Pick the supplier</option>' + list.map(function(sp) { return '<option value="' + escHtml(sp.id) + '">' + escHtml(sp.name) + '</option>'; }).join('') +
     '<option value="+">Another supplier…</option>';
   var quoted = [];
   K.cands.forEach(function(c) { if (c.quote) quoted.push(c); });
-  var h = '<div class="inv-fields" data-supp-quote-form>' +
-    suppField('suppQuoteSp', 'Supplier', '<select class="inv-select" id="suppQuoteSp">' + opts + '</select>', true) +
-    suppField('suppQuoteName', 'Another supplier’s name', '<input class="inv-input" id="suppQuoteName" autocomplete="off">', true) +
-    suppField('suppQuotePrice', 'Price a ' + escHtml(item.unit || 'unit') + ', before GST', '<input class="inv-input inv-input-num" id="suppQuotePrice" type="number" step="0.01" min="0" inputmode="decimal">') +
-    suppField('suppQuoteDate', 'Quoted on', '<input class="inv-input" id="suppQuoteDate" type="date" max="' + today + '" value="' + today + '">') +
-    suppField('suppQuoteNote', 'Note', '<input class="inv-input" id="suppQuoteNote" autocomplete="off" placeholder="On the phone, by WhatsApp, the minimum order">', true) +
-    '</div><div class="inv-note">A price quoted is weighed beside the bills for ' + SUPP_QUOTE_DAYS + ' days, until a bill from them replaces it.</div>';
+  var model = suppQuoteModel(), body = {
+    who: '<div class="inv-fields">' + suppField('suppQuoteSp', 'Supplier', '<select class="inv-select" id="suppQuoteSp">' + opts + '</select>', true) +
+      suppField('suppQuoteName', 'Another supplier’s name', '<input class="inv-input" id="suppQuoteName" autocomplete="off">', true) + '</div>',
+    price: suppField('suppQuotePrice', 'Price a ' + escHtml(item.unit || 'unit') + ', before GST', '<input class="inv-input inv-input-num" id="suppQuotePrice" type="number" step="0.01" min="0" inputmode="decimal">'),
+    when: '<div class="inv-fields">' + suppField('suppQuoteDate', 'Quoted on', '<input class="inv-input" id="suppQuoteDate" type="date" max="' + today + '" value="' + today + '">') +
+      suppField('suppQuoteNote', 'Note', '<input class="inv-input" id="suppQuoteNote" autocomplete="off" placeholder="On the phone, by WhatsApp, the minimum order">', true) + '</div>'
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  var h = '<div data-supp-quote-form>' + uiFlowHtml('suppQuote', model) + '</div>';
   if (quoted.length) {
     h += '<div class="inv-panel inv-panel-flush" data-supp-quotes><div class="inv-panel-head"><span class="inv-panel-title">Prices quoted for this line</span></div>' + quoted.map(function(c) {
       var q = c.quote;

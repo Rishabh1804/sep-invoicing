@@ -141,35 +141,104 @@ function chosenClientHtml(client, meta, changeAction, dataK) {
     ' data-action="' + changeAction + '">Change</button></div></div>';
 }
 
+/* The number the invoice on the form takes: its own when edited, the old one's when reissued, else the series' next. */
+function createNumberShown() {
+  const editing = invoiceForm.editingId ? S.invoices.find(i => i.id === invoiceForm.editingId) : null;
+  return editing ? editing.displayNumber : invoiceForm.reissue ? invoiceForm.reissue.displayNumber
+    : (S.invPrefix || '') + String(S.invNextNum).padStart(5, '0');
+}
+
+/* ===== CREATE AS A GUIDED FLOW (UI pass 3 §11a; state.js uiFlowHtml) =====
+   Who it is for and which challans · What is billed · The details (P.O., vehicle, dates) · Check, every step open in any order. The
+   preview says the invoice in words and its figures: taxable, GST and total (createTotals, the form's own arithmetic) and the number
+   it takes; its checks are the errors due to show (createErrorsShown: never on a field nobody has left) and the rate matcher's flags.
+   The details stay a fold until something is in them (P67), so their step is marked If needed. The form keeps its own keys
+   (data-flow-ownkeys). */
+function createFlowHeader() {
+  const f = invoiceForm, v = (id, d) => { const el = document.getElementById(id); return el ? el.value.trim() : d; };
+  return { date: v('invDate', f.date || ''), cn: v('invChallanNo', f.challanNo || ''), po: v('invPONumber', f.poNumber || ''), ve: v('invTransport', f.transport || '') };
+}
+// Worked out by the sync only while Create shows: it runs after every input anywhere, and a form left under another page waits.
+function createFlowModel() { return document.querySelector('#pageCreate.inv-page-active #createFormArea [data-flow]') ? createFlowModelOf() : null; }
+function createFlowModelOf() {
+  const f = invoiceForm;
+  if (!f) return null;
+  const client = f.clientId ? S.clients.find(c => c.id === f.clientId) : null;
+  const hd = createFlowHeader(), t = createTotals(client), number = createNumberShown();
+  const named = i => String(i.partNumber || i.desc || '').trim();
+  const linesDone = f.items.length > 0 && f.items.every(i => named(i) && (i.qty || 0) > 0);
+  const errors = createErrorsShown(), allErrors = validateInvoiceKeyed();
+  const checks = errors.map(e => ({ tone: 'danger', text: e.text }));
+  // The number a new invoice takes is refused at Save when a live invoice holds it (saveInvoice's own test; Iuno L-5).
+  const numTaken = !f.editingId && S.invoices.some(i => i.displayNumber === number);
+  if (numTaken) checks.push({ tone: 'danger', text: number + ' is already a live invoice: Save will refuse it. Check Settings → Business → Invoice series.' });
+  if (client) {
+    f.items.forEach((it, i) => {
+      if (!named(it)) return;
+      const rm = rateMatch(client, hd.date || f.date, it), n = 'Line ' + (i + 1) + ': ';
+      if (rm && (rm.status === 'check' || rm.status === 'decimal')) checks.push({ tone: 'warning', text: n + 'the rate is ' + (rm.status === 'decimal' ? 'a power of ten' : 'far') + ' off the record.' });
+      else if (rm && rm.status === 'unit') checks.push({ tone: 'warning', text: n + 'the part’s rate on record is in another unit.' });
+      else if (rm && rm.status === 'differs') checks.push({ tone: 'info', text: n + 'the rate differs from the record.' });
+    });
+  }
+  const day = hd.date ? formatDate(hd.date) : '';
+  const linked = (f._linkedIMIds || []).length;
+  const details = [hd.cn && 'Challan ' + hd.cn, hd.po && 'PO ' + hd.po, hd.ve].filter(Boolean).join(' · ');
+  const lines = [];
+  if (client) {
+    lines.push((f.editingId ? 'Updates invoice ' : f.reissue ? 'Reissues invoice ' : 'Invoice ') + '<b class="inv-id">' + escHtml(number) + '</b> to ' + escHtml(client.name) +
+      (day ? ', dated ' + escHtml(day) : '') + (linked ? ' · from ' + linked + ' challan' + (linked === 1 ? '' : 's') : ''));
+  }
+  if (f.items.length) {
+    lines.push(escHtml(f.items.length + ' line' + (f.items.length === 1 ? '' : 's') + ' · taxable ' + formatCurrency(t.taxable)));
+    lines.push(escHtml(t.gstType === 'intra' ? 'CGST ' + formatCurrency(t.cgst) + ' + SGST ' + formatCurrency(t.sgst) : 'IGST ' + formatCurrency(t.igst)));
+    lines.push('<b>' + escHtml('Total ' + formatCurrency(t.grand)) + '</b>');
+  }
+  if (details) lines.push(escHtml(details));
+  const steps = [
+    { key: 'client', title: 'Who is it for?', help: 'Pick the client. Its challans waiting for an invoice are listed: tick one to bring its lines in.',
+      guide: ['app-invoice', ''], done: !!client && !!hd.date, says: client ? client.name + (linked ? ' · ' + linked + ' challan' + (linked === 1 ? '' : 's') : '') + (day ? ' · ' + day : '') : '', body: '' },
+    { key: 'lines', title: 'What is billed?', help: 'A part picked takes its rate from the client’s record. A line at ₹0 or over what is left on its challan asks why.',
+      done: linesDone, says: f.items.length ? f.items.length + ' line' + (f.items.length === 1 ? '' : 's') + ' · ' + formatCurrency(t.taxable) : '', body: '' },
+    { key: 'details', title: 'The challan, P.O. and vehicle', help: 'Filled from the challans ticked and the client’s settings where it can be.', optional: true,
+      done: !!details, says: details, body: '' },
+    { key: 'check', title: 'Check it, then create', help: 'What Save records says the number it takes and the totals. An error shows once its field is left.',
+      done: !!client && linesDone && !allErrors.length && !numTaken, says: 'Total ' + formatCurrency(t.grand), body: '' }
+  ];
+  return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Choose the client and this says what the invoice records.' } };
+}
+uiFlowDefine('createInvoice', createFlowModel);
+
 function renderCreateForm() {
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
   const area = document.getElementById('createFormArea');
   const editing = invoiceForm.editingId ? S.invoices.find(i => i.id === invoiceForm.editingId) : null;
-  const number = editing ? editing.displayNumber : invoiceForm.reissue ? invoiceForm.reissue.displayNumber
-    : (S.invPrefix || '') + String(S.invNextNum).padStart(5, '0');
+  const number = createNumberShown();
   const unbilled = client && !invoiceForm.editingId && !invoiceForm.reissue ? createUnbilledHtml(client) : '';
 
-  let html = '<div data-form="invoice"><div class="inv-panels">';
+  let html;
 
-  // Invoice: who and when. Takes the whole row until the client's unbilled challans sit beside it.
-  html += '<div class="inv-panel inv-panel-flush' + (unbilled ? '' : ' inv-panels-wide') + '">' +
-    '<div class="inv-panel-head"><span class="inv-panel-title">' + (editing ? 'Edit invoice' : invoiceForm.reissue ? 'Reissue invoice' : 'New invoice') + '</span>' +
+  // The form's name and the number it takes, over the steps.
+  const head = '<div class="inv-panel-head"><span class="inv-panel-title">' + (editing ? 'Edit invoice' : invoiceForm.reissue ? 'Reissue invoice' : 'New invoice') + '</span>' +
     '<span class="inv-panel-count">' + escHtml(number) + '</span></div>';
+  const body = {};
+  // Step 1, who it is for and when, and the client's challans waiting for an invoice.
+  html = '';
   if (invoiceForm.reissue) {
     html += '<div class="inv-panel-body"><div class="inv-callout inv-callout-warning" data-reissue>Reissuing <strong class="inv-id">' + escHtml(invoiceForm.reissue.displayNumber) +
       '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div></div>';
   }
+  html += '<div class="inv-panel inv-panel-flush">';
   if (client) html += chosenClientHtml(client, (client.gstin || 'No GSTIN') + ' · ' + client.billingMode, 'invClearClient');
   html += '<div class="inv-panel-body"><div class="inv-fields">' +
     (client ? '' : clientSearchHtml('invClientSearch', 'invClientResults')) +
     '<div class="inv-field"><label class="inv-field-label" for="invDate">Invoice date</label>' +
     '<input type="date" class="inv-input inv-id" id="invDate" value="' + escHtml(invoiceForm.date) + '"></div></div></div></div>';
 
-  html += unbilled;
+  body.client = html + unbilled;
 
-  // Lines
-  html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
-    '<span class="inv-panel-count">' + invoiceForm.items.length + '</span></div><div class="inv-lines">' +
+  // Step 2, the lines.
+  html = '<div class="inv-panel inv-panel-flush"><div class="inv-lines">' +
     (invoiceForm.items.length ? linesHeadHtml('Qty') : '');
   const shareIdx = invoiceForm.items.some(i => i._imItemId) ? imBilledIndex() : null;
   invoiceForm.items.forEach((item, idx) => {
@@ -206,7 +275,10 @@ function renderCreateForm() {
       '</div></div>';
   });
   html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
+  body.lines = html;
+  html = '';
 
+  // Step 3, the details.
   createSyncPoDate();
   // Optional details: folded until something is in them. The fields stay in the
   // page while folded, so every capture by id still reads them.
@@ -229,13 +301,18 @@ function renderCreateForm() {
     '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
     '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
 
-  // Totals: the panel is empty (and not drawn) until there is a line.
-  html += '<div id="invTotalsArea" class="inv-panel inv-panel-flush">' + createTotalsHtml(client) + '</div>';
-  html += '</div>';
+  body.details = html;
 
-  // Validation + the action bar: the grand total, Clear, and the page's one primary. Only the errors due to show (TM5h).
+  // Step 4, check: the totals (the panel is empty until there is a line) and the errors due to show (TM5h).
   const errors = createErrorsShown();
-  html += '<div id="invErrorsArea">' + createErrorsHtml(errors) + '</div>';
+  body.check = '<div id="invTotalsArea" class="inv-panel inv-panel-flush">' + createTotalsHtml(client) + '</div>' +
+    '<div id="invErrorsArea">' + createErrorsHtml(errors) + '</div>';
+
+  const model = createFlowModelOf();
+  model.steps.forEach(s => { if (body[s.key] != null) s.body = body[s.key]; });
+  // The form's own keys stay its own (data-flow-ownkeys): Enter walks its fields, as it always did.
+  html = '<div data-form="invoice">' + uiFlowHtml('createInvoice', model, { before: head }).replace('data-flow="createInvoice"', 'data-flow="createInvoice" data-flow-ownkeys');
+  // The action bar: the grand total, Clear, and the page's one primary.
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Grand total</div>' +
     '<div class="inv-actionbar-value" id="invGrandTotal">' + formatCurrency(createTotals(client).grand) + '</div></div>' +
     '<button type="button" class="inv-btn inv-btn-secondary" data-action="invResetForm">Clear</button>' +

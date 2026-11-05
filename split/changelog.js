@@ -100,6 +100,9 @@ var CHG_TRACK = [
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
+  // Two stock lines the owner said are different (UI pass 3 §11c): a sorted pair of ids, logged by the lines' names.
+  { path: 'stock.notTwins', kind: 'arr', noun: 'stock pair kept apart', key: function(r) { return String(r); },
+    label: function(r) { return String(r).split('|').map(function(id) { return chgStockName(id) || id; }).join(' and '); } },
   { path: 'stock.pastes', kind: 'raw', noun: 'stock message', label: function(r) { return chgJoin(r.sentBy, r.to ? chgDay(r.to) : ''); } },
   { path: 'production.entries', kind: 'arr', noun: 'production entry', plural: 'production entries',
     label: function(r) { return chgJoin(r.kind, typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
@@ -752,6 +755,8 @@ function chgHealthText() {
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
 var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
   orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
+  // Production's count (P258): a run counted or left out by hand, a run kept apart from its copies.
+  countSet: 'counted by hand', 'countSet.how': 'counted by hand', twinOk: 'kept as two runs', 'twinOk.ids': 'kept as two runs',
   voidReason: 'reason', cancelReason: 'reason', voidBy: 'by',
   // The flow thread's targets and terms (flow.js): the plant's in Settings, a client's own on the client.
   turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms',

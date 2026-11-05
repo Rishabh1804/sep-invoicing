@@ -249,6 +249,9 @@ if (!S._staffComp1) {
   saveJSON(STORAGE_KEY, S);
   if (_sc > 0) console.log('Staff: migrated ' + _sc + ' worker' + (_sc === 1 ? '' : 's') + ' to the tiered comp model');
 }
+// Two stock lines merged into one (UI pass 3 §11c): an entry or a quote that came in naming the retired line (another device that
+// had not merged, a file) is moved to the line kept. Structural and idempotent: it runs after a load, a pull, a merge and an import.
+if (typeof stockMergedRepoint === 'function' && stockMergedRepoint()) saveJSON(STORAGE_KEY, S);
 
 /* Area ids realigned to the shop's own staffing units.
 

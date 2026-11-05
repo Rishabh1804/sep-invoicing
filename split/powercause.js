@@ -288,22 +288,64 @@ function pcsOpen(entryId) {
   var first = document.getElementById(editable && c.open ? 'pcsTo' : 'pcsReason');
   if (first && !touchScreen()) try { first.focus(); } catch (e) { /* focus is a convenience */ }
 }
+/* A power cut completed as a guided flow (UI pass 3 §11a): When it came back · Why it went · Where it hit · What brought it back.
+   The preview says how long it was off and what it cost as Power reads it (powerAnalysis' cuts carry their damage). */
+function pcsModel() {
+  var f = _pcs;
+  if (!f) return null;
+  var toMin = f.editable && f.to ? relayParseHhmm(f.to) : null, from = f.from % 1440;
+  var end = toMin != null ? (toMin < from ? toMin + 1440 : toMin) : (f.open ? null : f.toMin);
+  var r = pcsReadState('reason'), x = pcsReadState('fix');
+  var name = function(st) { return st.state === 'empty' ? '' : st.c ? st.c.name : st.name || ''; };
+  var where = f.where.indexOf('u:') === 0 ? pcsWhereWord('', f.where.slice(2)) : pcsWhereWord(f.where);
+  var steps = [
+    { key: 'when', title: f.editable ? 'When did the power come back?' : 'When was it off?', guide: ['app-power', 'Cuts'],
+      help: f.editable ? (f.open ? 'When the power came back in. Leave it empty while the power is still off.' : 'The record only bounded or inferred this time: set it if it is known.') : '',
+      done: !f.open || toMin != null, says: 'off at ' + powerClock(f.from) + (end != null ? ' · back at ' + powerClock(end) : ''), body: '' },
+    { key: 'why', title: 'Why did it go?', help: 'Pick one from the list, or type it: it is written one way and kept for the next time.', done: r.state !== 'empty', says: name(r), body: '' },
+    { key: 'where', title: 'Where did it hit?', help: 'The whole plant, a station, or one unit of the plant register.', done: !!f.where, says: where ? where.charAt(0).toUpperCase() + where.slice(1) : '', body: '' },
+    { key: 'fix', title: 'What brought it back?', help: 'What was done, or that the supply came back by itself. A note if there is more to say.', done: x.state !== 'empty', says: name(x), body: '' }
+  ];
+  var lines = [], checks = [];
+  lines.push('Off at ' + escHtml(powerClock(f.from)) + ' on ' + escHtml(formatDate(f.date)) +
+    (end != null ? ', back at ' + escHtml(powerClock(end)) + (end >= 1440 ? ' the next day' : '') + ' · ' + escHtml(powerDur(end - f.from)) + ' off' : ' · still off: its length is taken as the usual cut’s until a time is set'));
+  if (r.state !== 'empty') lines.push('Why: ' + escHtml(name(r)) + (r.state === 'new' ? ', new to the list' : r.state === 'near' ? ', already on the list' : ''));
+  if (where) lines.push('It hit ' + escHtml(where));
+  if (x.state !== 'empty') lines.push('Back by: ' + escHtml(name(x)) + (x.state === 'new' ? ', new to the list' : ''));
+  if (f.costNow != null && pcsSeesCost()) lines.push('What it cost, as the record stands: ' + escHtml(formatCurrency(f.costNow)));
+  if (toMin != null && toMin === from) checks.push({ tone: 'danger', text: 'The power came back the minute it went: check the time.' });
+  else if (toMin != null && toMin < from) checks.push({ tone: 'warning', text: 'The power back is earlier on the clock than the cut: saved as it is, it ran overnight. Save asks first.' });
+  if (r.state === 'near') checks.push({ tone: 'info', text: 'Why it went is read as one already on the list: Keep as new under the field if it is not.' });
+  return { steps: steps, preview: { lines: lines, checks: checks } };
+}
+uiFlowDefine('pcs', pcsModel);
+function pcsSeesCost() {
+  return (typeof grdSees !== 'function' || grdSees('pagePower')) && (typeof grdSeesMoney !== 'function' || grdSeesMoney());
+}
 function pcsDialogHtml() {
   var f = _pcs, cut = { date: f.date, from: f.from, to: f.toMin, overnight: f.toMin != null && f.toMin >= 1440 };
   var src = f.basis.indexOf('register') >= 0 ? 'the register' : f.basis.indexOf('relay') >= 0 || f.basis.indexOf('pickling') >= 0 ? 'the message' : 'the record';
-  var h = '<div class="inv-dialog" data-pcs-dialog="' + escHtml(f.ids[0]) + '">' + dialogHeadHtml('Power cut · ' + escHtml(attDayName(f.date) + ' ' + formatDate(f.date)) + ', ' + escHtml(powerClock(f.from)));
-  h += '<div class="inv-fields">';
-  if (f.editable) {
-    h += '<div class="inv-field"><label class="inv-field-label" for="pcsTo">Power in at</label><input type="time" id="pcsTo" class="inv-input" data-pcs-in="to" value="' + escHtml(f.to) + '">' +
-      '<span class="inv-note">' + (f.open ? 'When the power came back in.' : 'The record only bounded or inferred this time: set it if it is known.') + '</span></div>';
-  } else {
-    h += '<div class="inv-field"><span class="inv-field-label">Power in at</span><div class="inv-row-title" data-pcs-to-fixed>' + escHtml(pcsCutWhen(cut).split(' · ')[1]) + '</div>' +
-      '<span class="inv-note">As ' + src + ' wrote it: corrected by voiding the entry in Production and entering it again.</span></div>';
+  // What the cut cost is its damage, idle wages and contribution among it: shown only to a role that opens Power and sees money
+  // (Iuno H-4, U4's QA chain); the floor reaches this dialog from Production and the VAT page, and no rupee was drawn there before.
+  if (f.costNow === undefined && !pcsSeesCost()) f.costNow = null;
+  if (f.costNow === undefined) {
+    // What the cut cost as Power reads it today (powerAnalysis), worked out once when the dialog opens.
+    var c = null;
+    try { c = powerAnalysis().cuts.find(function(k) { return k.ids && k.ids.some(function(id) { return f.ids.indexOf(id) >= 0; }); }); } catch (e) { c = null; }
+    f.costNow = c && c.cost && c.cost.total != null ? gstRound(c.cost.total, 0) : null;
   }
-  h += '</div>' + pcsKindHtml('reason') + '<div class="inv-fields">' + pcsWhereFieldHtml() + '</div>' + pcsKindHtml('fix');
-  h += '<div class="inv-field"><label class="inv-field-label" for="pcsNote">Note</label><input id="pcsNote" class="inv-input" data-pcs-in="note" value="' + escHtml(f.note) + '" placeholder="Anything more (optional)" autocomplete="off"></div>';
-  h += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPcsSave">Save</button></div></div>';
-  return h;
+  var model = pcsModel(), body = {};
+  body.when = '<div class="inv-fields">' + (f.editable ?
+    '<div class="inv-field"><label class="inv-field-label" for="pcsTo">Power in at</label><input type="time" id="pcsTo" class="inv-input" data-pcs-in="to" value="' + escHtml(f.to) + '"></div>' :
+    '<div class="inv-field"><span class="inv-field-label">Power in at</span><div class="inv-row-title" data-pcs-to-fixed>' + escHtml(pcsCutWhen(cut).split(' · ')[1]) + '</div>' +
+      '<span class="inv-note">As ' + src + ' wrote it: corrected by voiding the entry in Production and entering it again.</span></div>') + '</div>';
+  body.why = pcsKindHtml('reason');
+  body.where = '<div class="inv-fields">' + pcsWhereFieldHtml() + '</div>';
+  body.fix = pcsKindHtml('fix') + '<div class="inv-field"><label class="inv-field-label" for="pcsNote">Note</label><input id="pcsNote" class="inv-input" data-pcs-in="note" value="' + escHtml(f.note) + '" placeholder="Anything more (optional)" autocomplete="off"></div>';
+  model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
+  return '<div class="inv-dialog" data-pcs-dialog="' + escHtml(f.ids[0]) + '">' + dialogHeadHtml('Power cut · ' + escHtml(attDayName(f.date) + ' ' + formatDate(f.date)) + ', ' + escHtml(powerClock(f.from))) +
+    uiFlowHtml('pcs', model) +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPcsSave">Save</button></div></div>';
 }
 var PCS_KIND_WORDS = { reason: { label: 'Why it went', ph: 'e.g. Feeder trip at the substation', id: 'pcsReason' }, fix: { label: 'What brought it back', ph: 'e.g. Waited for the supply', id: 'pcsFix' } };
 function pcsKindHtml(kind) {

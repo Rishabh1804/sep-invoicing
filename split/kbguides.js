@@ -282,16 +282,30 @@ var KB_APP_GUIDES = [
     '- This is the level of a line divided by its daily use. The daily use is the use over the last 3 weeks of record, without Sundays. If there are less than 3 days of record, the figure shows a ?.\n' +
     '- A line is red at a few days or fewer, and amber at a week (Settings → Checks & alerts → Stock alerts). A line that is charged into a bath is never red when the shelf is empty. The delivery goes into the bath, and this is the normal state.\n\n' +
     '# Spend and prices\n' +
-    '- On a phone, this is at the bottom of the list. On a computer, it is in the pane beside the list.\n' +
+    '- On a phone, tap **Spend and prices** at the bottom of the list. It opens on its own screen. Tap **Stock** to go back. On a computer, tap **Spend and prices** in the toolbar. The list becomes narrow and the cards fill the space beside it. Tap the button again to close it.\n' +
     '- **Spend by supplier** shows 6 months of bills, before GST. Tap a supplier to see its bills and what the bank paid it.\n' +
     '- **Used, by week** shows each use at the price paid for that line on that day. If a line has no price, the app names it and does not count it.\n' +
     '- **Price trend** shows the bills of 1 line. For zinc, it compares the bills with the market. The market uses the uplift and the premium that are set now.\n' +
     '- **The zinc market** is LME × (1 + the uplift) + the premium (Settings → Costing → Zinc rate). The app calculates it for each day that a Refresh kept. The app compares the price of a bill before GST with the market on its day. It uses the last LME up to 4 days before. The amount of each supplier over the market is weighted by the kilos.\n' +
-    '- **Timing** puts each bill in the market of the 30 days before it: near the low, in the middle or near the high.',
+    '- **Timing** puts each bill in the market of the 30 days before it: near the low, in the middle or near the high.\n\n' +
+    '# Enter by hand\n' +
+    'The form has 4 numbered steps. You can fill them in any order. The first step that is not done shows **Next**. A done step shows a tick and what it holds.\n' +
+    '1. **What are you entering?** Tap a tile: **Count**, **Received**, **Used** or **Charged**.\n' +
+    '2. **When?** Set the date. For **Received**, also type the company, the invoice number and the invoice date.\n' +
+    '3. Type the quantity on each line that changed. For **Received**, type the price per unit before GST. For **Used** or **Charged**, type the bath in **Into**.\n' +
+    '4. **Who is entering it?** Type your name. The app keeps it on this device.\n' +
+    '- **What Save records** shows each line in words, with the level before and after. It also shows the checks of the app, for example a count far from the level.\n' +
+    '- Tap **Save**. A card shows what was saved. The form stays open on the same day for the next entry.\n\n' +
+    '# Two lines that are one\n' +
+    '- If one chemical is on 2 lines (for example *Nitric acd* and *Nitric acid*), open the line to give up and tap **Merge into another line**. Select the line to keep.\n' +
+    '- The entries move to the line you keep. The old name becomes a spelling of that line, so a message written the old way finds it. The old line is retired, not deleted.\n' +
+    '- The app does not merge 2 lines with different units. Change the unit of one line first.\n' +
+    '- The To-do shows the owner 2 lines that look like one.',
     // Version 2: one screen, its card and Spend and prices (the tab map, TM4d). Version 3: the reorder list's supplier and its lead time.
     // Version 4: the zinc market's working, which the price trend printed under its chart (the tab map, TM7).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 5 }),
+    // Version 6: Enter by hand as numbered steps, Spend and prices on its own screen, two lines merged (UI pass 3, U4).
+    { version: 6 }),
   // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has 4 views: **Lines**, **In plant**, **Entries** and **Equipment**. Each view starts with a card that shows the status. On a phone, tap the card to see its figures. Floor → Overview shows the day across the plant.\n\n' +
@@ -306,6 +320,10 @@ var KB_APP_GUIDES = [
     '- Efficiency is what the line plated compared with what its working units could plate in the hours it ran. **Reading the plant’s figures** shows how the efficiency splits.\n' +
     '- **Plated** and **Earned** each compare the day with the usual day of the line. The facts of the card compare the week to the day with the 4 weeks before. Each side uses the average of a recorded day. For how the app calculates earnings, see **Using the app: the floor**.\n' +
     '- **One record counts for each line and shift**. The order is the register, then the relay of the supervisor, then an entry by hand. The app shows the others as *also reported, not added*. They count the same work in a different way.\n' +
+    '- An entry by hand of a client that the register of the line does not show that day is other work. It counts with the register. An entry by hand of a client that the register shows stays *also reported*. If a register run has no client, an entry by hand stays *also reported* until you count it. If no register or message covers a shift, the entries by hand of that shift count.\n' +
+    '- A run from the message of the supervisor, of a client that the register of the line does not show that day, shows *to approve*. It does not count until you approve it. Make sure that the work was done, then tap **Count it**. If it was not, tap **Leave it out**. Needs you shows these runs for each day.\n' +
+    '- Open a run to see why it counts or not. Tap **Count it** to add a run that is left out. Tap **Leave it out** to remove a run that counts. Tap **Back to the rule** to let the app decide again.\n' +
+    '- WARNING: Each register run counts once. If 2 sources record the same run (for example a photo and the page typed on Mine), the app shows **saved twice?** on both. Void the copy, or tap **Two runs, keep both** if they are 2 runs.\n' +
     '- **The week, plated** shows the kilograms that each line plated each day. ≈ shows that a run is an estimate. Pieces that have no weight are added as pieces. Each figure has the colour of the efficiency of its day. A dash is a day with no record for the line.\n' +
     '- **Earned**, below the lines, shows the earnings of the 3 lines each day. The colour of each compares its rupee a kilo with the cost of a kilo.\n' +
     '- **Plated by line, 4 weeks** shows kilograms a day. A gap is a day with no record, or a day with a tenth of its pieces not weighed. It is never a zero.\n' +
@@ -331,7 +349,9 @@ var KB_APP_GUIDES = [
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026).
     // Version 7: the unbilled figure is a widget on Home (UI pass 3, 16 Oct 2026). Version 8: a line's units are its tanks and
     // barrels; a rectifier is supporting equipment, with the line it serves (T-IO, 29 Oct 2026).
-    { version: 8 }),
+    // Version 9: a hand run of a client the register does not show counts; Count it, Leave it out; a register run saved twice (4 Nov 2026).
+    // Version 10: a run of the supervisor's message of a client the register does not show waits for approval (owner, 5 Nov 2026).
+    { version: 10 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],

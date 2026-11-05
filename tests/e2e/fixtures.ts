@@ -438,6 +438,14 @@ export async function openFoldAt(page: Page, key: string): Promise<void> {
   await d.waitFor({ state: 'attached' });
   if (!(await d.evaluate(el => (el as HTMLDetailsElement).open))) await d.locator(':scope > summary').click();
 }
+/** Stock → Spend and prices (UI pass 3 §11b): an address of its own, v=spend. On the desktop the toolbar's button (pressed it widens
+ *  the pane beside a narrow list); on the phone the door at the list's foot, a screen of its own. */
+export async function openStockSpend(page: Page): Promise<void> {
+  const btn = page.locator('#pageStock [data-stock-toolbar] [data-action="invStockSpend"]');
+  if (await btn.count()) { if ((await btn.getAttribute('aria-pressed')) !== 'true') await btn.click(); }
+  else await page.locator('#pageStock [data-stock-spend-door] [data-action="invStockSpend"]').click();
+  await page.locator('#stockSpend').waitFor({ state: 'visible' });
+}
 /** Money's Import of a bank statement (the tab map, TM3c): a door on the screen (the Bank toolbar's own button while no statement
  *  is held, the empty Receivables' or Payments' link), else the Bank toolbar's More. Opens the file chooser; the caller waits on it. */
 export async function bankImportDoor(page: Page): Promise<void> {

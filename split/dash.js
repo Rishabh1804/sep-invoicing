@@ -162,15 +162,15 @@ function dashUsedByWeek(n) {
   return { weeks: weeks, total: total, top: lines.slice(0, 4), unpriced: Object.keys(unpriced) };
 }
 
-/* A section of Spend and prices: its head a row-group (it sits in one fold on the phone, in the pane on the desktop, so a panel
-   in a panel would draw a box in a box), its chart, then its rows. */
+/* A card of Spend and prices (UI pass 3 §11b: a small board, a card a section): its head a row-group with its control, its chart,
+   then its rows. */
 function _dashSection(id, title, body, head, rows) {
-  return '<div id="' + id + '" data-dash-section><div class="inv-row-group"><span>' + title + '</span>' + (head || '') + '</div>' +
+  return '<div class="inv-panel inv-panel-flush" id="' + id + '" data-dash-section><div class="inv-row-group"><span>' + title + '</span>' + (head || '') + '</div>' +
     '<div class="inv-panel-body">' + body + '</div>' + (rows || '') + '</div>';
 }
-/* Stock → Spend and prices (the tab map, TM4d; it was the Overview's): spend by supplier (tap a slice for its bills and what the
-   bank paid), what was used by week in rupees, and one line's price trend (zinc against the market). Days left are the list's own
-   groups; the reorder's cash is the list's card. */
+/* Stock → Spend and prices (the tab map, TM4d; UI pass 3 §11b: a board of its own in the room it takes): spend by supplier (tap a
+   slice for its bills and what the bank paid), what was used by week in rupees, and one line's price trend (zinc against the
+   market), each a card. Days left are the list's own groups; the reorder's cash is the list's card. */
 function stockSpendHtml() {
   var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
   // A supplier wears its own colour (seriesSlot: the six with the most spend over the book), on this pie and on zinc's chart alike;
@@ -204,7 +204,7 @@ function stockSpendHtml() {
     // The week running is drawn as to date (TM6b).
     toDate: u.weeks.length && isoAddDays(u.weeks[u.weeks.length - 1], 6) >= localDateStr() ? u.weeks.length - 1 : null }) +
     (u.unpriced.length ? '<div class="inv-note">' + escHtml('Not counted, no price: ' + u.unpriced.join(', ') + '.') + '</div>' : ''));
-  return h + dashPricePanelHtml();
+  return '<div class="inv-spend-board" id="stockSpend">' + h + dashPricePanelHtml() + '</div>';
 }
 /* The price trend panel, drawn whole so a change of line redraws it alone. Zinc gets the market beside its bills. */
 function dashPricePanelHtml() {
@@ -334,17 +334,14 @@ function _dashZincRedraw() {
   var el = document.getElementById('dashPrice');
   if (el) el.outerHTML = dashPricePanelHtml();
 }
-/* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): on the desktop its pane holds them; on the phone its
-   fold at the list's foot is opened, as a tap opens it, and brought into sight. */
+/* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): its own address (v=spend: the desktop's wide pane, the
+   phone's screen), zinc's card brought into sight. */
 function dashZincShow() {
-  var z = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  var z = stockFindByKey('ZINC');
   if (z) _dashPriceItem = z.id;
-  if (_isDesktop) _stockSpendOpen = true;
-  navOpen({ tab: 'pageStock', v: 'list', id: '' });
-  if (_isDesktop) return;
-  var fold = document.getElementById('stockSpend');
-  if (fold && !fold.open) fold.open = true;
-  uiRevealEl(document.getElementById('dashPrice') || fold);
+  navOpen({ tab: 'pageStock', v: 'spend', id: '' });
+  var el = document.getElementById('dashPrice');
+  if (el) uiRevealEl(el);
 }
 /* ---------- Doing ---------- */
 function dashAction(action, btn) {

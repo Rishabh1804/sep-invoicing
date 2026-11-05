@@ -116,13 +116,37 @@ export function lookSuite(layout: 'phone' | 'desktop') {
         expect(outer(w.shadow), `${scheme} a widget: outside it`).toBe(true);
         expect(w.radius, `${scheme} a widget: a card's corners`).toBe(rCard);
         await switchTab(page, 'pageCreate');
-        const panel = await boxOf(page, '#pageCreate .inv-panel');
+        // A card on the page: Create's preview since U4 (its panels stand inside its steps, a card's body, not lifted twice).
+        const panel = await boxOf(page, '#pageCreate .inv-flow-preview');
         expect(layers(panel.shadow).length, `${scheme} a panel: two shadows`).toBe(2);
         expect(outer(panel.shadow)).toBe(true);
         expect(panel.radius).toBe(rCard);
         expect(panel.edge, `${scheme} a panel's fine edge`).toBe(edge);
         expect(panel.edgeW).toBe(1);
         if (scheme === 'dark') expect(edge, 'dark: the fine edge is light, so it is seen').toMatch(/^rgba\(237, 240, 243, 0\.08\)$/);
+        // A plain panel on a page (Cipher L-6, U4's Edict V): no screen of the sweep book draws one since Create's panels went into
+        // its steps, so one is drawn into the page and measured, as the buttons below are: the stylesheet's own card.
+        const plain = await page.evaluate(() => {
+          const d = document.createElement('div'); d.className = 'inv-panel'; d.textContent = 'A plain panel';
+          document.querySelector('.inv-page-active')!.appendChild(d);
+          const cs = getComputedStyle(d), o = { shadow: cs.boxShadow, radius: parseFloat(cs.borderTopLeftRadius), edge: cs.borderTopColor, edgeW: parseFloat(cs.borderTopWidth) };
+          d.remove(); return o;
+        });
+        expect(layers(plain.shadow).length, `${scheme} a plain panel: two shadows`).toBe(2);
+        expect(outer(plain.shadow), `${scheme} a plain panel: outside it`).toBe(true);
+        expect(plain.radius, `${scheme} a plain panel: a card's corners`).toBe(rCard);
+        expect(plain.edge, `${scheme} a plain panel's fine edge`).toBe(edge);
+        expect(plain.edgeW).toBe(1);
+        // A step of a guided flow (U4) is a card too: lifted, a card's corners, its fine edge. The step Next adds its accent line
+        // inside it, on top of the same two shadows.
+        for (const [sel, extra] of [['#pageCreate .inv-flow-step:not([data-state="next"])', 0], ['#pageCreate .inv-flow-step[data-state="next"]', 1]] as const) {
+          const s = await boxOf(page, sel);
+          const out = layers(s.shadow).filter(x => !/inset/.test(x)), ins = layers(s.shadow).filter(x => /inset/.test(x));
+          expect(out.length, `${scheme} ${sel}: two shadows outside it`).toBe(2);
+          expect(ins.length, `${scheme} ${sel}: its line inside`).toBe(extra);
+          expect(s.radius, `${scheme} ${sel}: a card's corners`).toBe(rCard);
+          expect(s.edge, `${scheme} ${sel}: the fine edge`).toBe(edge);
+        }
         if (layout === 'phone') {
           const bar = await boxOf(page, '.inv-navbar');
           expect(layers(bar.shadow).length, `${scheme} the bar floats as a card`).toBe(2);

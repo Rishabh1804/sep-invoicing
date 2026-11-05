@@ -94,8 +94,41 @@ function cashReviewOpen(text, sentOn) {
   _cashReview = { text: text, read: p, hash: hash, sentOn: sent, week: attWeekStartOf(sent), seen: seen || null };
   dialogOpen(cashReviewHtml(), { dismiss: true });
 }
+/* The review as a guided flow (UI pass 3 §26b): The message · Each line (what for, kind, day, amount) · The total; the preview the
+   week's payout before and after the lines (payWeek().cashOut is counted in its total), a total the lines do not reach in red. */
+function cashReviewModel() {
+  var r = _cashReview, form = document.querySelector('[data-cash-review]');
+  if (!r) return null;
+  var p = r.read, sat = isoAddDays(r.week, 6);
+  var q = function(k, i, d) { var el = form && form.querySelector('[data-cash-' + k + '="' + i + '"]'); return el ? String(el.value).trim() : d; };
+  var typed = p.lines.map(function(ln, i) { return { what: q('what', i, ln.what || ''), amount: gstRound(parseFloat(q('amount', i, String(ln.amount))) || 0), n: ln.n }; });
+  var live = typed.filter(function(ln) { return ln.amount > 0; }), blank = live.filter(function(ln) { return !ln.what; });
+  var sum = gstRound(live.reduce(function(s, ln) { return s + ln.amount; }, 0));
+  var lines = [], checks = [];
+  if (r.seen) checks.push({ tone: 'danger', text: 'Saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.' });
+  if (live.length) {
+    lines.push(live.length + (live.length === 1 ? ' line' : ' lines') + ' of cash paid out, ' + escHtml(formatCurrency(sum)) + ', paid back with the payout of Sat ' + escHtml(stockShortDate(sat)));
+    if (!r.seen && (typeof grdSeesWages !== 'function' || grdSeesWages())) {
+      if (r.payoutBefore === undefined) { try { r.payoutBefore = payWeek(r.week).total; } catch (e) { r.payoutBefore = null; } }
+      if (r.payoutBefore != null) lines.push('The week’s payout so far: ' + escHtml(formatCurrency(r.payoutBefore)) + ' → ' + escHtml(formatCurrency(gstRound(r.payoutBefore + sum))));
+    }
+  }
+  if (p.total != null && Math.abs(p.total - sum) >= 0.5) checks.push({ tone: 'danger', text: 'The message says ' + formatCurrency(p.total) + '; the lines come to ' + formatCurrency(sum) + '.' });
+  blank.forEach(function(ln) { checks.push({ tone: 'warning', text: 'Line ' + ln.n + ': say what it was for.' }); });
+  return {
+    steps: [
+      { key: 'msg', title: 'Is this the message?', help: 'Sent ' + formatDate(r.sentOn) + '. Paid back with the payout of Sat ' + stockShortDate(sat) + ' (week ' + attPayWeekNumber(r.week) + ') and counted in its total.',
+        guide: ['app-pay', ''], done: !r.seen, says: r.seen ? '' : 'Sent ' + formatDate(r.sentOn), body: '' },
+      { key: 'lines', title: 'What was each line for?', help: 'A line with no amount is left out.', done: live.length > 0 && !blank.length,
+        says: live.length && !blank.length ? live.length + (live.length === 1 ? ' line' : ' lines') : '', body: '' },
+      { key: 'total', title: 'Does it add up?', done: live.length > 0 && (p.total == null || Math.abs(p.total - sum) < 0.5), says: live.length ? formatCurrency(sum) : '', body: '' }
+    ],
+    preview: { lines: lines, checks: checks, empty: 'Nothing with an amount yet.' }
+  };
+}
+uiFlowDefine('cashReview', cashReviewModel);
 function cashReviewHtml() {
-  var r = _cashReview, p = r.read, sat = isoAddDays(r.week, 6);
+  var r = _cashReview, p = r.read;
   var opts = function(sel) { return CASH_CATS.map(function(c) { return '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + escHtml(c.label) + '</option>'; }).join(''); };
   var rows = p.lines.map(function(ln, i) {
     return '<div class="inv-row inv-row-2" data-cash-line="' + i + '">' +
@@ -109,10 +142,15 @@ function cashReviewHtml() {
   }).join('');
   var issues = p.issues.map(function(x) { return '<div class="inv-callout inv-callout-' + (x.tone === 'danger' ? 'danger' : 'warning') + '">' + (x.n ? 'Line ' + x.n + ': ' : '') + escHtml(x.text) + '</div>'; }).join('');
   var seen = r.seen ? '<div class="inv-callout inv-callout-danger" data-cash-seen>This message was saved on ' + formatDate(isoOf(new Date(r.seen.at))) + ': saving it again would count it twice.</div>' : '';
+  var model = cashReviewModel(), body = {
+    msg: seen + issues,
+    lines: '<div class="inv-panel inv-panel-flush">' + rows + '</div>',
+    total: '<div class="inv-panel inv-panel-flush">' + uiFactRowHtml({ label: 'Total', value: formatCurrency(p.sum), sub: p.total != null ? 'the message says ' + formatCurrency(p.total) : 'no total written', attrs: ' data-cash-sum' }) + '</div>'
+  };
+  // Drawn before the dialog is on the page: the lines are read as the message gave them.
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
   return '<div class="inv-dialog inv-dialog-wide" data-cash-review>' + dialogHeadHtml('Cash paid out') +
-    '<div class="inv-note">Sent ' + formatDate(r.sentOn) + '. Paid back with the payout of Sat ' + stockShortDate(sat) + ' (week ' + attPayWeekNumber(r.week) + ') and counted in its total.</div>' +
-    seen + issues + '<div class="inv-panel inv-panel-flush">' + rows +
-    uiFactRowHtml({ label: 'Total', value: formatCurrency(p.sum), sub: p.total != null ? 'the message says ' + formatCurrency(p.total) : 'no total written', attrs: ' data-cash-sum' }) + '</div>' +
+    uiFlowHtml('cashReview', model) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invPayCashSave"' + (r.seen ? ' disabled' : '') + '>Save cash paid out</button></div></div>';
 }

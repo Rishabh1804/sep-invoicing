@@ -565,11 +565,13 @@ function renderPower() {
   el.innerHTML = h;
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   // The case on the page is the paper, fitted to the screen (TM2f's paperFit, as the report is).
-  if (_powerTab === 'case') paperFit(document.getElementById('powerCaseSheet'));
+  if (_powerTab === 'case') { paperFit(document.getElementById('powerPictureSheet')); paperFit(document.getElementById('powerCaseSheet')); }
   if (_powerTabMoved) { _powerTabMoved = false; viewTop(); }
   // A case open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-case]')) { body.innerHTML = powerCaseHtml(a); printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-picture]')) {
+    body.innerHTML = powerCasePictureHtml(a) + (body.querySelector('[data-power-case]') ? powerCaseHtml(a) : ''); printFit();
+  }
 }
 
 /* The month on record so far: its cuts, dark minutes, the ones with no time back, their cost and its recorded days. */
@@ -704,12 +706,90 @@ function powerLoadHtml(a) {
     chartBars(pts.map(function(b) { return { label: billsMonthLabel(b.month), value: Number(b.penalty) || 0 }; }), { ariaLabel: 'Over-limit penalty by bill' }) + '</div></div>', false);
   return h + '</div>';
 }
-/* Case (TM4e): the document, Print the case the one primary and Options' figures beside it, the paper fitted to the screen. */
-window.addEventListener('resize', function() { var s = document.getElementById('powerCaseSheet'); if (s && s.offsetParent) paperFit(s); });
+/* Case (TM4e; UI pass 3 §13, U6): the picture first, one page fitted to the screen, then the full case (*our copy*) shut under
+   Read the full case; Options' figures in the toolbar; the action bar Print the picture (the one primary) and Print the full case
+   (the picture, then the text). The full case is drawn with the page and hidden until opened, so it is there to read the moment it
+   is asked for. */
+window.addEventListener('resize', function() {
+  ['powerPictureSheet', 'powerCaseSheet'].forEach(function(id) { var s = document.getElementById(id); if (s && s.offsetParent) paperFit(s); });
+});
+var _powerCaseFull = false;
 function powerCaseViewHtml(a) {
-  return '<div class="inv-toolbar" data-power-toolbar="case"><button class="inv-btn inv-btn-primary" data-action="invPowerPrint">Print the case</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invPowerCfg">Options&rsquo; figures</button></div>' +
-    '<div class="inv-rpt-sheet" id="powerCaseSheet" data-power-case-wrap>' + powerCaseHtml(a) + '</div>';
+  return '<div class="inv-toolbar" data-power-toolbar="case"><button class="inv-btn inv-btn-secondary" data-action="invPowerCfg">Options&rsquo; figures</button></div>' +
+    '<div class="inv-rpt-sheet" id="powerPictureSheet">' + powerCasePictureHtml(a) + '</div>' +
+    '<div class="inv-paper-more"><button type="button" class="inv-btn inv-btn-secondary" data-action="invPowerCaseFull" aria-expanded="' + _powerCaseFull + '" aria-controls="powerCaseSheet">' +
+      (_powerCaseFull ? 'Hide the full case' : 'Read the full case') + '</button></div>' +
+    '<div class="inv-rpt-sheet" id="powerCaseSheet" data-power-case-wrap' + (_powerCaseFull ? '' : ' hidden') + '>' + powerCaseHtml(a) + '</div>' +
+    '<div class="inv-actionbar" data-paper-prints><button class="inv-btn inv-btn-secondary" data-action="invPowerPrint">Print the full case</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invPowerPrintPicture">Print the picture</button></div>';
+}
+
+/* ---------- The case as a picture (UI pass 3 §13, §26d) ----------
+   One A4 page on paper: four tiles, cuts by month (a month holding a run of likely-unreported days hatched), when they start (by
+   the hour), what a cut costs as one bar of 100%, the three options as cards with the recommendation marked, and the open items.
+   Every figure is powerAnalysis's own, the arithmetic the full case reads: nothing here works a figure out again. */
+function powerCasePictureHtml(a) {
+  a = a || powerAnalysis();
+  var co = String((S.company && S.company.name) || '').trim(), t = a.totals, today = localDateStr(), y = a.year;
+  var h = '<div class="inv-pcp-doc" data-power-picture>' + (co ? '<div class="inv-pcp-co">' + escHtml(co) + '</div>' : '') +
+    '<div class="inv-pcp-title">Power cuts: the picture</div>' +
+    '<div class="inv-pcp-meta">' + escHtml('As of ' + formatDate(today) + ', drawn from the app’s records' + (a.first ? ' · the record from ' + formatDate(a.first) : '')) + '</div>';
+  if (!t.cuts) return h + '<p class="inv-pcp-none">No power cut is on record yet: there is nothing to draw. Record cuts as they come, or import the history (Power → Cuts → Import history).</p></div>';
+  var from12 = isoAddDays(today, -364), last12 = a.cuts.filter(function(c) { return c.date >= from12; });
+  var inside12 = last12.reduce(function(s2, c) { return s2 + c.cost.inside; }, 0);
+  var opts = a.options || [], best = opts.filter(function(o) { return o.payLo != null; }).sort(function(p, q) { return p.payLo - q.payLo; })[0];
+  var tile = function(key, label, value, sub) {
+    return '<div class="inv-pcp-tile" data-pcp-tile="' + key + '"><div class="inv-pcp-tile-l">' + label + '</div><div class="inv-pcp-tile-v">' + value + '</div>' +
+      (sub ? '<div class="inv-pcp-tile-s">' + sub + '</div>' : '') + '</div>';
+  };
+  var range = y ? (y.low != null && y.high != null && y.high > y.low ? escHtml(_pcL(y.low) + ' – ' + _pcL(y.high)) : escHtml(_pcL(y.base))) : '&mdash;';
+  h += '<div class="inv-pcp-tiles">' +
+    tile('cuts', 'Cuts, last 12 months', escHtml(String(last12.length)), escHtml(a.first > from12 ? 'since ' + formatDate(a.first) : 'on the days on record')) +
+    tile('dark', 'Dark in working hours', escHtml(formatNum(inside12 / 60, 0) + ' h'), escHtml(last12.length ? 'about ' + powerDur(inside12 / last12.length) + ' a cut' : '')) +
+    tile('year', 'A year of them costs', range, escHtml(y ? 'the complete months’ range; ' + _pcL(y.base) + ' at the last 90 days’ rate' : 'not enough record to read a year')) +
+    tile('payback', 'Soonest payback', escHtml(best ? _pcMonths(best.payLo) + (best.payHi !== best.payLo ? ' – ' + _pcMonths(best.payHi) : '') : '—'), escHtml(best ? best.label : 'no option pays back at this rate')) +
+    '</div>';
+  // Cuts by month, the last twelve months on record; a month holding a run of likely-unreported days hatched (it reads low).
+  var months = a.months.slice(-12);
+  h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="months"><div class="inv-pcp-h">Cuts by month</div>' +
+    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.cuts, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : '' }; }),
+      { unit: 'count', paper: true, slot: 2, ariaLabel: 'Cuts by month', toDate: months.length && months[months.length - 1].month === today.slice(0, 7) ? months.length - 1 : null }) +
+    (months.some(function(m) { return m.quiet > 0; }) ? '<div class="inv-pcp-note">Hatched: a month with days whose power was likely not reported. It reads low.</div>' : '') + '</div>';
+  // When they start: the hour each cut began, 6 AM to 10 PM (the bands of the full case, hour by hour); the night's few are said.
+  var hrs = [], outside = 0;
+  a.hours.forEach(function(n, hh) { if (hh >= 6 && hh < 22) hrs.push({ label: (hh % 12 || 12) + (hh < 12 ? 'a' : 'p'), value: n }); else outside += n; });
+  h += '<div class="inv-pcp-sec" data-pcp-sec="hours"><div class="inv-pcp-h">When they start</div>' +
+    chartBars(hrs, { unit: 'count', paper: true, slot: 1, ariaLabel: 'Cuts by the hour they began', maxLabels: 16 }) +
+    (outside ? '<div class="inv-pcp-note">' + escHtml(todoPlural(outside, 'cut') + ' began between 10 PM and 6 AM.') + '</div>' : '') + '</div></div>';
+  // What a cut costs: the record's damage in its four parts, as the full case's section 4 adds it up.
+  var parts = [{ label: 'Restarts', v: t.restart, slot: 6, k: 'restart' }, { label: 'Catch-up overtime', v: t.recOt, slot: 4, k: 'recOt' },
+    { label: 'Output not made up', v: t.leftC, slot: 2, k: 'contrib' }, { label: 'Wages that bought nothing', v: t.leftI, slot: 3, k: 'idle' }];
+  h += '<div class="inv-pcp-sec" data-pcp-sec="cost"><div class="inv-pcp-h">What the cuts on record cost: ' + escHtml(finRs(t.cost)) + '</div>' +
+    chartShareBar(parts, 'What the cuts on record cost, in four parts') +
+    '<div class="inv-pcp-amounts">' + parts.filter(function(p) { return p.v > 0; }).map(function(p) {
+      return '<span data-pcp-part="' + p.k + '">' + escHtml(p.label) + ' <b>' + escHtml(finRs(p.v)) + '</b></span>';
+    }).join('') + '</div></div>';
+  // The three options, the recommendation marked: the full case recommends the TSUISL switch first (section 8).
+  if (opts.length) h += '<div class="inv-pcp-sec" data-pcp-sec="options"><div class="inv-pcp-h">The options</div><div class="inv-pcp-cards">' + opts.map(function(o) {
+    var rec = o.key === 'ts';
+    return '<div class="inv-pcp-card' + (rec ? ' inv-pcp-card-rec' : '') + '" data-pcp-option="' + o.key + '">' + (rec ? '<div class="inv-pcp-badge">Recommended</div>' : '') +
+      '<div class="inv-pcp-card-t">' + escHtml(o.label) + '</div>' +
+      '<div class="inv-pcp-row"><span>One-time</span><b>' + escHtml(_pcL(o.capLo) + '–' + _pcL(o.capHi)) + '</b></div>' +
+      '<div class="inv-pcp-row"><span>Covers</span><b>' + Math.round(o.capture * 100) + '%</b></div>' +
+      '<div class="inv-pcp-row"><span>Gain a year</span><b>' + escHtml(finRs(o.gain)) + '</b></div>' +
+      '<div class="inv-pcp-row"><span>Pays back</span><b>' + escHtml(o.payLo != null ? _pcMonths(o.payLo) + ' – ' + _pcMonths(o.payHi) : 'does not') + '</b></div></div>';
+  }).join('') + '</div></div>';
+  // The open items: the first three not done, as section 9 holds them.
+  var items = powerData().items, L = a.load;
+  var open = POWER_ITEMS.filter(function(it) {
+    var st = items[it[0]] || {}, auto = it[0] === 'load50' && L.approved && !L.pending && L.sanctioned;
+    return !auto && st.status !== 'done';
+  }).slice(0, 3);
+  h += '<div class="inv-pcp-sec" data-pcp-sec="open"><div class="inv-pcp-h">Open</div>' + (open.length ? '<ul class="inv-pcp-list">' + open.map(function(it) {
+    var st = items[it[0]] || {};
+    return '<li>' + escHtml(it[1] + (st.status === 'asked' ? ' · asked' : '') + (st.note ? ' · ' + st.note : '')) + '</li>';
+  }).join('') + '</ul>' : '<p class="inv-pcp-none">Nothing open.</p>') + '</div>';
+  return h + '<div class="inv-pcp-foot">The full case, with how each figure is worked out, follows this page when it is printed with it.</div></div>';
 }
 
 /* ---------- The case, as a document ---------- */
@@ -867,17 +947,19 @@ function _powerLongestGap(gaps) {
   return best.length ? best.length + ' working day' + (best.length === 1 ? '' : 's') + ', ' + formatDate(best[0]) + (best.length > 1 ? ' – ' + formatDate(best[best.length - 1]) : '') : 'none';
 }
 
-function powerPrint() {
+/* Print the picture (one page) or the full case: the picture, then the text. */
+function powerPrint(pictureOnly) {
   var body = document.getElementById('invPrintBody');
   if (!body) return;
-  body.innerHTML = powerCaseHtml();
+  var a = powerAnalysis();
+  body.innerHTML = powerCasePictureHtml(a) + (pictureOnly ? '' : powerCaseHtml(a));
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
   printNeed({ pages: ['pagePower'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
-  document.title = 'Power cuts case ' + localDateStr();
+  document.title = (pictureOnly ? 'Power cuts picture ' : 'Power cuts case ') + localDateStr();
 }
 
 /* ---------- Dialogs ---------- */
@@ -1044,6 +1126,17 @@ function powerAction(action, btn) {
   switch (action) {
     case 'invPowerTab': powerSetTab(btn.dataset.tab); renderPower(); return true;
     case 'invPowerPrint': powerPrint(); return true;
+    case 'invPowerPrintPicture': powerPrint(true); return true;
+    case 'invPowerCaseFull': {
+      // The full case, opened or shut in place (a control inside the view: the page keeps its place).
+      _powerCaseFull = !_powerCaseFull;
+      var sh = document.getElementById('powerCaseSheet');
+      if (sh) { sh.hidden = !_powerCaseFull; if (_powerCaseFull) paperFit(sh); }
+      btn.setAttribute('aria-expanded', String(_powerCaseFull));
+      btn.textContent = _powerCaseFull ? 'Hide the full case' : 'Read the full case';
+      if (_powerCaseFull && sh) uiRevealEl(sh);
+      return true;
+    }
     case 'invPowerCfg': powerCfgEdit(); return true;
     case 'invPowerCfgSave': powerCfgSave(); return true;
     case 'invPowerLoadEdit': powerLoadEdit(); return true;

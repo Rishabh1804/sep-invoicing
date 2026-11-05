@@ -43,7 +43,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Home › Stats › Tables › By part': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Tables › By month': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Stats › Tables › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Home › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 2 },
+  // U6 (UI pass 3 §13): Reports and Power's Case lead with a picture page, the text under its toggle: 2.64 → 1.07 and 2.16 → 1.08 on
+  // the long book, each budget lowered to the next half screen up.
+  'Home › Reports': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 2 },
   'Home › Planner › Play': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Home › Planner › A day': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -83,7 +85,7 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Causes': { screens: 2, blocks: 0, chains: 0, toolbarRows: 0 },
   'Floor › Power › Load & bills': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › Power › Case': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Power › Case': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   // TM3. Receivables, Payments and Bank have the one toolbar row a work screen has (§3e: Cheque received; Add a bill; search,
   // Filter and More), raised from 0 and said to the owner (I10). Each gave the room back: Receivables and Payments show the
   // first few of what needs the owner, the Overview's charts fold, Payments' sections fold.

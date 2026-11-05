@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="cdffd427">
+<meta name="app-build" content="f261d095">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1433,6 +1433,94 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
   .inv-rpt-scroll { overflow: visible; }
 }
 
+/* The picture page (UI pass 3 §13, U6): the power case and a report as one A4 page, a picture first, the text after it as our copy.
+   Paper, as every printed document: its own pt and mm tokens, white, the palette and the theme read nowhere. The charts inside it are
+   the screens' builders (charts.js, opts.paper), and this root gives them the series' printed colours and type in pt: the interface's
+   tokens are redeclared here, once, so a chart on paper reads the same on every palette, in dark as in light. */
+.inv-pcp-doc {
+  color-scheme: light;
+  --ff-base: 'Inter', sans-serif;
+  --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
+  --pcp-ink: #000;
+  --pcp-paper: #fff;
+  --pcp-rule: #000;
+  --pcp-band: #ececec;
+  --pcp-muted: #555;
+  --pcp-rec: #1d6b3a;
+  --pcp-fs: 9pt;
+  --pcp-fs-sm: 8pt;
+  --pcp-fs-xs: 7pt;
+  --pcp-fs-h: 10pt;
+  --pcp-fs-co: 10pt;
+  --pcp-fs-tile: 13pt;
+  --pcp-fs-title: 15pt;
+  --pcp-rule-w: 0.5pt;
+  --pcp-sheet-w: 210mm;
+  --pcp-sheet-h: 297mm;
+  --pcp-gutter-side: 12mm;
+  --pcp-gutter-top: 10mm;
+  --pcp-gutter-bottom: 8mm;
+  --pcp-tile-min: 40mm;
+  --pcp-card-min: 52mm;
+  --pcp-bar-h: 4mm;
+  --pcp-r: 1mm;
+  /* The interface's tokens the chart builders read, in the printed colours. */
+  --text-1: #000; --text-2: #333; --text-3: #555; --surface: #fff; --border: #000; --well: #ececec;
+  --series-1: #2e75b6; --series-2: #c0622b; --series-3: #1f8a6a; --series-4: #a87c00; --series-5: #c2508a; --series-6: #6b55c9; --series-other: #9aa4ae;
+  --ok-mark: #2f8a50; --warning-mark: #c08a2a; --danger-mark: #c4382b; --info-mark: #3f6e9a;
+  --ff-num: var(--ff-mono); --plot-fs-axis: 9pt; --plot-fs-centre: 11pt; --fs-11: 7pt; --fs-12: 7.5pt; --fs-13: 8pt; --swatch: 2.5mm; --hair: 0.3pt; --rule: 1pt;
+
+  background: var(--pcp-paper); color: var(--pcp-ink);
+  font-family: var(--ff-base); font-size: var(--pcp-fs); line-height: 1.35;
+  font-variant-numeric: slashed-zero tabular-nums lining-nums;
+  width: 100%; max-width: var(--pcp-sheet-w); margin: 0 auto var(--sp-16) auto;
+  padding: var(--pcp-gutter-top) var(--pcp-gutter-side) var(--pcp-gutter-bottom);
+  border: var(--hair) solid var(--border);
+  break-after: page; page-break-after: always;
+}
+.inv-rpt-sheet > .inv-pcp-doc { width: var(--pcp-sheet-w); max-width: none; zoom: var(--pp-zoom, 1); }
+.inv-print-body .inv-pcp-doc { width: var(--pcp-sheet-w); max-width: none; }
+.inv-pcp-co { font-weight: 700; font-size: var(--pcp-fs-co); }
+.inv-pcp-title { font-size: var(--pcp-fs-title); font-weight: 700; line-height: 1.25; margin: var(--sp-2) 0; }
+.inv-pcp-meta { font-size: var(--pcp-fs-sm); color: var(--pcp-muted); padding-bottom: var(--sp-6); border-bottom: var(--pcp-rule-w) solid var(--pcp-rule); }
+.inv-pcp-none { margin: var(--sp-8) 0; color: var(--pcp-muted); font-style: italic; }
+.inv-pcp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--pcp-tile-min), 1fr)); gap: var(--sp-6); margin-top: var(--sp-8); }
+.inv-pcp-tile { min-width: 0; padding: var(--sp-6); border: var(--pcp-rule-w) solid var(--pcp-rule); border-radius: var(--pcp-r); break-inside: avoid; }
+.inv-pcp-tile-l { font-size: var(--pcp-fs-xs); font-weight: 600; color: var(--pcp-muted); }
+.inv-pcp-tile-v { font-size: var(--pcp-fs-tile); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; font-family: var(--ff-mono); }
+.inv-pcp-tile-s { font-size: var(--pcp-fs-xs); color: var(--pcp-muted); margin-top: var(--sp-2); }
+.inv-pcp-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
+.inv-pcp-sec { margin-top: var(--sp-10); break-inside: avoid; page-break-inside: avoid; min-width: 0; }
+.inv-pcp-h { font-size: var(--pcp-fs-h); font-weight: 700; margin-bottom: var(--sp-4); border-bottom: var(--pcp-rule-w) solid var(--pcp-rule); }
+.inv-pcp-note { font-size: var(--pcp-fs-xs); color: var(--pcp-muted); margin-top: var(--sp-2); }
+.inv-pcp-amounts { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12); font-size: var(--pcp-fs-sm); margin-top: var(--sp-4); }
+.inv-pcp-amounts b { font-family: var(--ff-mono); }
+.inv-pcp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--pcp-card-min), 1fr)); gap: var(--sp-6); }
+.inv-pcp-card { padding: var(--sp-6); border: var(--pcp-rule-w) solid var(--pcp-rule); border-radius: var(--pcp-r); break-inside: avoid; }
+.inv-pcp-card-rec { border-width: calc(var(--pcp-rule-w) * 4); border-color: var(--pcp-rec); }
+.inv-pcp-badge { display: inline-block; font-size: var(--pcp-fs-xs); font-weight: 700; color: var(--pcp-paper); background: var(--pcp-rec); padding: 0 var(--sp-4); border-radius: var(--pcp-r); margin-bottom: var(--sp-2); }
+.inv-pcp-card-t { font-weight: 700; margin-bottom: var(--sp-2); }
+.inv-pcp-row { display: flex; justify-content: space-between; gap: var(--sp-6); font-size: var(--pcp-fs-sm); }
+.inv-pcp-row b { font-family: var(--ff-mono); }
+.inv-pcp-list { margin: var(--sp-2) 0 0 var(--sp-16); }
+.inv-pcp-list li { margin: var(--sp-2) 0; }
+/* A judged figure on the picture, in the paper's own colours (the report's): the interface's tones switch with the theme. */
+.inv-pcp-ok { color: #1d6b3a; }
+.inv-pcp-warning { color: #8a5a00; }
+.inv-pcp-danger { color: #b02a1f; }
+.inv-pcp-info { color: #1d4f8a; }
+.inv-pcp-foot { margin-top: var(--sp-8); padding-top: var(--sp-4); border-top: var(--pcp-rule-w) solid var(--pcp-rule); font-size: var(--pcp-fs-xs); color: var(--pcp-muted); }
+/* A chart on paper: the drawing at the page's own size, no readout, no Table; a bar's figure over it. */
+.inv-chart-paper { min-width: 0; }
+.inv-pcp-doc .inv-chart-svg { width: 100%; height: auto; max-height: none; }
+.inv-pcp-doc .inv-sharebar { height: var(--pcp-bar-h); box-shadow: none; background: var(--pcp-band); border-radius: var(--pcp-r); }
+.inv-chart-val { font-size: var(--plot-fs-axis); fill: var(--text-2); font-family: var(--ff-num); }
+/* The toggle under a picture, on the screen: the full text, our copy. */
+.inv-paper-more { display: flex; justify-content: center; margin: 0 0 var(--sp-16); }
+@media print {
+  .inv-print-body .inv-pcp-doc { border: none; margin: 0; width: auto; max-width: none; height: var(--pcp-sheet-h); overflow: hidden; }
+}
+
 /* ===== THE BAR'S RED COUNTS (a workspace's red rows) =====
    On the mark's top corner, as on the phone's bar and the desktop's rail, ringed in their surface. */
 .inv-navbar-count {
@@ -1999,6 +2087,8 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
    takes the row, and the buttons wrap under it, still at the right. */
 .inv-actionbar-total { flex: 1 1 0; min-width: min-content; }
 .inv-actionbar-total + * { margin-left: auto; }
+/* A picture's two prints stand at the row's end (U6), the one primary last. */
+.inv-actionbar[data-paper-prints] { justify-content: flex-end; }
 .inv-actionbar-label { font-size: var(--fs-12); color: var(--text-3); }
 .inv-actionbar-value { font-family: var(--ff-num); font-size: var(--fs-18); font-weight: 600; white-space: nowrap; }
 /* A tick box and its words on one line, the whole line its touch target (a To-do rule, auto backup). */
@@ -22895,6 +22985,9 @@ function seriesSlot(kind, id) {
 function _chartBox(inner, opts, table) {
   opts = opts || {};
   if (opts.bare) return inner.replace(/<svg class="(inv-chart-svg|inv-chart-heat)"/, '<svg class="$1 inv-chart-bare"');
+  // On paper (UI pass 3 §13, U6): the drawing alone, no readout and no Table (paper has no tap); its series are labelled by the
+  // builder (a bar's figure over it, a stack's keys), and the paper root reads the series' printed colours (.inv-pcp-doc).
+  if (opts.paper) return '<div class="inv-chart-paper"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + '>' + inner + '</div>';
   var t = table && table.rows && table.rows.length ? table : null;
   return '<div class="inv-chart-box"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + ' data-table="off"><div class="inv-chart-draw">' + inner + '</div>' +
     (t ? '<div class="inv-chart-table" hidden>' + chartTableHtml(t.cols, t.rows) + '</div>' : '') +
@@ -23082,16 +23175,19 @@ function chartBars(data, opts) {
     var h = f.maxVal > 0 ? (d.value / f.maxVal) * f.chartH : 0;
     var x = pad.l + i * slot + (slot - barW) / 2;
     var y = pad.t + f.chartH - h;
-    var read = labels[i] + ': ' + chartFull(d.value, unit), ink = d.tone != null && !span ? chartInk({ tone: d.tone }, 0) : inkOf(i);
+    var read = labels[i] + ': ' + chartFull(d.value, unit) + (d.note ? ' (' + d.note + ')' : ''), ink = d.tone != null && !span ? chartInk({ tone: d.tone }, 0) : inkOf(i);
+    // d.hatch: a bar whose figure is known to read low (the power case's months holding a run of likely-unreported days), hatched in
+    // its own ink as a period not yet ended is on a card.
+    var hatchIt = d.value != null && isFinite(d.value) && ((opts.bare && i === td) || d.hatch);
     // A datum with no figure (null) is a gap, not a zero: no bar, its label kept. A period not yet ended is drawn lighter, or on a
     // card (opts.bare) hatched in its own ink, edged in it (the card family's to date, as the small bars and the meter draw it): a
     // class's fill outranks the attribute, so that bar is no inv-chart-bar and its stripes are the pattern's. The data end is
     // rounded (inv-chart-up), the foot square on the baseline.
-    if (d.value != null && isFinite(d.value) && opts.bare && i === td) {
+    if (hatchIt) {
       var pid = 'invBarHatch' + (++_chartBarsN);
       svg += '<defs><pattern id="' + pid + '" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><rect class="inv-chart-stripe ' + ink +
         '" x="0" y="0" width="1.5" height="4"/></pattern></defs><rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
-        '" class="inv-chart-hatched inv-chart-up ' + ink + ' inv-chart-todate" fill="url(#' + pid + ')" data-todate data-action="invChartRead" data-read="' + escHtml(read) +
+        '" class="inv-chart-hatched inv-chart-up ' + ink + (i === td ? ' inv-chart-todate" data-todate' : '" data-hatch') + ' fill="url(#' + pid + ')" data-action="invChartRead" data-read="' + escHtml(read) +
         '"><title>' + escHtml(read) + '</title></rect>';
     } else if (d.value != null && isFinite(d.value)) svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
       '" class="inv-chart-bar inv-chart-up ' + ink + (i === td ? ' inv-chart-todate' : '') + '"' + (i === td ? ' data-todate' : '') +
@@ -23099,6 +23195,8 @@ function chartBars(data, opts) {
     if (_chartLabelShown(i, data.length, stride, td, xs, axis)) {
       svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, axis[i], W);
     }
+    // On paper each bar says its figure (no tap reads it), over the bar; a zero says nothing.
+    if (opts.paper && d.value != null && isFinite(d.value) && d.value > 0) svg += '<text class="inv-chart-val" x="' + _chartN(x + barW / 2) + '" y="' + _chartN(y - 3) + '" text-anchor="middle">' + escHtml(chartShort(d.value, unit)) + '</text>';
   });
   // opts.mark {value, label}: a rule across the bars at a level they are judged against (attendance's gate at 90%), its label at
   // its right end over it; a reference, never a datum.
@@ -70810,11 +70908,13 @@ function renderPower() {
   el.innerHTML = h;
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   // The case on the page is the paper, fitted to the screen (TM2f's paperFit, as the report is).
-  if (_powerTab === 'case') paperFit(document.getElementById('powerCaseSheet'));
+  if (_powerTab === 'case') { paperFit(document.getElementById('powerPictureSheet')); paperFit(document.getElementById('powerCaseSheet')); }
   if (_powerTabMoved) { _powerTabMoved = false; viewTop(); }
   // A case open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-case]')) { body.innerHTML = powerCaseHtml(a); printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-picture]')) {
+    body.innerHTML = powerCasePictureHtml(a) + (body.querySelector('[data-power-case]') ? powerCaseHtml(a) : ''); printFit();
+  }
 }
 
 /* The month on record so far: its cuts, dark minutes, the ones with no time back, their cost and its recorded days. */
@@ -70949,12 +71049,90 @@ function powerLoadHtml(a) {
     chartBars(pts.map(function(b) { return { label: billsMonthLabel(b.month), value: Number(b.penalty) || 0 }; }), { ariaLabel: 'Over-limit penalty by bill' }) + '</div></div>', false);
   return h + '</div>';
 }
-/* Case (TM4e): the document, Print the case the one primary and Options' figures beside it, the paper fitted to the screen. */
-window.addEventListener('resize', function() { var s = document.getElementById('powerCaseSheet'); if (s && s.offsetParent) paperFit(s); });
+/* Case (TM4e; UI pass 3 §13, U6): the picture first, one page fitted to the screen, then the full case (*our copy*) shut under
+   Read the full case; Options' figures in the toolbar; the action bar Print the picture (the one primary) and Print the full case
+   (the picture, then the text). The full case is drawn with the page and hidden until opened, so it is there to read the moment it
+   is asked for. */
+window.addEventListener('resize', function() {
+  ['powerPictureSheet', 'powerCaseSheet'].forEach(function(id) { var s = document.getElementById(id); if (s && s.offsetParent) paperFit(s); });
+});
+var _powerCaseFull = false;
 function powerCaseViewHtml(a) {
-  return '<div class="inv-toolbar" data-power-toolbar="case"><button class="inv-btn inv-btn-primary" data-action="invPowerPrint">Print the case</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invPowerCfg">Options&rsquo; figures</button></div>' +
-    '<div class="inv-rpt-sheet" id="powerCaseSheet" data-power-case-wrap>' + powerCaseHtml(a) + '</div>';
+  return '<div class="inv-toolbar" data-power-toolbar="case"><button class="inv-btn inv-btn-secondary" data-action="invPowerCfg">Options&rsquo; figures</button></div>' +
+    '<div class="inv-rpt-sheet" id="powerPictureSheet">' + powerCasePictureHtml(a) + '</div>' +
+    '<div class="inv-paper-more"><button type="button" class="inv-btn inv-btn-secondary" data-action="invPowerCaseFull" aria-expanded="' + _powerCaseFull + '" aria-controls="powerCaseSheet">' +
+      (_powerCaseFull ? 'Hide the full case' : 'Read the full case') + '</button></div>' +
+    '<div class="inv-rpt-sheet" id="powerCaseSheet" data-power-case-wrap' + (_powerCaseFull ? '' : ' hidden') + '>' + powerCaseHtml(a) + '</div>' +
+    '<div class="inv-actionbar" data-paper-prints><button class="inv-btn inv-btn-secondary" data-action="invPowerPrint">Print the full case</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invPowerPrintPicture">Print the picture</button></div>';
+}
+
+/* ---------- The case as a picture (UI pass 3 §13, §26d) ----------
+   One A4 page on paper: four tiles, cuts by month (a month holding a run of likely-unreported days hatched), when they start (by
+   the hour), what a cut costs as one bar of 100%, the three options as cards with the recommendation marked, and the open items.
+   Every figure is powerAnalysis's own, the arithmetic the full case reads: nothing here works a figure out again. */
+function powerCasePictureHtml(a) {
+  a = a || powerAnalysis();
+  var co = String((S.company && S.company.name) || '').trim(), t = a.totals, today = localDateStr(), y = a.year;
+  var h = '<div class="inv-pcp-doc" data-power-picture>' + (co ? '<div class="inv-pcp-co">' + escHtml(co) + '</div>' : '') +
+    '<div class="inv-pcp-title">Power cuts: the picture</div>' +
+    '<div class="inv-pcp-meta">' + escHtml('As of ' + formatDate(today) + ', drawn from the app’s records' + (a.first ? ' · the record from ' + formatDate(a.first) : '')) + '</div>';
+  if (!t.cuts) return h + '<p class="inv-pcp-none">No power cut is on record yet: there is nothing to draw. Record cuts as they come, or import the history (Power → Cuts → Import history).</p></div>';
+  var from12 = isoAddDays(today, -364), last12 = a.cuts.filter(function(c) { return c.date >= from12; });
+  var inside12 = last12.reduce(function(s2, c) { return s2 + c.cost.inside; }, 0);
+  var opts = a.options || [], best = opts.filter(function(o) { return o.payLo != null; }).sort(function(p, q) { return p.payLo - q.payLo; })[0];
+  var tile = function(key, label, value, sub) {
+    return '<div class="inv-pcp-tile" data-pcp-tile="' + key + '"><div class="inv-pcp-tile-l">' + label + '</div><div class="inv-pcp-tile-v">' + value + '</div>' +
+      (sub ? '<div class="inv-pcp-tile-s">' + sub + '</div>' : '') + '</div>';
+  };
+  var range = y ? (y.low != null && y.high != null && y.high > y.low ? escHtml(_pcL(y.low) + ' – ' + _pcL(y.high)) : escHtml(_pcL(y.base))) : '&mdash;';
+  h += '<div class="inv-pcp-tiles">' +
+    tile('cuts', 'Cuts, last 12 months', escHtml(String(last12.length)), escHtml(a.first > from12 ? 'since ' + formatDate(a.first) : 'on the days on record')) +
+    tile('dark', 'Dark in working hours', escHtml(formatNum(inside12 / 60, 0) + ' h'), escHtml(last12.length ? 'about ' + powerDur(inside12 / last12.length) + ' a cut' : '')) +
+    tile('year', 'A year of them costs', range, escHtml(y ? 'the complete months’ range; ' + _pcL(y.base) + ' at the last 90 days’ rate' : 'not enough record to read a year')) +
+    tile('payback', 'Soonest payback', escHtml(best ? _pcMonths(best.payLo) + (best.payHi !== best.payLo ? ' – ' + _pcMonths(best.payHi) : '') : '—'), escHtml(best ? best.label : 'no option pays back at this rate')) +
+    '</div>';
+  // Cuts by month, the last twelve months on record; a month holding a run of likely-unreported days hatched (it reads low).
+  var months = a.months.slice(-12);
+  h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="months"><div class="inv-pcp-h">Cuts by month</div>' +
+    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.cuts, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : '' }; }),
+      { unit: 'count', paper: true, slot: 2, ariaLabel: 'Cuts by month', toDate: months.length && months[months.length - 1].month === today.slice(0, 7) ? months.length - 1 : null }) +
+    (months.some(function(m) { return m.quiet > 0; }) ? '<div class="inv-pcp-note">Hatched: a month with days whose power was likely not reported. It reads low.</div>' : '') + '</div>';
+  // When they start: the hour each cut began, 6 AM to 10 PM (the bands of the full case, hour by hour); the night's few are said.
+  var hrs = [], outside = 0;
+  a.hours.forEach(function(n, hh) { if (hh >= 6 && hh < 22) hrs.push({ label: (hh % 12 || 12) + (hh < 12 ? 'a' : 'p'), value: n }); else outside += n; });
+  h += '<div class="inv-pcp-sec" data-pcp-sec="hours"><div class="inv-pcp-h">When they start</div>' +
+    chartBars(hrs, { unit: 'count', paper: true, slot: 1, ariaLabel: 'Cuts by the hour they began', maxLabels: 16 }) +
+    (outside ? '<div class="inv-pcp-note">' + escHtml(todoPlural(outside, 'cut') + ' began between 10 PM and 6 AM.') + '</div>' : '') + '</div></div>';
+  // What a cut costs: the record's damage in its four parts, as the full case's section 4 adds it up.
+  var parts = [{ label: 'Restarts', v: t.restart, slot: 6, k: 'restart' }, { label: 'Catch-up overtime', v: t.recOt, slot: 4, k: 'recOt' },
+    { label: 'Output not made up', v: t.leftC, slot: 2, k: 'contrib' }, { label: 'Wages that bought nothing', v: t.leftI, slot: 3, k: 'idle' }];
+  h += '<div class="inv-pcp-sec" data-pcp-sec="cost"><div class="inv-pcp-h">What the cuts on record cost: ' + escHtml(finRs(t.cost)) + '</div>' +
+    chartShareBar(parts, 'What the cuts on record cost, in four parts') +
+    '<div class="inv-pcp-amounts">' + parts.filter(function(p) { return p.v > 0; }).map(function(p) {
+      return '<span data-pcp-part="' + p.k + '">' + escHtml(p.label) + ' <b>' + escHtml(finRs(p.v)) + '</b></span>';
+    }).join('') + '</div></div>';
+  // The three options, the recommendation marked: the full case recommends the TSUISL switch first (section 8).
+  if (opts.length) h += '<div class="inv-pcp-sec" data-pcp-sec="options"><div class="inv-pcp-h">The options</div><div class="inv-pcp-cards">' + opts.map(function(o) {
+    var rec = o.key === 'ts';
+    return '<div class="inv-pcp-card' + (rec ? ' inv-pcp-card-rec' : '') + '" data-pcp-option="' + o.key + '">' + (rec ? '<div class="inv-pcp-badge">Recommended</div>' : '') +
+      '<div class="inv-pcp-card-t">' + escHtml(o.label) + '</div>' +
+      '<div class="inv-pcp-row"><span>One-time</span><b>' + escHtml(_pcL(o.capLo) + '–' + _pcL(o.capHi)) + '</b></div>' +
+      '<div class="inv-pcp-row"><span>Covers</span><b>' + Math.round(o.capture * 100) + '%</b></div>' +
+      '<div class="inv-pcp-row"><span>Gain a year</span><b>' + escHtml(finRs(o.gain)) + '</b></div>' +
+      '<div class="inv-pcp-row"><span>Pays back</span><b>' + escHtml(o.payLo != null ? _pcMonths(o.payLo) + ' – ' + _pcMonths(o.payHi) : 'does not') + '</b></div></div>';
+  }).join('') + '</div></div>';
+  // The open items: the first three not done, as section 9 holds them.
+  var items = powerData().items, L = a.load;
+  var open = POWER_ITEMS.filter(function(it) {
+    var st = items[it[0]] || {}, auto = it[0] === 'load50' && L.approved && !L.pending && L.sanctioned;
+    return !auto && st.status !== 'done';
+  }).slice(0, 3);
+  h += '<div class="inv-pcp-sec" data-pcp-sec="open"><div class="inv-pcp-h">Open</div>' + (open.length ? '<ul class="inv-pcp-list">' + open.map(function(it) {
+    var st = items[it[0]] || {};
+    return '<li>' + escHtml(it[1] + (st.status === 'asked' ? ' · asked' : '') + (st.note ? ' · ' + st.note : '')) + '</li>';
+  }).join('') + '</ul>' : '<p class="inv-pcp-none">Nothing open.</p>') + '</div>';
+  return h + '<div class="inv-pcp-foot">The full case, with how each figure is worked out, follows this page when it is printed with it.</div></div>';
 }
 
 /* ---------- The case, as a document ---------- */
@@ -71112,17 +71290,19 @@ function _powerLongestGap(gaps) {
   return best.length ? best.length + ' working day' + (best.length === 1 ? '' : 's') + ', ' + formatDate(best[0]) + (best.length > 1 ? ' – ' + formatDate(best[best.length - 1]) : '') : 'none';
 }
 
-function powerPrint() {
+/* Print the picture (one page) or the full case: the picture, then the text. */
+function powerPrint(pictureOnly) {
   var body = document.getElementById('invPrintBody');
   if (!body) return;
-  body.innerHTML = powerCaseHtml();
+  var a = powerAnalysis();
+  body.innerHTML = powerCasePictureHtml(a) + (pictureOnly ? '' : powerCaseHtml(a));
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
   printNeed({ pages: ['pagePower'] });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
-  document.title = 'Power cuts case ' + localDateStr();
+  document.title = (pictureOnly ? 'Power cuts picture ' : 'Power cuts case ') + localDateStr();
 }
 
 /* ---------- Dialogs ---------- */
@@ -71289,6 +71469,17 @@ function powerAction(action, btn) {
   switch (action) {
     case 'invPowerTab': powerSetTab(btn.dataset.tab); renderPower(); return true;
     case 'invPowerPrint': powerPrint(); return true;
+    case 'invPowerPrintPicture': powerPrint(true); return true;
+    case 'invPowerCaseFull': {
+      // The full case, opened or shut in place (a control inside the view: the page keeps its place).
+      _powerCaseFull = !_powerCaseFull;
+      var sh = document.getElementById('powerCaseSheet');
+      if (sh) { sh.hidden = !_powerCaseFull; if (_powerCaseFull) paperFit(sh); }
+      btn.setAttribute('aria-expanded', String(_powerCaseFull));
+      btn.textContent = _powerCaseFull ? 'Hide the full case' : 'Read the full case';
+      if (_powerCaseFull && sh) uiRevealEl(sh);
+      return true;
+    }
     case 'invPowerCfg': powerCfgEdit(); return true;
     case 'invPowerCfgSave': powerCfgSave(); return true;
     case 'invPowerLoadEdit': powerLoadEdit(); return true;
@@ -72466,6 +72657,25 @@ function rptHtml(kind, from, to) {
   return h + '</td></tr></tbody></table></div>';
 }
 
+/* The period's parts, for the table under the tiles and the picture's charts: a week's days, a month's pay weeks, a quarter's or a
+   year's months. `short` is the chart's axis label. */
+function rptSubs(p) {
+  var subs = [];
+  if (p.kind === 'weekly') attWeekDays(p.from).forEach(function(d) {
+    var dn = RPT_DAYS[new Date(d + 'T00:00:00').getDay()].slice(0, 3);
+    subs.push({ from: d, to: d, label: dn + ' ' + rptShort(d), short: dn });
+  });
+  else if (p.kind === 'monthly') {
+    for (var ws = attWeekStartOf(p.from), g = 0; ws <= p.to && g < 7; ws = isoAddDays(ws, 7), g++) {
+      var a = ws < p.from ? p.from : ws, b = isoAddDays(ws, 6) > p.to ? p.to : isoAddDays(ws, 6);
+      subs.push({ from: a, to: b, label: 'W' + attPayWeekNumber(ws) + ' · ' + rptShort(a) + (a !== b ? ' – ' + rptShort(b) : ''), short: 'W' + attPayWeekNumber(ws) });
+    }
+  } else if (p.kind !== 'daily') {
+    for (var m = p.from, k = 0; m <= p.to && k < 12; m = isoAddDays(payMonthEnd(m), 1), k++) subs.push({ from: m, to: payMonthEnd(m), label: insMonthLabel(m) + ' ' + m.slice(0, 4), short: insMonthLabel(m) });
+  }
+  return subs;
+}
+
 /* 2. The table under the tiles. */
 function rptBreakdownHtml(p, end, ctx) {
   if (p.kind === 'daily') {
@@ -72488,16 +72698,7 @@ function rptBreakdownHtml(p, end, ctx) {
       PROD_LINES.filter(function(l) { return cov[l].days; }).length + ' of ' + PROD_LINES.length + ' lines recorded.'),
       rptTable([['Line'], ['Heads', 1], ['Plated kg', 1], ['Pieces', 1], ['Rounds', 1]], rows, null, 'lines'));
   }
-  var subs = [];
-  if (p.kind === 'weekly') attWeekDays(p.from).forEach(function(d) { subs.push({ from: d, to: d, label: RPT_DAYS[new Date(d + 'T00:00:00').getDay()].slice(0, 3) + ' ' + rptShort(d) }); });
-  else if (p.kind === 'monthly') {
-    for (var ws = attWeekStartOf(p.from), g = 0; ws <= p.to && g < 7; ws = isoAddDays(ws, 7), g++) {
-      var a = ws < p.from ? p.from : ws, b = isoAddDays(ws, 6) > p.to ? p.to : isoAddDays(ws, 6);
-      subs.push({ from: a, to: b, label: 'W' + attPayWeekNumber(ws) + ' · ' + rptShort(a) + (a !== b ? ' – ' + rptShort(b) : '') });
-    }
-  } else {
-    for (var m = p.from, k = 0; m <= p.to && k < 12; m = isoAddDays(payMonthEnd(m), 1), k++) subs.push({ from: m, to: payMonthEnd(m), label: insMonthLabel(m) + ' ' + m.slice(0, 4) });
-  }
+  var subs = rptSubs(p);
   // The foot totals only what its rows carry (QA5-10): a column of dashes foots to a dash, never to a 0; ₹/kg is the
   // weighed revenue over the weighed kilos of every row, and present the marks of every row, as each row reads them.
   var tot = { inv: 0, kg: 0, revKnown: 0, rec: 0, nos: 0, pl: 0, plDays: 0, present: 0, marked: 0, cuts: 0, cutsKnown: false };
@@ -72745,7 +72946,89 @@ function rptSourcesHtml(p, current) {
   return rptSec('sources', 'Sources', '', '<ul class="inv-rpt-list">' + items.map(function(x) { return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>');
 }
 
+/* ---------- The picture (UI pass 3 §13, §26d) ----------
+   One A4 page in front of the report: four tiles (revenue, tonnes, realisation against the live cost, cash), two charts by kind (a
+   day by line; a week by day; a month by pay week; a quarter or a year by month), and the three things to look at (the period's red
+   and amber tasks while it runs, else its worst figures). Every figure is the report's own: the same functions rptHtml reads. */
+function rptPictureHtml(kind, from, to) {
+  var p = rptPeriodOf(kind, from);
+  if (to) p.to = to;
+  var today = localDateStr(), end = p.to > today ? today : p.to, current = p.from <= today && p.to >= today;
+  var co = String((S.company && S.company.name) || '').trim(), title = rptTitle(p);
+  var h = '<div class="inv-pcp-doc" data-rpt-picture data-kind="' + p.kind + '" data-from="' + p.from + '">' + (co ? '<div class="inv-pcp-co">' + escHtml(co) + '</div>' : '') +
+    '<div class="inv-pcp-title">' + escHtml(title) + '</div>' +
+    '<div class="inv-pcp-meta">' + escHtml((p.from === p.to ? formatDate(p.from) : formatDate(p.from) + ' to ' + formatDate(p.to)) + (current ? ' · figures to ' + formatDate(end) : '') +
+      ' · the picture: the report follows it when printed with it') + '</div>';
+  if (p.from > today) return h + '<p class="inv-pcp-none">This period has not begun.</p></div>';
+  var all = statsInvoices().filter(function(i) { return i.date; }), pr = rptPrior(p, end);
+  var invs = all.filter(function(i) { return i.date >= p.from && i.date <= end; }), pinvs = all.filter(function(i) { return i.date >= pr.from && i.date <= pr.to; });
+  var w = weighLines(invs), pw = weighLines(pinvs), taxable = sumTaxable(invs), ptaxable = sumTaxable(pinvs);
+  var lc = w.kg > 0 ? liveCost(p.from, end, w.kg) : null, real = w.kg > 0 ? w.revKnown / w.kg : null;
+  var bank = finHasBank(), cover = bank ? bankCover() : null, reach = cover && cover.from <= end && cover.to >= p.from;
+  var brows = reach ? rptBankRows(p.from, end) : [];
+  var cin = brows.reduce(function(t, r) { return t + r.cr; }, 0), cout = brows.reduce(function(t, r) { return t + r.dr; }, 0);
+  var ch = function(cur, prev) {
+    if (!(prev > 0) || cur == null) return '';
+    var d = (cur - prev) / prev * 100;
+    return (d >= 0 ? '+' : '−') + formatNum(Math.abs(d), 0) + '% on ' + pr.label;
+  };
+  var tile = function(key, label, value, sub, tone) {
+    return '<div class="inv-pcp-tile" data-pcp-tile="' + key + '"><div class="inv-pcp-tile-l">' + label + '</div><div class="inv-pcp-tile-v' + (tone ? ' inv-pcp-' + tone : '') + '">' + value + '</div>' +
+      (sub ? '<div class="inv-pcp-tile-s">' + sub + '</div>' : '') + '</div>';
+  };
+  var realTone = real != null && lc && lc.perKg > 0 ? figToneAgainst(real, lc.perKg, 5) : null;
+  h += '<div class="inv-pcp-tiles">' +
+    tile('revenue', 'Revenue', invs.length ? escHtml(finRs(taxable)) : '&mdash;', escHtml(invs.length ? todoPlural(invs.length, 'invoice') + (ch(taxable, ptaxable) ? ' · ' + ch(taxable, ptaxable) : '') : 'no invoice dated in the period')) +
+    tile('tonnes', 'Tonnes billed', w.kg > 0 ? escHtml(rptKg(w.kg)) : '&mdash;', escHtml(w.kg > 0 ? (w.coverage < 0.999 ? rptPct(w.coverage) + ' of revenue weighed' : 'every line weighed') + (ch(w.kg, pw.kg) ? ' · ' + ch(w.kg, pw.kg) : '') : invs.length ? 'nothing weighed' : 'nothing invoiced')) +
+    tile('real', 'Realisation', real != null ? escHtml(formatCurrency(real) + '/kg') : '&mdash;', escHtml(real != null && lc && lc.perKg > 0 ? (real >= lc.perKg ? 'clears' : 'below') + ' the live cost ' + formatCurrency(lc.perKg) + '/kg' : 'no live cost to set it against'), realTone) +
+    tile('cash', 'Cash in · out', reach ? escHtml(finRs(cin) + ' · ' + finRs(cout)) : '&mdash;', escHtml(reach ? 'on the bank statement' + (cover.to < end ? ', to ' + formatDate(cover.to) : '') : bank ? 'the statement does not reach the period' : 'no bank statement imported')) +
+    '</div>';
+  // Two charts by kind: a day's lines (plated and their heads), else the period's parts (invoiced and plated on complete days).
+  var c1 = '', c2 = '', t1 = '', t2 = '';
+  // A chart with nothing in it says so in words: an empty frame reads as a zero.
+  var chartBars = function(data, o) {
+    return data.some(function(d) { return d.value != null && d.value > 0; }) ? window.chartBars(data, o) : '<p class="inv-pcp-none">' + escHtml(o.emptyText) + '</p>';
+  };
+  if (p.kind === 'daily') {
+    var ln = PROD_LINES.map(function(l) { return { l: l, r: prodDayLine(p.from, l) }; });
+    t1 = 'Plated by line, kg'; t2 = 'Rounds by line';
+    c1 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.kg) : null }; }), { unit: 'kg', paper: true, slot: 3, ariaLabel: t1, emptyText: 'Nothing plated on record' });
+    c2 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.rounds || 0) : null }; }), { unit: 'count', paper: true, slot: 1, ariaLabel: t2, emptyText: 'No rounds on record' });
+  } else {
+    var ctx = { today: today, invs: all, power: powerAnalysis() };
+    var subs = rptSubs(p), figs = subs.map(function(sb) { return rptRowFigures(ctx, sb.from, sb.to); });
+    var td = subs.findIndex(function(sb) { return sb.from <= today && sb.to >= today; });
+    var by = p.kind === 'weekly' ? 'by day' : p.kind === 'monthly' ? 'by pay week' : 'by month';
+    t1 = 'Invoiced ' + by; t2 = 'Plated ' + by + ', kg (complete days)';
+    c1 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future ? null : f.inv ? gstRound(f.taxable, 0) : 0 }; }),
+      { unit: 'money', paper: true, slot: 1, ariaLabel: t1, toDate: td >= 0 ? td : null, emptyText: 'Nothing invoiced' });
+    c2 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future || !f.plated ? null : Math.round(f.plated.kg) }; }),
+      { unit: 'kg', paper: true, slot: 3, ariaLabel: t2, toDate: td >= 0 ? td : null, emptyText: 'No complete day recorded' });
+  }
+  h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="chart1"><div class="inv-pcp-h">' + escHtml(t1) + '</div>' + c1 + '</div>' +
+    '<div class="inv-pcp-sec" data-pcp-sec="chart2"><div class="inv-pcp-h">' + escHtml(t2) + '</div>' + c2 + '</div></div>';
+  // The three things to look at: the red and amber tasks while the period runs (the report's Open items), else its worst figures.
+  var look = [];
+  if (current) look = todoRanked().filter(function(r) { return r.tone === 'red' || r.tone === 'amber'; }).slice(0, 3).map(function(r) {
+    return { tone: r.tone === 'red' ? 'danger' : 'warning', text: r.app ? r.app.title : r.mine.text };
+  });
+  else {
+    if (realTone === 'danger' || realTone === 'warning') look.push({ tone: realTone, text: 'Realisation ' + formatCurrency(real) + '/kg against the live cost ' + formatCurrency(lc.perKg) + '/kg' });
+    if (ptaxable > 0 && taxable < ptaxable * 0.9) look.push({ tone: 'warning', text: 'Revenue ' + ch(taxable, ptaxable) });
+    var att = rptAttendance(p.from, end);
+    if (att.pct != null && att.pct < 90) look.push({ tone: att.pct < 80 ? 'danger' : 'warning', text: 'Attendance ' + Math.round(att.pct) + '% of the marks typed' });
+    var cs = rptCutSum(rptCuts(powerAnalysis(), p.from, end));
+    if (cs.n) look.push({ tone: 'warning', text: todoPlural(cs.n, 'power cut') + ', ' + powerDur(cs.min) + ' dark in working hours' });
+    look = look.slice(0, 3);
+  }
+  h += '<div class="inv-pcp-sec" data-pcp-sec="look"><div class="inv-pcp-h">' + (current ? 'To look at now' : 'To look at') + '</div>' +
+    (look.length ? '<ul class="inv-pcp-list">' + look.map(function(x) { return '<li data-pcp-look="' + x.tone + '"><b class="inv-pcp-' + x.tone + '">' + (x.tone === 'danger' ? 'Red' : 'Amber') + '</b> · ' + escHtml(x.text) + '</li>'; }).join('') + '</ul>'
+      : '<p class="inv-pcp-none">' + (current ? 'Nothing red or amber on the To-do.' : 'Nothing in the period’s figures stands out.') + '</p>') + '</div>';
+  return h + '<div class="inv-pcp-foot">Revenue is taxable, net of credit notes; tonnes and realisation are the weighed lines; plated counts complete days only. The report that follows has every figure.</div></div>';
+}
+
 /* ---------- The page ---------- */
+var _rptFull = false;
 function renderReports() {
   var el = document.getElementById('reportsContent');
   if (!el) return;
@@ -72780,23 +73063,35 @@ function renderReports() {
   var doc = rptHtml(p.kind, p.from);
   // Print is the screen's one primary, in the action bar under the sheet, as Create's is (the tab map, TM6: two toolbar rows on
   // the phone, where it had taken a third and its note a fourth).
-  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>' +
-    '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">A4, drawn from the records each time it is shown or printed</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invRptPrint">Print</button></div>';
+  // The picture first (U6), then the report itself under Read the full report, drawn with the page and hidden until opened; the
+  // action bar's two prints: the picture (the one primary) and the picture with the report.
+  var pic = rptPictureHtml(p.kind, p.from);
+  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptPictureSheet">' + pic + '</div>' +
+    '<div class="inv-paper-more"><button type="button" class="inv-btn inv-btn-secondary" data-action="invRptFull" aria-expanded="' + _rptFull + '" aria-controls="rptSheet">' +
+      (_rptFull ? 'Hide the full report' : 'Read the full report') + '</button></div>' +
+    '<div class="inv-rpt-sheet" id="rptSheet"' + (_rptFull ? '' : ' hidden') + '>' + doc + '</div>' +
+    '<div class="inv-actionbar" data-paper-prints><button class="inv-btn inv-btn-secondary" data-action="invRptPrint">Print the picture and the report</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invRptPrintPicture">Print the picture</button></div>';
   // The sheet as it prints, fitted to the screen (TM2f): a phone shows the whole A4 width, zoomed out, never its tables cut.
+  paperFit(document.getElementById('rptPictureSheet'));
   paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-rpt-picture]')) {
+    body.innerHTML = pic + (body.querySelector('[data-rpt-doc]') ? doc : ''); printFit();
+  }
 }
 
-window.addEventListener('resize', function() { var s = document.getElementById('rptSheet'); if (s && s.offsetParent) paperFit(s); });
+window.addEventListener('resize', function() {
+  ['rptPictureSheet', 'rptSheet'].forEach(function(id) { var s = document.getElementById(id); if (s && s.offsetParent) paperFit(s); });
+});
 
-function rptPrint() {
+/* Print the picture (one page), or the picture and the report after it. */
+function rptPrint(pictureOnly) {
   var body = document.getElementById('invPrintBody');
   if (!body) return;
   var p = rptCurrent();
-  body.innerHTML = rptHtml(p.kind, p.from);
+  body.innerHTML = rptPictureHtml(p.kind, p.from) + (pictureOnly ? '' : rptHtml(p.kind, p.from));
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
   // A report of the current period lists the sender's own open tasks (rptOpenHtml reads todoRanked as this ID sees it, each task by
@@ -72808,7 +73103,7 @@ function rptPrint() {
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   // The PDF's file name: "SEP monthly report 2026-09".
-  document.title = 'SEP ' + p.kind + ' report ' + (p.kind === 'monthly' ? p.from.slice(0, 7) : p.kind === 'yearly' ? rptFyLabel(rptFy(p.from)).replace(' ', '-') :
+  document.title = 'SEP ' + p.kind + (pictureOnly ? ' picture ' : ' report ') + (p.kind === 'monthly' ? p.from.slice(0, 7) : p.kind === 'yearly' ? rptFyLabel(rptFy(p.from)).replace(' ', '-') :
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
@@ -72850,6 +73145,16 @@ function rptAction(action, btn) {
     }
     case 'invRptNow': rptSet(p.kind, localDateStr()); renderReports(); break;
     case 'invRptPrint': rptPrint(); break;
+    case 'invRptPrintPicture': rptPrint(true); break;
+    case 'invRptFull': {
+      // The report, opened or shut in place (a control inside the view: the page keeps its place).
+      _rptFull = !_rptFull;
+      var sh = document.getElementById('rptSheet');
+      if (sh) { sh.hidden = !_rptFull; if (_rptFull) { paperFit(sh); uiRevealEl(sh); } }
+      btn.setAttribute('aria-expanded', String(_rptFull));
+      btn.textContent = _rptFull ? 'Hide the full report' : 'Read the full report';
+      break;
+    }
     case 'invRptFromStats': rptFromStats(btn.dataset.period); break;
     default: return false;
   }
@@ -75318,11 +75623,15 @@ var KB_APP_GUIDES = [
     '# Load & bills\n- The card compares the load as billed with the load approved. It also shows the penalty on the bills since approval. To record the approval, tap **Edit load**.\n' +
     '- Each bill is 1 line: its month, its units and peak, and its amount. Tap the line to see its details. To set the details, tap **Details**. Add bills in Money → Payments.\n\n' +
     '# Case\n- The case is the business case for backup power. The app makes it from the record each time you open or print it.\n' +
-    '- To print it, tap **Print the case**.\n' +
+    '- The case starts with its picture, on 1 page. The tiles show the cuts in 12 months, the dark hours, the cost of a year and the soonest payback.\n' +
+    '- Under the tiles are the cuts by month and by hour, the cost in 4 parts, the 3 options and what is open.\n' +
+    '- A month with days whose power was likely not reported is hatched. Its figure is low.\n' +
+    '- To read the full case with how each figure is worked out, tap **Read the full case**.\n' +
+    '- To print 1 page, tap **Print the picture**. To print the picture and then the full case, tap **Print the full case**.\n' +
     '- Until a quote replaces them, **Options’ figures** sets the estimates for the options.',
     // Version 2: four views, a card on each, the method moved here (the tab map, TM4e).
-    // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 3 }),
+    // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 4: the picture first (UI pass 3, U6).
+    { version: 4 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
     '- The steps in 1 row below the toolbar show what to do for the week. Tap a step to go where you do it:\n' +

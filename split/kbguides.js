@@ -404,11 +404,15 @@ var KB_APP_GUIDES = [
     '# Load & bills\n- The card compares the load as billed with the load approved. It also shows the penalty on the bills since approval. To record the approval, tap **Edit load**.\n' +
     '- Each bill is 1 line: its month, its units and peak, and its amount. Tap the line to see its details. To set the details, tap **Details**. Add bills in Money → Payments.\n\n' +
     '# Case\n- The case is the business case for backup power. The app makes it from the record each time you open or print it.\n' +
-    '- To print it, tap **Print the case**.\n' +
+    '- The case starts with its picture, on 1 page. The tiles show the cuts in 12 months, the dark hours, the cost of a year and the soonest payback.\n' +
+    '- Under the tiles are the cuts by month and by hour, the cost in 4 parts, the 3 options and what is open.\n' +
+    '- A month with days whose power was likely not reported is hatched. Its figure is low.\n' +
+    '- To read the full case with how each figure is worked out, tap **Read the full case**.\n' +
+    '- To print 1 page, tap **Print the picture**. To print the picture and then the full case, tap **Print the full case**.\n' +
     '- Until a quote replaces them, **Options’ figures** sets the estimates for the options.',
     // Version 2: four views, a card on each, the method moved here (the tab map, TM4e).
-    // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 3 }),
+    // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 4: the picture first (UI pass 3, U6).
+    { version: 4 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
     '- The steps in 1 row below the toolbar show what to do for the week. Tap a step to go where you do it:\n' +

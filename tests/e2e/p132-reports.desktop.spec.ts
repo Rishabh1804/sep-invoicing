@@ -12,6 +12,10 @@ test("Reports is in Today's tab row after Stats, and the report is an A4-wide sh
   expect(labels.slice(labels.indexOf('Stats'))).toEqual(['Stats', 'Reports', 'Planner']);
   const docEl = page.locator('#rptSheet [data-rpt-doc]');
   await expect(docEl.locator('.inv-rpt-title')).toContainText('Monthly report');
+  // The report follows its picture (U6), opened under Read the full report; the picture is the same A4 width.
+  const picW = await page.locator('#rptPictureSheet [data-rpt-picture]').evaluate(el => el.getBoundingClientRect().width);
+  expect(Math.abs(picW - 210 * 96 / 25.4)).toBeLessThan(2);
+  await page.locator('[data-action="invRptFull"]').click();
   const w = await docEl.evaluate(el => el.getBoundingClientRect().width);
   expect(Math.abs(w - 210 * 96 / 25.4)).toBeLessThan(2);
   // The page never scrolls sideways; its tab is pressed and the rail marks Today.

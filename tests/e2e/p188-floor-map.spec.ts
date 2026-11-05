@@ -279,7 +279,16 @@ test.describe('P188: Floor’s map', () => {
     await expect(page.locator('#powerLoad')).toHaveClass(/inv-hero-danger/);
     await expect(page.locator('#powerLoad .inv-hero-title')).toHaveText('Approved 50 kVA, billed at 25');
     await tabs(page, 'pagePower').filter({ hasText: 'Case' }).click();
-    await expect(page.locator('#powerContent .inv-btn-primary')).toHaveText(['Print the case']);
+    // The case leads with its picture (U6): Print the picture the one primary, the picture fitted to the phone, and so the full case
+    // once opened.
+    await expect(page.locator('#powerContent .inv-btn-primary')).toHaveText(['Print the picture']);
+    const pic = await page.locator('#powerPictureSheet').evaluate(el => {
+      const doc = el.querySelector('[data-power-picture]') as HTMLElement;
+      return { zoom: Number(getComputedStyle(el).getPropertyValue('--pp-zoom')), right: doc.getBoundingClientRect().right, width: document.documentElement.clientWidth };
+    });
+    expect(pic.zoom).toBeLessThan(1);
+    expect(pic.right).toBeLessThanOrEqual(pic.width);
+    await page.locator('[data-action="invPowerCaseFull"]').click();
     const fit = await page.locator('#powerCaseSheet').evaluate(el => {
       const doc = el.querySelector('[data-power-case]') as HTMLElement;
       return { zoom: Number(getComputedStyle(el).getPropertyValue('--pp-zoom')), right: doc.getBoundingClientRect().right, width: document.documentElement.clientWidth };

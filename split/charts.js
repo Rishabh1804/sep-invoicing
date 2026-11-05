@@ -212,6 +212,9 @@ function seriesSlot(kind, id) {
 function _chartBox(inner, opts, table) {
   opts = opts || {};
   if (opts.bare) return inner.replace(/<svg class="(inv-chart-svg|inv-chart-heat)"/, '<svg class="$1 inv-chart-bare"');
+  // On paper (UI pass 3 §13, U6): the drawing alone, no readout and no Table (paper has no tap); its series are labelled by the
+  // builder (a bar's figure over it, a stack's keys), and the paper root reads the series' printed colours (.inv-pcp-doc).
+  if (opts.paper) return '<div class="inv-chart-paper"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + '>' + inner + '</div>';
   var t = table && table.rows && table.rows.length ? table : null;
   return '<div class="inv-chart-box"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + ' data-table="off"><div class="inv-chart-draw">' + inner + '</div>' +
     (t ? '<div class="inv-chart-table" hidden>' + chartTableHtml(t.cols, t.rows) + '</div>' : '') +
@@ -399,16 +402,19 @@ function chartBars(data, opts) {
     var h = f.maxVal > 0 ? (d.value / f.maxVal) * f.chartH : 0;
     var x = pad.l + i * slot + (slot - barW) / 2;
     var y = pad.t + f.chartH - h;
-    var read = labels[i] + ': ' + chartFull(d.value, unit), ink = d.tone != null && !span ? chartInk({ tone: d.tone }, 0) : inkOf(i);
+    var read = labels[i] + ': ' + chartFull(d.value, unit) + (d.note ? ' (' + d.note + ')' : ''), ink = d.tone != null && !span ? chartInk({ tone: d.tone }, 0) : inkOf(i);
+    // d.hatch: a bar whose figure is known to read low (the power case's months holding a run of likely-unreported days), hatched in
+    // its own ink as a period not yet ended is on a card.
+    var hatchIt = d.value != null && isFinite(d.value) && ((opts.bare && i === td) || d.hatch);
     // A datum with no figure (null) is a gap, not a zero: no bar, its label kept. A period not yet ended is drawn lighter, or on a
     // card (opts.bare) hatched in its own ink, edged in it (the card family's to date, as the small bars and the meter draw it): a
     // class's fill outranks the attribute, so that bar is no inv-chart-bar and its stripes are the pattern's. The data end is
     // rounded (inv-chart-up), the foot square on the baseline.
-    if (d.value != null && isFinite(d.value) && opts.bare && i === td) {
+    if (hatchIt) {
       var pid = 'invBarHatch' + (++_chartBarsN);
       svg += '<defs><pattern id="' + pid + '" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><rect class="inv-chart-stripe ' + ink +
         '" x="0" y="0" width="1.5" height="4"/></pattern></defs><rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
-        '" class="inv-chart-hatched inv-chart-up ' + ink + ' inv-chart-todate" fill="url(#' + pid + ')" data-todate data-action="invChartRead" data-read="' + escHtml(read) +
+        '" class="inv-chart-hatched inv-chart-up ' + ink + (i === td ? ' inv-chart-todate" data-todate' : '" data-hatch') + ' fill="url(#' + pid + ')" data-action="invChartRead" data-read="' + escHtml(read) +
         '"><title>' + escHtml(read) + '</title></rect>';
     } else if (d.value != null && isFinite(d.value)) svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
       '" class="inv-chart-bar inv-chart-up ' + ink + (i === td ? ' inv-chart-todate' : '') + '"' + (i === td ? ' data-todate' : '') +
@@ -416,6 +422,8 @@ function chartBars(data, opts) {
     if (_chartLabelShown(i, data.length, stride, td, xs, axis)) {
       svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, axis[i], W);
     }
+    // On paper each bar says its figure (no tap reads it), over the bar; a zero says nothing.
+    if (opts.paper && d.value != null && isFinite(d.value) && d.value > 0) svg += '<text class="inv-chart-val" x="' + _chartN(x + barW / 2) + '" y="' + _chartN(y - 3) + '" text-anchor="middle">' + escHtml(chartShort(d.value, unit)) + '</text>';
   });
   // opts.mark {value, label}: a rule across the bars at a level they are judged against (attendance's gate at 90%), its label at
   // its right end over it; a reference, never a datum.

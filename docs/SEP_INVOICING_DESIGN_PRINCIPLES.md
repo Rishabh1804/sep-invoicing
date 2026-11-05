@@ -948,6 +948,9 @@ lets a tap through to the datum under it.
   the tile's figure drawn, not a chart, and has none.
 - The frame's sizes are `--plot-h`, `--plot-h-wide`, `--plot-fs-axis`, `--plot-fs-centre` (the `--chart-*` tokens are retired).
   P227 holds it.
+- **A chart on paper** (U6, `docs/UI_PASS_3.md` §13, §26k): `opts.paper` draws it with no readout line or *Table* (`inv-chart-paper`),
+  each bar its figure over it (`inv-chart-val`), a bar known to read low hatched (`d.hatch`); the paper root (`inv-pcp-doc`) gives it
+  the series' printed colours, the same on every palette and theme.
 - **A chart in a card is bare** (U2R, `docs/UI_PASS_3.md` §24d): `opts.bare` draws it with no box, readout line or *Table*
   (`inv-chart-bare`), each datum keeping its `<title>` with its exact figure, and with `opts.w` and `opts.h` its `viewBox` is the
   room's own pixels (`_chartWH`), so every label renders at 11 px or more; the card's Open reaches the screen behind, which keeps the
@@ -1430,6 +1433,12 @@ state, their heads, the progress and the preview, **never a field**. Enter in a 
 of the step Next (`uiFlowEnter`, from the Enter chain); a form with its own keyboard chain says `data-flow-ownkeys`. On opening, the
 step Next's first field is focused, never on a touch screen (`uiFlowFocusNext`). Save stays in the action bar. Nothing a test or the
 keyboard reads changes: the form's ids, `data-action`, `data-change` and `data-k` stay on its fields.
+
+### 6.38 The picture page — `powerCasePictureHtml`, `rptPictureHtml`, `inv-pcp-*` (UI pass 3, §13)
+A document that reasons in text leads with one A4 page of its figures: tiles, two charts, a bar of 100% or cards, and what to look at,
+on paper's own tokens (the printed documents' rule: white, pt and mm, no palette, no theme). The text follows as *our copy*: under
+**Read the full …** on the screen, hidden until opened, and after the picture when printed with it. The action bar holds the two prints,
+the picture the one primary. Every figure is the full document's own arithmetic; money on the picture is whole rupees.
 
 ## 7. How each screen is assembled
 

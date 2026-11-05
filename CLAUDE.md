@@ -1184,11 +1184,11 @@ by design"*; *"Roster section … primitive, despite having plenty of data to sh
 specs that read the Roster's rows, the week's table and Pay's history chart rewritten to the same facts where they now live, never
 weakened.
 - **The next steps** (`uiNextStepsHtml(key, steps)`, state.js; design §6.23): where a view's work has an order, Today's step pieces
-  laid across one row under its toolbar (`data-next-steps`), each a node in its state and a door; the first not done ringed
-  (`data-next`). **A step's door is its own action** (`invAttStepGo`, `invPayStepGo`, `data-go`), never a copy of a toolbar's or a
+  laid across one row under its toolbar (`data-next-steps`), each a node in its state and a door; the first not done with a door
+  ringed (`data-next`). **A step's door is its own action** (`invAttStepGo`, `invPayStepGo`, `data-go`), never a copy of a toolbar's or a
   tab's: a test clicking the toolbar's button would find two. Day: In-time roll → Marks (*21 of 23*) → *Held for you* while a sync
   holds a mark → Out-time roll → a line's night roll → EXTRA booked. Month: Start or import → Fill → Settle → Mark checked. Pay: Hours →
-  Cash paid out → Payout (*to Sat 5 PM*) → Payments → Slips.
+  Cash paid out → Payout (*to Sat 5 PM*) → Weekly payments → Slips.
 - **The pictures**: Week a grid of marks over its table (`chartMarks`, charts.js: a hand a row, a day a column, P ok, H warning, A
   danger, a night info, not marked hatched, two shifts back to back a dot; `#attWeekMarks`), the table folded under it
   (`att-week-grid`); Month its agreement as one bar of 100% (`chartShareBar` takes a status `tone` now; `[data-areg-bar]`); Pay the
@@ -1207,8 +1207,10 @@ weakened.
   late. Pay's Payout step is done only on a week closed at Saturday 5 PM (`PAY_CUTOFF`) with every working day recorded and no hours to
   check; *Weekly payments* counts the weekly hands; the chart's part is the weekly hands', a cash-only week has no wages part, and each
   bar reads its payout (`chartStack`'s `total`). A day not come is *to come*, a night roll due until its morning is past, a day the plant
-  does not work expects no marks, a day of typed outs has its out-time roll in *by hand* (`tdyInput`). The Week grid leaves shut days
-  and days off the roster empty; a hand to watch is red on card, verdict and tile; a search jump clears the roster's filters.
+  is not expected to work by the calendar (`attDayNotExpected`: a Sunday, a paid holiday, a day marked shut, worked or not) expects no
+  marks, a day of typed outs (the night's hands aside) has its out-time roll in *by hand* (`tdyInput`, so Needs you and Mine read it
+  too). The Week grid leaves those days and days off the roster empty, and a shut day is no day missing on Week's verdict or Pay's
+  Payout step; a step with no door is never ringed; a hand to watch is red on card, verdict and tile; a search jump clears the roster's filters.
 - **A data flow**: none. The book does not change.
 
 ## Business Domain

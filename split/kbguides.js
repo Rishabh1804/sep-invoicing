@@ -415,7 +415,7 @@ var KB_APP_GUIDES = [
     '- **Hours**: a hand whose times do not reach a block.\n' +
     '- **Cash paid out**, then **Payout** (to Saturday 5 PM).\n' +
     '- **Weekly payments**: the weekly hands with an amount due. Then **Slips**.\n' +
-    '- **Payout** shows a tick only when the week is closed and every working day is recorded. If days are not recorded, it says how many.\n' +
+    '- **Payout** shows a tick only when the week is closed, every working day is recorded and no hours are to check. If days are not recorded, it says how many.\n' +
     '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +

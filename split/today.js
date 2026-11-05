@@ -125,7 +125,7 @@ function tdyInput(def, day) {
       // Entered by hand too: every hand on site has an out typed or scanned (no roll wrote it, no shift's default), so the day's
       // outs are in with no roll behind them (Castor M-4, the QA chain of 5 Nov 2026: a day typed from the sheet read late for ever).
       var orec = (S.attendance || {})[day], on = attDayRoster(orec).map(function(w) { return orec.marks[w.id]; })
-        .filter(function(m) { return m && (m.st === 'P' || m.st === 'H'); });
+        .filter(function(m) { return m && (m.st === 'P' || m.st === 'H') && !attMarkOnNight(m, day); });   // the night's out is the next morning's (Cipher L-1)
       if (on.length && on.every(function(m) { return m.outMin != null && m.src !== 'relay'; })) {
         o.state = 'in';
         o.text = todoPlural(on.length, 'out') + ' · entered by hand';

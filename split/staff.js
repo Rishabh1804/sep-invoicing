@@ -668,6 +668,15 @@ function _attDayVerdictHtml(iso, rec, roster, c) {
       { label: 'Unmarked', fig: '<span id="attUnmarked">' + c.unmarked + '</span>', sub: c.unmarked ? 'nobody typed' : '' }],
     attrs: ' id="attDayVerdict"' });
 }
+/* A day the plant is not expected to work, by the calendar: a day marked shut (flowShutOn), a paid holiday, a Sunday; whether
+   anybody came is not asked (plantDayOff's question, which is null on a day somebody worked, so a worked Sunday had read as a working
+   day with everyone else missing: Cipher H-1, the QA chain of 5 Nov 2026). {kind, why} or null; worded by plantDayOffText. */
+function attDayNotExpected(iso) {
+  var shut = typeof flowShutOn === 'function' ? flowShutOn(iso) : null;
+  if (shut) return { kind: 'shut', why: shut.why };
+  if (labourIsHoliday(iso)) return { kind: 'holiday', why: '' };
+  return attParseIso(iso).getDay() === 0 ? { kind: 'sunday', why: '' } : null;
+}
 /* The day's next steps (UI pass 3 §12, §26c): the in-time roll (in at its minute, or late against its usual, Today's own reading,
    tdyInput), the marks (how many of the day's roster), a version a sync held for the owner while one waits, the out-time roll, the
    night's roll where a line has a night (sent the next morning), the EXTRA booked. Each a door to where it is done. */
@@ -699,7 +708,7 @@ function _attDayStepsHtml(iso, rec, roster, c) {
     state: rows.length || (!short.length && marked) ? 'in' : 'wait' };
   // A day the plant does not work (a Sunday, a paid holiday, a day marked shut) expects no marks: the hands who came are its work,
   // nobody is missing (Castor M-2).
-  var off = !ahead && typeof plantDayOff === 'function' ? plantDayOff(iso) : null;
+  var off = !ahead ? attDayNotExpected(iso) : null;
   var marks = !total ? { meta: 'nobody on the roster', state: 'off' }
     : off && !marked ? { meta: 'not expected', state: 'off' }
     : off ? { meta: todoPlural(marked, 'hand') + ' worked', state: 'in' }
@@ -1200,10 +1209,10 @@ function _attWeekMarksHtml(roster, days, today) {
       if (k) flagged = true;
       var fl = k ? (k === 'after' ? ', on the shift after the night before' : ', on the shift and the night') : '';
       if (!m) {
-        // Left empty, never hatched: a day the plant does not work (a Sunday, a paid holiday, a day marked shut: plantDayOff,
-        // Castor M-2), a day to come, and a day the hand was not on the roster (before they joined, or a hand who has left and is
-        // here for a day they were marked: Castor L-4).
-        var off = d <= today && typeof plantDayOff === 'function' ? plantDayOff(d) : null;
+        // Left empty, never hatched: a day the plant is not expected to work (a Sunday, a paid holiday, a day marked shut, by the
+        // calendar even where somebody came: attDayNotExpected, Castor M-2, Cipher H-1), a day to come, and a day the hand was not
+        // on the roster (before they joined, or any unmarked day of a hand who has left, since no leaving day is kept: Castor L-4).
+        var off = attDayNotExpected(d);
         var notOn = (w.profile && w.profile.joined && w.profile.joined > d) || w.active === false;
         return { tone: null, off: !!off || d > today || notOn,
           word: off ? (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'Holiday' : plantDayOffText(off)) : d > today ? 'To come' : notOn ? 'Not on the roster' : 'Not marked' };
@@ -1230,7 +1239,8 @@ function _attWeekVerdictHtml(ws, days) {
   // Today not yet entered is a day still coming in, not a day missing (Needs you says when its roll is late): it is left out of the
   // count and said as a fact.
   var pending = days.indexOf(today) >= 0 && attParseIso(today).getDay() !== 0 && !labourIsHoliday(today) && unmarked(today);
-  var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d); });
+  // A day marked shut is no working day either, as the grid under the verdict draws it (Cipher M-2).
+  var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && !attDayNotExpected(d); });
   // The working days recorded, of the working days: a paid holiday somebody worked is in r.days but is no working day (it had read
   // "6 days recorded of 5").
   var gaps = work.filter(unmarked), recorded = work.length - gaps.length;

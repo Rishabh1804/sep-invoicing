@@ -321,6 +321,10 @@ test.describe('P231: the QA chain', () => {
     await expect(step(page, 'day', 'marks')).toHaveAttribute('data-state', 'off');
     await expect(step(page, 'day', 'marks')).toContainText('not expected');
     await expect(step(page, 'day', 'marks').locator('button')).toHaveCount(0);
+    // A Sunday somebody worked is still no working day: its marks are the work done, nobody is missing (Cipher H-1, M-1).
+    await ev(page, `S.attendance['${sun}'] = { marks: { 1: { st: 'P', area: 'vat-a1', hours: 8, ot: 0 } }, extra: [], note: '' }; renderAttendance()`);
+    await expect(step(page, 'day', 'marks')).toHaveAttribute('data-state', 'in');
+    await expect(step(page, 'day', 'marks')).toContainText('1 hand worked');
   });
 
   test('Day: a day whose every out is typed has its out-time roll in, by hand (M-4)', async ({ page }) => {
@@ -341,6 +345,9 @@ test.describe('P231: the QA chain', () => {
     await expect(step(page, 'day', 'held')).toHaveAttribute('data-state', 'wait');
     await expect(step(page, 'day', 'held')).toContainText('the owner picks');
     await expect(step(page, 'day', 'held').locator('button')).toHaveCount(0);
+    // A step with no door is never the one ringed to take next (Cipher L-3).
+    await expect(step(page, 'day', 'held')).not.toHaveAttribute('data-next', '');
+    await expect(steps(page, 'day').locator('[data-next]:not(:has(button))')).toHaveCount(0);
   });
 
   test('Week: a day marked shut and a hand not on the roster are left empty; a half day on the night keeps its half day (M-2, L-3, L-4)', async ({ page }) => {
@@ -356,9 +363,46 @@ test.describe('P231: the QA chain', () => {
     await expect(table).toContainText('Plant shut');
     await expect(table).toContainText('Not on the roster');
     await expect(table).toContainText('Half day, the night');
-    // The shut day hatches nobody: Alfa's cell that day is no "Not marked".
+    // The shut day hatches nobody: Alfa's cell that day is there, and is no "Not marked" (Cipher L-5: the count of 1 first).
+    await expect(pic.locator('.inv-chart-datum[data-read^="Alfa Oraon"][data-read*="Plant shut"]')).toHaveCount(1);
     await expect(pic.locator('.inv-chart-datum[data-read^="Alfa Oraon"][data-read*="Plant shut"] .inv-chart-hatch')).toHaveCount(0);
     await expect(pic.locator('.inv-chart-datum[data-read^="Delta Hembrom"][data-read*="Not marked"]')).toHaveCount(0);
+  });
+
+  test('Week: a Sunday somebody worked leaves everyone else’s Sunday empty, never hatched (Cipher H-1)', async ({ page }) => {
+    const att: any = {};
+    att[LW] = { marks: { 2: mark('P', 'vat-a2', 8) }, extra: [], note: '' };
+    await loadAppWithState(page, book({ attendance: att }));
+    await people(page, 'week');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    const pic = page.locator('#attWeekMarks');
+    const sunday = pic.locator('.inv-chart-datum[data-read^="Alfa Oraon"][data-read*="Sunday"]');
+    await expect(sunday).toHaveCount(1);
+    await expect(sunday.locator('.inv-chart-hatch')).toHaveCount(0);
+    await expect(pic.locator('.inv-chart-datum[data-read*="Sun"][data-read*="Not marked"]')).toHaveCount(0);
+  });
+
+  test('a day marked shut is no day missing: Pay’s payout is done and the week’s verdict counts no gap (Cipher M-2)', async ({ page }) => {
+    const shut = shift(LW, 3), att: any = {};
+    work(LW).filter(d => d !== shut).forEach(d => { att[d] = { marks: { 2: mark('P', 'vat-a2', 9) }, extra: [], note: '' }; });
+    await loadAppWithState(page, book({ attendance: att, flowCfg: { holidays: [shut], shutWhy: { [shut]: 'Made-up shutdown' } } }));
+    await people(page, 'pay');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    await expect(step(page, 'pay', 'payout')).toHaveAttribute('data-state', 'in');
+    await people(page, 'week');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    await expect(page.locator('#attWeekVerdict')).toContainText('every day recorded');
+    await expect(page.locator('#attWeekVerdict')).toContainText('5 days recorded of 5');
+  });
+
+  test('Day: a hand on the night, whose out is the next morning’s, does not hold the out-time roll back (Cipher L-1)', async ({ page }) => {
+    const night = { id: 'ls1', line: 'vat-a1', from: shift(WD, -14), start: '18:00', end: '06:00', stop: '05:00', breakMin: 45, crew: { 'vat-a1': 2 }, spare: 0, note: '' };
+    const nm: any = { st: 'P', area: 'vat-a1', hours: 0, ot: 0, inMin: 1080 };
+    await loadAppWithState(page, book({ lineShifts: [night], attendance: { [WD]: { marks: { 1: mark('P'), 2: mark('P', 'vat-a2'), 3: nm }, extra: [], note: '' } } }));
+    expect(await ev(page, `attMarkOnNight(S.attendance['${WD}'].marks[3], '${WD}')`)).toBe(true);
+    await people(page, 'day');
+    await ev(page, `_attDate = '${WD}'; renderAttendance()`);
+    await expect(step(page, 'day', 'roll-out')).toHaveAttribute('data-state', 'in');
   });
 
   test('Areas: a line’s night is drawn only on the nights recorded, never a night to come or not typed (M-3)', async ({ page }) => {

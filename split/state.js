@@ -1230,7 +1230,9 @@ function uiNextStepsHtml(key, steps) {
   var list = (steps || []).filter(Boolean);
   if (!list.length) return '';
   var next = -1;
-  for (var i = 0; i < list.length; i++) if (list[i].state !== 'in' && list[i].state !== 'off') { next = i; break; }
+  // The step to take next is one the person can take here: a step with no door (to come, the owner's to settle) is never ringed
+  // (Cipher L-3, the QA chain of 5 Nov 2026).
+  for (var i = 0; i < list.length; i++) if (list[i].state !== 'in' && list[i].state !== 'off' && list[i].action) { next = i; break; }
   var tick = iconSvg('check', 'inv-ico-bold');
   var word = { in: 'done', part: 'begun', late: 'late', wait: 'to do', off: 'not expected' };
   return '<div class="inv-panel" data-next-steps="' + escHtml(key) + '"><div class="inv-steps inv-steps-row" role="list" aria-label="Next steps">' +

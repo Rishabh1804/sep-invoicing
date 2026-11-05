@@ -2511,7 +2511,7 @@ Where the build departs from §12 and §26c, and why:
   where no area is short). The board stays as it was (§12's *the board as now*): no meter was added to its cards' heads.
 - **Month**: Start or import → Fill → Settle the differences (its door the list of differences) → Mark checked, each acting as the
   toolbar's own button does.
-- **Pay**: Hours → Cash paid out → Payout (*₹N to Sat 5 PM*) → Payments (the weekly hands with something due) → Slips. The titles are a
+- **Pay**: Hours → Cash paid out → Payout (*₹N to Sat 5 PM*) → Weekly payments (the weekly hands with something due) → Slips. The titles are a
   word or two (a phone holds five across); each step's whole sentence is its label for a screen reader.
 - **The pictures** are the verdict card's body where §12 says so: shut on the phone, open on the desktop. **Pay**: the payouts of the
   twelve weeks as bars (`_payWeeksChartHtml`), the cash paid out its own part of each bar; the chart moved there from *Weekly payouts*,
@@ -2544,11 +2544,16 @@ Where the build departs from §12 and §26c, and why:
     reads its payout whole and the table has it as a column (`chartStack`'s `total`, Iuno L-2). One forecast, one week's gaps and one
     `payDue` a render, passed to the verdict, the steps and Due by worker (Castor L-7, Iuno L-5).
   - **Day**: a day not come has its rolls *to come*; yesterday's night roll is due until its morning is half an hour past the night's end
-    (Castor M-1). A day the plant does not work (`plantDayOff`) expects no marks: *not expected*, or *N hands worked* (M-2). A day whose
-    every hand on site has an out typed or scanned has its out-time roll in, *by hand* (`tdyInput`, so Needs you reads it too; M-4).
+    (Castor M-1). A day the plant is not expected to work by the calendar (`attDayNotExpected`: a Sunday, a paid holiday, a day marked
+    shut, whether anybody came or not) expects no marks: *not expected*, or *N hands worked* (M-2; Cipher H-1: `plantDayOff`, the first
+    fold's test, is null on any day somebody worked). A day whose every hand on site, the night's aside, has an out typed or scanned
+    has its out-time roll in, *by hand* (`tdyInput`, so Needs you and Mine's out-time roll duty read it too; M-4, Cipher L-1). A step
+    with no door (to come, the owner's to settle) is never ringed as the next (Cipher L-3).
     What a sync held is late for the owner and *the owner picks*, with no door, for anyone else (L-5).
-  - **Week**: an unmarked cell on a day the plant does not work (a day marked shut included), a day to come, or a day the hand was not on
-    the roster is left empty, never hatched (M-2, L-4); a half day on the night keeps its half day (L-3).
+  - **Week**: an unmarked cell on a day the plant is not expected to work (a day marked shut included, a worked Sunday too), a day to
+    come, or a day the hand was not on the roster (before the joining day; for a hand who has left, every unmarked day, since no leaving
+    day is kept) is left empty, never hatched (M-2, L-4, Cipher H-1); a half day on the night keeps its half day (L-3). A day marked
+    shut is no day missing on Week's verdict or on Pay's Payout step, whose pay arithmetic is untouched (Cipher M-2).
   - **Areas**: a line's night is drawn only on the nights recorded and come (M-3); with no complement set, an area's heads a day are its
     bars' own average, never the night's marks too (L-9).
   - **Month**: Settle says the two counts the verdict has, *2 differ, 1 only on the day* (Iuno L-4).

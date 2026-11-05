@@ -545,7 +545,10 @@ function _payStepsHtml(ws, f, gaps, d) {
   // The payout is done only when the week is closed and every working day is recorded with no hours to check: a week part-typed
   // reads low, and a tick over it said the figure BM disburses was known (Castor H-1, Iuno M-1). A week nobody typed says so, never
   // ₹0; one still running says where it heads.
-  var wk = f.week, missing = Math.max(0, wk.workingDays - wk.recordedDays), figured = wk.recordedDays > 0 || wk.sundays > 0;
+  // A day marked shut is no day missing (Cipher M-2): it is taken off what is looked for here alone, never off the pay arithmetic
+  // (the rest-day gate reads its own working days).
+  var shutDays = attWeekDays(ws).filter(function(d) { var x = attDayNotExpected(d); return x && x.kind === 'shut' && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d) && !(S.attendance || {})[d]; }).length;
+  var wk = f.week, missing = Math.max(0, wk.workingDays - wk.recordedDays - shutDays), figured = wk.recordedDays > 0 || wk.sundays > 0;
   var payout = !figured ? { meta: closed ? 'not recorded' : f.basis === 'median' ? 'about ' + finRs(f.predicted) : 'to Sat 5 PM', state: closed ? 'late' : 'wait' }
     : !closed ? { meta: (f.open ? 'heading for ' + finRs(f.predicted) : finRs(wk.total)) + ', to Sat 5 PM', state: 'wait' }
     : missing ? { meta: finRs(wk.total) + ', ' + todoPlural(missing, 'day') + ' not recorded', state: 'late' }

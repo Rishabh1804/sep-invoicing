@@ -36,7 +36,11 @@ const DOCS: [string, string][] = [
   ['statement', `paperShow(soaDocHtml(soaCompute((bankReceivables()[0] || { client: { id: 1 } }).client.id)))`],
   // The slips of the last whole pay week, a week back: early in a week (or a month) the week on show held a day or two with no
   // absent or half day, and the slips drew without the cells the record holds (3 Nov 2026, a Tuesday).
-  ['pay-slips', `_attWeekStart = attWeekStartOf(isoAddDays(localDateStr(), -7)); paperShow(psSheetsHtml(psRows()))`],
+  // The book's one absence is four days back, so on a Thursday it falls on a Sunday and no slip held an absent day (5 Nov 2026):
+  // the week shown is given an absent and a half day on its Wednesday, never the attendance sheets' day (LASTWD).
+  ['pay-slips', `_attWeekStart = attWeekStartOf(isoAddDays(localDateStr(), -7)); (function () { var w = isoAddDays(_attWeekStart, 3), r = S.attendance[w];
+    if (r && r.marks) { r.marks[2] = Object.assign({}, r.marks[2], { st: 'A', hours: 0, ot: 0 }); r.marks[3] = Object.assign({}, r.marks[3], { st: 'H', hours: 4, ot: 0 }); } })();
+    paperShow(psSheetsHtml(psRows()))`],
   ['attendance-sheets', `paperShow(attSheetShyamHtml(${LASTWD}, attSheetFillFor(${LASTWD}), '') + attSheetDeepakHtml(${LASTWD}, true))`],
   ['stock-sheets', `paperShow(stockSheetSupHtml(localDateStr(), false, '') + stockSheetDeepakHtml(localDateStr(), false))`],
   ['id-cards', `paperShow(idcSheetsHtml(S.staff.slice(0, 3).map(function(w, i) { return { w: w, card: 'SEP-000' + (i + 1) }; }), true))`],

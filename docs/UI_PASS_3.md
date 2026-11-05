@@ -2533,3 +2533,26 @@ Where the build departs from §12 and §26c, and why:
   addition §12 makes that no picture replaces; both stay within their budgets (2.5), said here and in the PR (I10).
 - **A data flow**: none. The book does not change.
 
+- **The QA chain** (5 Nov 2026; Castor and Iuno, then Cipher; no BLOCKER; P231's *QA chain* tests, each failing on the build before):
+  a record missing or not yet due is never drawn as done, as zero, or as late.
+  - **Pay's Payout step is done only on a week closed (Saturday at 5 PM, `PAY_CUTOFF`) with every working day recorded and no hours to
+    check** (Castor H-1, Iuno M-1): a part-typed week is late, *₹N, 4 days not recorded*; a week nobody typed *not recorded*, never ₹0;
+    one running *heading for ₹N*. **Weekly payments** names whom the step counts (Iuno M-2: the monthly crew is Due by worker's own
+    group). *2 hands to check* (it read *2 to checks*).
+  - **The payouts' chart** reads the week shown and the eleven before it; a week holding only cash paid out has its cash and no wages
+    part (Castor M-5, Iuno M-3); the part is *Weekly hands, EXTRA and snacks* (the monthly crew is never in a week's payout); each bar
+    reads its payout whole and the table has it as a column (`chartStack`'s `total`, Iuno L-2). One forecast, one week's gaps and one
+    `payDue` a render, passed to the verdict, the steps and Due by worker (Castor L-7, Iuno L-5).
+  - **Day**: a day not come has its rolls *to come*; yesterday's night roll is due until its morning is half an hour past the night's end
+    (Castor M-1). A day the plant does not work (`plantDayOff`) expects no marks: *not expected*, or *N hands worked* (M-2). A day whose
+    every hand on site has an out typed or scanned has its out-time roll in, *by hand* (`tdyInput`, so Needs you reads it too; M-4).
+    What a sync held is late for the owner and *the owner picks*, with no door, for anyone else (L-5).
+  - **Week**: an unmarked cell on a day the plant does not work (a day marked shut included), a day to come, or a day the hand was not on
+    the roster is left empty, never hatched (M-2, L-4); a half day on the night keeps its half day (L-3).
+  - **Areas**: a line's night is drawn only on the nights recorded and come (M-3); with no complement set, an area's heads a day are its
+    bars' own average, never the night's marks too (L-9).
+  - **Month**: Settle says the two counts the verdict has, *2 differ, 1 only on the day* (Iuno L-4).
+  - **Roster**: a hand to watch is the To-do's red on the card, the verdict and its tile alike (L-8); a search's jump to a worker clears
+    the roster's filters and reveals the card, the *Left* fold opened (L-6). The Week verdict's payout tile says *as Pay counts it* (it
+    said the weekly tiers and the EXTRA, before the snacks and the cash paid out were in it).
+

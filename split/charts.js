@@ -697,6 +697,9 @@ function chartStack(labels, series, opts) {
   var barW = group ? Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX * n + CHART_GAP * (n - 1)) : Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
   var w = group ? Math.max((barW - CHART_GAP * (n - 1)) / n, 1) : barW;
   var inks = series.map(function(s, si) { return chartInk(s, si); });
+  // opts.total names the bar's whole (Payout): each part reads it beside its own figure, and the table has it as a column, so the
+  // figure a screen states for the bar is on the chart (Iuno L-2, the QA chain of 5 Nov 2026). Stacked bars of two parts or more only.
+  var tot = opts.total && !group && series.length > 1 ? opts.total : '';
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Bars') + '">' + f.svg;
   var stride = _chartLabelStride(labels.length, opts.maxLabels), td = _chartToDate(opts, labels.length);
   // A period not yet ended (opts.toDate): its bars lighter, its label "to date".
@@ -711,7 +714,7 @@ function chartStack(labels, series, opts) {
       if (!(v > 0)) return;
       var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * (w + CHART_GAP) : x0, by = base - h;
       var gap = !group && drawn ? Math.min(CHART_GAP, h / 2) : 0;
-      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit);
+      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit) + (tot ? ' · ' + tot + ': ' + chartFull(totals[i], unit) : '');
       svg += '<rect x="' + bx + '" y="' + by + '" width="' + w + '" height="' + (h - gap) + '" class="inv-chart-seg ' + inks[si] + (group || si === top ? ' inv-chart-up' : '') + (i === td ? ' inv-chart-todate' : '') + '"' +
         ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
@@ -723,8 +726,11 @@ function chartStack(labels, series, opts) {
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
   var keyed = series.map(function(s, si) { return Object.assign({}, s, { ink: inks[si] }); });
-  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; })),
-    rows: shown.map(function(l, i) { return [l].concat(series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; })); }) });
+  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; }), tot ? [{ label: tot, unit: unit }] : []),
+    rows: shown.map(function(l, i) {
+      var vals = series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; });
+      return [l].concat(vals, tot ? [vals.some(function(v) { return v != null; }) ? gstRound(totals[i]) : null] : []);
+    }) });
 }
 
 /* A pie that filters what is under it: each wedge and legend row carries data-key and the action;

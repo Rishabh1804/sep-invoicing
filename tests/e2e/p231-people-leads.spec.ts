@@ -36,7 +36,9 @@ async function people(page: Page, view: string) {
 
 test.describe('P231: the next steps', () => {
   test('Day: the in-time roll, the marks, the out-time roll and the EXTRA, each in its state; the step to take next ringed', async ({ page }) => {
-    await loadAppWithState(page, book({ attendance: { [T]: { marks: { 1: mark('P'), 2: mark('P', 'vat-a2') }, extra: [], note: '' } } }));
+    // Hand 2's out not yet typed: the out-time roll is still to come (a day whose every out is typed is in by hand, below).
+    const m2: any = { ...mark('P', 'vat-a2') }; delete m2.outMin;
+    await loadAppWithState(page, book({ attendance: { [T]: { marks: { 1: mark('P'), 2: m2 }, extra: [], note: '' } } }));
     await people(page, 'day');
     const row = steps(page, 'day');
     await expect(row.locator('[data-step]')).toHaveCount(4);
@@ -83,8 +85,10 @@ test.describe('P231: the next steps', () => {
     await expect(steps(page, 'pay').locator('[data-step]')).toHaveCount(5);
     await expect(step(page, 'pay', 'hours')).toHaveAttribute('data-state', 'in');
     await expect(step(page, 'pay', 'cash')).toContainText('2 lines');
-    await expect(step(page, 'pay', 'payout')).toContainText('to Sat 5 PM');
-    await expect(step(page, 'pay', 'pay')).toContainText('2 hands due');
+    // One day of the week recorded: the payout is never ticked done over it (the QA chain, below).
+    await expect(step(page, 'pay', 'payout')).not.toHaveAttribute('data-state', 'in');
+    await expect(step(page, 'pay', 'pay')).toContainText('Weekly payments');
+    await expect(step(page, 'pay', 'pay')).toContainText('2 weekly hands due');
     await step(page, 'pay', 'cash').locator('button').click();
     await expect(page.locator('#pageStaff [data-card="cashout"]')).toBeInViewport();
     await step(page, 'pay', 'pay').locator('button').click();
@@ -104,7 +108,7 @@ test.describe('P231: the next steps', () => {
     await expect(step(page, 'register', 'start')).toHaveAttribute('data-state', 'in');
     await expect(step(page, 'register', 'start')).toContainText('by hand');
     // The page is blank and the day holds a mark: a difference to settle, only on the day, which the month's bar draws.
-    await expect(step(page, 'register', 'settle')).toContainText('1 to settle');
+    await expect(step(page, 'register', 'settle')).toContainText('1 only on the day');
     await expect(step(page, 'register', 'check')).toContainText('not yet');
     await openVerdict(page);
     await expect(page.locator('#aregSummary [data-areg-bar] .inv-chart-key')).toContainText(['Only on the day 100%']);
@@ -171,7 +175,7 @@ test.describe('P231: the pictures', () => {
     await ev(page, `_attWeekStart = '${attWs(WD)}'; renderAttendance()`);
     await openVerdict(page);
     const pic = page.locator('#payForecast [data-pay-weeks]');
-    await expect(pic.locator('.inv-chart-key')).toContainText(['Wages, EXTRA and snacks', 'Cash paid out']);
+    await expect(pic.locator('.inv-chart-key')).toContainText(['Weekly hands, EXTRA and snacks', 'Cash paid out']);
     await expect(page.locator('#payHistory')).toHaveCount(1);
     await expect(page.locator('#payHistory .inv-chart-box')).toHaveCount(0);
   });
@@ -230,6 +234,154 @@ test.describe('P231: the Roster as cards', () => {
     const card = page.locator('#attRoster [data-roster-card="2"]');
     await expect(card).toHaveAttribute('data-tone', 'danger');
     await expect(card.locator('.inv-badge')).toContainText('Motivation');
+    // The verdict's To watch tile is the card's red, the To-do's (Castor L-8).
+    await expect(page.locator('#attRosterVerdict [data-v="watch"]')).toHaveClass(/inv-tile-danger/);
     await expect(page.locator('#attRoster [data-roster-deck] [data-roster-card]').first()).toHaveAttribute('data-roster-card', '2');
   });
+});
+
+// The QA chain of 5 Nov 2026 (Castor, Iuno): a record missing or not yet due is never drawn as done, as zero, or as late.
+test.describe('P231: the QA chain', () => {
+  const LW = shift(attWs(T), -14);   // a pay week two back, closed
+  const work = (from: string) => [1, 2, 3, 4, 5, 6].map(i => shift(from, i));
+
+  test('Pay: a closed week part-recorded is late on its payout, saying the days; a week nobody typed says so, never ₹0 (H-1)', async ({ page }) => {
+    await loadAppWithState(page, book({ attendance: { [shift(LW, 1)]: { marks: { 2: mark('P', 'vat-a2', 9) }, extra: [], note: '' } } }));
+    await people(page, 'pay');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    await expect(step(page, 'pay', 'payout')).toHaveAttribute('data-state', 'late');
+    await expect(step(page, 'pay', 'payout')).toContainText('5 days not recorded');
+    await ev(page, `_attWeekStart = '${shift(LW, -7)}'; renderAttendance()`);
+    await expect(step(page, 'pay', 'payout')).toHaveAttribute('data-state', 'late');
+    await expect(step(page, 'pay', 'payout')).toContainText('not recorded');
+    await expect(step(page, 'pay', 'payout')).not.toContainText('₹0');
+  });
+
+  test('Pay: a closed week every day recorded is done; its hours to check are counted as hands (H-1, L-1)', async ({ page }) => {
+    const att: any = {};
+    work(LW).forEach(d => { att[d] = { marks: { 2: mark('P', 'vat-a2', 9) }, extra: [], note: '' }; });
+    await loadAppWithState(page, book({ attendance: att }));
+    await people(page, 'pay');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    await expect(step(page, 'pay', 'payout')).toHaveAttribute('data-state', 'in');
+    // Two hands with hours to check: said as hands, never "2 to checks", and the payout waits on them.
+    const html = await ev(page, `_payStepsHtml('${LW}', null, [{}, {}])`) as string;
+    expect(html).toContain('2 hands to check');
+    expect(html).not.toContain('to checks');
+    expect(html).toMatch(/data-step="payout"[^>]*data-state="late"/);
+  });
+
+  test('Pay: a week holding only cash paid out has its cash and no wages part; each bar reads its payout (M-3, M-5, L-2)', async ({ page }) => {
+    const att: any = {};
+    att[shift(LW, 2)] = { marks: { 2: mark('P', 'vat-a2', 9) }, extra: [], note: '' };
+    const cashWk = shift(LW, 7);
+    await loadAppWithState(page, book({ attendance: att,
+      cashOut: [{ id: 'CO-9', date: shift(cashWk, 2), what: 'HCL', amount: 300, cat: 'consumables', week: cashWk, msgId: 'CP-9', at: 1, by: '' }] }));
+    await people(page, 'pay');
+    await ev(page, `_attWeekStart = '${cashWk}'; renderAttendance()`);
+    await openVerdict(page);
+    const pic = page.locator('#payForecast [data-pay-weeks]');
+    await pic.locator('[data-action="invChartTable"]').click();
+    const head = pic.locator('.inv-chart-table thead');
+    await expect(head).toContainText('Payout');
+    // The cash-only week: its wages cell blank (a week nobody typed is a gap), its cash and its payout ₹300.
+    const row = pic.locator('.inv-chart-table tbody tr', { hasText: 'W' + await ev(page, `attPayWeekNumber('${cashWk}')`) });
+    const cells = await row.locator('td').allInnerTexts();
+    // The week, then its wages, its cash and its payout.
+    expect(cells).toHaveLength(4);
+    expect(cells[1].trim()).toMatch(/^(—|–|)$/);
+    expect(cells[2]).toContain('300');
+    expect(cells[3]).toContain('300');
+  });
+
+  test('Day: a day not come has its rolls to come, none late; yesterday’s night roll is due until its morning is past (M-1)', async ({ page }) => {
+    const night = { id: 'ls1', line: 'vat-a1', from: shift(T, -14), start: '18:00', end: '06:00', stop: '05:00', breakMin: 45, crew: { 'vat-a1': 2 }, spare: 0, note: '' };
+    let tm = shift(T, 1); if (new Date(tm + 'T00:00:00').getDay() === 0) tm = shift(tm, 1);
+    let yd = shift(T, -1); if (new Date(yd + 'T00:00:00').getDay() === 0) yd = shift(T, -2);
+    await loadAppWithState(page, book({ lineShifts: [night], attendance: { [yd]: { marks: { 1: mark('P') }, extra: [], note: '' } } }));
+    await people(page, 'day');
+    await ev(page, `_attDate = '${tm}'; renderAttendance()`);
+    await expect(steps(page, 'day').locator('[data-state="late"]')).toHaveCount(0);
+    await expect(step(page, 'day', 'roll-in')).toContainText('to come');
+    await expect(step(page, 'day', 'roll-out')).toContainText('to come');
+    // Yesterday's night (only where yesterday is the day before today): due until 6:30 AM, late after.
+    test.skip(yd !== shift(T, -1), 'yesterday was a Sunday');
+    await ev(page, `tdyNowMin = function () { return 360; }; _attDate = '${yd}'; renderAttendance()`);
+    await expect(step(page, 'day', 'night-vat-a1')).toHaveAttribute('data-state', 'wait');
+    await expect(step(page, 'day', 'night-vat-a1')).toContainText('due 6:30 AM');
+    await ev(page, `tdyNowMin = function () { return 420; }; renderAttendance()`);
+    await expect(step(page, 'day', 'night-vat-a1')).toHaveAttribute('data-state', 'late');
+  });
+
+  test('Day: a day the plant does not work expects no marks; the hands who came are its work (M-2)', async ({ page }) => {
+    const sun = attWs(WD) <= shift(T, -1) && attWs(WD) < T ? attWs(WD) : shift(attWs(T), -7);
+    await loadAppWithState(page, book());
+    await people(page, 'day');
+    await ev(page, `_attDate = '${sun}'; renderAttendance()`);
+    await expect(step(page, 'day', 'marks')).toHaveAttribute('data-state', 'off');
+    await expect(step(page, 'day', 'marks')).toContainText('not expected');
+    await expect(step(page, 'day', 'marks').locator('button')).toHaveCount(0);
+  });
+
+  test('Day: a day whose every out is typed has its out-time roll in, by hand (M-4)', async ({ page }) => {
+    await loadAppWithState(page, book({ attendance: { [WD]: { marks: { 1: mark('P'), 2: mark('P', 'vat-a2'), 3: mark('A') }, extra: [], note: '' } } }));
+    await people(page, 'day');
+    await ev(page, `_attDate = '${WD}'; renderAttendance()`);
+    await expect(step(page, 'day', 'roll-out')).toHaveAttribute('data-state', 'in');
+    await expect(step(page, 'day', 'roll-out')).toContainText('by hand');
+  });
+
+  test('Day: what a sync held waits on the owner for anyone else, with no door (L-5)', async ({ page }) => {
+    const day: any = { marks: { 1: mark('P'), 2: mark('P', 'vat-a2'), 3: mark('P') }, extra: [], note: '' };
+    await loadAppWithState(page, book({ attendance: { [T]: day },
+      mergeHeld: [{ id: 'MH-1', at: 6, coll: 'attendance', rid: T, field: 'marks.3', label: 'today', why: 'both', status: 'open', from: 'GitHub',
+        kept: { side: 'm', v: day.marks[3] }, other: { side: 't', v: mark('A') } }] }));
+    await people(page, 'day');
+    await ev(page, `grdIsOwner = function () { return false; }; renderAttendance()`);
+    await expect(step(page, 'day', 'held')).toHaveAttribute('data-state', 'wait');
+    await expect(step(page, 'day', 'held')).toContainText('the owner picks');
+    await expect(step(page, 'day', 'held').locator('button')).toHaveCount(0);
+  });
+
+  test('Week: a day marked shut and a hand not on the roster are left empty; a half day on the night keeps its half day (M-2, L-3, L-4)', async ({ page }) => {
+    const night = { id: 'ls1', line: 'vat-a1', from: shift(LW, -7), start: '18:00', end: '06:00', stop: '05:00', breakMin: 45, crew: { 'vat-a1': 2 }, spare: 0, note: '' };
+    const shut = shift(LW, 3), att: any = {};
+    att[shift(LW, 1)] = { marks: { 1: mark('P'), 4: mark('P', 'barrel'), 3: { st: 'H', area: 'vat-a1', hours: 4, ot: 0, inMin: 1080, outMin: 1320 } }, extra: [], note: '' };
+    await loadAppWithState(page, book({ attendance: att, lineShifts: [night], flowCfg: { holidays: [shut], shutWhy: { [shut]: 'Made-up shutdown' } } }));
+    await people(page, 'week');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    const pic = page.locator('#attWeekMarks');
+    await pic.locator('[data-action="invChartTable"]').click();
+    const table = pic.locator('.inv-chart-table');
+    await expect(table).toContainText('Plant shut');
+    await expect(table).toContainText('Not on the roster');
+    await expect(table).toContainText('Half day, the night');
+    // The shut day hatches nobody: Alfa's cell that day is no "Not marked".
+    await expect(pic.locator('.inv-chart-datum[data-read^="Alfa Oraon"][data-read*="Plant shut"] .inv-chart-hatch')).toHaveCount(0);
+    await expect(pic.locator('.inv-chart-datum[data-read^="Delta Hembrom"][data-read*="Not marked"]')).toHaveCount(0);
+  });
+
+  test('Areas: a line’s night is drawn only on the nights recorded, never a night to come or not typed (M-3)', async ({ page }) => {
+    const night = { id: 'ls1', line: 'vat-a1', from: shift(LW, -7), start: '18:00', end: '06:00', stop: '05:00', breakMin: 45, crew: { 'vat-a1': 2 }, spare: 0, note: '' };
+    const att: any = {};
+    att[shift(LW, 2)] = { marks: { 1: mark('P'), 3: { st: 'P', area: 'vat-a1', hours: 12, ot: 0, inMin: 1080, outMin: 360 } }, extra: [], note: '' };
+    await loadAppWithState(page, book({ attendance: att, lineShifts: [night], areaTargets: { 'vat-a1': 4 } }));
+    await people(page, 'areas');
+    await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+    await openVerdict(page);
+    await expect(page.locator('#areaVerdict [data-area-multiple="night-vat-a1"] .inv-minibar')).toHaveCount(1);
+  });
+});
+
+test('Areas: with no complement set, an area’s heads a day are the general shift’s, its bars’ own, never the night’s marks (L-9)', async ({ page }) => {
+  const LW = shift(attWs(T), -14);
+  const night = { id: 'ls1', line: 'vat-a1', from: shift(LW, -7), start: '18:00', end: '06:00', stop: '05:00', breakMin: 45, crew: { 'vat-a1': 2 }, spare: 0, note: '' };
+  const att: any = {};
+  att[shift(LW, 2)] = { marks: { 1: mark('P'), 3: { st: 'P', area: 'vat-a1', hours: 12, ot: 0, inMin: 1080, outMin: 360 } }, extra: [], note: '' };
+  await loadAppWithState(page, book({ attendance: att, lineShifts: [night] }));
+  await people(page, 'areas');
+  await ev(page, `_attWeekStart = '${LW}'; renderAttendance()`);
+  await openVerdict(page);
+  const tile = page.locator('#areaVerdict [data-area-multiple="vat-a1"]');
+  await expect(tile.locator('.inv-tile-value')).toContainText('1.0');
 });

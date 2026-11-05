@@ -36,3 +36,17 @@ test('the day’s steps lie across one row, a node above its words', async ({ pa
   expect(words!.y).toBeGreaterThan(node!.y + node!.height - 1);
   expect(todayIso()).toBeTruthy();
 });
+
+// The QA chain of 5 Nov 2026 (Castor L-6): a search's jump to a worker shows the worker's card, whatever filter the roster was left on
+// (it had revealed the table the cards replaced, and a hand hidden by the area opened in the pane with no card in the list).
+test('a search jump to a worker clears the roster’s filter and shows its card beside the pane', async ({ page }) => {
+  await loadAppWithState(page, book());
+  await switchTab(page, 'pageStaff');
+  await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
+  await page.locator('#attRosterArea').selectOption('vat-a2');
+  await expect(page.locator('#attRosterHost [data-roster-card="1"]')).toHaveCount(0);
+  await page.evaluate(() => (0, eval)(`srchGo({ kind: 'worker', id: 1 })`));
+  await expect(page.locator('#attRosterPane [data-worker-pane="1"]')).toBeVisible();
+  await expect(page.locator('#attRosterHost [data-roster-card="1"]')).toBeInViewport();
+  await expect(page.locator('#attRosterArea')).toHaveValue('');
+});

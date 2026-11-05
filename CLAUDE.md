@@ -1203,6 +1203,12 @@ weakened.
   the desktop the cards stand beside the record, the open one `aria-current`.
 - **Measured** (phone screens, the long book): Day 2.07 → 2.23, Week 1.69 → 1.48, Month 1.00, Pay 2.12 → 2.28, Areas 1.83, Roster 2.43
   → 1.93; Day and Pay longer by their step row, within their budgets (said, I10).
+- **The QA chain** (Castor, Iuno, Cipher; `docs/UI_PASS_3.md` §26j): a record missing or not yet due is never drawn as done, zero or
+  late. Pay's Payout step is done only on a week closed at Saturday 5 PM (`PAY_CUTOFF`) with every working day recorded and no hours to
+  check; *Weekly payments* counts the weekly hands; the chart's part is the weekly hands', a cash-only week has no wages part, and each
+  bar reads its payout (`chartStack`'s `total`). A day not come is *to come*, a night roll due until its morning is past, a day the plant
+  does not work expects no marks, a day of typed outs has its out-time roll in *by hand* (`tdyInput`). The Week grid leaves shut days
+  and days off the roster empty; a hand to watch is red on card, verdict and tile; a search jump clears the roster's filters.
 - **A data flow**: none. The book does not change.
 
 ## Business Domain

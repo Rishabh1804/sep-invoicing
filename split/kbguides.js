@@ -411,7 +411,8 @@ var KB_APP_GUIDES = [
     { version: 3 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
-    '- The steps in 1 row below the toolbar show what to do for the week: **Hours** (a hand whose times do not reach a block), **Cash paid out**, **Payout** (to Saturday 5 PM), **Payments** (the weekly hands with an amount due) and **Slips**. Tap a step to go where you do it.\n' +
+    '- The steps in 1 row below the toolbar show what to do for the week: **Hours** (a hand whose times do not reach a block), **Cash paid out**, **Payout** (to Saturday 5 PM), **Weekly payments** (the weekly hands with an amount due) and **Slips**. Tap a step to go where you do it.\n' +
+    '- **Payout** shows a tick only when the week is closed and every working day is recorded. If days are not recorded, it says how many.\n' +
     '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +
@@ -432,8 +433,8 @@ var KB_APP_GUIDES = [
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
-    // pass 3, U5).
-    { roles: ['owner'], version: 7 }),
+    // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
+    { roles: ['owner'], version: 8 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +

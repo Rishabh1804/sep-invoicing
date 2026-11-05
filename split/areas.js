@@ -940,14 +940,19 @@ function _areaMultiplesHtml(stats, from, to) {
   // No complement set: each floor area's heads a day alone, judged against nothing.
   if (!tiles.some(Boolean)) tiles = (stats.rows || []).filter(function(a) { return a.floor && a.id !== 'flex' && a.headDays > 0; }).map(function(a) {
     var bars = a.days.map(function(d) { return { v: d.heads, label: attDayName(d.iso) + ' ' + stockShortDate(d.iso), text: d.heads + ' heads' }; });
+    // The figure is the bars' own average (the general shift's heads), never avgHeads, which counts the night's marks too (Castor L-9).
+    var avg = bars.length ? bars.reduce(function(t, b) { return t + b.v; }, 0) / bars.length : 0;
     return '<div class="inv-tile" data-area-multiple="' + escHtml(a.id) + '"><div class="inv-tile-label">' + escHtml(a.label) + '</div>' +
-      '<div class="inv-tile-value">' + formatNum(a.avgHeads, 1) + '<span class="inv-tile-of"> heads a day</span></div>' +
+      '<div class="inv-tile-value">' + formatNum(avg, 1) + '<span class="inv-tile-of"> heads a day</span></div>' +
       '<div class="inv-tile-viz">' + chartMiniBars(bars, { title: a.label + ': heads a day' }) + '</div></div>';
   });
+  // A night is drawn only once its day is recorded and come (Castor M-3): a night not yet worked, or a day nobody typed, is no night
+  // that did not run, as the units' tiles keep only the days recorded.
+  var today = localDateStr();
   SHIFT_LINES.forEach(function(l) {
     var days = attDatesInRange(from, to).map(function(d) {
-      var n = lineNightOn(l[0], d), c = n ? shiftNightCrew(d, l[0]) : null;
-      if (!n || !c) return null;
+      var n = d <= today ? lineNightOn(l[0], d) : null, c = n ? shiftNightCrew(d, l[0]) : null;
+      if (!n || !c || !c.recorded || (d === today && !c.heads)) return null;
       return { iso: d, heads: c.heads, need: n.need || 0, short: n.need ? Math.max(0, n.need - c.heads) : 0, idle: !c.heads };
     }).filter(Boolean);
     if (days.length) tiles.push(tile('night-' + l[0], l[1] + ', the night', days));

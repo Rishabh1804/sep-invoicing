@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="0dbb7b09">
+<meta name="app-build" content="a51a5ccb">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -23378,6 +23378,9 @@ function chartStack(labels, series, opts) {
   var barW = group ? Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX * n + CHART_GAP * (n - 1)) : Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
   var w = group ? Math.max((barW - CHART_GAP * (n - 1)) / n, 1) : barW;
   var inks = series.map(function(s, si) { return chartInk(s, si); });
+  // opts.total names the bar's whole (Payout): each part reads it beside its own figure, and the table has it as a column, so the
+  // figure a screen states for the bar is on the chart (Iuno L-2, the QA chain of 5 Nov 2026). Stacked bars of two parts or more only.
+  var tot = opts.total && !group && series.length > 1 ? opts.total : '';
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Bars') + '">' + f.svg;
   var stride = _chartLabelStride(labels.length, opts.maxLabels), td = _chartToDate(opts, labels.length);
   // A period not yet ended (opts.toDate): its bars lighter, its label "to date".
@@ -23392,7 +23395,7 @@ function chartStack(labels, series, opts) {
       if (!(v > 0)) return;
       var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * (w + CHART_GAP) : x0, by = base - h;
       var gap = !group && drawn ? Math.min(CHART_GAP, h / 2) : 0;
-      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit);
+      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit) + (tot ? ' · ' + tot + ': ' + chartFull(totals[i], unit) : '');
       svg += '<rect x="' + bx + '" y="' + by + '" width="' + w + '" height="' + (h - gap) + '" class="inv-chart-seg ' + inks[si] + (group || si === top ? ' inv-chart-up' : '') + (i === td ? ' inv-chart-todate' : '') + '"' +
         ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
@@ -23404,8 +23407,11 @@ function chartStack(labels, series, opts) {
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
   var keyed = series.map(function(s, si) { return Object.assign({}, s, { ink: inks[si] }); });
-  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; })),
-    rows: shown.map(function(l, i) { return [l].concat(series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; })); }) });
+  return _chartBox(svg + _chartSeriesLegend(keyed, unit, null), opts, { cols: [{ label: opts.labelHead || '' }].concat(series.map(function(s) { return { label: s.label, unit: unit }; }), tot ? [{ label: tot, unit: unit }] : []),
+    rows: shown.map(function(l, i) {
+      var vals = series.map(function(s) { var v = s.values[i]; return v != null && isFinite(v) ? v : null; });
+      return [l].concat(vals, tot ? [vals.some(function(v) { return v != null; }) ? gstRound(totals[i]) : null] : []);
+    }) });
 }
 
 /* A pie that filters what is under it: each wedge and legend row carries data-key and the action;
@@ -24791,8 +24797,10 @@ function _attDayVerdictHtml(iso, rec, roster, c) {
    night's roll where a line has a night (sent the next morning), the EXTRA booked. Each a door to where it is done. */
 function _attDayStepsHtml(iso, rec, roster, c) {
   var def = function(k) { return TDY_INPUTS.filter(function(x) { return x.k === k; })[0]; };
-  var isToday = iso === localDateStr(), total = roster.length, marked = total - c.unmarked;
+  var today = localDateStr(), isToday = iso === today, ahead = iso > today, total = roster.length, marked = total - c.unmarked;
+  // A day not come is no day late (Castor M-1, the QA chain of 5 Nov 2026): its rolls are to come.
   var roll = function(k, title) {
+    if (ahead) return { key: k, title: title, meta: 'to come', state: 'wait', action: '' };
     var r = tdyInput(def(k), iso);
     var meta = r.state === 'in' ? (r.text.indexOf('entered by hand') >= 0 ? 'by hand' : 'in ' + String(r.text).split(' · ')[0])
       : r.state === 'off' ? 'not expected' : r.after != null ? 'after ' + relayClockLabel(r.after)
@@ -24802,18 +24810,31 @@ function _attDayStepsHtml(iso, rec, roster, c) {
   var held = typeof mrgHeldOpen === 'function' ? mrgHeldOpen().filter(function(h) { return h.coll === 'attendance' && String(h.rid) === iso && /^marks\./.test(h.field || ''); }) : [];
   var nights = nightLinesOn(iso).map(function(n) {
     var crew = shiftNightCrew(iso, n.line), heads = crew ? crew.heads : 0;
-    var due = relayClockLabel((n.end % 1440) + 30);
-    return { key: 'night-' + n.line, title: 'Night roll', meta: heads ? heads + ' on the night' : isToday ? 'due ' + due + ' tomorrow' : 'not in',
-      state: heads ? 'in' : isToday ? 'wait' : 'late', action: heads ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
+    // The night's roll is sent the next morning: late only once that morning is past its end and half an hour (yesterday's night at
+    // 6:10 AM is still due), never on a night not come (Castor M-1).
+    var dueMin = (n.end % 1440) + 30, due = relayClockLabel(dueMin);
+    var waiting = isToday || ahead || (iso === isoAddDays(today, -1) && tdyNowMin() < dueMin);
+    return { key: 'night-' + n.line, title: 'Night roll', meta: heads ? heads + ' on the night' : ahead ? 'to come' : isToday ? 'due ' + due + ' tomorrow' : waiting ? 'due ' + due : 'not in',
+      state: heads ? 'in' : waiting ? 'wait' : 'late', action: heads || ahead ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
   });
   var rows = attExtraRows(rec), short = _attDayShort(iso, rec);
   var extra = { key: 'extra', title: 'EXTRA booked', action: 'invAttStepGo', attrs: ' data-go="extra"',
     meta: rows.length ? formatNum(c.extraHours, 1).replace(/\.0$/, '') + ' h on ' + todoPlural(rows.length, 'row') : !marked ? 'after the marks' : short.length ? 'none yet' : 'none needed',
     state: rows.length || (!short.length && marked) ? 'in' : 'wait' };
+  // A day the plant does not work (a Sunday, a paid holiday, a day marked shut) expects no marks: the hands who came are its work,
+  // nobody is missing (Castor M-2).
+  var off = !ahead && typeof plantDayOff === 'function' ? plantDayOff(iso) : null;
+  var marks = !total ? { meta: 'nobody on the roster', state: 'off' }
+    : off && !marked ? { meta: 'not expected', state: 'off' }
+    : off ? { meta: todoPlural(marked, 'hand') + ' worked', state: 'in' }
+    : { meta: marked + ' of ' + total, state: !c.unmarked ? 'in' : marked ? 'part' : 'wait' };
+  // What a sync held is the owner's to settle (mrgGate): late for the owner, waiting on the owner for anyone else (Castor L-5).
+  var heldMine = typeof grdIsOwner !== 'function' || grdIsOwner();
   return uiNextStepsHtml('day', [roll('roll-in', 'In-time roll'),
-    { key: 'marks', title: 'Marks', meta: total ? marked + ' of ' + total : 'nobody on the roster', state: !total ? 'off' : !c.unmarked ? 'in' : marked ? 'part' : 'wait',
-      action: c.unmarked ? 'invAttStepGo' : '', attrs: ' data-go="marks"' },
-    held.length ? { key: 'held', title: 'Held for you', meta: todoPlural(held.length, 'mark') + ' held', state: 'late', action: 'invAttStepGo', attrs: ' data-go="held"' } : null,
+    { key: 'marks', title: 'Marks', meta: marks.meta, state: marks.state,
+      action: c.unmarked && !off ? 'invAttStepGo' : '', attrs: ' data-go="marks"' },
+    held.length ? { key: 'held', title: 'Held for you', meta: todoPlural(held.length, 'mark') + ' held' + (heldMine ? '' : ', the owner picks'), state: heldMine ? 'late' : 'wait',
+      action: heldMine ? 'invAttStepGo' : '', attrs: ' data-go="held"' } : null,
     roll('roll-out', 'Out-time roll')].concat(nights, [extra]));
 }
 /* A next step's door that stays on the page: the board's first hand not marked, the EXTRA, a version held (its hand's day). */
@@ -25299,13 +25320,23 @@ function _attWeekMarksHtml(roster, days, today) {
   days.forEach(function(d) { shiftBackToBack(d).forEach(function(x) { b2b[d + '|' + x.id] = x.kind; }); });
   var rows = roster.map(function(w) {
     return { label: w.name, cells: days.map(function(d) {
-      var m = attMark(d, w.id), off = attParseIso(d).getDay() === 0 || labourIsHoliday(d), k = b2b[d + '|' + w.id];
+      var m = attMark(d, w.id), k = b2b[d + '|' + w.id];
       if (k) flagged = true;
       var fl = k ? (k === 'after' ? ', on the shift after the night before' : ', on the shift and the night') : '';
-      if (!m) return { tone: null, off: off || d > today, word: (off ? (attParseIso(d).getDay() === 0 ? 'Sunday' : 'Holiday') : d > today ? 'To come' : 'Not marked') };
+      if (!m) {
+        // Left empty, never hatched: a day the plant does not work (a Sunday, a paid holiday, a day marked shut: plantDayOff,
+        // Castor M-2), a day to come, and a day the hand was not on the roster (before they joined, or a hand who has left and is
+        // here for a day they were marked: Castor L-4).
+        var off = d <= today && typeof plantDayOff === 'function' ? plantDayOff(d) : null;
+        var notOn = (w.profile && w.profile.joined && w.profile.joined > d) || w.active === false;
+        return { tone: null, off: !!off || d > today || notOn,
+          word: off ? (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'Holiday' : plantDayOffText(off)) : d > today ? 'To come' : notOn ? 'Not on the roster' : 'Not marked' };
+      }
       var onNight = m.st !== 'A' && attMarkOnNight(m, d);
       if (onNight) night = true;
-      return { tone: onNight ? 'info' : ATT_STATE_TONE[m.st] || null, flag: !!k, word: (onNight ? 'Present, the night' : ATT_STATE_LABELS[m.st] || m.st) + fl };
+      // A half day on the night keeps its half day's tone and word (Castor L-3).
+      return { tone: onNight && m.st !== 'H' ? 'info' : ATT_STATE_TONE[m.st] || null, flag: !!k,
+        word: (onNight ? (m.st === 'H' ? 'Half day, the night' : 'Present, the night') : ATT_STATE_LABELS[m.st] || m.st) + fl };
     }) };
   });
   var keys = [{ tone: 'ok', label: 'Present' }, { tone: 'warning', label: 'Half day' }, { tone: 'danger', label: 'Absent' }].concat(
@@ -25340,7 +25371,7 @@ function _attWeekVerdictHtml(ws, days) {
       { label: 'Present', fig: pct == null ? '' : formatNum(pct, 1) + '%', tone: figTonePct(pct, 90, 80), sub: 'of the marks typed' },
       { label: 'Days recorded', fig: recorded + '<span class="inv-tile-of">/' + work.length + '</span>', tone: gaps.length ? 'warning' : work.length ? 'ok' : null, sub: gaps.length ? gapWords + ' missing' : 'working days' },
       { label: 'On site a day', fig: r.avg == null ? '' : formatNum(r.avg, 1), sub: 'heads, on average' },
-      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'weekly tiers and the EXTRA' } : null].filter(Boolean),
+      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'as Pay counts it' } : null].filter(Boolean),
     attrs: ' id="attWeekVerdict"' });
 }
 
@@ -25462,12 +25493,13 @@ function _attRosterVerdictHtml(all, active, watch, due) {
   var ids = Object.keys(watch), dueN = Object.keys(due || {}).length;
   var onFloor = all.filter(function(w) { return w.active !== false && w.onFloor !== false; }).length, left = all.length - active;
   return uiVerdictHtml({ screen: 'Roster', verdict: all.length ? active + ' active' + (ids.length ? ', ' + ids.length + ' to watch' : '') : 'Nobody on the roster yet',
-    tone: !all.length ? 'neutral' : ids.length ? 'warning' : dueN ? 'info' : 'ok', fig: String(active),
+    // A hand to watch is the To-do's red (pplWatch, firm figures only): the verdict, the tile and the card say it in one tone (Castor L-8).
+    tone: !all.length ? 'neutral' : ids.length ? 'danger' : dueN ? 'info' : 'ok', fig: String(active),
     facts: [all.length + ' on file', dueN ? todoPlural(dueN, 'check-in') + ' due' : ''],
     factors: [
       { label: 'Active', fig: String(active), sub: onFloor + ' on the floor' },
       // To watch and the check-ins due show their hands alone, as Stock's status tiles do (a second press shows everyone).
-      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'warning' : null, sub: 'motivation under 50',
+      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'danger' : null, sub: 'motivation under 50',
         action: ids.length ? 'invAttRosterFilter' : '', attrs: ' data-v="watch"', pressed: ids.length ? _attRosterFilter === 'watch' : null },
       { label: 'Check-ins due', fig: String(dueN), tone: dueN ? 'info' : null, sub: 'none in 45 days',
         action: dueN ? 'invAttRosterFilter' : '', attrs: ' data-v="due"', pressed: dueN ? _attRosterFilter === 'due' : null },
@@ -28471,14 +28503,19 @@ function _areaMultiplesHtml(stats, from, to) {
   // No complement set: each floor area's heads a day alone, judged against nothing.
   if (!tiles.some(Boolean)) tiles = (stats.rows || []).filter(function(a) { return a.floor && a.id !== 'flex' && a.headDays > 0; }).map(function(a) {
     var bars = a.days.map(function(d) { return { v: d.heads, label: attDayName(d.iso) + ' ' + stockShortDate(d.iso), text: d.heads + ' heads' }; });
+    // The figure is the bars' own average (the general shift's heads), never avgHeads, which counts the night's marks too (Castor L-9).
+    var avg = bars.length ? bars.reduce(function(t, b) { return t + b.v; }, 0) / bars.length : 0;
     return '<div class="inv-tile" data-area-multiple="' + escHtml(a.id) + '"><div class="inv-tile-label">' + escHtml(a.label) + '</div>' +
-      '<div class="inv-tile-value">' + formatNum(a.avgHeads, 1) + '<span class="inv-tile-of"> heads a day</span></div>' +
+      '<div class="inv-tile-value">' + formatNum(avg, 1) + '<span class="inv-tile-of"> heads a day</span></div>' +
       '<div class="inv-tile-viz">' + chartMiniBars(bars, { title: a.label + ': heads a day' }) + '</div></div>';
   });
+  // A night is drawn only once its day is recorded and come (Castor M-3): a night not yet worked, or a day nobody typed, is no night
+  // that did not run, as the units' tiles keep only the days recorded.
+  var today = localDateStr();
   SHIFT_LINES.forEach(function(l) {
     var days = attDatesInRange(from, to).map(function(d) {
-      var n = lineNightOn(l[0], d), c = n ? shiftNightCrew(d, l[0]) : null;
-      if (!n || !c) return null;
+      var n = d <= today ? lineNightOn(l[0], d) : null, c = n ? shiftNightCrew(d, l[0]) : null;
+      if (!n || !c || !c.recorded || (d === today && !c.heads)) return null;
       return { iso: d, heads: c.heads, need: n.need || 0, short: n.need ? Math.max(0, n.need - c.heads) : 0, idle: !c.heads };
     }).filter(Boolean);
     if (days.length) tiles.push(tile('night-' + l[0], l[1] + ', the night', days));
@@ -29137,16 +29174,19 @@ function _attPayView() {
   // One look (the tab map, TM4b): the payout as the verdict (it was the Weekly payout card's head), one toolbar row (the week, Pay
   // slips, More), labour ₹/kg and the payroll against the bank (they led Staff's Overview), then what is due by worker, each
   // opening to its arithmetic; the history, the slips as paid and the bank's legs folded.
-  var html = _payVerdictHtml(ws) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
+  // One forecast and one week's gaps for the render: the verdict and the steps read the same figures, worked out once (Iuno L-5,
+  // Castor L-7: Pay had worked out payForecast twice and payDue twice a draw).
+  var f = payForecast(ws), gaps = payCrewGaps(ws, isoAddDays(ws, 6)), due = payDue(ws);
+  var html = _payVerdictHtml(ws, f, gaps) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
     _attStepInRow('invAttWeekStep', '<span class="inv-stepper-title">Week ' + attPayWeekNumber(ws) + '</span>', 'Previous week', 'Next week') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') +
     // The slips are printed from the due rows (payslip.js).
     '<button class="inv-btn inv-btn-secondary" data-action="invPsOpen">Pay slips</button>' +
     uiToolbarMoreHtml([phone && !thisWeek ? { label: 'Go to this week', action: 'invAttThisWeek' } : null, { label: 'Import the payroll as paid', action: 'invPayrollImport' }], { icon: phone }) +
     '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
-  html += _payStepsHtml(ws);
+  html += _payStepsHtml(ws, f, gaps, due);
   html += payLabourPanelsHtml();
-  html += _payDueCard(ws);
+  html += _payDueCard(ws, due);
   if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
@@ -29157,8 +29197,10 @@ function _attPayView() {
 }
 /* Pay's verdict (§3e): the week's payout, heading for it while the week is open, and its change against the usual week (the median
    of the twelve before), toned by the swing: well above the usual is a caution, below says nothing on its own. */
-function _payVerdictHtml(ws) {
-  var f = payForecast(ws), wk = f.week, sat = isoAddDays(ws, 6), amount = f.open ? f.predicted : wk.total, gaps = payCrewGaps(ws, sat);
+function _payVerdictHtml(ws, f, gaps) {
+  var sat = isoAddDays(ws, 6);
+  f = f || payForecast(ws); gaps = gaps || payCrewGaps(ws, sat);
+  var wk = f.week, amount = f.open ? f.predicted : wk.total;
   var pct = f.swingPct != null ? (f.swing >= 0 ? '+' : '−') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%' : '';
   var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : f.median != null ? 'ok' : 'neutral';
   // A hand on a block their own times do not reach has hours nobody is paid for: the payout reads low until the day is put right,
@@ -29181,39 +29223,54 @@ function _payVerdictHtml(ws) {
       uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
         sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
       (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
-      _payGapsHtml(gaps) + '</div>' + _payWeeksChartHtml(ws),
+      _payGapsHtml(gaps) + '</div>' + _payWeeksChartHtml(ws, wk),
     attrs: ' id="payForecast"' });
 }
 
-/* Pay's picture (UI pass 3 §12, §26c): the payout against the twelve weeks before, a bar a pay week, the cash the supervisor paid out
-   its own part of the bar (cashPayCardHtml lists it under). A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar
-   for it. A pay week still running is drawn as to date (TM6b). */
-function _payWeeksChartHtml(ws) {
+/* Pay's picture (UI pass 3 §12, §26c): the week shown and the eleven before it, a bar a pay week, the cash the supervisor paid out
+   its own part of the bar (cashPayCardHtml lists it under), each bar reading its payout whole (opts.total). A week nobody typed is a
+   gap, not a ₹0 week: chartStack draws no bar for it, and a week holding only cash paid out has its cash and no wages part (Iuno
+   M-3, Castor M-5). A pay week still running is drawn as to date (TM6b), at its total so far (the verdict says where it heads). */
+function _payWeeksChartHtml(ws, shown) {
   var weeks = [];
-  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(payWeek(isoAddDays(ws, -7 * i)));
-  var seen = function(w) { return w.recordedDays || w.sundays || w.cashOut; };
+  for (var i = PAY_HISTORY_WEEKS - 1; i >= 0; i--) weeks.push(i === 0 && shown ? shown : payWeek(isoAddDays(ws, -7 * i)));
+  var typed = function(w) { return w.recordedDays || w.sundays; };
   var cash = weeks.some(function(w) { return w.cashOut > 0; });
-  var series = [{ label: cash ? 'Wages, EXTRA and snacks' : 'Payout', values: weeks.map(function(w) { return seen(w) ? gstRound(w.total - (w.cashOut || 0)) : null; }) }];
-  if (cash) series.push({ label: 'Cash paid out', values: weeks.map(function(w) { return seen(w) ? w.cashOut || 0 : null; }) });
+  // The weekly tiers alone: the monthly crew is paid on its month, never in a week's payout (Iuno L-3).
+  var series = [{ label: cash ? 'Weekly hands, EXTRA and snacks' : 'Payout', values: weeks.map(function(w) { return typed(w) ? gstRound(w.total - (w.cashOut || 0)) : null; }) }];
+  if (cash) series.push({ label: 'Cash paid out', values: weeks.map(function(w) { return w.cashOut > 0 || typed(w) ? w.cashOut || 0 : null; }) });
   return '<div class="inv-hero-sheet" data-pay-weeks><div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }), series,
-    { ariaLabel: 'The payout, week by week', emptyText: 'No week recorded in the twelve', toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div></div>';
+    { ariaLabel: 'The payout, week by week', emptyText: 'No week recorded in the twelve', total: 'Payout', labelHead: 'Week',
+      toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div></div>';
 }
 /* Pay's next steps (UI pass 3 §12, §26c): the hours to check (a hand on a block their own times do not reach), the cash the
    supervisor paid out, the payout (Sunday to Saturday 5 PM, payLate), the payments to record (the weekly hands with something due),
    the slips. Each is Pay's own figure (payCrewGaps, cashForWeek, payForecast, payDue), a door to where it is done. */
-function _payStepsHtml(ws) {
-  var sat = isoAddDays(ws, 6), today = localDateStr(), f = payForecast(ws), gaps = payCrewGaps(ws, sat);
+function _payStepsHtml(ws, f, gaps, d) {
+  var sat = isoAddDays(ws, 6), today = localDateStr();
+  f = f || payForecast(ws); gaps = gaps || payCrewGaps(ws, sat); d = d || payDue(ws);
   var cash = typeof cashForWeek === 'function' ? cashForWeek(ws) : [];
-  var due = payDue(ws).rows.filter(function(r) { return r.weekly && r.due > 0.005; });
-  var closed = sat < today || (sat === today && tdyNowMin() >= 1020);
+  var due = d.rows.filter(function(r) { return r.weekly && r.due > 0.005; });
+  // The payout's cut-off is Saturday at 5 PM (payLate's PAY_CUTOFF), read as the week's end here too (Castor L-2).
+  var closed = sat < today || (sat === today && tdyNowMin() >= PAY_CUTOFF);
+  // The payout is done only when the week is closed and every working day is recorded with no hours to check: a week part-typed
+  // reads low, and a tick over it said the figure BM disburses was known (Castor H-1, Iuno M-1). A week nobody typed says so, never
+  // ₹0; one still running says where it heads.
+  var wk = f.week, missing = Math.max(0, wk.workingDays - wk.recordedDays), figured = wk.recordedDays > 0 || wk.sundays > 0;
+  var payout = !figured ? { meta: closed ? 'not recorded' : f.basis === 'median' ? 'about ' + finRs(f.predicted) : 'to Sat 5 PM', state: closed ? 'late' : 'wait' }
+    : !closed ? { meta: (f.open ? 'heading for ' + finRs(f.predicted) : finRs(wk.total)) + ', to Sat 5 PM', state: 'wait' }
+    : missing ? { meta: finRs(wk.total) + ', ' + todoPlural(missing, 'day') + ' not recorded', state: 'late' }
+    : gaps.length ? { meta: finRs(wk.total) + ', hours to check', state: 'late' }
+    : { meta: finRs(wk.total), state: 'in' };
   return uiNextStepsHtml('pay', [
-    { key: 'hours', title: 'Hours', meta: gaps.length ? todoPlural(gaps.length, 'to check') : 'none to check', state: gaps.length ? 'late' : 'in',
+    { key: 'hours', title: 'Hours', meta: gaps.length ? todoPlural(gaps.length, 'hand') + ' to check' : 'none to check', state: gaps.length ? 'late' : 'in',
       action: gaps.length ? 'invPayStepGo' : '', attrs: ' data-go="hours"' },
     { key: 'cash', title: 'Cash paid out', meta: cash.length ? todoPlural(cash.length, 'line') : 'none sent', state: cash.length ? 'in' : closed ? 'off' : 'wait',
       action: 'invPayStepGo', attrs: ' data-go="cash"' },
-    { key: 'payout', title: 'Payout', meta: finRs(f.open ? f.predicted : f.week.total) + ' to Sat 5 PM', state: closed ? 'in' : 'wait',
-      action: 'invPayStepGo', attrs: ' data-go="payout"' },
-    { key: 'pay', title: 'Payments', meta: due.length ? todoPlural(due.length, 'hand') + ' due' : 'nothing due', state: due.length ? (closed ? 'late' : 'wait') : 'in',
+    { key: 'payout', title: 'Payout', meta: payout.meta, state: payout.state, action: 'invPayStepGo', attrs: ' data-go="payout"' },
+    // The weekly hands paid on Saturday: the monthly crew's salaries are Due by worker's Monthly group, paid on their month
+    // (Iuno M-2: "nothing due" had sat over monthly hands owed).
+    { key: 'pay', title: 'Weekly payments', meta: due.length ? todoPlural(due.length, 'weekly hand') + ' due' : 'none due', state: due.length ? (closed ? 'late' : 'wait') : 'in',
       action: 'invPayStepGo', attrs: ' data-go="pay"' },
     { key: 'slips', title: 'Slips', meta: 'two to a page', state: 'wait', action: 'invPayStepGo', attrs: ' data-go="slips"' }]);
 }
@@ -29251,8 +29308,8 @@ function _payRow(title, sub, end, attrs, cls) {
     '<span class="inv-row-end">' + end + '</span></' + tag + '>';
 }
 
-function _payDueCard(ws) {
-  var d = payDue(ws);
+function _payDueCard(ws, d) {
+  d = d || payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   // How earned, paid and a balance carried are worked out is the guide's (Using the app: pay); a hand opens to its own arithmetic.
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
@@ -45552,7 +45609,8 @@ function aregStepsHtml(mo, cmp) {
     { key: 'start', title: 'Start or import', meta: mo ? (mo.src === 'hand' ? 'by hand' : mo.src === 'photo' ? 'from a photo' : 'imported') : 'not started',
       state: mo ? 'in' : 'wait', action: mo ? '' : 'invAttStepGo', attrs: ' data-go="areg-start"' },
     { key: 'fill', title: 'Fill', meta: !mo ? '' : n.reg ? todoPlural(n.reg, 'cell') + ' to fill' : 'nothing to fill', state: mo && !n.reg ? 'in' : 'wait', action: mo && n.reg ? 'invAttStepGo' : '', attrs: ' data-go="areg-fill"' },
-    { key: 'settle', title: 'Settle the differences', meta: !mo ? '' : differ ? differ + ' to settle' : 'none', state: !mo ? 'wait' : !differ ? 'in' : n.state ? 'late' : 'wait',
+    // Two counts, as the verdict has them: the cells that differ (its Differ tile) and the marks only on the day (Iuno L-4).
+    { key: 'settle', title: 'Settle the differences', meta: !mo ? '' : !differ ? 'none' : [n.state + n.ot ? (n.state + n.ot) + ' differ' : '', n.day ? n.day + ' only on the day' : ''].filter(Boolean).join(', '), state: !mo ? 'wait' : !differ ? 'in' : n.state ? 'late' : 'wait',
       action: mo && differ ? 'invAttStepGo' : '', attrs: ' data-go="areg-diff"' },
     { key: 'check', title: 'Mark checked', meta: mo && mo.verifiedAt ? 'checked ' + stockShortDate(isoOf(new Date(mo.verifiedAt))) : 'not yet',
       state: mo && mo.verifiedAt ? 'in' : 'wait', action: mo && !mo.verifiedAt ? 'invAttStepGo' : '', attrs: ' data-go="areg-verify"' }]);
@@ -60562,6 +60620,15 @@ function tdyInput(def, day) {
       // Entered by hand, or from paper: the day is in, with no roll behind it.
       o.state = 'in';
       o.text = (att.p + att.half) + ' on site, ' + att.absent.length + ' absent · entered by hand';
+    } else if (def.k === 'roll-out' && att.marked) {
+      // Entered by hand too: every hand on site has an out typed or scanned (no roll wrote it, no shift's default), so the day's
+      // outs are in with no roll behind them (Castor M-4, the QA chain of 5 Nov 2026: a day typed from the sheet read late for ever).
+      var orec = (S.attendance || {})[day], on = attDayRoster(orec).map(function(w) { return orec.marks[w.id]; })
+        .filter(function(m) { return m && (m.st === 'P' || m.st === 'H'); });
+      if (on.length && on.every(function(m) { return m.outMin != null && m.src !== 'relay'; })) {
+        o.state = 'in';
+        o.text = todoPlural(on.length, 'out') + ' · entered by hand';
+      }
     }
   } else if (def.k === 'pickling') {
     var loads = prodDayLoads(day);
@@ -75243,7 +75310,8 @@ var KB_APP_GUIDES = [
     { version: 3 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay** shows the pay week (Sunday to Saturday). The card at the top compares the week’s payout with its usual payout. The usual payout is the median of the 12 weeks before. The app does not use weeks that nobody recorded.\n' +
-    '- The steps in 1 row below the toolbar show what to do for the week: **Hours** (a hand whose times do not reach a block), **Cash paid out**, **Payout** (to Saturday 5 PM), **Payments** (the weekly hands with an amount due) and **Slips**. Tap a step to go where you do it.\n' +
+    '- The steps in 1 row below the toolbar show what to do for the week: **Hours** (a hand whose times do not reach a block), **Cash paid out**, **Payout** (to Saturday 5 PM), **Weekly payments** (the weekly hands with an amount due) and **Slips**. Tap a step to go where you do it.\n' +
+    '- **Payout** shows a tick only when the week is closed and every working day is recorded. If days are not recorded, it says how many.\n' +
     '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +
@@ -75264,8 +75332,8 @@ var KB_APP_GUIDES = [
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
-    // pass 3, U5).
-    { roles: ['owner'], version: 7 }),
+    // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
+    { roles: ['owner'], version: 8 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +
@@ -83559,14 +83627,24 @@ function srchGo(go) {
       if (!w) { srchMissing('That worker'); return; }
       // The desktop: People → Roster with the worker open in its pane, as its row opens it (UX overhaul 2, step 7; it opened
       // Edit worker: QA3-6). The phone's roster has no pane: the worker's sheet over it.
+      // A jump shows what it names: the roster's filters are cleared first, so the worker's card is in the list (Castor L-6, the QA
+      // chain of 5 Nov 2026: a worker hidden by an area or tier opened in the pane with no card), and a hand who left is revealed in
+      // the Left fold, opened.
+      _attRosterArea = ''; _attRosterTier = ''; _attRosterFilter = '';
+      var reveal = function() {
+        var card = document.querySelector('#pageStaff [data-roster-card="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]');
+        var fold = card && card.closest('details');
+        if (fold) fold.open = true;
+        uiRevealEl(card);
+      };
       if (_isDesktop) {
         srchGoPlace({ tab: 'pageStaff', v: 'roster', id: String(w.id) });
-        uiRevealEl(document.querySelector('#attRosterTable tr[data-id="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]'));
+        reveal();
         return;
       }
       _attView = 'roster';
       switchTab('pageStaff');
-      uiRevealEl(document.querySelector('#pageStaff [data-action="invAttEditWorker"][data-id="' + w.id + '"]'));
+      reveal();
       openWorkerEdit(w.id);
       return;
     }

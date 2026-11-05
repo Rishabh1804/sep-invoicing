@@ -673,8 +673,10 @@ function _attDayVerdictHtml(iso, rec, roster, c) {
    night's roll where a line has a night (sent the next morning), the EXTRA booked. Each a door to where it is done. */
 function _attDayStepsHtml(iso, rec, roster, c) {
   var def = function(k) { return TDY_INPUTS.filter(function(x) { return x.k === k; })[0]; };
-  var isToday = iso === localDateStr(), total = roster.length, marked = total - c.unmarked;
+  var today = localDateStr(), isToday = iso === today, ahead = iso > today, total = roster.length, marked = total - c.unmarked;
+  // A day not come is no day late (Castor M-1, the QA chain of 5 Nov 2026): its rolls are to come.
   var roll = function(k, title) {
+    if (ahead) return { key: k, title: title, meta: 'to come', state: 'wait', action: '' };
     var r = tdyInput(def(k), iso);
     var meta = r.state === 'in' ? (r.text.indexOf('entered by hand') >= 0 ? 'by hand' : 'in ' + String(r.text).split(' · ')[0])
       : r.state === 'off' ? 'not expected' : r.after != null ? 'after ' + relayClockLabel(r.after)
@@ -684,18 +686,31 @@ function _attDayStepsHtml(iso, rec, roster, c) {
   var held = typeof mrgHeldOpen === 'function' ? mrgHeldOpen().filter(function(h) { return h.coll === 'attendance' && String(h.rid) === iso && /^marks\./.test(h.field || ''); }) : [];
   var nights = nightLinesOn(iso).map(function(n) {
     var crew = shiftNightCrew(iso, n.line), heads = crew ? crew.heads : 0;
-    var due = relayClockLabel((n.end % 1440) + 30);
-    return { key: 'night-' + n.line, title: 'Night roll', meta: heads ? heads + ' on the night' : isToday ? 'due ' + due + ' tomorrow' : 'not in',
-      state: heads ? 'in' : isToday ? 'wait' : 'late', action: heads ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
+    // The night's roll is sent the next morning: late only once that morning is past its end and half an hour (yesterday's night at
+    // 6:10 AM is still due), never on a night not come (Castor M-1).
+    var dueMin = (n.end % 1440) + 30, due = relayClockLabel(dueMin);
+    var waiting = isToday || ahead || (iso === isoAddDays(today, -1) && tdyNowMin() < dueMin);
+    return { key: 'night-' + n.line, title: 'Night roll', meta: heads ? heads + ' on the night' : ahead ? 'to come' : isToday ? 'due ' + due + ' tomorrow' : waiting ? 'due ' + due : 'not in',
+      state: heads ? 'in' : waiting ? 'wait' : 'late', action: heads || ahead ? '' : 'invAttStepGo', attrs: ' data-go="paste"' };
   });
   var rows = attExtraRows(rec), short = _attDayShort(iso, rec);
   var extra = { key: 'extra', title: 'EXTRA booked', action: 'invAttStepGo', attrs: ' data-go="extra"',
     meta: rows.length ? formatNum(c.extraHours, 1).replace(/\.0$/, '') + ' h on ' + todoPlural(rows.length, 'row') : !marked ? 'after the marks' : short.length ? 'none yet' : 'none needed',
     state: rows.length || (!short.length && marked) ? 'in' : 'wait' };
+  // A day the plant does not work (a Sunday, a paid holiday, a day marked shut) expects no marks: the hands who came are its work,
+  // nobody is missing (Castor M-2).
+  var off = !ahead && typeof plantDayOff === 'function' ? plantDayOff(iso) : null;
+  var marks = !total ? { meta: 'nobody on the roster', state: 'off' }
+    : off && !marked ? { meta: 'not expected', state: 'off' }
+    : off ? { meta: todoPlural(marked, 'hand') + ' worked', state: 'in' }
+    : { meta: marked + ' of ' + total, state: !c.unmarked ? 'in' : marked ? 'part' : 'wait' };
+  // What a sync held is the owner's to settle (mrgGate): late for the owner, waiting on the owner for anyone else (Castor L-5).
+  var heldMine = typeof grdIsOwner !== 'function' || grdIsOwner();
   return uiNextStepsHtml('day', [roll('roll-in', 'In-time roll'),
-    { key: 'marks', title: 'Marks', meta: total ? marked + ' of ' + total : 'nobody on the roster', state: !total ? 'off' : !c.unmarked ? 'in' : marked ? 'part' : 'wait',
-      action: c.unmarked ? 'invAttStepGo' : '', attrs: ' data-go="marks"' },
-    held.length ? { key: 'held', title: 'Held for you', meta: todoPlural(held.length, 'mark') + ' held', state: 'late', action: 'invAttStepGo', attrs: ' data-go="held"' } : null,
+    { key: 'marks', title: 'Marks', meta: marks.meta, state: marks.state,
+      action: c.unmarked && !off ? 'invAttStepGo' : '', attrs: ' data-go="marks"' },
+    held.length ? { key: 'held', title: 'Held for you', meta: todoPlural(held.length, 'mark') + ' held' + (heldMine ? '' : ', the owner picks'), state: heldMine ? 'late' : 'wait',
+      action: heldMine ? 'invAttStepGo' : '', attrs: ' data-go="held"' } : null,
     roll('roll-out', 'Out-time roll')].concat(nights, [extra]));
 }
 /* A next step's door that stays on the page: the board's first hand not marked, the EXTRA, a version held (its hand's day). */
@@ -1181,13 +1196,23 @@ function _attWeekMarksHtml(roster, days, today) {
   days.forEach(function(d) { shiftBackToBack(d).forEach(function(x) { b2b[d + '|' + x.id] = x.kind; }); });
   var rows = roster.map(function(w) {
     return { label: w.name, cells: days.map(function(d) {
-      var m = attMark(d, w.id), off = attParseIso(d).getDay() === 0 || labourIsHoliday(d), k = b2b[d + '|' + w.id];
+      var m = attMark(d, w.id), k = b2b[d + '|' + w.id];
       if (k) flagged = true;
       var fl = k ? (k === 'after' ? ', on the shift after the night before' : ', on the shift and the night') : '';
-      if (!m) return { tone: null, off: off || d > today, word: (off ? (attParseIso(d).getDay() === 0 ? 'Sunday' : 'Holiday') : d > today ? 'To come' : 'Not marked') };
+      if (!m) {
+        // Left empty, never hatched: a day the plant does not work (a Sunday, a paid holiday, a day marked shut: plantDayOff,
+        // Castor M-2), a day to come, and a day the hand was not on the roster (before they joined, or a hand who has left and is
+        // here for a day they were marked: Castor L-4).
+        var off = d <= today && typeof plantDayOff === 'function' ? plantDayOff(d) : null;
+        var notOn = (w.profile && w.profile.joined && w.profile.joined > d) || w.active === false;
+        return { tone: null, off: !!off || d > today || notOn,
+          word: off ? (off.kind === 'sunday' ? 'Sunday' : off.kind === 'holiday' ? 'Holiday' : plantDayOffText(off)) : d > today ? 'To come' : notOn ? 'Not on the roster' : 'Not marked' };
+      }
       var onNight = m.st !== 'A' && attMarkOnNight(m, d);
       if (onNight) night = true;
-      return { tone: onNight ? 'info' : ATT_STATE_TONE[m.st] || null, flag: !!k, word: (onNight ? 'Present, the night' : ATT_STATE_LABELS[m.st] || m.st) + fl };
+      // A half day on the night keeps its half day's tone and word (Castor L-3).
+      return { tone: onNight && m.st !== 'H' ? 'info' : ATT_STATE_TONE[m.st] || null, flag: !!k,
+        word: (onNight ? (m.st === 'H' ? 'Half day, the night' : 'Present, the night') : ATT_STATE_LABELS[m.st] || m.st) + fl };
     }) };
   });
   var keys = [{ tone: 'ok', label: 'Present' }, { tone: 'warning', label: 'Half day' }, { tone: 'danger', label: 'Absent' }].concat(
@@ -1222,7 +1247,7 @@ function _attWeekVerdictHtml(ws, days) {
       { label: 'Present', fig: pct == null ? '' : formatNum(pct, 1) + '%', tone: figTonePct(pct, 90, 80), sub: 'of the marks typed' },
       { label: 'Days recorded', fig: recorded + '<span class="inv-tile-of">/' + work.length + '</span>', tone: gaps.length ? 'warning' : work.length ? 'ok' : null, sub: gaps.length ? gapWords + ' missing' : 'working days' },
       { label: 'On site a day', fig: r.avg == null ? '' : formatNum(r.avg, 1), sub: 'heads, on average' },
-      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'weekly tiers and the EXTRA' } : null].filter(Boolean),
+      pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'as Pay counts it' } : null].filter(Boolean),
     attrs: ' id="attWeekVerdict"' });
 }
 
@@ -1344,12 +1369,13 @@ function _attRosterVerdictHtml(all, active, watch, due) {
   var ids = Object.keys(watch), dueN = Object.keys(due || {}).length;
   var onFloor = all.filter(function(w) { return w.active !== false && w.onFloor !== false; }).length, left = all.length - active;
   return uiVerdictHtml({ screen: 'Roster', verdict: all.length ? active + ' active' + (ids.length ? ', ' + ids.length + ' to watch' : '') : 'Nobody on the roster yet',
-    tone: !all.length ? 'neutral' : ids.length ? 'warning' : dueN ? 'info' : 'ok', fig: String(active),
+    // A hand to watch is the To-do's red (pplWatch, firm figures only): the verdict, the tile and the card say it in one tone (Castor L-8).
+    tone: !all.length ? 'neutral' : ids.length ? 'danger' : dueN ? 'info' : 'ok', fig: String(active),
     facts: [all.length + ' on file', dueN ? todoPlural(dueN, 'check-in') + ' due' : ''],
     factors: [
       { label: 'Active', fig: String(active), sub: onFloor + ' on the floor' },
       // To watch and the check-ins due show their hands alone, as Stock's status tiles do (a second press shows everyone).
-      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'warning' : null, sub: 'motivation under 50',
+      { label: 'To watch', fig: String(ids.length), tone: ids.length ? 'danger' : null, sub: 'motivation under 50',
         action: ids.length ? 'invAttRosterFilter' : '', attrs: ' data-v="watch"', pressed: ids.length ? _attRosterFilter === 'watch' : null },
       { label: 'Check-ins due', fig: String(dueN), tone: dueN ? 'info' : null, sub: 'none in 45 days',
         action: dueN ? 'invAttRosterFilter' : '', attrs: ' data-v="due"', pressed: dueN ? _attRosterFilter === 'due' : null },

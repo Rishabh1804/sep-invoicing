@@ -183,7 +183,8 @@ function aregStepsHtml(mo, cmp) {
     { key: 'start', title: 'Start or import', meta: mo ? (mo.src === 'hand' ? 'by hand' : mo.src === 'photo' ? 'from a photo' : 'imported') : 'not started',
       state: mo ? 'in' : 'wait', action: mo ? '' : 'invAttStepGo', attrs: ' data-go="areg-start"' },
     { key: 'fill', title: 'Fill', meta: !mo ? '' : n.reg ? todoPlural(n.reg, 'cell') + ' to fill' : 'nothing to fill', state: mo && !n.reg ? 'in' : 'wait', action: mo && n.reg ? 'invAttStepGo' : '', attrs: ' data-go="areg-fill"' },
-    { key: 'settle', title: 'Settle the differences', meta: !mo ? '' : differ ? differ + ' to settle' : 'none', state: !mo ? 'wait' : !differ ? 'in' : n.state ? 'late' : 'wait',
+    // Two counts, as the verdict has them: the cells that differ (its Differ tile) and the marks only on the day (Iuno L-4).
+    { key: 'settle', title: 'Settle the differences', meta: !mo ? '' : !differ ? 'none' : [n.state + n.ot ? (n.state + n.ot) + ' differ' : '', n.day ? n.day + ' only on the day' : ''].filter(Boolean).join(', '), state: !mo ? 'wait' : !differ ? 'in' : n.state ? 'late' : 'wait',
       action: mo && differ ? 'invAttStepGo' : '', attrs: ' data-go="areg-diff"' },
     { key: 'check', title: 'Mark checked', meta: mo && mo.verifiedAt ? 'checked ' + stockShortDate(isoOf(new Date(mo.verifiedAt))) : 'not yet',
       state: mo && mo.verifiedAt ? 'in' : 'wait', action: mo && !mo.verifiedAt ? 'invAttStepGo' : '', attrs: ' data-go="areg-verify"' }]);

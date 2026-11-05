@@ -84,6 +84,6 @@ test.describe('P74: History', () => {
   test('an empty log says why, as an empty panel', async ({ page }) => {
     await open(page);
     await page.locator('#historySearch').fill('no such thing');
-    await expect(page.locator('#historyList .inv-panel .inv-empty')).toHaveText('No activity matches these filters');
+    await expect(page.locator('#historyList .inv-panel .inv-blank')).toHaveText('No activity matches these filters');
   });
 });

@@ -1091,7 +1091,7 @@ function renderStockReorder() {
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
     '<div class="inv-note">Suggested = daily use × (lead time + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. The lead time is the supplier’s where it is set on them (Money → Payments → Suppliers), else these ' + cfg.leadDays + ' days. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
-    h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
+    h += '<div class="inv-panel">' + uiEmptyHtml('Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.') + '</div>';
   } else {
     h += '<div class="inv-panel inv-panel-flush" id="stockReorder" data-nodirty>' + (_isDesktop ? stockReorderTableHtml(L) : stockReorderRowsHtml(L)) + '</div>';
   }

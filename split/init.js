@@ -1024,7 +1024,7 @@ checkForUpdate(false);
 
 // body.html's icons are slots of the one set (Icons v3, state.js): filled now, before the book loads and long before inv-booted,
 // so the shell shows them from its first draw.
-bootStep('the icons', function() { iconFill(document.body); });
+bootStep('the icons', function() { iconFill(document.body); uiStatusIconVars(); });
 
 // The GitHub token is read into memory beside the book (devices.js: locked to the device), so getGhToken() answers
 // before anything asks. That read never rejects and never holds the start past its own time limit.

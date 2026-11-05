@@ -215,12 +215,17 @@ var KB_APP_GUIDES = [
     '- The app pays each tier for the days and hours that are recorded. Thus if nobody typed some days in a range, the labour figure is **low**, not neutral. The monthly tier is low twice. A day that nobody typed also lowers the attendance that its rest-day gate uses.\n' +
     '- The rest-day gate is a monthly rule. For a range shorter than a month, the gate examines each rest day on that range only. The rest credit of the daily tier counts the days in the range. Thus if a range cuts a week in half, the credit for that week is too low.\n' +
     '- **Variable labour by area** puts the hourly pool, the daily tier, overtime and the extra in the area where each was worked. It does not include the day pay and rest days of the monthly crew. That crew is the standing crew, and its cost does not follow the area where it stood. It includes the overtime of the monthly crew, because each overtime hour was worked in a specific area.\n' +
-    '- **The extra** is hours that the sheet books to an area, not to a person. They are real paid hours with no name on them. In the bill, they are 1 pooled line. The bill counts them once and never in the wage of a person. The crew present in the short area receive the extra pro-rata. The supervisor pays it out, and People → Areas shows the split.',
+    '- **The extra** is hours that the sheet books to an area, not to a person. They are real paid hours with no name on them. In the bill, they are 1 pooled line. The bill counts them once and never in the wage of a person. The crew present in the short area receive the extra pro-rata. The supervisor pays it out, and People → Areas shows the split.\n\n' +
+    '# Roster\n' +
+    '- People → **Roster** shows each hand as a card: the initials, the name, the area and the rate. Under them are the tier, the time at the plant, 3 bars and the top skills.\n' +
+    '- The 3 bars are reliability, consistency and workload over 90 days. A card shows a badge only for a state, for example a hand to watch or a hand who is not active.\n' +
+    '- Tap a card to open the record of that hand. **Filter** shows one area, one tier, the hands to watch or the check-ins that are due. The hands who left are under **Left**.',
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
-    // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5).
-    { version: 7 }),
+    // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5). Version 8: the Roster's cards (UI pass 3,
+    // U7: the first-visit pointer on them reads this section).
+    { version: 8 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +
@@ -320,6 +325,7 @@ var KB_APP_GUIDES = [
     '# Put the data in\n' +
     '- **Paste** the pickling loads and the production list from WhatsApp. Before the app saves, it shows each line with what it read.\n' +
     '- The register clerk types **the VAT register’s page** as written, on **Mine**. You can also enter it here by hand. The app reads both the same way. It applies the START rule, asks about a struck row each time and reads the total of the day.\n' +
+    '- **Read register photo** (under More) reads a photo of a VAT register page or its power log. Claude reads the photo. Then the app shows each run before it saves. Set the Claude key first: Settings → Connections → Photo reading.\n' +
     '- If there is nothing to paste, use **Enter by hand** (under More). The form stays open for the next entry.\n' +
     '- To correct a figure, make a new entry. Do not edit the figure. To remove a wrong entry, void it with a reason.\n' +
     '- **Print sheets** (under More) prints the pickling sheet, the barrel batches and the 2 VAT register pages for a day. Print them blank to fill by hand, or as entered for the file.\n\n' +
@@ -359,7 +365,8 @@ var KB_APP_GUIDES = [
     // barrels; a rectifier is supporting equipment, with the line it serves (T-IO, 29 Oct 2026).
     // Version 9: a hand run of a client the register does not show counts; Count it, Leave it out; a register run saved twice (4 Nov 2026).
     // Version 10: a run of the supervisor's message of a client the register does not show waits for approval (owner, 5 Nov 2026).
-    { version: 10 }),
+    // Version 11: Read register photo, back since 3 Nov 2026 (read by Claude), and the first-visit pointer on More (UI pass 3, U7).
+    { version: 11 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -480,6 +487,24 @@ var KB_APP_GUIDES = [
     '- Press **A** to open Add. Press **Backspace** to go back. To open a screen in a new window, press Ctrl and click.',
     // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026).
     { version: 2 }),
+  // The Messages screen (msgview.js; owner, 31 Oct 2026), written with UI pass 3's U7 (§26e: no guide named the screen).
+  _kbg('messages', 'Using the app: messages', 'Every WhatsApp message kept, read line by line, corrected and read again', ['pageMessages'],
+    'The app keeps every message that you paste or import from WhatsApp. **Messages** is in the top bar, beside History. Only the owner opens it.\n\n' +
+    '# The list\n' +
+    '- The card shows how many messages are not saved and how many the app could not read.\n' +
+    '- The list shows the messages by day. Each row shows the sender, the kind and the status: **Saved**, **Not saved**, **Not read** or **Not a report**.\n' +
+    '- **Filter** shows one kind, one sender, one status or one day. Search finds a word in the text.\n\n' +
+    '# One message\n' +
+    '- Tap a message to open it. Each line of the text is beside what the app read from it.\n' +
+    '- If the kind is wrong, set the kind. The sorter learns from it.\n' +
+    '- To correct the text, edit it and read it again. The app shows what the new reading changes. Nothing is saved until you save.\n' +
+    '- A message that a reader saved goes back to the review of that reader. The book is never written from this screen.\n\n' +
+    '# Read every message again\n' +
+    '- **Read every message again** (under More) sorts every message again with the reader as it is now.\n' +
+    '- It lists each message that it reads in a different way. It writes nothing to the book.\n' +
+    '- Use it after a correction, to see what else the correction changes.\n\n' +
+    '# What the app learnt\n' +
+    '- Each kind that you set by hand and each heading that the roll reader learnt is in a list. **Forget** removes a lesson.'),
   _kbg('knowledge', 'Using the app: the knowledge base', 'Read, write, approve and train', ['pageKnow'],
     '- Tap the book in the top bar to open the guides for the screen that you are on.\n' +
     '- Tap **Write** to write an article. An article can be a how-to, a process, a part, a client requirement, a ruling, a fault, an incident or a decision.\n' +

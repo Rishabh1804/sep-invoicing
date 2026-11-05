@@ -97,7 +97,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
 
     // With a real invoice seeded, the list renders the invoice row — NOT the empty-state block.
     await expect(recent).toContainText('SEP/TEST-00020');
-    await expect(recent.locator('svg.inv-empty-icon')).toHaveCount(0);
+    await expect(recent.locator('.inv-blank')).toHaveCount(0);
     await expect(recent.locator('button[data-action="invCreateNew"]')).toHaveCount(0);
     await expect(recent).not.toContainText('Create your first invoice');
     // The card holds no blank state, and its Act offers a new invoice, not the first one (U2R).

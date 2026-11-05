@@ -845,7 +845,7 @@ function _attAreasView() {
       : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') + '</div>';
 
   if (stats.recordedDays === 0) {
-    return html + '<div class="inv-panel"><div class="inv-empty">No attendance recorded in this range.</div></div>';
+    return html + '<div class="inv-panel">' + uiEmptyHtml('No attendance recorded in this range.') + '</div>';
   }
 
   html += _areaExtraCard(stats, flags);
@@ -974,8 +974,8 @@ function _areaExtraCard(stats, flags) {
   var html = _labPanelHead('extra', 'The extra, checked', formatNum(totalExtra, 1) + ' h', '', 'areaExtra');
   if (totalExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0) {
     // Nothing to reconcile, and why nothing was expected: an idle line is an assumption doing real work.
-    return html + '<div class="inv-empty">No extra hours booked, and every area that ran was at its complement' +
-      (stats.idleDays > 0 ? ': ' + stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's') + ' idle and not counted' : '') + '</div></div>';
+    return html + uiEmptyHtml('No extra hours booked, and every area that ran was at its complement' +
+      (stats.idleDays > 0 ? ': ' + stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's') + ' idle and not counted' : '')) + '</div>';
   }
   // The card above says the extra is only counted; this row is what to do about it (the floor's own full house, ruled 11 Jun 2026).
   if (!stats.normed) html += '<div class="inv-row inv-row-2" data-area-nonorm><span class="inv-row-main"><span class="inv-row-title">Set each area’s complement below</span>' +

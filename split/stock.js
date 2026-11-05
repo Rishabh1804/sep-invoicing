@@ -963,7 +963,7 @@ function renderStockList(open) {
     return groups[g].length && (!_stockFilter || _stockFilter === g || (_stockFilter === 'none' && g === 'bath'));
   });
   if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
-  if (!shown.length) h += '<div class="inv-panel"><div class="inv-empty">No line in this group. Press its tile again to see every line.</div></div>';
+  if (!shown.length) h += '<div class="inv-panel">' + uiEmptyHtml('No line in this group. Press its tile again to see every line.') + '</div>';
   else {
     h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
     shown.forEach(function(g) {
@@ -1349,7 +1349,7 @@ function stockDayEntriesHtml(date) {
   var live = list.filter(function(e) { return !e.voided; }).length;
   var h = '<div class="inv-panel inv-panel-flush inv-mt-8" id="stockDayEntries" data-card="stockDay"><div class="inv-panel-head"><span class="inv-panel-title">Entered for ' + escHtml(stockShortDate(date)) +
     ' <span class="inv-panel-count">' + live + '</span></span></div>';
-  if (!list.length) return h + '<div class="inv-empty">Nothing entered for this day yet. Pick another date above to check it.</div></div>';
+  if (!list.length) return h + uiEmptyHtml('Nothing entered for this day yet. Pick another date above to check it.') + '</div>';
   var replayed = {};
   list.forEach(function(e) {
     var it = names[e.itemId];
@@ -1633,7 +1633,7 @@ function stockItemBodyHtml(item) {
   var all = stockData().entries.filter(function(e) { return e.itemId === item.id; });
   all = stockSortEntries(all).reverse();
   h += '<div class="inv-panel inv-panel-flush" id="stockEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries <span class="inv-panel-count">' + all.length + '</span></span></div>';
-  if (!all.length) h += '<div class="inv-empty">Nothing recorded on this line yet.</div>';
+  if (!all.length) h += uiEmptyHtml('Nothing recorded on this line yet.');
   var checks = stockEntryChecks(item.id);
   all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit, e.voided ? null : checks[e.id]); });
   return h + '</div>' + kbLinkedHtml('stock', item.id, item.name, 'Knowledge');
@@ -1990,7 +1990,7 @@ function renderStockCheck() {
   var h = stockBackBar('Stock', 'To check');
   var msgs = stockRereadAll(), list = stockChecksAll();
   h += '<div class="inv-panel inv-panel-flush" id="stockReread"><div class="inv-panel-head"><span class="inv-panel-title">Messages read differently now <span class="inv-panel-count">' + msgs.length + '</span></span></div>';
-  if (!msgs.length) h += '<div class="inv-empty">Every saved message reads the same with the reader as it is now.</div>';
+  if (!msgs.length) h += uiEmptyHtml('Every saved message reads the same with the reader as it is now.');
   msgs.forEach(function(d) {
     var p = d.paste;
     h += '<div class="inv-row inv-row-auto inv-row-top inv-row-flow" data-paste="' + escHtml(p.id) + '"><div class="inv-row-main">' +
@@ -2006,7 +2006,7 @@ function renderStockCheck() {
   });
   h += '</div>';
   h += '<div class="inv-panel inv-panel-flush" id="stockChecks"><div class="inv-panel-head"><span class="inv-panel-title">Entries that do not fit <span class="inv-panel-count">' + list.length + '</span></span></div>';
-  if (!list.length) h += '<div class="inv-empty">No entry in the last ' + STOCK_CHECK_DAYS + ' days needs a second look.</div>';
+  if (!list.length) h += uiEmptyHtml('No entry in the last ' + STOCK_CHECK_DAYS + ' days needs a second look.');
   list.forEach(function(x) {
     var unit = x.item.unit || '';
     h += '<div class="inv-row inv-row-auto inv-row-top inv-row-flow" data-entry="' + escHtml(x.e.id) + '"><div class="inv-row-main">' +

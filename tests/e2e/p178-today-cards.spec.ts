@@ -7,7 +7,7 @@ import { sweepState } from './sweep-fixture';
 // presentation on these screens are still primitive"; "If it is in list form, it should be presented better, maybe as a card
 // or atleast an expandable hero card"; "Hero cards should have gradient colour filling as per the theme, make sure the colours
 // are coded"). Needs you: the day's inputs a hero of steps, the tasks three heroes of cards. Pulse: each question a hero that
-// leads with its figure and opens to its story and its moves. Every hero is filled in its status tone's gradient. Made-up names.
+// leads with its figure and opens to its story and its moves. Every hero is coded by its status tone (the board's rule since U7). Made-up names.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 function iso(offset: number): string {
@@ -76,25 +76,40 @@ test('with nothing to do, Now says so in the tone that all is well, and nothing 
   await expect(page.locator('#homeNeeds [data-card="inputs"]')).toHaveJSProperty('open', true);
 });
 
-test('every hero is filled in its status tone’s gradient, mixed from the theme’s tokens and switched with it', async ({ page }) => {
+test('every hero takes the board’s rule for its tone: quiet while all is well, an edge from amber, the edge and a tint for red; its figure in its tone', async ({ page }) => {
   await loadAppWithState(page, state());
-  // A hero names its tone (--tone, --tone-bg, §3.3 Fills) and its fill is mixed from them on the card itself.
+  // UI pass 3, §14a (U7): the hero gave up the 160° wash its tone once filled (owner, 8 Oct 2026, above) for the board's rule
+  // (§24c, the owner's call 1). The tone still names itself (--tone, --tone-bg, §3.3) and still codes the card: its figure, its
+  // icon, an amber or red edge, the red tint, and the boxes inside it in their own tones.
   const read = () => g(page, `(function () {
     var box = document.createElement('div'); box.id = 'p178';
-    box.innerHTML = ['danger', 'warning', 'ok', 'info', 'neutral', ''].map(function (t) { return uiHeroHtml({ tone: t, eyebrow: t || 'accent', title: 'A' }); }).join('');
+    box.innerHTML = ['danger', 'warning', 'ok', 'info', 'neutral', ''].map(function (t) { return uiHeroHtml({ tone: t, eyebrow: t || 'accent', title: 'A', fig: '1' }); }).join('');
     document.body.appendChild(box);
-    var out = Array.prototype.map.call(box.children, function (el) { return getComputedStyle(el).backgroundImage; });
-    box.remove();
-    return { bg: out };
+    var probe = document.createElement('div'); probe.style.background = 'var(--surface)'; probe.style.color = 'var(--card-danger)'; document.body.appendChild(probe);
+    var m = document.createElement('div'); m.style.color = 'var(--warning-mark)'; m.style.background = 'var(--danger-mark)'; document.body.appendChild(m);
+    var out = Array.prototype.map.call(box.children, function (el) { var cs = getComputedStyle(el);
+      return { img: cs.backgroundImage, bg: cs.backgroundColor, shadow: cs.boxShadow, fig: getComputedStyle(el.querySelector('.inv-hero-fig')).color }; });
+    var surf = getComputedStyle(probe).backgroundColor, tint = getComputedStyle(probe).color, warn = getComputedStyle(m).color, red = getComputedStyle(m).backgroundColor;
+    box.remove(); probe.remove(); m.remove();
+    return { h: out, surf: surf, tint: tint, warn: warn, red: red };
   })()`);
-  const light: any = await read();
-  for (const b of light.bg) expect(b).toMatch(/^linear-gradient\(/);
-  // Six tones, six fills: the colour says the status. No stop is the plain surface: the fill stays in its tone (HR-9).
-  expect(new Set(light.bg).size).toBe(6);
-  for (const b of light.bg) expect(b).not.toMatch(/rgb\(236, 244, 245\)/);
-  await page.emulateMedia({ colorScheme: 'dark' });
-  const dark: any = await read();
-  for (let i = 0; i < 6; i++) expect(dark.bg[i]).not.toBe(light.bg[i]);
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const r: any = await read();
+    const [danger, warning, ok, info, neutral, plain] = r.h;
+    for (const h of r.h) expect(h.img, scheme).toBe('none');
+    // Quiet while all is well: the surface, lifted, no edge.
+    for (const h of [ok, info, neutral, plain]) { expect(h.bg, scheme).toBe(r.surf); expect(h.shadow, scheme).not.toMatch(/inset/); }
+    // Amber: the surface with a top edge in amber's mark. Red: the red tint and the edge in red's mark.
+    expect(warning.bg, scheme).toBe(r.surf);
+    expect(warning.shadow, scheme).toContain(r.warn);
+    expect(warning.shadow, scheme).toMatch(/inset/);
+    expect(danger.bg, scheme).toBe(r.tint);
+    expect(danger.bg, scheme).not.toBe(r.surf);
+    expect(danger.shadow, scheme).toContain(r.red);
+    // The colour still says the status: four tones, four figures.
+    expect(new Set([danger.fig, warning.fig, ok.fig, info.fig]).size, scheme).toBe(4);
+  }
 });
 
 test('Home: each question a widget that leads with its answer; at Large it takes the row with its moves as cards, its story a tap away', async ({ page }) => {

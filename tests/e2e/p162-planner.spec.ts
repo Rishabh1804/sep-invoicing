@@ -159,7 +159,7 @@ test.describe('P162 the planner', () => {
     const s: any = emptyState(); s.incomingMaterial = noSeedIM();
     await loadAppWithState(page, s);
     await switchTab(page, 'pagePlanner');
-    await expect(page.locator('#plannerContent .inv-empty').first()).toContainText('needs invoices with weights');
+    await expect(page.locator('#plannerContent .inv-blank').first()).toContainText('needs invoices with weights');
     await expect(page.locator('#plnMachines')).toBeVisible();
   });
 });

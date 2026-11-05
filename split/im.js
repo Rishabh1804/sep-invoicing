@@ -423,7 +423,7 @@ function renderIMList() {
   let html = '';
 
   if (filtered.length === 0) {
-    html += '<div class="inv-panel"><div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div></div>';
+    html += '<div class="inv-panel">' + uiEmptyHtml('' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '')) + '</div>';
   } else {
     // Grouped by challan date with the day's value (§7): the tab says whether it is billed.
     // Awaiting invoice's count and amount are its verdict's (imVerdictHtml): its list carries no head of its own.
@@ -492,7 +492,7 @@ function renderIMSelBar() {
 function _buildIMTableHtml() {
   var filtered = getFilteredIM();
   var html = '';
-  if (filtered.length === 0) return html + '<div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div>';
+  if (filtered.length === 0) return html + uiEmptyHtml('' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '')) + '';
 
   var sc = getIMSortConfig();
   var th = function(key, label, cls) {

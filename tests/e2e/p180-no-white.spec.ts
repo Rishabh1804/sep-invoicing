@@ -12,7 +12,8 @@ import { sweepState, sweep, WHITE_CEIL } from './sweep-fixture';
 // outside paper, measures each palette's surfaces, and holds Today's coding: every box in a card in its own tone, and every Pulse
 // widget a card coded by what it says. UI pass 3 (docs/UI_PASS_3.md §3a–§3c, §3g) added the wells and dark's steps: a well lies
 // a step under its card (between the page and the card in light), each dark surface a step over the one under it, text reads in a
-// well; and inside a coded card a card in its deck lies lighter than it in both themes, a tile sinks darker, a sheet draws no box.
+// well; and inside a coded card (the board's rule since U7, §14a) a card in its deck lies on it in its tone's left rule, a tile sinks
+// darker, a sheet draws no box.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 
@@ -140,7 +141,7 @@ test('every palette’s well lies a step under its card, dark’s surfaces step 
   }
 });
 
-test('Needs you: inside a coded card, a card in its deck lies lighter in its own tone, a tile sinks darker, a sheet draws no box; in both themes', async ({ page }) => {
+test('Needs you: a coded card takes the board’s rule; a card in its deck lies on it in its tone’s left rule, a tile sinks darker, a sheet draws no box; in both themes', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await openNeeds(page);
   const seen = { deck: 0, toned: 0, plain: 0, sheet: 0 };
@@ -148,28 +149,34 @@ test('Needs you: inside a coded card, a card in its deck lies lighter in its own
     await page.emulateMedia({ colorScheme: scheme });
     const r = await g(page, `(function () {
       var probe = document.createElement('div'); probe.style.background = 'var(--well)'; document.body.appendChild(probe);
-      var veil = getComputedStyle(probe).backgroundColor; probe.remove();
+      var veil = getComputedStyle(probe).backgroundColor; probe.style.background = 'var(--surface)'; var surf = getComputedStyle(probe).backgroundColor; probe.remove();
       var heroes = Array.prototype.map.call(document.querySelectorAll('#homeNeeds .inv-hero'), function (h) {
         var pick = function (sel) { return Array.prototype.filter.call(h.querySelectorAll(sel), function (b) { return b.closest('.inv-hero') === h; }); };
         var box = function (b) { var cs = getComputedStyle(b); return { tone: b.getAttribute('data-tone') || (b.className.match(/inv-tile-(danger|warning|ok|info)/) || [, ''])[1],
-          img: cs.backgroundImage, color: cs.backgroundColor, shadow: cs.boxShadow, edges: [cs.borderLeftStyle, cs.borderRightStyle, cs.borderBottomStyle] }; };
-        return { cls: h.className, img: getComputedStyle(h).backgroundImage, shadow: getComputedStyle(h).boxShadow,
+          img: cs.backgroundImage, color: cs.backgroundColor, shadow: cs.boxShadow, edges: [cs.borderLeftStyle, cs.borderRightStyle, cs.borderBottomStyle],
+          left: cs.borderLeftColor, top: cs.borderTopColor, leftW: parseFloat(cs.borderLeftWidth), topW: parseFloat(cs.borderTopWidth) }; };
+        return { cls: h.className, img: getComputedStyle(h).backgroundImage, color: getComputedStyle(h).backgroundColor, shadow: getComputedStyle(h).boxShadow,
           decks: pick('.inv-deck-item').map(box), tiles: pick('.inv-tile').map(box), sheets: pick('.inv-hero-sheet').map(box) };
       });
-      return { veil: veil, heroes: heroes };
+      return { veil: veil, surf: surf, heroes: heroes };
     })()`) as any;
     expect(r.heroes.length).toBeGreaterThan(2);
     const decks: any[] = [];
     for (const h of r.heroes) {
       const tag = `${scheme} ${h.cls}`;
-      // The card is a gradient of its tone, lifted off the page.
-      expect(h.img, tag).toMatch(/^linear-gradient\(/);
+      // The card takes the board's rule (§14a, U7): no wash; lifted off the page; quiet unless amber or red, which add their top
+      // edge (an inset), red its tint too.
+      expect(h.img, tag).toBe('none');
       expect(h.shadow, tag).not.toBe('none');
-      expect(h.shadow, tag).not.toMatch(/inset/);
+      const edged = /inv-hero-(warning|danger)/.test(h.cls);
+      if (edged) expect(h.shadow, tag).toMatch(/inset/); else { expect(h.shadow, tag).not.toMatch(/inset/); expect(h.color, tag).toBe(r.surf); }
+      if (/inv-hero-danger/.test(h.cls)) expect(h.color, tag).not.toBe(r.surf);
       for (const d of h.decks) {
-        // A card in a deck is a gradient of its own tone, never the surface laid flat, lighter than the card it lies on.
-        expect(d.img, `${tag} › deck ${d.tone}`).toMatch(/^linear-gradient\(/);
-        expect(meanL(d.img), `${tag} › deck ${d.tone}`).toBeGreaterThan(meanL(h.img));
+        // A card in a deck is the surface, lifted, never lighter than it (HR-9) and never darker than the card it lies on; its
+        // tone is its left rule, wider than its other edges.
+        expect(d.img, `${tag} › deck ${d.tone}`).toBe('none');
+        expect(d.color, `${tag} › deck ${d.tone}`).toBe(r.surf);
+        expect(d.leftW, `${tag} › deck ${d.tone}`).toBeGreaterThan(d.topW);
         expect(d.shadow, `${tag} › deck ${d.tone}`).not.toMatch(/inset/);
         seen.deck++;
         if (d.tone && scheme === 'light') decks.push(d);
@@ -178,7 +185,7 @@ test('Needs you: inside a coded card, a card in its deck lies lighter in its own
         // A tile sinks: its one shadow is inset. One that names a tone is a gradient of it, darker than the card; one that names
         // none is the card's own fill under the well's veil.
         expect(t.shadow, `${tag} › tile`).toMatch(/inset/);
-        if (t.tone) { expect(t.img, `${tag} › tile ${t.tone}`).toMatch(/^linear-gradient\(/); expect(meanL(t.img), `${tag} › tile ${t.tone}`).toBeLessThan(meanL(h.img)); seen.toned++; }
+        if (t.tone) { expect(t.img, `${tag} › tile ${t.tone}`).toMatch(/^linear-gradient\(/); expect(meanL(t.img), `${tag} › tile ${t.tone}`).toBeLessThan(okL(h.color)); seen.toned++; }
         else { expect(t.img, `${tag} › plain tile`).toBe('none'); expect(t.color, `${tag} › plain tile`).toBe(r.veil); seen.plain++; }
       }
       for (const sh of h.sheets) {
@@ -189,9 +196,9 @@ test('Needs you: inside a coded card, a card in its deck lies lighter in its own
       }
     }
     if (scheme === 'light') {
-      // Cards of one tone share a fill; cards of two tones never do: the colour says the status.
+      // Cards of one tone share a left rule; cards of two tones never do: the colour says the status.
       const byTone: Record<string, Set<string>> = {};
-      for (const c of decks) (byTone[c.tone] = byTone[c.tone] || new Set()).add(c.img);
+      for (const c of decks) (byTone[c.tone] = byTone[c.tone] || new Set()).add(c.left);
       const tones = Object.keys(byTone);
       expect(tones.length).toBeGreaterThan(1);
       for (const t of tones) expect(byTone[t].size, t).toBe(1);

@@ -238,7 +238,7 @@ function qtRowHtml(q) {
 }
 function qtListHtml() {
   var all = qtSorted(getQuotations().filter(qtMatches));
-  if (!all.length) return '<div class="inv-panel"><div class="inv-empty">' + (getQuotations().length ? 'No quotation matches' : 'No quotation yet. New quotation drafts one: it takes a number only when it is issued.') + '</div></div>';
+  if (!all.length) return '<div class="inv-panel">' + uiEmptyHtml('' + (getQuotations().length ? 'No quotation matches' : 'No quotation yet. New quotation drafts one: it takes a number only when it is issued.')) + '</div>';
   var grp = function(list) { return list.map(qtRowHtml).join(''); };
   var drafts = all.filter(function(q) { return q.status === 'draft'; }), live = all.filter(function(q) { return q.status === 'issued'; }),
     acc = all.filter(function(q) { return q.status === 'accepted'; }), rest = all.filter(function(q) { return /^(superseded|declined|void)$/.test(q.status); });

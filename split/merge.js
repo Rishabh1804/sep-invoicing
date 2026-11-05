@@ -424,7 +424,7 @@ function mrgHeldOpenDialog() {
   var list = mrgHeldOpen();
   dialogOpen('<div class="inv-dialog" data-mrg-held role="dialog" aria-modal="true" aria-labelledby="mrgTitle">' + dialogHeadHtml('<span id="mrgTitle">Held for you</span>') +
     '<div class="inv-note">Two devices changed the same thing before either saw the other\'s change. What stands is the owner\'s change, else the later one; the other is held here. Keep what stands, or use the one held.</div>' +
-    '<div class="inv-panel inv-panel-flush inv-mt-8">' + (list.length ? list.map(mrgHeldRowHtml).join('') : '<div class="inv-empty">Nothing is held.</div>') + '</div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8">' + (list.length ? list.map(mrgHeldRowHtml).join('') : uiEmptyHtml('Nothing is held.')) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true, replace: !!document.querySelector('[data-mrg-held]') });
 }
 /* Use the one held: written where it was, the value that stood held in its place, so the choice can be made again. */

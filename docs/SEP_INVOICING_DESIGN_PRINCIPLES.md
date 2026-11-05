@@ -200,10 +200,10 @@ the theme and the palette and DR-1 holds (a fill's colour is its status, and its
 
 | Tier | What | Fill |
 |---|---|---|
-| Card | a hero (§6.21), lifted | 160°: its tone's background to the tone 7% into it (UI pass 3, the approved board; it was 135° from the tone 18%); a plain card (`neutral`) is the surface to `--text-3` 7% into it |
-| Card in a card | a card in a deck (§6.22), lifted | 160°, lighter than the card it lies on in both themes: in light its background 40% → 75% into the surface; in dark the tone 12% → 8% into its background |
+| Card | a hero (§6.21), lifted | the board's rule since UI pass 3's U7 (§14a, §24c): the surface, quiet while all is well (its tone in its figure and icon); amber a 3 px top edge in `--warning-mark`; red the edge in `--danger-mark` and `--card-danger`. The 160° wash (U1 to U6) is gone |
+| Card in a card | a card in a deck (§6.22), lifted | the surface, its tone its left rule (the tone 80% into the surface), no wash (U7) |
 | Well in a card | a tile that names a tone (§6.9), sunk | 160°, darker than the card in both themes: in light the tone 13% → 9% into its background; in dark its background 60% → 45% into the page. A tile that names none is the card's own fill under the well's veil |
-| Control | a secondary or icon button in a coded block | in light the tone's background 55% into the surface, in dark the tone 12% into its background (lighter than the card in both), its edge the tone 28% into `--border` |
+| Control | a secondary or icon button in a coded block (`inv-coded`; a hero's controls are plain since U7) | in light the tone's background 55% into the surface, in dark the tone 12% into its background (lighter than the card in both), its edge the tone 28% into `--border` |
 
 A hero is `inv-hero-danger|warning|ok|info|neutral`, the accent with none. A box names its own tone by its tone class
 (`inv-tile-<tone>`, which also colours its figure) or by `data-tone` (the fill alone: a task's `red|amber|info`, a move's
@@ -1439,6 +1439,17 @@ A document that reasons in text leads with one A4 page of its figures: tiles, tw
 on paper's own tokens (the printed documents' rule: white, pt and mm, no palette, no theme). The text follows as *our copy*: under
 **Read the full …** on the screen, hidden until opened, and after the picture when printed with it. The action bar holds the two prints,
 the picture the one primary. Every figure is the full document's own arithmetic; money on the picture is whole rupees.
+
+### 6.39 First-visit pointers — `uiPointer`, `UI_POINTERS` (state.js), `inv-pointer` (UI pass 3, §14d)
+A small card floating by one control the first time a person meets it: *New: …* in a sentence, **Read the guide** (the control's
+guide, at its section) and **Got it**. A layer: fixed, placed by `--ptr-top`, `--ptr-left` and its arrow's `--ptr-arrow`, so nothing on
+the screen moves; it takes no focus, Escape shuts it. Once a person a device, one a screen visit, only with its control wholly in view
+(above the phone's bar and a sticky action bar), never over typed work, a dialog the control is not in, a board being arranged or the
+lock. A control a pointer names is one that is new or easy to miss; the pointer's words are the guide's in one line.
+
+A status badge carries its tone's icon before its word (U7, §3d): `done`, `alert`, `cancel`, `info`, as a mask from the root's
+`--ico-<tone>`; a neutral badge none. A toast is led by its kind's icon. A screen with nothing to show draws the blank state (§6.32)
+through `uiEmptyHtml` with its own words, never a line of its own.
 
 ## 7. How each screen is assembled
 

@@ -611,7 +611,7 @@ function powerCutsHtml(a) {
   h += '<div class="inv-toolbar" data-power-toolbar="cuts"><button class="inv-btn inv-btn-primary" data-action="invPowerAddCut">Enter a cut</button>' +
     uiToolbarMoreHtml([{ label: 'Import history', action: 'invPowerImport' }], { icon: phone }) + '</div>';
   h += pcsCompleteHtml(pcsAnalysis(a), powerLoadRowHtml(L));
-  if (!a.cuts.length) return h + '<div class="inv-panel"><div class="inv-empty">No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.</div></div>';
+  if (!a.cuts.length) return h + '<div class="inv-panel">' + uiEmptyHtml('No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.') + '</div>';
   // A cut is one line (the day and why, the clock and how long, the damage and where it fell) that opens to what the damage is made
   // of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass).
   a.months.slice().reverse().forEach(function(m, mi) {
@@ -684,7 +684,7 @@ function powerLoadHtml(a) {
   // Bills are added on Money → Payments: the door only for a role that opens Money (the empty line says where they go).
   h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span>' +
     (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button>' : '') + '</div>';
-  if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money → Payments; their details are set here.</div>';
+  if (!L.bills.length) h += uiEmptyHtml('No electricity bill entered. Bills are added in Money → Payments; their details are set here.');
   L.bills.slice().reverse().forEach(function(b) {
     var facts = [b.kwh ? ['Units', formatNum(b.kwh, 0) + ' kWh'] : b.units ? ['Units', formatNum(b.units, 0)] : null, b.kvah ? ['kVAh', formatNum(b.kvah, 0)] : null,
       b.kwh && b.kvah ? ['Power factor', formatNum(b.kwh / b.kvah, 3)] : null, b.md ? ['Peak drawn', formatNum(b.md, 2) + ' kVA'] : null, b.kvaBilled ? ['Billed at', formatNum(b.kvaBilled, 0) + ' kVA'] : null,

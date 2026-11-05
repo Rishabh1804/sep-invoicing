@@ -211,7 +211,7 @@ test.describe('P214: Production, Power and the plant register, the QA chain', ()
     // Yesterday: no attendance, no run: a gap in the record, as the runs say.
     await prev.click();
     await expect(title).toHaveText('No record this day');
-    await expect(page.locator('#prodRuns .inv-empty')).toContainText('a gap, not a zero');
+    await expect(page.locator('#prodRuns .inv-blank')).toContainText('a gap, not a zero');
     await expect(next).toBeEnabled();
     // Heads on the line and no record: said so, never "Did not run".
     await prev.click();

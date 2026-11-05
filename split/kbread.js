@@ -152,7 +152,7 @@ function kbKindIco(kind) {
   return '<span class="inv-kb-ico" aria-hidden="true">' + iconPathSvg(KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</span>';
 }
 /* An app guide carries its subject's icon (the book on every one had read as one guide); the shop's articles their kind's. */
-var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield', 'app-feeds': 'news' };
+var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-messages': 'message', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield', 'app-feeds': 'news' };
 function kbArtIco(a) {
   var k = a && KB_GUIDE_ICON[a.id];
   return k && ICONS[k] ? '<span class="inv-kb-ico" aria-hidden="true">' + iconSvg(k) + '</span>' : kbKindIco(a ? a.kind : '');
@@ -388,7 +388,7 @@ function kbArticleKindHtml(a) {
     var incs = kbReadable().filter(function(x) { return x.kind === 'incident' && x.faultId === a.id && x.status !== 'retired'; });
     h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
       (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
-      (incs.length ? incs.map(function(x) { return kbRowHtml(x); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
+      (incs.length ? incs.map(function(x) { return kbRowHtml(x); }).join('') : uiEmptyHtml('None logged yet.')) + '</div>';
   }
   if (a.kind === 'incident') h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
   if (a.kind === 'decision') h += '<div id="kbSecoptions" data-kb-sec="options">' + kbDecisionHtml(a) + '</div>';
@@ -616,7 +616,7 @@ function kbSheetOpen(tab, redraw) {
   var ctx = secs.filter(function(s) { return s.key !== 'notes'; });
   var body = _kbSheetTab === 'notes' ? (notes ? notes.html : '') : ctx.map(function(s) {
     return '<section class="inv-kb-ctx-sec" data-kb-ctx="' + s.key + '"><h3 class="inv-kb-ctx-h">' + escHtml(s.title) + (s.count !== '' ? ' <span class="inv-panel-count">' + s.count + '</span>' : '') + '</h3>' + s.html + '</section>';
-  }).join('') || '<div class="inv-empty">Nothing linked to this article yet.</div>';
+  }).join('') || uiEmptyHtml('Nothing linked to this article yet.');
   var tabs = '<div class="inv-viewtabs" role="tablist" aria-label="About this article">' + [['context', 'Context'], ['notes', 'Notes']].map(function(t) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_kbSheetTab === t[0]) + '" data-action="invKbSheet" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';

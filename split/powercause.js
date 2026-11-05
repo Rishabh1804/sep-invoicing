@@ -659,8 +659,8 @@ function pcsCausesHtml(a) {
     links: [todo ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTab" data-tab="cuts" data-pcs-todo>' + escHtml(todoPlural(todo, 'cut') + ' to complete, on Cuts') + '</button>' : ''],
     attrs: ' id="pcsVerdict"' });
   if (!t.reasoned) {
-    return h + '<div class="inv-panel"><div class="inv-empty" data-pcs-none>No cut has a reason yet. Complete a cut on Cuts (the time the power came back, why it went, what brought it back) ' +
-      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.</div></div>';
+    return h + '<div class="inv-panel" data-pcs-none>' + uiEmptyHtml('No cut has a reason yet. Complete a cut on Cuts (the time the power came back, why it went, what brought it back) ' +
+      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.') + '</div>';
   }
   h += '<div class="inv-panels">';
   h += '<div class="inv-panel" id="pcsReasons"><div class="inv-panel-head"><span class="inv-panel-title">What causes them <span class="inv-note">by what they cost</span></span></div>' +
@@ -673,7 +673,7 @@ function pcsCausesHtml(a) {
       return { label: x.c.name, value: x.median != null ? x.median : 0, display: x.median != null ? 'back in ' + powerDur(Math.round(x.median)) : 'no time back yet',
         sub: [todoPlural(x.n, 'cut'), rs.length ? 'for ' + rs.join(', ') : ''].filter(Boolean).join(' · '), tone: 'neutral' };
     }), { unit: 'count' })
-      : '<div class="inv-empty">No fix recorded yet: what brought the power back is asked with the reason.</div>') + '</div>';
+      : uiEmptyHtml('No fix recorded yet: what brought the power back is asked with the reason.')) + '</div>';
   h += pcsListHtml('reason') + pcsListHtml('fix');
   return h + '</div>';
 }

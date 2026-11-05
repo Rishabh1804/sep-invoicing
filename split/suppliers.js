@@ -282,7 +282,7 @@ function suppPanelHtml() {
   var t = suppTotals(), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   var h = '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers <span class="inv-panel-count">' + t.rows.length + '</span></span>' +
     (t.set && money ? '<span class="inv-dot inv-dot-' + (t.owed > 0 ? 'warning' : 'ok') + '" data-supp-owed-all="' + t.owed + '">' + escHtml(t.owed > 0 ? finRs(t.owed) + ' owed' : 'nothing owed') + '</span>' : '') + '</div>';
-  if (!t.rows.length) h += '<div class="inv-empty">No supplier yet: a stock bill names its company, and a payment set to Supplier on the statement its payee.</div>';
+  if (!t.rows.length) h += uiEmptyHtml('No supplier yet: a stock bill names its company, and a payment set to Supplier on the statement its payee.');
   h += uiMoreHtml('supp-rows', t.rows.map(function(x) {
     var L = x.L, set = L.balance != null;
     var meta = [set ? suppOldestText(L) : x.last ? 'last bill ' + stockShortDate(x.last.date) : todoPlural(x.sp.pays.length, 'payment'), suppLeadText(x.lead, true)];
@@ -391,7 +391,7 @@ function suppLedgerHtml(sp, L) {
   var after = L.after.slice().reverse(), before = L.before.slice().reverse();
   var h = '<div class="inv-panel inv-panel-flush" data-supp-ledger><div class="inv-panel-head"><span class="inv-panel-title">' + (L.op ? 'Since ' + escHtml(formatDate(L.op.date)) : 'Bills and payments') +
     ' <span class="inv-panel-count">' + after.length + '</span></span></div>';
-  if (!after.length) h += '<div class="inv-empty">' + (L.op ? 'Nothing since: what is owed is the balance set.' : 'No bill or payment on record.') + '</div>';
+  if (!after.length) h += uiEmptyHtml('' + (L.op ? 'Nothing since: what is owed is the balance set.' : 'No bill or payment on record.')) + '';
   h += uiMoreHtml('supp-ledger-' + sp.id, after.map(function(l) { return row(l, !!L.op); }), { n: 12, noun: 'lines' });
   if (L.op) h += '<div class="inv-row" data-supp-opening><span class="inv-row-main"><span class="inv-row-title">Owed on ' + escHtml(formatDate(L.op.date)) + '</span>' +
     (L.op.note ? '<span class="inv-row-meta">' + escHtml(L.op.note) + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(L.op.amount)) + '</span></div>';
@@ -1019,7 +1019,7 @@ function suppCompareHtml(item) {
   if (K.qty > 0) parts.push('ordering ' + stockFmtQty(K.qty) + ' ' + unit);
   h += '<p class="inv-note" data-supp-cmp-ctx>' + escHtml(parts.join(' · ')) + '</p>';
   if (K.pick && K.pick.lost) h += '<div class="inv-callout inv-callout-warning">' + escHtml('You chose ' + K.pick.lost + ' for this line, and it no longer sells it on record: the app picks again until you choose.') + '</div>';
-  if (!K.cands.length) h += '<div class="inv-panel"><div class="inv-empty">No supplier has sold this line on record. Add a price a supplier quoted to weigh one, or add the bill when it is bought.</div></div>';
+  if (!K.cands.length) h += '<div class="inv-panel">' + uiEmptyHtml('No supplier has sold this line on record. Add a price a supplier quoted to weigh one, or add the bill when it is bought.') + '</div>';
   else h += '<div class="inv-deck inv-coded" data-supp-cands>' + K.cands.map(function(c) { return suppCandCardHtml(item, K, c); }).join('') + '</div>';
   h += '<p class="inv-note">Prices before GST, at each one’s last bill or a price quoted since. A lead time is in working days, Sundays out, set on the supplier. What is owed is shown where their balance is set.</p>';
   var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Close</button>' +

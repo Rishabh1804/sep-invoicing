@@ -110,7 +110,7 @@ function prsListHtml() {
     if (_prsStageFilter !== 'open' && _prsStageFilter !== 'all' && st !== _prsStageFilter) return false;
     return !q || [p.name, p.contact, p.process, p.parts, p.phone, p.notes].join(' ').toLowerCase().indexOf(q) >= 0;
   });
-  if (!list.length) return '<div class="inv-empty">' + (getProspects().length ? 'No prospect matches.' : 'No prospects yet. Add a firm you have approached, or mean to.') + '</div>';
+  if (!list.length) return uiEmptyHtml('' + (getProspects().length ? 'No prospect matches.' : 'No prospects yet. Add a firm you have approached, or mean to.')) + '';
   // Due first (most late first), then by the next follow-up, then the rest by name.
   list.sort(function(a, b) {
     var la = prsLate(a), lb = prsLate(b);

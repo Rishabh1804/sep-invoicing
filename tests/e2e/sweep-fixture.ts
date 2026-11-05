@@ -210,7 +210,7 @@ const V1_PREFIX = ['inv-stk-', 'inv-td-', 'inv-kpi', 'inv-att-', 'inv-stats-', '
   'inv-total', 'inv-svg-', 'inv-text-', 'inv-master', 'inv-rm-', 'inv-zero-', 'inv-pred-', 'inv-ov-', 'inv-more-', 'inv-history-', 'inv-cost-',
   'inv-dupe-', 'inv-quick-', 'inv-header', 'inv-sidebar', 'inv-ac-', 'inv-autocomplete-', 'inv-search-', 'inv-sel-', 'inv-subview-', 'inv-state-',
   'inv-item-', 'inv-items-', 'inv-rate-', 'inv-reissue-', 'inv-merge-', 'inv-weight-', 'inv-desktop-table', 'inv-link-btn', 'inv-checkbox-',
-  'inv-check-row', 'inv-empty-state', 'inv-chart-empty', 'inv-fab', 'inv-tabs', 'inv-mono', 'inv-btn-bar', 'inv-line-item', 'inv-selected-client',
+  'inv-check-row', 'inv-empty', 'inv-chart-empty', 'inv-fab', 'inv-tabs', 'inv-mono', 'inv-btn-bar', 'inv-line-item', 'inv-selected-client',
   'inv-error', 'inv-kbd-hint', 'inv-diag-', 'inv-sync-', 'inv-zinc-', 'inv-qa', 'inv-unbilled-', 'inv-recent-', 'inv-chip-active', 'inv-flex-',
   'inv-flip-kpi', 'inv-flip-container', 'inv-flip-inner'];
 const V1_EXACT = ['inv-tab', 'inv-td', 'inv-th', 'inv-tr', 'inv-detail', 'inv-preview-container', 'inv-trend-svg', 'inv-viewtab-on'];

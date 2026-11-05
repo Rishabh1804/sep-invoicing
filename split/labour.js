@@ -485,7 +485,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass, opts) {
   var html = _labPanelHead('labour', title || 'Labour', formatCurrency(lab.total), extraClass);
 
   if (lab.rosterSize === 0) {
-    return html + '<div class="inv-empty">Nobody on the roster</div></div>';
+    return html + uiEmptyHtml('Nobody on the roster') + '</div>';
   }
 
   // Fixed and variable, and — where there is tonnage to divide by — the ₹/kg, as one strip: in Stats the ₹/kg

@@ -353,7 +353,7 @@ function showNumberAudit() {
   var html = '<div class="inv-dialog">' + dialogHeadHtml('Number audit');
 
   if (a.entries.length === 0) {
-    html += '<div class="inv-empty">No invoice numbers issued yet.</div>';
+    html += uiEmptyHtml('No invoice numbers issued yet.');
   } else {
     // Each financial year's series is its own run.
     html += '<p class="inv-note inv-mb-8">' + a.series.map(function(r) {
@@ -374,7 +374,7 @@ function showNumberAudit() {
     if (explained.length > 0) html += _numAuditPanelHtml('Voided, with a reason', explained);
 
     if (a.unaccounted.length === 0 && explained.length === 0) {
-      html += '<div class="inv-empty">Unbroken series. No gaps to explain.</div>';
+      html += uiEmptyHtml('Unbroken series. No gaps to explain.');
     }
   }
 

@@ -641,7 +641,7 @@ function devListHtml() {
   }).join('');
   return '<div class="inv-panel inv-panel-flush inv-mt-16" data-card="devices"><div class="inv-panel-head"><span class="inv-panel-title">Devices ' +
     '<span class="inv-panel-count">' + live + '</span></span></div>' +
-    (body || '<div class="inv-empty">No device is registered yet. Register this one above.</div>') + '</div>';
+    (body || uiEmptyHtml('No device is registered yet. Register this one above.')) + '</div>';
 }
 
 function devSettingsBody() {

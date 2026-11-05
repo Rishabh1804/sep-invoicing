@@ -92,7 +92,7 @@ function renderClientList(filter) {
   }
 
   if (filtered.length === 0) {
-    el.innerHTML = _isDesktop ? '<div class="inv-empty">No clients found</div>' : '<div class="inv-panel"><div class="inv-empty">No clients found</div></div>';
+    el.innerHTML = _isDesktop ? uiEmptyHtml('No clients found') : '<div class="inv-panel">' + uiEmptyHtml('No clients found') + '</div>';
     return;
   }
   const overrides = c => (c.itemRates && c.itemRates.length) ? c.itemRates.length + ' override' + (c.itemRates.length > 1 ? 's' : '') : '';
@@ -190,7 +190,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   if (!isAdd) {
     rates = _clientCardHtml('Rate history', (c.rates || []).length,
       _clientRateRowsHtml(c, true) ||
-        '<div class="inv-empty">No rate on record</div>',
+        uiEmptyHtml('No rate on record'),
       '<div class="inv-panel-body">' + _clientRateFieldsHtml(false) +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddRate" data-client="' + c.id + '">Add rate</button></div>', 'ceditRates');
   }
@@ -672,7 +672,7 @@ function _pieceRatesEditHtml(c) {
   var rows = _sortedPieceRates(c).map(function(pr) {
     return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom,
       ' data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate"');
-  }).join('') || '<div class="inv-empty">No piece rates on record. Fill them from what has been billed, or add one below.</div>';
+  }).join('') || uiEmptyHtml('No piece rates on record. Fill them from what has been billed, or add one below.');
   var body = (_pieceFillReport && _pieceFillReport.clientId === c.id ? _pieceFillReportHtml(_pieceFillReport) : '') +
     '<div class="inv-panel-body"><div class="inv-fields">' +
     _cfield('ceditPiecePart', 'Part', '<input class="inv-input inv-id" id="ceditPiecePart" placeholder="CLAMP 165X83 (NT)">') +
@@ -858,7 +858,7 @@ function _pieceWeightsEditHtml(c) {
   var rows = _sortedCard(c.pieceWeights).map(function(pw) {
     return _cardRowHtml(_partGaugeHtml(pw), escHtml(pw.kgPerPiece) + ' kg/pc', pw.effectiveFrom,
       ' data-action="invRemovePieceWeight" data-client="' + c.id + '" data-idx="' + pw._i + '" aria-label="Remove piece weight"');
-  }).join('') || '<div class="inv-empty">No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.</div>';
+  }).join('') || uiEmptyHtml('No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.');
   var body = (_weightFillReport && _weightFillReport.clientId === c.id ? _weightFillReportHtml(_weightFillReport) : '') +
     '<div class="inv-panel-body"><div class="inv-fields">' +
     _cfield('ceditWtPart', 'Part', '<input class="inv-input inv-id" id="ceditWtPart" placeholder="BRACKET 101">') +

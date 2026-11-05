@@ -57,7 +57,7 @@
   /* Type sizes (§3.4). */
   --fs-11: 0.6875rem; --fs-12: 0.75rem; --fs-13: 0.8125rem; --fs-14: 0.875rem; --fs-16: 1rem;
   --fs-17: 1.0625rem; --fs-18: 1.125rem; --fs-19: 1.1875rem; --fs-22: 1.375rem; --fs-24: 1.5rem;
-  --ls-tight: -0.02em;
+  --ls-tight: -0.02em; --ls-caps: 0.04em;
 
   --sp-2: 0.125rem; --sp-4: 0.25rem; --sp-6: 0.375rem;
   --sp-8: 0.5rem; --sp-10: 0.625rem; --sp-12: 0.75rem;
@@ -161,7 +161,7 @@
   --kb-measure: 42rem; --kb-ico: 2rem; --kb-ico-sm: 1.5rem; --kb-glance-k: 6.5rem; --kb-big-h: 3.125rem; --kb-card-w: 15rem; --kb-lib-w: 17.5rem; --kb-ctx-w: 20rem; --kb-rail-w: 4rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
-  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem;
+  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --pointer-w: 20rem;
   --r-toast: calc(var(--sp-10) + 0.5lh);
   --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem;
   --palette-h: 32rem;   /* the search palette's one height on the desktop (search.js) */
@@ -1232,6 +1232,12 @@ body.inv-desktop .inv-page-active:has(.inv-pane-host):not(:has(.inv-hidden .inv-
 body.inv-desktop .inv-pane-host {
   display: flex; flex: 1 1 0; min-height: var(--pane-host-min); overflow: hidden; container: masterdetail / inline-size;
 }
+/* The list stands in a card on the page (UI pass 3, §14a): the host is the card, the list and the pane its two columns, each
+   scrolling inside it; the table's head stays at the card's top in the card's own colour. Rows keep their heights. */
+body.inv-desktop .inv-pane-host {
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-1);
+}
+body.inv-desktop .inv-pane-host .inv-table thead th { background: var(--surface); }
 body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; container: list / inline-size; }
 
 /* A list's selection bar stays in view at the foot of the page: above the bottom bar on the phone, at the edge on the
@@ -1849,7 +1855,7 @@ details.inv-row-fold[open] > summary::after { transform: translateY(-25%) rotate
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: var(--hair) solid var(--border);
-  font-size: var(--fs-12); color: var(--text-3);
+  font-size: var(--fs-12); color: var(--text-3); font-variant-caps: all-small-caps; letter-spacing: var(--ls-caps);
 }
 .inv-row-selected, .inv-row[aria-selected="true"] { background: var(--accent-soft); }
 /* A row holding blocks (a quoted line, a callout, a field) keeps its end at the top. */
@@ -1903,10 +1909,10 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 /* The open row is marked by its rule; a ticked row keeps the selection fill. A muted
    (cancelled) row fades through .inv-row-muted on the tr — fading the cells as well
    compounded to a third. */
-.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
+.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--accent-soft); }
 .inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A row list beside its pane marks the open record the way a table does (Receivables, Production → Entries). */
-.inv-row[aria-current="true"] { background: var(--surface-2); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
+.inv-row[aria-current="true"] { background: var(--accent-soft); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
 .inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1997,6 +2003,13 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 .inv-badge-ok { background: var(--ok-bg); color: var(--ok); }
 .inv-badge-info { background: var(--info-bg); color: var(--info); }
 .inv-badge-neutral { background: var(--surface-2); color: var(--text-2); }
+/* A status badge carries its tone's icon before its word (§3d, §14a; uiStatusIconVars draws each as a mask). Neutral has none. */
+:is(.inv-badge-ok, .inv-badge-warning, .inv-badge-danger, .inv-badge-info)::before {
+  content: ''; flex: none; width: var(--sp-12); height: var(--sp-12); background: currentColor; -webkit-mask: var(--ico-ok) center / contain no-repeat; mask: var(--ico-ok) center / contain no-repeat;
+}
+.inv-badge-warning::before { -webkit-mask-image: var(--ico-warning); mask-image: var(--ico-warning); }
+.inv-badge-danger::before { -webkit-mask-image: var(--ico-danger); mask-image: var(--ico-danger); }
+.inv-badge-info::before { -webkit-mask-image: var(--ico-info); mask-image: var(--ico-info); }
 
 /* §6.14 Detail pane and key/value grid */
 .inv-pane { background: var(--surface); border-left: var(--hair) solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
@@ -2181,12 +2194,18 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
 }
-.inv-dialog-title { min-width: 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
+.inv-dialog-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; overflow-wrap: anywhere; }
 /* The content between a dialog's head and its foot: a name typed without a space (a part, a client) breaks rather than pushing
    the sheet past the phone's edge, and nothing else about its size changes. */
 .inv-dialog-body { overflow-wrap: break-word; }
-.inv-dialog-close { border-color: transparent; background: none; box-shadow: none; color: var(--text-3); font-size: var(--fs-19); }
+.inv-dialog-close { flex: none; border-color: transparent; background: none; box-shadow: none; color: var(--text-2); }
 .inv-dialog-close:hover { color: var(--text-1); }
+/* A sheet (a dialog on the phone, More and Filter among them, UI pass 3 §14a) shows its grabber: a short bar centred over its head,
+   decorative (a sheet is closed by its ×, Back or the scrim, never by a drag). */
+body:not(.inv-desktop) .inv-dialog::before {
+  content: ''; display: block; flex: none; width: var(--sp-32); height: var(--sp-4); margin: calc(var(--sp-8) - var(--sp-20)) auto var(--sp-12);
+  border-radius: var(--r-full); background: color-mix(in oklab, var(--text-3) 45%, transparent);
+}
 /* The actions, primary last, held at the foot of a dialog that scrolls. */
 .inv-dialog-foot {
   position: sticky; bottom: calc(var(--sp-20) * -1); z-index: 1;
@@ -2199,6 +2218,8 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   .inv-dialog { animation: inv-slide-up var(--dur-2) var(--ease); }
   body.inv-desktop .inv-dialog { animation-name: inv-scale-in; }
   .inv-toast { animation: inv-fade-in var(--dur-1) var(--ease); }
+  /* A dialog drawn again in place does not slide in again (§14a). */
+  .inv-scrim-dialog[data-redrawn] > .inv-dialog { animation: none; }
 }
 @keyframes inv-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes inv-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -2241,13 +2262,36 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
   background: var(--text-1); color: var(--surface); border-radius: var(--r-toast); box-shadow: var(--shadow-pop);
   font-size: var(--fs-14); font-weight: 500;
 }
-.inv-toast::before {
-  content: ''; display: inline-block; width: var(--sp-8); height: var(--sp-8); border-radius: 50%; margin-right: var(--sp-8); vertical-align: middle;
+/* Its kind's icon leads (§14a): the status mark of the other theme, since the toast's fill is the other theme's (it inverts). */
+.inv-toast { display: flex; align-items: flex-start; gap: var(--sp-8); }
+.inv-toast-ico { flex: none; width: var(--sp-20); height: var(--sp-20); --ico-tint: transparent; color-scheme: dark; }
+:root[data-theme="dark"] .inv-toast-ico { color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .inv-toast-ico { color-scheme: light; } }
+.inv-toast-success .inv-toast-ico { color: var(--ok-mark); }
+.inv-toast-error .inv-toast-ico { color: var(--danger-mark); }
+.inv-toast-warning .inv-toast-ico { color: var(--warning-mark); }
+.inv-toast-info .inv-toast-ico { color: var(--info-mark); }
+
+/* First-visit pointers (UI pass 3, §14d; design §6.39): a small card floating by the control it names, a layer (it floats like a menu),
+   its arrow at the control; placed by uiPointerPlace's custom properties, so nothing on the screen moves for it. */
+.inv-pointer {
+  --surface: light-dark(var(--c-surface), var(--c-surface-2));
+  position: fixed; top: var(--ptr-top); left: var(--ptr-left); z-index: var(--z-dropdown); width: max-content; max-width: min(calc(100vw - var(--sp-16)), var(--pointer-w));
+  padding: var(--sp-12) var(--sp-12) var(--sp-8); border: var(--hair) solid color-mix(in oklab, var(--accent) 45%, var(--edge)); border-radius: var(--r-tile);
+  background: var(--surface); box-shadow: var(--shadow-dialog); color: var(--text-1); font-size: var(--fs-13); line-height: 1.4;
 }
-.inv-toast-success::before { background: var(--ok); }
-.inv-toast-error::before { background: var(--danger); }
-.inv-toast-warning::before { background: var(--warning); }
-.inv-toast-info::before { background: var(--info); }
+.inv-scrim .inv-pointer { z-index: var(--z-dialog); }
+.inv-pointer::before {
+  content: ''; position: absolute; left: var(--ptr-arrow); width: var(--sp-10); height: var(--sp-10); transform: translateX(-50%) rotate(45deg);
+  background: var(--surface); border: var(--hair) solid color-mix(in oklab, var(--accent) 45%, var(--edge));
+}
+.inv-pointer[data-side="below"]::before { top: calc(var(--sp-10) / -2); border-right: none; border-bottom: none; }
+.inv-pointer[data-side="above"]::before { bottom: calc(var(--sp-10) / -2); border-left: none; border-top: none; }
+.inv-pointer-text { margin: 0 0 var(--sp-6); }
+.inv-pointer-text strong { color: var(--accent-soft-text); }
+.inv-pointer-acts { display: flex; justify-content: flex-end; gap: var(--sp-6); }
+@media (prefers-reduced-motion: no-preference) { .inv-pointer { animation: inv-fade-in var(--dur-2) var(--ease); } }
+@media print { .inv-pointer { display: none; } }
 
 /* §6.18 Callouts, notes, empty states */
 .inv-callout {
@@ -2274,12 +2318,6 @@ ul.inv-note { padding-left: var(--sp-16); }
 /* A fold opened by a link-like summary ("Message text"). */
 summary.inv-summary { display: inline-block; list-style: none; font-size: var(--fs-12); }
 summary.inv-summary::-webkit-details-marker { display: none; }
-.inv-empty {
-  padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
-  border: none; background: none;
-}
-.inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
-.inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
 
 /* A register photo on its check (Production → Read register photo): the picture as wide as the panel, never wider. */
 .inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-tile); }
@@ -2329,19 +2367,21 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 :is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
 
 /* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
-   tone, and, as a <details>, folds open to what is under it. A card (UI pass 3, §3b, §3d): lifted (--lift-1), a card's corners,
-   filled in its tone from its tone's background to a step deeper (160°), as on the approved board; a plain card is the surface. */
+   tone, and, as a <details>, folds open to what is under it. A card (UI pass 3, §3b; §14a, U7): lifted (--lift-1), a card's corners,
+   the board's rule for its tone (§24c): quiet while all is well (the surface, its tone in its figure and icon alone), a top edge from
+   amber, the edge and the red tint for red. The 160° wash of §3d is gone. */
 .inv-hero {
-  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--edge));
-  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-card); color: var(--text-1); margin-bottom: var(--gap);
-  box-shadow: var(--lift-1);
-  background: linear-gradient(160deg, var(--tone-bg) 0%, color-mix(in oklab, var(--tone) 7%, var(--tone-bg)) 100%);
+  --hero-tone: var(--accent-soft-text);
+  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--edge); border-radius: var(--r-card); color: var(--text-1); margin-bottom: var(--gap);
+  box-shadow: var(--lift-1); background: var(--surface);
 }
+.inv-hero-warning { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
+.inv-hero-danger { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
 .inv-hero-danger { --hero-tone: var(--danger); }
 .inv-hero-warning { --hero-tone: var(--warning); }
 .inv-hero-ok { --hero-tone: var(--ok); }
 .inv-hero-info { --hero-tone: var(--info); }
-.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--edge); }
+.inv-hero-neutral { --hero-tone: var(--text-1); }
 .inv-hero-head {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
   padding: var(--sp-12) var(--sp-16); list-style: none;
@@ -2370,14 +2410,10 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
 .inv-hero-body + .inv-hero-foot { padding-top: 0; }
 
-/* §6.26 The boxes inside a card (UI pass 3, §3b): a card in its deck lifts off it, lighter than the card in both themes and in its
-   own tone where it has one; a tile sinks into it, a well; what a hero opens to (its sheet: rows, a question's story) draws no box
-   of its own, only a hairline under the head. */
-.inv-deck-item {
-  background: linear-gradient(160deg,
-    light-dark(color-mix(in oklab, var(--tone-bg) 40%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg))) 0%,
-    light-dark(color-mix(in oklab, var(--tone-bg) 75%, var(--surface)), color-mix(in oklab, var(--tone) 8%, var(--tone-bg))) 100%);
-}
+/* §6.26 The boxes inside a card (UI pass 3, §3b; §14a, U7): a card in its deck lifts off it, the surface with its tone's left rule
+   (no wash); a tile sinks into it, a well; what a hero opens to (its sheet: rows, a question's story) draws no box of its own, only a
+   hairline under the head. */
+.inv-deck-item { background: var(--surface); }
 /* A tile in a coded block that names a tone is a well of it: a step deeper in its tone than the card in light, its tone sunk toward
    the page in dark. A tile that names none is the card's own fill under the well's veil (.inv-tile), never coded in the card's tone. */
 :is(.inv-hero, .inv-coded) .inv-tile:is(.inv-tile-danger, .inv-tile-warning, .inv-tile-ok, .inv-tile-info, [data-tone]) {
@@ -2385,22 +2421,22 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
     light-dark(color-mix(in oklab, var(--tone) 13%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 60%, var(--bg))) 0%,
     light-dark(color-mix(in oklab, var(--tone) 9%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 45%, var(--bg))) 100%);
 }
-.inv-hero-sheet { border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero-sheet { border-top: var(--hair) solid var(--border); }
 /* What a sheet holds is drawn on the card: a panel or a strip inside it has no fill or box of its own, and its hairlines
    take the card's tone. */
 .inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; box-shadow: none; }
-.inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: var(--border); }
 /* An analysis's caption and its folded working (§6.27) are drawn on the card's box: no page-coloured band, the card's hairlines. */
-.inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
-.inv-hero details.inv-row-fold > summary:hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+.inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: var(--border); }
+.inv-hero details.inv-row-fold > summary:hover { background: var(--surface-2); }
 :is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--edge)); }
-.inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+.inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: var(--surface-2); }
 /* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
-.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)), .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
+.inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
   background: light-dark(color-mix(in oklab, var(--tone-bg) 55%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg)));
   border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
 }
-.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover, .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+.inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* The sheet reaches the card's edges: a row inside keeps the width a flush panel's row has, and the last one keeps the card's
    corners (a hovered row's fill stays inside them). */
 .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); }
@@ -2455,7 +2491,7 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-deck[data-deck-sm] { --deck-min: var(--deck-min-sm); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
-  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--edge)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
+  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--edge)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 80%, var(--surface));
   border-radius: var(--r-card); box-shadow: var(--lift-1); transition: border-color var(--dur-1);
 }
 .inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
@@ -2708,6 +2744,10 @@ a.inv-btn { text-decoration: none; }
    button with role=option), its cursor aria-selected as in a suggestion list (§6.16). */
 .inv-dialog-palette { display: flex; flex-direction: column; overflow: hidden; }
 .inv-dialog-palette > .inv-dialog-head, .inv-dialog-palette > .inv-search, .inv-dialog-palette > .inv-keys { flex: 0 0 auto; }
+/* Search's field is a large well with its icon (UI pass 3, §14a); each result is led by its kind's icon. */
+.inv-dialog-palette > .inv-search { min-height: calc(var(--ctl-h) + var(--sp-8)); padding: 0 var(--sp-16); }
+.inv-dialog-palette > .inv-search svg { width: var(--sp-20); height: var(--sp-20); }
+.inv-dialog-palette > .inv-search input { font-size: var(--fs-16); }
 .inv-dialog-palette > [role="listbox"] { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin: var(--sp-12) 0 0; }
 .inv-dialog-palette > .inv-keys { margin: auto 0 0; padding-top: var(--sp-12); align-items: center; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }

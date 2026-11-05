@@ -263,7 +263,7 @@ function finOwedHeroHtml(rows, cls, recv) {
       (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) : '') + '</span></button>' +
       '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneOwed(r.oldestDays, loose > 0)) + '</span></div>';
   }).join('');
-  if (!top.length) body = '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(from)) + '.</div>';
+  if (!top.length) body = uiEmptyHtml('Nothing owed since ' + escHtml(formatDate(from)) + '.');
   if (loose) body += '<div class="inv-row" data-fin-loose><span class="inv-row-main inv-row-meta">' + todoPlural(loose, 'receipt') + ' with no client: what is owed reads high</span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></span></div>';
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Owed to us</span>', title: escHtml(title), fig: finHeroFig(owed), sub: sub,
@@ -345,7 +345,7 @@ function finOverviewHtml() {
   var heroes = '<div class="inv-heroes inv-heroes-4" data-fin-heroes>' + finCashHeroHtml(rows, months) + finOwedHeroHtml(rows, cls, recv) + finGstHeroHtml(cls) + finOutHeroHtml(cls, months) + '</div>';
   var fold = function(key, card) { return uiFoldCard(key, card, !!_isDesktop); };
   if (!has) {
-    return heroes + '<div class="inv-panel"><div class="inv-empty">Import the bank statement on the Bank tab. The balance, what clients owe and where money went all read from it; GST due reads from the invoices.</div></div>' +
+    return heroes + '<div class="inv-panel">' + uiEmptyHtml('Import the bank statement on the Bank tab. The balance, what clients owe and where money went all read from it; GST due reads from the invoices.', 'notset') + '</div>' +
       fold('fin-gst', finGstChartHtml(finMonths(6), cls));
   }
 

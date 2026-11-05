@@ -336,13 +336,20 @@ export async function census(page: Page): Promise<Census> {
    1024 px: the corners moved (a card r18 to r14, every well r14 or r12 to r10), and the card family's own parts joined (a widget is
    a card; the tray, the stages and a move's card are wells; the rows its types draw are flat, a rule over each; the masthead is
    flat with a hairline under it). Three looks the long book does not draw stay: the Planner board's two lane rules (the owner's
-   book) and a row-auto under its parent. 36 looks to 46. */
+   book) and a row-auto under its parent. 36 looks to 46.
+   U7 (5 Nov 2026; §14a) took the wash off every hero and deck card (the board's rule) and made the desktop's list-and-pane host a card:
+   the two gradient card looks gave way to a deck card's fill and the host's and its pane's looks. */
 export const LOOKS: string[] = [
   // Cards (§6.8, §6.21, §6.22, §6.33): lifted, a card's corners.
   'fill edge:all1 r14 lift p16/12',  // inv-panel
   'fill edge:all1 r14 lift p0/0',    // inv-panel-flush; inv-widget, a card on a board (its salience an inset top edge, §24d)
-  'grad edge:all1 r14 lift p0/0',    // inv-hero, coded in its tone
-  'grad edge:all1 r14 lift p12/12',  // inv-deck-item, a card in a card's deck
+  // U7 (§14a): a hero is the board's card, the surface, its tone an edge (amber, red) or its figure alone: the panel-flush look above;
+  // its 160° wash is gone, and so is a deck card's, which is the surface with its tone's left rule.
+  'fill edge:all1 r14 lift p12/12',  // inv-deck-item, a card in a card's deck
+  // U7 (§14a): on the desktop a list-and-pane host is the card (it sits in a card-coloured page column, so it reads nofill) and its
+  // pane a column of it, its left rule the split.
+  'nofill edge:all1 r14 lift p0/0',  // inv-pane-host, the list's card
+  'nofill edge:L1 r0 flat p16/16',   // inv-pane in its host
   // Wells (§6.5, §6.7, §6.9, §6.34): sunk into what they sit in, a tile's corners.
   'fill edge:all1 r10 well p10/12',  // inv-tile
   'grad edge:all1 r10 well p10/12',  // inv-tile in a coded card, a well of its own tone

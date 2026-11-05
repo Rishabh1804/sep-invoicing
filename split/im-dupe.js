@@ -321,7 +321,7 @@ function runIMDuplicateScan() {
     dialogHeadHtml('Duplicate check');
 
   if (groups.length === 0 && blanks.length === 0) {
-    html += '<div class="inv-empty">No duplicate challans and no blank challan numbers.</div>';
+    html += uiEmptyHtml('No duplicate challans and no blank challan numbers.');
   } else {
     html += '<div class="inv-note inv-mb-8">Challans matched on client, date and line quantities. Nothing here is deleted automatically — a duplicate record is the evidence of the pattern, and only you know which copy is the real one.</div>';
   }

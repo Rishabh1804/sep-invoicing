@@ -116,7 +116,7 @@ test('a pull merges, holds what both changed for the owner, and the owner settle
   await expect(dlg.locator('[data-held]')).toHaveCount(1);
   await expect(dlg).toContainText('held: BETA LTD');
   await dlg.locator('[data-action="invMrgUse"]').click();
-  await expect(dlg.locator('.inv-empty')).toContainText('Nothing is held');
+  await expect(dlg.locator('.inv-blank')).toContainText('Nothing is held');
   const st: any = await readStoredState(page);
   expect(st.clients.find((c: any) => c.id === 2).name).toBe('BETA LTD');
   expect(st.mergeHeld[0].status).toBe('used');

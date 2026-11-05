@@ -44,7 +44,7 @@ test.describe('P139: search on the phone', () => {
     }
     // Not to the paisa is not the amount.
     await search(page, '4827.4');
-    await expect(page.locator('#srchList .inv-empty')).toContainText('Nothing matches');
+    await expect(page.locator('#srchList .inv-blank')).toContainText('Nothing matches');
     await search(page, '525428');
     const bank = page.locator('#srchList [aria-labelledby="srchG-bank"] [role="option"]');
     await expect(bank).toHaveCount(1);

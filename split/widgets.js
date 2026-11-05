@@ -1481,6 +1481,7 @@ function showToastAct(msg, label, fn) {
   var t = document.createElement('div');
   t.className = 'inv-toast inv-toast-success inv-toast-act';
   t.setAttribute('role', 'status');
+  t.innerHTML = toastIconHtml('success');
   var span = document.createElement('span');
   span.textContent = msg;
   var b = document.createElement('button');

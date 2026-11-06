@@ -49,7 +49,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Built 5 Nov 2026 (P232; §26k) |
 | U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Built 5 Nov 2026 (P233; §26l) |
 | U8 | Sign-in and the 4-digit PIN; the app's icon, splash and favicon from the new mark (§15) | Built 6 Nov 2026 (P234; §26m) |
-| U9 | Docs, the full suite, every screen measured, the draft PR made ready; then the QA chain on the owner's word | Not built |
+| U9 | Docs, the full suite, every screen measured, the draft PR made ready; then the QA chain on the owner's word | Built 6 Nov 2026 (§26n); the QA chain the owner's to call |
 
 ## 1. The rulings
 
@@ -2676,3 +2676,99 @@ Where the build departs from §15 and §26f, and why:
   is not raised.
 - **A data flow**: `len: 4` on a user's secret travels with the users (§16), and is never compared by the change log (the secret is
   not). `sep_inv_guard_seen` is the device's.
+
+### 26n. U9 as built (6 Nov 2026): every screen measured, before the pass and after
+
+**The instrument** is P195's walk (`walkMap`, `measureLoad`: phone screens, 393 px wide), run on two builds: the spec's commit
+`1a365a2` (16 Oct 2026, before U1) and main after U8 (`5e2f40e`). Each build ran on two books:
+- **The long book** (`longBook()`, made-up names), with the clock on 6 Nov 2026. Each build used its own fixture, and the after
+  fixture is bigger: since 16 Oct it gained the WhatsApp messages (31 Oct) and other records. So a small rise in this column can be
+  the book, not the screen. History (3.57 → 3.84) and Power → Causes (1.54 → 1.69) rose that way and were not traced further.
+- **The owner's book**: the latest backup in the codex (`sep-invoicing-backup-2026-09-11.json`), the same file on both builds, with the
+  clock on its last day, 11 Sep 2026. It was measured in a scratch spec that was never committed (HR-10); only the counts are written
+  here. It predates production, power cuts, the bank statement and stock, so those screens read 1.00 (a screen with nothing
+  recorded) on both builds.
+
+The faces differ as well. Before the pass, P195 pinned Liberation and the scratch spec drew the machine's fallback; after it,
+both draw Geist, served under test since U2R (`tests/fixtures/fonts/`, §24m).
+
+| Screen | Long book, before | Long book, after | Owner's book, before | Owner's book, after |
+|---|---|---|---|---|
+| Home › Needs you | 3.30 | 3.32 | 2.46 | 2.43 |
+| Home › Home *(Today › Pulse before)* | 3.51 | 2.44 | 3.41 | 2.24 |
+| Home › Stats › By client *(gone, U3)* | 2.21 | — | 3.24 | — |
+| Home › Stats › Cost *(gone, U3)* | 2.74 | — | 2.54 | — |
+| Home › Stats › Trends *(gone, U3)* | 1.82 | — | 1.82 | — |
+| Home › Reports | 2.67 | 1.07 | 2.39 | 1.06 |
+| Home › Planner › Play | 2.28 | 2.28 | 2.33 | 2.28 |
+| Home › Planner › Ledger | 3.17 | 3.20 | 3.31 | 3.29 |
+| Home › Planner › A day | 2.00 | 2.10 | 2.10 | 2.10 |
+| Home › Planner › Moves | 3.80 | 3.95 | 3.96 | 4.02 |
+| Office › Pipeline | 4.58 | 4.70 | 2.52 | 2.52 |
+| Office › Challans › Awaiting invoice | 3.71 | 3.75 | 1.33 | 1.33 |
+| Office › Challans › Invoiced | 1.00 | 1.00 | 3.20 | 3.20 |
+| Office › Invoices | 1.39 | 1.39 | 3.15 | 3.15 |
+| Office › Clients › Clients | 1.50 | 1.51 | 2.35 | 2.35 |
+| Office › Clients › Parts | 1.00 | 1.00 | 3.05 | 3.05 |
+| Office › Clients › Performance | 2.54 | 2.65 | 1.91 | 1.92 |
+| Office › Sales › Prospects | 1.00 | 1.00 | 1.00 | 1.00 |
+| Office › Sales › Quotations | 1.00 | 1.00 | 1.00 | 1.00 |
+| Floor › Overview | 2.62 | 2.55 | 2.62 | 2.62 |
+| Floor › People › Attendance | 2.07 | 2.26 | 3.26 | 3.45 |
+| Floor › People › Attendance › Week | 1.68 | 1.48 | 2.46 | 1.89 |
+| Floor › People › Attendance › Month | 1.00 | 1.00 | 1.00 | 1.00 |
+| Floor › People › Pay | 2.12 | 2.31 | 2.90 | 3.09 |
+| Floor › People › Areas | 1.79 | 1.83 | 2.93 | 2.91 |
+| Floor › People › Roster | 2.28 | 1.93 | 4.57 | 3.49 |
+| Floor › Production › Lines | 1.68 | 1.66 | 1.00 | 1.00 |
+| Floor › Production › In plant | 2.29 | 2.30 | 1.19 | 1.18 |
+| Floor › Production › Entries | 3.81 | 3.87 | 1.00 | 1.00 |
+| Floor › Production › Equipment | 1.50 | 1.42 | 1.00 | 1.00 |
+| Floor › Stock | 1.07 | 1.10 | 1.00 | 1.00 |
+| Floor › Power › Cuts | 1.82 | 1.82 | 1.00 | 1.00 |
+| Floor › Power › Causes | 1.54 | 1.69 | 1.00 | 1.00 |
+| Floor › Power › Load & bills | 1.00 | 1.00 | 1.00 | 1.00 |
+| Floor › Power › Case | 2.16 | 1.08 | 1.00 | 1.00 |
+| Money › Overview | 1.41 | 1.42 | 1.19 | 1.20 |
+| Money › Receivables | 2.92 | 2.94 | 1.00 | 1.00 |
+| Money › Payments | 1.72 | 1.73 | 1.20 | 1.18 |
+| Money › Bank | 3.20 | 3.22 | 1.00 | 1.00 |
+| Money › GST | 1.10 | 1.10 | 1.10 | 1.10 |
+| History | 3.57 | 3.84 | 3.71 | 3.68 |
+| Knowledge › Start | 1.65 | 1.70 | 1.01 | 1.00 |
+| Knowledge › Library | 1.98 | 1.95 | 1.04 | 1.02 |
+| Knowledge › Troubleshoot | 1.00 | 1.00 | 1.00 | 1.00 |
+| Knowledge › Records | 1.00 | 1.02 | 1.00 | 1.00 |
+| Knowledge › Training | 2.66 | 2.73 | 3.36 | 3.36 |
+| Home › Stats › Dashboard *(new, U3)* | — | 2.95 | — | 2.83 |
+| Home › Stats › Tables › By client *(new, U3)* | — | 2.11 | — | 2.35 |
+| Home › Stats › Tables › By part *(new, U3)* | — | 1.46 | — | 2.87 |
+| Home › Stats › Tables › By month *(new, U3)* | — | 1.29 | — | 1.29 |
+| Home › Stats › Tables › Cost *(new, U3)* | — | 2.90 | — | 2.62 |
+| Messages *(new, 31 Oct)* | — | 1.13 | — | 1.00 |
+
+**What it says.**
+- **Shorter where the pass aimed**: Home 3.51 → 2.44 and 3.41 → 2.24 (U2, U2R, Home leads); Reports 2.67 → 1.07 and 2.39 → 1.06,
+  Power → Case 2.16 → 1.08 (U6); the Roster 2.28 → 1.93 and 4.57 → 3.49 (U5's cards); Attendance → Week 1.68 → 1.48 and 2.46 → 1.89
+  (U5's grid, the table folded).
+- **Longer by what they gained**: Attendance → Day 2.07 → 2.26 and 3.26 → 3.45, Pay 2.12 → 2.31 and 2.90 → 3.09, each by its step row
+  (U5), within its budget (said at U5, I10).
+- **Stats** is three tabs became a Dashboard and four Tables (U3). The owner's By part is 2.87 screens, one row a part of the month;
+  on the long book it is 1.46, within its budget of 1.5.
+- **Everything else** moved by under a tenth of a screen on the owner's book, as the long book's rises suggest: the card around each
+  list (U7), the Geist face and the long book's own growth.
+- **P195's budgets**: three were lowered (Home 4 → 2.5, Reports 3 → 1.5, Power → Case 2.5 → 1.5) and three raised, all by U2R's
+  first commit, *Geist under test* (`99a7d42`, §24m): Clients 1.5 → 2, Production → Equipment 1.5 → 2, Knowledge → Records 1 → 1.5.
+  Geist's taller line box moved those screens past a half-screen mark. None of the three screens has grown since (1.51, 1.42 and 1.02
+  on the long book). Stats' and Messages' budgets were set when those screens were built.
+
+**The docs** (U9's list): CLAUDE.md, with the module count (101 modules, ~85,800 lines) and every module's line count where it was
+8% or more off, the order unchanged against build.sh, and the pass marked built. The design doc's header names U2–U8's sections, and
+DR-4 now states the rule in force (Geist for figures, Geist Mono for identifiers). NEXT_SESSION has a section for U3–U9 and the U8
+data-flow row (`len: 4`); U4's `sep-stock` row was already there. The guides UI pass 3 moved, before → now:
+Home 4 → 7, Reading Stats 3 → 5, clients and sales 2 → 3, attendance 5 → 8, the areas 2 → 3, stock 5 → 6, production 6 → 11, power
+cuts 3 → 4, pay 6 → 8, the planner 4 → 7, the office printer 1 → 3, IDs, PINs and roles 1 → 2; messages (new) and the news and weather
+(new, 3). Some of these moves came from builds outside the pass in the same weeks (the night shift, the planner's details, the print
+station's light, the messages).
+
+**The QA chain over U3–U9 is the owner's to call** (§19, U9).

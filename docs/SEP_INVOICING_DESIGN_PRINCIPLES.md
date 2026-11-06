@@ -4,6 +4,10 @@
 press or fill sits in a shallow well, text keeps full contrast, and colour means something. Zinc & brass is the default palette.
 Amended in place: DR-2, DR-6 and DR-8, §3.1, §3.3 and §3.6, the components of §6 (the switch and the blank state added, §6.31 and
 §6.32), and §6.28's closed list of looks, regenerated from the census.
+**UI pass 3, U2–U8, 16 Oct – 6 Nov 2026**: the card and the board (§6.33), the seven card types (§6.34), the five action rows
+(§6.35), the masthead (§6.36), the guided flow (§6.37), the picture page (§6.38), the first-visit pointers (§6.39) and the PIN's
+wells and keypad (§6.40) added; DR-4 amended (figures in Geist, identifiers mono). U9 measured every screen before and after the
+pass (`docs/UI_PASS_3.md` §26n).
 
 This is the one document the interface is built on. Read it before touching `split/styles.css` or any
 render function. **If a change needs something this document does not define, amend this document in the
@@ -58,7 +62,7 @@ And the v2.0 rules, which carry the same weight:
 | DR-1 | **Colour means status.** Only the status tones (§3.3) may colour text, dots or fills that convey state. Never colour alone: a tone always travels with a word or a symbol. |
 | DR-2 | **One accent, for interaction.** `--accent` marks the primary action, the current selection, the active tab/nav item, focus, links, and the current period in a chart. Nothing else: it never marks a status (good or bad) or a series (UI pass 3, §3d). *One against the rest* (the period on show, or the thing picked, in the accent beside what it is set against in `--series-other`) is the accent marking what is selected. |
 | DR-3 | **One primary button per view.** Everything else is secondary, ghost or link; on a board's card, tinted (`inv-btn-tint`, §6.35, from U2R), which is not a primary: a board has none. |
-| DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. **From UI pass 3's U2R** (owner, 17 Oct 2026, call 2; `docs/UI_PASS_3.md` §24l): a figure is Geist with tabular figures (`--ff-num`), still right-aligned; only an identifier stays Geist Mono. |
+| DR-4 | **Figures are Geist with tabular figures (`--ff-num`), right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are Geist Mono (`--ff-mono`, `slashed-zero`). Prose numbers inside a sentence are neither. *Amended at UI pass 3's U2R* (owner, 17 Oct 2026, call 2; `docs/UI_PASS_3.md` §24l): until then every figure was `--ff-mono`. |
 | DR-5 | **Sentence case everywhere** — titles, labels, buttons, column heads, tabs. No uppercase letter-spaced labels. |
 | DR-6 | **A card lifts, a well sinks, a layer floats; nothing else casts a shadow** (UI pass 3, 16 Oct 2026, amending 8 Oct's tile lift). A card (a panel, a hero, a widget, a card in a deck, the phone's bar, a chip, a button) is lifted off what it sits on by `--lift-1` (`--lift-2` for the one primary and a card being moved; a key on a tray by `--lift-key`, from U2R); a well (a field, a search, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card) is sunk into it by `--press-1` or `--press-2`; a layer (a menu, a dialog, a toast) floats on `--shadow-pop` or `--shadow-dialog`. A row, a hero's sheet, a head and a table's cell cast nothing. In dark a card is lifted by a lighter surface and its fine edge (`--edge`) more than by its shadow (§3.3). |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |

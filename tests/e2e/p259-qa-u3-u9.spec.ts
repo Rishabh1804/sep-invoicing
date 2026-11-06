@@ -114,14 +114,26 @@ test.describe('P259: money and controls (Iuno)', () => {
 
   test('H-2: one figure for what the period left, on Stats, the money question and the report, toned by its own sign', async ({ page }) => {
     await loadAppWithState(page, longBook());
+    // A line nothing weighs this month (a part with no weight, billed by the piece): the weighed lines' figure and the period's
+    // differ by its ₹5,000, so a card reading contribution × the weighed kilos cannot pass.
+    await ev(page, `(function(){ var mine = S.invoices.filter(function(i) { return String(i.date).slice(0, 7) === localDateStr().slice(0, 7) && i.status !== 'cancelled'; })[0];
+      var x = JSON.parse(JSON.stringify(mine)); x.id = 'P259-UNW'; x.items = [{ id: 'P259-L', partNumber: 'ZZ-UNWEIGHED', desc: '', unit: 'NOS', qty: 10, rate: 500, amount: 5000 }];
+      x.taxableValue = 5000; x.grandTotal = 5900; x.invoiceNumber = (x.invoiceNumber || 0) + 90000; x.displayNumber = 'P259/UNW'; S.invoices.push(x); _bookWrites++; })()`);
     const r = await ev(page, `(function(){
       var per = 'mtd', a = statsPulseArgs(per), cost = a.periodCost.perKg, kg = a.tonnage.kg;
       var left = statsPeriodLeft(sumTaxable(a.filtered), cost, kg);
       var card = advQuestions(a).find(function(q) { return q.key === 'money'; });
       var rng = statsRangeIso(per), doc = rptHtml('monthly', rng.from);
-      return { left: left, word: statsSigned(left), tone: statsLeftTone(sumTaxable(a.filtered), cost, kg), card: card.html, doc: doc, mtd: /on mtd/.test(card.html) };
+      return { left: left, word: statsSigned(left), abs: formatCurrency(Math.abs(left)), byKg: formatCurrency(Math.abs(gstRound((a.tonnage.revKnown / kg - cost) * kg))),
+        cov: a.tonnage.coverage, live: a.periodCost.label, tone: statsLeftTone(sumTaxable(a.filtered), cost, kg), card: card.html, say: card.answer.say, doc: doc, mtd: /on mtd/.test(card.html) };
     })()`) as any;
+    expect(r.cov).toBeLessThan(1);
+    expect(r.live).toBe('live cost ');
+    expect(r.abs).not.toBe(r.byKg);
     expect(r.card).toContain(r.word);
+    // The card's sentence says the period's figure, not contribution × the weighed kilos (Cipher, Edict V).
+    expect(r.say).toContain(r.abs);
+    expect(r.say).not.toContain(r.byKg);
     expect(r.mtd).toBe(false);
     // The report's month says the same rupees, in the same tone, as left on the period.
     const money = (r.left >= 0 ? '' : '&minus;') + await ev(page, `rptMoney(Math.abs(${r.left}))`);
@@ -154,8 +166,13 @@ test.describe('P259: money and controls (Iuno)', () => {
     const r = await ev(page, `(function(){ var seen = [], real = window.chartBars, cn = window.cnCreditByInvoice;
       window.chartBars = function(d, o) { seen.push(d.map(function(x) { return x.value; })); return real(d, o); };
       window.cnCreditByInvoice = function() { var x = cn(); x.unplaced = { n: 1, amount: 500 }; return x; };
-      try { var h = rptPictureHtml('monthly', localDateStr().slice(0, 8) + '01'); return { zeros: seen.length ? seen[0].filter(function(v) { return v === 0; }).length : -1, foot: h }; }
+      var prev = isoAddDays(localDateStr().slice(0, 8) + '01', -1).slice(0, 8) + '01', cut = isoAddDays(prev, 20);
+      S.invoices = S.invoices.filter(function(i) { return !(i.date >= prev && i.date <= cut); }); _bookWrites++;
+      try { var h = rptPictureHtml('monthly', prev); return { bars: seen.length ? seen[0] : null, zeros: seen.length ? seen[0].filter(function(v) { return v === 0; }).length : -1, foot: h }; }
       finally { window.chartBars = real; window.cnCreditByInvoice = cn; } })()`) as any;
+    // A whole month past: its weeks with no invoice are gaps, never zero bars; one week at least still bills.
+    expect(r.bars.filter((v: any) => v === null).length).toBeGreaterThan(0);
+    expect(r.bars.some((v: any) => v > 0)).toBe(true);
     expect(r.zeros).toBe(0);
     expect(r.foot).toContain('1 credit note (');
     expect(r.foot).toContain('names no invoice in the book and is not taken off');
@@ -176,9 +193,19 @@ test.describe('P259: production, plant and power (Vulcanus)', () => {
       var a = powerAnalysis(), all = a.months.map(function(x) { return x.month; });
       var mid = isoAddDays(d1.slice(0, 7) + '-28', 7).slice(0, 7), m = a.months.find(function(x) { return x.month === mid; });
       var contiguous = all.every(function(x, i) { return !i || isoAddDays(all[i - 1] + '-28', 7).slice(0, 7) === x; });
+      // The picture draws the cut's month with its cut, recorded or not, and the empty months as zero or a gap, never as cuts.
+      var seen = null, cb = window.chartBars;
+      window.chartBars = function(d, o) { if (!seen && o && o.paper && o.ariaLabel === 'Cuts by month') seen = d.map(function(x) { return [x.label, x.value]; }); return cb(d, o); };
+      try { powerCasePictureHtml(); } finally { window.chartBars = cb; }
+      // Power → Cuts folds only a month with a cut, the newest of them open.
+      var box = document.createElement('div'); box.innerHTML = powerCutsHtml(a);
+      var folds = Array.prototype.map.call(box.querySelectorAll('[data-power-month]'), function(f) { return [f.getAttribute('data-power-month'), !!f.open || f.hasAttribute('open')]; });
       return { mid: mid, found: !!m, cuts: m ? m.cuts : null, contiguous: contiguous, first: all[0], last: all[all.length - 1],
-        want: [d1.slice(0, 7), t.slice(0, 7)] };
+        want: [d1.slice(0, 7), t.slice(0, 7)], bars: seen, total: (seen || []).reduce(function(n, b) { return n + (b[1] || 0); }, 0), folds: folds, m1: d1.slice(0, 7), m2: d2.slice(0, 7) };
     })()`) as any;
+    expect(r.total).toBe(2);
+    expect(r.folds.map((f: any) => f[0]).sort()).toEqual([r.m1, r.m2].filter((x: string, i: number, xs: string[]) => xs.indexOf(x) === i).sort());
+    expect(r.folds[0]).toEqual([r.m2, true]);
     expect(r.first).toBe(r.want[0]);
     expect(r.last).toBe(r.want[1]);
     expect(r.found).toBe(true);
@@ -220,6 +247,9 @@ test.describe('P259: production, plant and power (Vulcanus)', () => {
     await page.locator('#p259In').press('Escape');
     await expect(page.locator('.inv-pointer')).toHaveCount(0);
     await expect(page.locator('#p259In')).toBeVisible();
+    // The pointer's Escape went no further: the typed dialog asked nothing and stands alone (Cipher, Edict V).
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(1);
+    await expect(page.getByText('Discard what you typed?')).toHaveCount(0);
   });
 
   test('L-6: By month judges a month’s price only from 90% weighed', async ({ page }) => {
@@ -235,5 +265,8 @@ test.describe('P259: production, plant and power (Vulcanus)', () => {
     await loadAppWithState(page, longBook());
     expect(await ev(page, `pltCapTone({ n: 3, nAvail: 1, pct: 1 / 3, down: [1, 2], units: [] })`)).toBe('danger');
     expect(await ev(page, `pltCapTone({ n: 4, nAvail: 3, pct: 0.75, down: [1], units: [] })`)).toBe('warning');
+    // A line's own units only: one of two rectifiers down (supporting equipment) is a warning, danger only with none working.
+    expect(await ev(page, `pltCapTone({ n: 2, nAvail: 1, pct: 0.5, down: [1], units: [], support: true })`)).toBe('warning');
+    expect(await ev(page, `pltCapTone({ n: 2, nAvail: 0, pct: 0, down: [1, 2], units: [], support: true })`)).toBe('danger');
   });
 });

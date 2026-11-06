@@ -140,8 +140,9 @@ function pltCapWords(cap) {
     (cap.used && cap.used.pct != null ? 'running at ' + Math.round(cap.used.pct * 100) + '%' : Math.round(cap.pct * 100) + '% available');
 }
 /* A line half or more down is danger, the one judge Floor's line card reads (prodLineEfficiency's avail ≤ 0.5; Vulcanus M-7, the
-   QA chain of 6 Nov 2026: Equipment had read it a warning, danger only with nothing working). */
-function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 || (cap.pct != null && cap.pct <= 0.5) ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
+   QA chain of 6 Nov 2026: Equipment had read it a warning, danger only with nothing working). A line's own units only (pickling's
+   tanks among them): supporting equipment (pltSupportCap) is danger only with nothing working, as before (Cipher, Edict V). */
+function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 || (!cap.support && cap.pct != null && cap.pct <= 0.5) ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
 function pltCapDot(cap) {
   var t = pltCapTone(cap);
   return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : cap.nAvail === 0 ? 'Nothing working' : cap.down.length + ' not working');
@@ -476,7 +477,7 @@ function pltPlaceWords(u) {
    supporting equipment wherever they stand; a station that is no line has the ones serving no line. Never a line's own units. */
 function pltSupportCap(place) {
   var us = pltUnits().filter(function(u) { return !pltPlates(u) && pltPlaceOf(u) === place; }), dn = us.filter(function(u) { return !pltAvailable(u.status || 'run'); });
-  return { units: us, n: us.length, nAvail: us.length - dn.length, down: dn, pct: us.length ? (us.length - dn.length) / us.length : null };
+  return { units: us, n: us.length, nAvail: us.length - dn.length, down: dn, pct: us.length ? (us.length - dn.length) / us.length : null, support: true };
 }
 function pltSupportName(place) { return pltStationName(place) + (pltIsLine(place) ? '’s supporting equipment' : ''); }
 function pltSupportWords(cap) { return !cap.n ? 'none recorded' : cap.nAvail + ' of ' + cap.n + ' working'; }

@@ -1312,12 +1312,15 @@ Vulcanus audited, each finding fixed with its test in P259 (failing on the build
   ID may keep a longer one is the owner's to rule.
 - **Wages are wages wherever money is shown**: an ID that sees money and not wages sees no labour tier on the live cost, no labour or
   payout on a report, and a report drawn with wages needs them to open from the queue (`printNeed({wages})`).
-- **What the period left is one figure** (`statsPeriodLeft`: the period's revenue less the full cost on its kilos), toned by the one
-  judge (`statsLeftTone`), on Stats' verdict, the money question and the report. Top parts judges a price as By part does; a part
+- **What the period left is one figure** (`statsPeriodLeft`: the period's revenue less the full cost), toned by the one judge
+  (`statsLeftTone`), on Stats' verdict, the money question (its sentence too) and the report. At the live cost it is exact; at the
+  typed cost with lines unweighed it is a bound (`≤`, *N% weighed*, a figure at or over zero not judged). Top parts judges a price as By part does; a part
   billed nothing has no price; a month under 90% weighed has no chip (*N% weighed*).
-- **A gap is a gap on paper too**: a stretch with no invoice, a line with nothing weighed, a month with no day recorded. The power
-  record lists every calendar month from the first cut. The picture's foot names the credit notes it cannot take off.
-- **Half a line down is danger on Equipment as on Floor** (`pltCapTone`). A first-visit pointer goes when typing starts, and its
+- **A gap is a gap on paper too**: a stretch with no invoice, a line with nothing weighed, a month with neither a cut nor a day
+  recorded. The power record lists every calendar month from the first cut; Cuts folds only months with cuts. The picture's foot
+  names the credit notes it cannot take off.
+- **Half a line down is danger on Equipment as on Floor** (`pltCapTone`), a line's own units only; supporting equipment is danger
+  with nothing working. A first-visit pointer goes when typing starts, and its
   Escape shuts it alone.
 
 ## Business Domain

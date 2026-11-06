@@ -2799,21 +2799,29 @@ in **P259**, and each test fails on the build before its fix. Cipher's Edict V f
   cost and the week's payout and labour on a report. The tiers now read *The tiers are shown to an ID that sees wages*, and a report's
   labour tile and staff section say the same and draw no figure. A report's print job needs wages where it was drawn with them
   (`printNeed({wages})`), so the queue never opens it for an ID without.
-- **H-2, fixed.** What the period left was three figures: Stats' verdict tile (₹/kg × kilos weighed), the money question (*on mtd*)
-  and the report. Each now reads the period's whole revenue less the full cost on its kilos (`statsPeriodLeft`) and is toned by the
-  one judge (`statsLeftTone`, `figToneAgainst` at 5%). The verdict's *below cost* badge moved to Realisation, the tile it judges.
+- **H-2, fixed.** What the period left was three figures: Stats' verdict tile, the money question (*on mtd*, and its sentence
+  contribution × the weighed kilos) and the report. Each now reads the period's whole revenue less the full cost (`statsPeriodLeft`)
+  and is toned by the one judge (`statsLeftTone`, `figToneAgainst` at 5%), the question's sentence too. At the live cost that is
+  exact: its cost a kilo is the plant's whole cost over the weighed kilos. The verdict's *below cost* badge moved to Realisation, the
+  tile it judges.
 - **M-1, fixed.** Top parts coloured a part red within 5% under the cost; it now judges as By part does (a warning there).
 - **L-1, fixed.** A part billed nothing (replating) read *Below cost* on By part. It has no price to judge: a dash.
 - **L-2, fixed.** The report's picture drew a stretch with no invoice as a zero bar. It is a gap.
 - **L-3, fixed.** The picture's foot says the credit notes that name no invoice in the book and are not taken off.
-- **L-4 and L-5, noted, not fixed.** The lock draws over a screen without clearing its figures from the page. They are not visible,
-  and they are not reachable until sign-in. The live cost's typed-cost fallback has an edge on a period with nothing weighed. Both are
-  low and left for a later pass.
+- **L-5, fixed with Cipher's finding.** At the typed cost (no live cost to read), the cost × the weighed kilos misses the unweighed
+  lines, so the period's figure is the most it can have left: `≤` and *N% weighed* on the tile, *at most* / *at least* in the
+  question's sentence, and a figure at or over zero not judged (`statsLeftPart`, `statsLeftSign`).
+- **L-4, noted, not fixed.** The lock draws over a screen without clearing its figures from the page. They are not visible and not
+  reachable until sign-in. Low, left for a later pass.
+- **The report's labour follows Stats' rule**: a labour card's figures (the tile against the model, the payout, the tiers) are wages;
+  the live cost's Labour row in Cost & margin is a cost line, shown to an ID that sees money, as on Stats.
 
 **Vulcanus (production, plant and power).**
 - **H-1, fixed.** The power record listed only the months that had a cut, so a quiet month vanished from Power → Case's picture, and
-  the twelve bars could span fourteen months. `powerAnalysis` now lists every calendar month from the first cut to today. A month
-  with no day recorded is a gap, *no day recorded*.
+  the twelve bars could span fourteen months. `powerAnalysis` now lists every calendar month from the first cut to today. On the
+  picture and Cuts' chart a month with no cut and no day recorded is a gap (*no day recorded*); a month with cuts draws them, recorded
+  or not (the imported history). Power → Cuts folds only the months with cuts, the newest of them open, and the year's low and high
+  are read from months with cuts (a quiet month would put the low at ₹0).
 - **M-2, fixed.** The year tile said *the complete months' range* over one month. It says what its figure is: a range, or *at the
   complete month, <month>*.
 - **L-4, fixed.** With no year to read against, the payback tile says *read once there is a year to read against*, never a blank.
@@ -2824,6 +2832,12 @@ in **P259**, and each test fails on the build before its fix. Cipher's Edict V f
 - **L-6, fixed.** By month gave a chip to a month weighed under 90%. Such a month reads *N% weighed* instead, as the realisation
   rule says.
 - **M-7, fixed.** Equipment coloured a line half down amber where Floor's card read danger. Half or more of a line's units down is
-  danger on both (`pltCapTone`), and *Nothing working* is said only when none is.
+  danger on both (`pltCapTone`; pickling's tanks too), and *Nothing working* is said only when none is. Supporting equipment
+  (`pltSupportCap`, marked `support`) is danger only with nothing working, as before.
+
+**Cipher's Edict V** (amended): the money question's sentence still read contribution × the weighed kilos; Power → Cuts opened an
+empty month; the picture drew a month of imported cuts as a gap; four tests could not fail on what they guarded (L-5's Escape, L-2's
+empty week, H-2 at 100% weighed, H-1's picture). Each is folded, the tests rebuilt so each fails on the build before. His fifth, that
+the period's figure compares two sets of lines, holds only at the typed cost (above, L-5).
 
 **Specs rewritten to the same fact**: P73 and P211 read the *below cost* badge on the Realisation tile, where it now stands.

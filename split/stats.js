@@ -621,9 +621,18 @@ function statsTableSwitchHtml() {
 /* What a period left after its full cost: its whole revenue less its whole cost (the live cost a kilo × the kilos weighed), the one
    figure Stats' verdict, The period in figures, the money question and the report draw (Iuno H-2, the QA chain of 6 Nov 2026: the
    question and the report had drawn contribution × the weighed kilos, which left the unweighed lines' revenue out, and a month read
-   positive on one and negative a tap away). Its tone is its own: the revenue against the whole cost, the one judge at 5%. */
+   positive on one and negative a tap away). Its tone is its own: the revenue against the whole cost, the one judge at 5%.
+   At the live cost the cost a kilo is the plant's whole cost over the weighed kilos, so the cost × those kilos is the whole cost and
+   the figure is exact. At the typed cost (no live cost to read) the cost × the weighed kilos misses the unweighed lines' kilos, so
+   where lines have no weight the figure is the most the period can have left (≤, design §6.27; Iuno L-5, Cipher's Edict V): a loss
+   is a loss at least that large and keeps its tone, a figure at or over zero is not judged. `cov` is passed only at the typed cost. */
 function statsPeriodLeft(rev, costKg, kg) { return gstRound((rev || 0) - costKg * kg); }
-function statsLeftTone(rev, costKg, kg) { return figToneAgainst(rev || 0, costKg * kg, 5); }
+function statsLeftPart(cov) { return cov != null && cov < 0.999; }
+function statsLeftTone(rev, costKg, kg, cov) {
+  if (statsLeftPart(cov) && (rev || 0) - costKg * kg >= 0) return null;
+  return figToneAgainst(rev || 0, costKg * kg, 5);
+}
+function statsLeftSign(cov) { return statsLeftPart(cov) ? '\u2264 ' : ''; }
 function statsVerdictHtml(pa) {
   var per = _statsPeriod, plabel = PERIOD_LABELS[per] || '', word = ADV_PERIOD_WORDS[per] || 'the period';
   var tonnage = pa.tonnage, filtered = pa.filtered, prior = pa.prior, perKg = '<span class="inv-tile-of">/kg</span>';
@@ -637,6 +646,7 @@ function statsVerdictHtml(pa) {
   // What the period left after its full cost is its whole revenue less its whole cost (Iuno H-1): read as contribution × the
   // weighed kilos it left out every unweighed line's revenue against the plant's whole cost.
   var margin = contribution != null ? statsPeriodLeft(totalRev, costKg, tonnage.kg) : null;
+  var leftCov = pa.periodCost.label === 'live cost ' ? null : tonnage.coverage, leftPart = statsLeftPart(leftCov);
   var pct = function(cur, prev) { if (!comparable || prev == null || !prev) return ''; var x = (cur - prev) / Math.abs(prev) * 100; return Math.abs(x) <= FIG_FLAT_PCT ? 'level' : (x > 0 ? '+' : '−') + formatNum(Math.abs(x), 1) + '%'; };
   var dRev = pct(totalRev, priorRev), dKg = pct(tonnage.kg, priorT.kg);
   var credited = filtered.reduce(function(s, i) { return s + (i._credit || 0); }, 0), cnOut = cnCreditByInvoice().unplaced;
@@ -661,7 +671,7 @@ function statsVerdictHtml(pa) {
     if (weighedLine) lines.push('<div class="inv-note" data-callout="weighed">' + escHtml(weighedLine) + '</div>');
   }
   if (contribution != null && contribution < 0) lines.push('<div class="inv-note" data-callout="below-cost">' + escHtml(formatCurrency(Math.abs(contribution)) + '/kg below full cost' +
-    (margin < 0 ? ': ' + formatCurrency(Math.abs(margin)) + ' of loss for the period.' : ' on the weighed lines.')) + '</div>');
+    (margin < 0 ? ': ' + (leftPart ? 'at least ' : '') + formatCurrency(Math.abs(margin)) + ' of loss for the period.' : ' on the weighed lines.')) + '</div>');
   if (credited > 0.005 || cnOut.n) lines.push('<div class="inv-note" data-callout="credit-notes">' + escHtml('Net of credit notes' + (credited > 0.005 ? ': ' + formatCurrency(gstRound(credited)) + ' taken off' : '') +
     (cnOut.n ? '; ' + todoPlural(cnOut.n, 'note') + ' (' + formatCurrency(gstRound(cnOut.amount)) + ') name no invoice in the book' : '') + '.') + '</div>');
   var factors = [
@@ -678,7 +688,8 @@ function statsVerdictHtml(pa) {
       badge: contribution != null && contribution < 0 ? [realTone, 'below cost'] : null, attrs: ' data-tile="realisation"' },
     // What the period left is its own figure, toned by its own sign (Iuno H-2, the QA chain of 6 Nov 2026: a positive figure had
     // been drawn amber and badged below cost, the price's tone); the weighed lines' price is Realisation's and the sub's.
-    { label: 'Left after the full cost', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : statsLeftTone(totalRev, costKg, tonnage.kg),
+    { label: 'Left after the full cost', fig: margin != null ? statsLeftSign(leftCov) + statsMoney(margin) : '', tone: margin == null ? null : statsLeftTone(totalRev, costKg, tonnage.kg, leftCov),
+      badge: margin != null && leftPart ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null,
       sub: contribution != null ? (contribution >= 0 ? '+' : '−') + formatCurrency(Math.abs(contribution)) + '/kg on the weighed lines' : 'needs tonnage and cost',
       attrs: ' data-tile="margin"' }];
   var verdict = !filtered.length ? 'No invoices ' + word

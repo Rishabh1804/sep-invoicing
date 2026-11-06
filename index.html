@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="5f17b65f">
+<meta name="app-build" content="dcca661c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -48757,9 +48757,18 @@ function statsTableSwitchHtml() {
 /* What a period left after its full cost: its whole revenue less its whole cost (the live cost a kilo × the kilos weighed), the one
    figure Stats' verdict, The period in figures, the money question and the report draw (Iuno H-2, the QA chain of 6 Nov 2026: the
    question and the report had drawn contribution × the weighed kilos, which left the unweighed lines' revenue out, and a month read
-   positive on one and negative a tap away). Its tone is its own: the revenue against the whole cost, the one judge at 5%. */
+   positive on one and negative a tap away). Its tone is its own: the revenue against the whole cost, the one judge at 5%.
+   At the live cost the cost a kilo is the plant's whole cost over the weighed kilos, so the cost × those kilos is the whole cost and
+   the figure is exact. At the typed cost (no live cost to read) the cost × the weighed kilos misses the unweighed lines' kilos, so
+   where lines have no weight the figure is the most the period can have left (≤, design §6.27; Iuno L-5, Cipher's Edict V): a loss
+   is a loss at least that large and keeps its tone, a figure at or over zero is not judged. `cov` is passed only at the typed cost. */
 function statsPeriodLeft(rev, costKg, kg) { return gstRound((rev || 0) - costKg * kg); }
-function statsLeftTone(rev, costKg, kg) { return figToneAgainst(rev || 0, costKg * kg, 5); }
+function statsLeftPart(cov) { return cov != null && cov < 0.999; }
+function statsLeftTone(rev, costKg, kg, cov) {
+  if (statsLeftPart(cov) && (rev || 0) - costKg * kg >= 0) return null;
+  return figToneAgainst(rev || 0, costKg * kg, 5);
+}
+function statsLeftSign(cov) { return statsLeftPart(cov) ? '\u2264 ' : ''; }
 function statsVerdictHtml(pa) {
   var per = _statsPeriod, plabel = PERIOD_LABELS[per] || '', word = ADV_PERIOD_WORDS[per] || 'the period';
   var tonnage = pa.tonnage, filtered = pa.filtered, prior = pa.prior, perKg = '<span class="inv-tile-of">/kg</span>';
@@ -48773,6 +48782,7 @@ function statsVerdictHtml(pa) {
   // What the period left after its full cost is its whole revenue less its whole cost (Iuno H-1): read as contribution × the
   // weighed kilos it left out every unweighed line's revenue against the plant's whole cost.
   var margin = contribution != null ? statsPeriodLeft(totalRev, costKg, tonnage.kg) : null;
+  var leftCov = pa.periodCost.label === 'live cost ' ? null : tonnage.coverage, leftPart = statsLeftPart(leftCov);
   var pct = function(cur, prev) { if (!comparable || prev == null || !prev) return ''; var x = (cur - prev) / Math.abs(prev) * 100; return Math.abs(x) <= FIG_FLAT_PCT ? 'level' : (x > 0 ? '+' : '−') + formatNum(Math.abs(x), 1) + '%'; };
   var dRev = pct(totalRev, priorRev), dKg = pct(tonnage.kg, priorT.kg);
   var credited = filtered.reduce(function(s, i) { return s + (i._credit || 0); }, 0), cnOut = cnCreditByInvoice().unplaced;
@@ -48797,7 +48807,7 @@ function statsVerdictHtml(pa) {
     if (weighedLine) lines.push('<div class="inv-note" data-callout="weighed">' + escHtml(weighedLine) + '</div>');
   }
   if (contribution != null && contribution < 0) lines.push('<div class="inv-note" data-callout="below-cost">' + escHtml(formatCurrency(Math.abs(contribution)) + '/kg below full cost' +
-    (margin < 0 ? ': ' + formatCurrency(Math.abs(margin)) + ' of loss for the period.' : ' on the weighed lines.')) + '</div>');
+    (margin < 0 ? ': ' + (leftPart ? 'at least ' : '') + formatCurrency(Math.abs(margin)) + ' of loss for the period.' : ' on the weighed lines.')) + '</div>');
   if (credited > 0.005 || cnOut.n) lines.push('<div class="inv-note" data-callout="credit-notes">' + escHtml('Net of credit notes' + (credited > 0.005 ? ': ' + formatCurrency(gstRound(credited)) + ' taken off' : '') +
     (cnOut.n ? '; ' + todoPlural(cnOut.n, 'note') + ' (' + formatCurrency(gstRound(cnOut.amount)) + ') name no invoice in the book' : '') + '.') + '</div>');
   var factors = [
@@ -48814,7 +48824,8 @@ function statsVerdictHtml(pa) {
       badge: contribution != null && contribution < 0 ? [realTone, 'below cost'] : null, attrs: ' data-tile="realisation"' },
     // What the period left is its own figure, toned by its own sign (Iuno H-2, the QA chain of 6 Nov 2026: a positive figure had
     // been drawn amber and badged below cost, the price's tone); the weighed lines' price is Realisation's and the sub's.
-    { label: 'Left after the full cost', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : statsLeftTone(totalRev, costKg, tonnage.kg),
+    { label: 'Left after the full cost', fig: margin != null ? statsLeftSign(leftCov) + statsMoney(margin) : '', tone: margin == null ? null : statsLeftTone(totalRev, costKg, tonnage.kg, leftCov),
+      badge: margin != null && leftPart ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null,
       sub: contribution != null ? (contribution >= 0 ? '+' : '−') + formatCurrency(Math.abs(contribution)) + '/kg on the weighed lines' : 'needs tonnage and cost',
       attrs: ' data-tile="margin"' }];
   var verdict = !filtered.length ? 'No invoices ' + word
@@ -50141,13 +50152,16 @@ function statsStoryCards(a, ctx) {
   var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
-  var left = contrib != null ? statsPeriodLeft(sumTaxable(filtered), cost, kg) : null;
+  var left = contrib != null ? statsPeriodLeft(sumTaxable(filtered), cost, kg) : null, leftCov = periodCost.label === 'live cost ' ? null : tonnage.coverage, leftPart = statsLeftPart(leftCov);
+  // The period's figure in the card's words, the same as its tile's: the most it can have left where lines have no weight.
+  var leftWords = left == null ? '' : left < 0 ? (leftPart ? 'at least ' : '') + formatCurrency(-left) + ' lost on the period'
+    : (leftPart ? 'at most ' : '') + formatCurrency(left) + ' left on the period';
   // What a kilo left is the price against the cost, judged as the price is (In one line, Stats' tiles): a loss within 5% of the
   // cost is a warning, as the realisation beside it says.
   var moneyTone = contrib == null ? null : figToneAgainst(real, cost, 5);
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
       real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
-    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(left != null ? statsSigned(left) + ' ' + escHtml(ADV_PERIOD_WORDS[period] || 'in the period') + ', after the full cost' : ''),
+    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(left != null ? statsLeftSign(leftCov) + statsSigned(left) + ' ' + escHtml(ADV_PERIOD_WORDS[period] || 'in the period') + ', after the full cost' : ''),
       moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
@@ -50155,8 +50169,8 @@ function statsStoryCards(a, ctx) {
     { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }), slot: 1 },
     { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), slot: 'other' }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
   body += contrib == null ? say(c1, 'neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
-    : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
-    : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
+    : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + leftWords + '.')
+    : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at; ' + leftWords + '.');
   c1.html = body;
   // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): the figure that answers it, its words, the six months as a line.
   // `ans`: the answer as one sentence of 40 characters at most, its figure in its tone (U2R §24f: a question's Small).
@@ -56653,8 +56667,9 @@ function pltCapWords(cap) {
     (cap.used && cap.used.pct != null ? 'running at ' + Math.round(cap.used.pct * 100) + '%' : Math.round(cap.pct * 100) + '% available');
 }
 /* A line half or more down is danger, the one judge Floor's line card reads (prodLineEfficiency's avail ≤ 0.5; Vulcanus M-7, the
-   QA chain of 6 Nov 2026: Equipment had read it a warning, danger only with nothing working). */
-function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 || (cap.pct != null && cap.pct <= 0.5) ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
+   QA chain of 6 Nov 2026: Equipment had read it a warning, danger only with nothing working). A line's own units only (pickling's
+   tanks among them): supporting equipment (pltSupportCap) is danger only with nothing working, as before (Cipher, Edict V). */
+function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 || (!cap.support && cap.pct != null && cap.pct <= 0.5) ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
 function pltCapDot(cap) {
   var t = pltCapTone(cap);
   return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : cap.nAvail === 0 ? 'Nothing working' : cap.down.length + ' not working');
@@ -56989,7 +57004,7 @@ function pltPlaceWords(u) {
    supporting equipment wherever they stand; a station that is no line has the ones serving no line. Never a line's own units. */
 function pltSupportCap(place) {
   var us = pltUnits().filter(function(u) { return !pltPlates(u) && pltPlaceOf(u) === place; }), dn = us.filter(function(u) { return !pltAvailable(u.status || 'run'); });
-  return { units: us, n: us.length, nAvail: us.length - dn.length, down: dn, pct: us.length ? (us.length - dn.length) / us.length : null };
+  return { units: us, n: us.length, nAvail: us.length - dn.length, down: dn, pct: us.length ? (us.length - dn.length) / us.length : null, support: true };
 }
 function pltSupportName(place) { return pltStationName(place) + (pltIsLine(place) ? '’s supporting equipment' : ''); }
 function pltSupportWords(cap) { return !cap.n ? 'none recorded' : cap.nAvail + ' of ' + cap.n + ' working'; }
@@ -71348,7 +71363,8 @@ function powerAnalysis() {
   var sum = function(f) { return recent.reduce(function(s, c) { return s + f(c); }, 0); };
   var perDay = function(v) { return rd90.recorded ? v / rd90.recorded * yearDays : null; };
   // A month holding a run of likely-unreported days is left out of the best and worst: it would read as the best.
-  var full = monthList.filter(function(e) { return e.recorded >= 10 && e.costPerDay != null && !e.quiet; });
+  // Only a month with a cut: the record lists the quiet months too (Vulcanus H-1), and one of them would put the low at ₹0 a year.
+  var full = monthList.filter(function(e) { return e.cuts > 0 && e.recorded >= 10 && e.costPerDay != null && !e.quiet; });
   var lowM = full.slice().sort(function(p, q) { return p.costPerDay - q.costPerDay; })[0] || null, highM = full.slice().sort(function(p, q) { return q.costPerDay - p.costPerDay; })[0] || null;
   var year = !rd90.recorded ? null : {
     base: gstRound(perDay(sum(function(c) { return c.cost.total; }))), upper: gstRound(perDay(sum(function(c) { return c.cost.upper; }))),
@@ -71498,7 +71514,9 @@ function powerCutsHtml(a) {
   if (!a.cuts.length) return h + '<div class="inv-panel">' + uiEmptyHtml('No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.') + '</div>';
   // A cut is one line (the day and why, the clock and how long, the damage and where it fell) that opens to what the damage is made
   // of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass).
-  a.months.slice().reverse().forEach(function(m, mi) {
+  // Only a month with a cut has a fold (the record lists every calendar month since the first cut, a quiet one included: Vulcanus
+  // H-1); the newest of them is open (Cipher, Edict V: an empty month had been the open one).
+  a.months.filter(function(m) { return m.cuts > 0; }).reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
     var rows = list.map(function(c) { return powerCutRowHtml(c, a.typical); });
     var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
@@ -71509,7 +71527,7 @@ function powerCutsHtml(a) {
   });
   // The two charts, folded after the cuts (they led the Overview).
   h += uiFoldCard('power-months', '<div class="inv-panel inv-panel-flush" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div><div class="inv-panel-body">' +
-    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record',
+    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts || x.recorded ? x.cuts : null, note: !x.cuts && !x.recorded ? 'no day recorded' : '' }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record',
       // The month running is drawn as to date (TM6b).
       toDate: chartToDateAt(a.months.map(function(x) { return x.month; }), localDateStr().slice(0, 7)) }) + '</div></div>', false);
   h += uiFoldCard('power-hours', '<div class="inv-panel inv-panel-flush" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div><div class="inv-panel-body">' +
@@ -71645,7 +71663,7 @@ function powerCasePictureHtml(a) {
   for (var mi = 0; mi < 11; mi++) mk12 = isoAddDays(mk12 + '-01', -1).slice(0, 7);
   var months = a.months.filter(function(m) { return m.month >= mk12 && m.month <= m12; });
   h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="months"><div class="inv-pcp-h">Cuts by month</div>' +
-    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.recorded ? m.cuts : null, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : !m.recorded ? 'no day recorded' : '' }; }),
+    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.cuts || m.recorded ? m.cuts : null, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : !m.recorded && !m.cuts ? 'no day recorded' : '' }; }),
       { unit: 'count', paper: true, slot: 2, ariaLabel: 'Cuts by month', toDate: months.length && months[months.length - 1].month === today.slice(0, 7) ? months.length - 1 : null }) +
     (months.some(function(m) { return m.quiet > 0; }) ? '<div class="inv-pcp-note">Hatched: a month with days whose power was likely not reported. It reads low.</div>' : '') + '</div>';
   // When they start: the hour each cut began, 6 AM to 10 PM (the bands of the full case, hour by hour); the night's few are said.

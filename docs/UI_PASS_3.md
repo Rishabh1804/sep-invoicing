@@ -48,7 +48,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Built 5 Nov 2026 (P231; §26j) |
 | U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Built 5 Nov 2026 (P232; §26k) |
 | U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Built 5 Nov 2026 (P233; §26l) |
-| U8 | Sign-in and the 4-digit PIN; the app's icon, splash and favicon from the new mark (§15) | Not built |
+| U8 | Sign-in and the 4-digit PIN; the app's icon, splash and favicon from the new mark (§15) | Built 6 Nov 2026 (P234; §26m) |
 | U9 | Docs, the full suite, every screen measured, the draft PR made ready; then the QA chain on the owner's word | Not built |
 
 ## 1. The rulings
@@ -2635,3 +2635,44 @@ Where the build departs from §14 and §26e, and why:
   (`app-messages`, new) is written for the Messages screen.
 - **A data flow**: none. The book does not change; `sep_inv_pointers` is the device's.
 
+### 26m. U8 as built (6 Nov 2026)
+
+Where the build departs from §15 and §26f, and why:
+- **The wells are one input** (`grdWellsHtml`, guard.js): an `<input>` four digits long laid over four wells (`inv-pin`, `inv-pin-well`,
+  a dot `inv-pin-on` a digit), so the keyboard, a paste and a test's fill all reach it and its `label` names it. On the phone its
+  `inputmode` is `none`: the keypad (`grdKeypadHtml`, `inv-keypad`, `inv-key`) writes into it and the system's keyboard stays down;
+  on the desktop it is `numeric` and typed. A non-digit is dropped as it is typed (`grdPinSync`). The keypad writes into the well
+  group last used, else the first not full, and runs on to the next (Change my PIN's three groups take twelve taps in a row).
+- **Sign in is enabled at four digits** on the lock only (`grdGoSet`); Settings' forms keep their Save live and say what is wrong on
+  save, as they did, so a PIN too short or too easy is told rather than a button that does nothing.
+- **A PIN from before** (a secret with no `len: 4`, every PIN set up to now, the specs' eight-digit ones included): the typed field,
+  with *Your PIN is from before: type it.*; once right, the lock stays and asks for four digits twice (**Set a 4-digit PIN**, the keypad
+  on the phone), with **Later**. The new secret is saved after the sign-in, so the change log names the person. Later asks again at the
+  next sign-in, as §15b says. The fixtures' `unlock` taps Later (`laterIfAsked`).
+- **The wording**: a wrong PIN is *Wrong PIN · 4 tries left* (was *Wrong PIN. 4 tries left.*), the recovery code's alike; *Locked for
+  30 seconds.* as before. Someone not the owner who forgot is told *The owner can reset it.*; on the desktop the link carries its hint
+  (*use your recovery code* for the owner).
+- **The phone's IDs** are a sheet inside the lock (`inv-guard-sheet`, `inv-guard-scrim`): the lock is the one layer that takes a tap,
+  so a dialog opened over it would be inert. Escape shuts it. With nobody remembered, the IDs are the card's own rows.
+- **When each ID was last in** is the device's (`sep_inv_guard_seen`), never the book's, as the person remembered is.
+- **The desktop's panel** (§15a): the company and its address's first two lines, the date and the clock (every 15 seconds while the lock
+  is down), the weather now where the device holds a copy (`feedDayViz`; nothing is fetched for the lock), Tata's plant this week
+  (`mktPlantWeek`, the calendar's days: no figure), and *Book · synced* with the last push or pull. The print station's light is not
+  drawn (§26f).
+- **The theme** is a ghost icon button in the lock's corner on both layouts (moon or sun), the device's setting (`appearanceSet`).
+- **The layout switch** draws the lock again (`_applyModeSwitch`), so a window crossing 1024 px takes the other drawing at once.
+- **The icons** (§15d): `tools/make-icons.mjs` reads the mark's hexagon out of `markSvg` and each palette's light accent and on-accent
+  out of the stylesheet, and draws them in Playwright's Chromium: `icons/icon-<palette>.svg` and its 192 and 512 PNGs (appearance.js
+  swaps them, as before), `icon-192.png` and `icon-512.png` (the default palette, Zinc & brass; they were Teal's), `icon-512-maskable.png`
+  (the accent to every edge, the mark inside the middle 80%), `favicon.svg` and `favicon-32.png`. The manifest names them, `purpose`
+  any and maskable apart, on `background_color` `#e1e6eb`; the service worker caches the new files (`sep-inv-v32`).
+- **SERVER.md §4** is amended in §15c's words: the sealing key is wrapped by the recovery code on the hub and in the office copy, by a
+  device key on each owner device, never by a PIN. Risk 7 says so. Nothing of the server is built.
+- **The guide** *Setting up: IDs, PINs and roles* is version 2: four digits, the keypad, Not you?, the PIN from before, Forgot.
+- **Icons v3** gained `sun`, `moon` and `backspace` (Lucide's).
+- **Stats → Tables → By part names the client short** on screen (`clientShortName`, the whole name its title; the export keeps the
+  whole name): measured on 6 Nov 2026, the month's sixth day put more parts in the table, and a name ending in *PRIVATE LIMITED* stood
+  four lines tall in the phone's column, taking the screen to 1.56 against its budget of 1.5 on main's build too; now 1.46. The budget
+  is not raised.
+- **A data flow**: `len: 4` on a user's secret travels with the users (§16), and is never compared by the change log (the secret is
+  not). `sep_inv_guard_seen` is the device's.

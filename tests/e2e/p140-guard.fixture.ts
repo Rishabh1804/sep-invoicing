@@ -43,10 +43,30 @@ export async function withUsers(page: Page, cfg?: Record<string, unknown>) {
 export async function unlock(page: Page, id: string, pin: string) {
   const lock = page.locator('#guardRoot');
   await expect(lock).toBeVisible();
-  await lock.locator(`[data-action="invGuardPick"][data-id="${id}"]`).click();
+  await pickId(page, id);
   await lock.locator('#grdPin').fill(pin);
   await lock.locator('[data-action="invGuardUnlock"]').click();
+  await laterIfAsked(page);
+}
+/* A PIN from before (these are eight digits, see PINS) is asked to become four digits on the lock once it is right (UI pass 3,
+   U8 §15b): Later signs in on the old one. Waits for the lock to go either way. */
+export async function laterIfAsked(page: Page) {
+  const lock = page.locator('#guardRoot');
+  await page.waitForFunction(() => !document.getElementById('guardRoot') || !!document.querySelector('#guardRoot [data-action="invGuardLater"]'));
+  const later = lock.locator('[data-action="invGuardLater"]');
+  if (await later.count()) await later.click();
   await expect(lock).toHaveCount(0);
+}
+/* An ID picked on the lock: a row on the desktop, and on the phone behind Not you? when another person is remembered (§15a). */
+export async function pickId(page: Page, id: string) {
+  const lock = page.locator('#guardRoot');
+  const row = lock.locator(`[data-action="invGuardPick"][data-id="${id}"]`);
+  if (!(await row.isVisible())) {
+    const person = lock.locator(`[data-grd-person="${id}"]`);
+    if (await person.count()) return;
+    await lock.locator('[data-action="invGuardNotYou"]').click();
+  }
+  await row.click();
 }
 /* Past the re-ask window: the PIN was last given ten minutes ago. */
 export async function windowGone(page: Page) {

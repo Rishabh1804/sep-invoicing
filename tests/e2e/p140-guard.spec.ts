@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loadAppWithState, readStoredState, waitForBoot, answerAsk, openSettingsAt, switchTab } from './fixtures';
 import { sweep, problems, type Stop } from './sweep-fixture';
-import { PINS, g, guardBook, withUsers, unlock, windowGone, lockNow } from './p140-guard.fixture';
+import { PINS, g, guardBook, laterIfAsked, lockNow, pickId, unlock, windowGone, withUsers } from './p140-guard.fixture';
 
 // P140: the guard, step G1 (docs/GUARD.md; owner, 1 Oct 2026: "a security feature that asks for the ID and PIN on
 // reopening … don't ask for PIN again until P1 items or settings are changed"). No users, no lock: the app works as it did.
@@ -32,11 +32,18 @@ test.describe('P140: the guard (phone)', () => {
     await page.evaluate(() => localStorage.setItem('sep_inv_guard_last', 'U-sup'));
     await withUsers(page);
     const lock = page.locator('#guardRoot');
-    await expect(lock.locator('.inv-guard-title')).toHaveText('Who is using the app?');
-    await expect(lock.locator('[role="radio"]')).toHaveCount(3);
-    await expect(lock.locator('[role="radio"][aria-checked="true"]')).toContainText('Birsa Munda');
-    await expect(lock.locator('[role="radio"][aria-checked="true"]')).toContainText('Supervisor');
-    // An all-digit PIN brings up the number pad; the field never shows what is typed.
+    await expect(lock.locator('.inv-guard-title')).toHaveText('Welcome back');
+    // The phone shows the person remembered (UI pass 3, U8 §15a); Not you? lists every ID as a sheet.
+    await expect(lock.locator('[data-grd-person="U-sup"]')).toContainText('Birsa Munda');
+    await expect(lock.locator('[data-grd-person="U-sup"]')).toContainText('Supervisor');
+    await lock.locator('[data-action="invGuardNotYou"]').click();
+    await expect(lock.locator('[data-grd-sheet] [role="radio"]')).toHaveCount(3);
+    await expect(lock.locator('[data-grd-sheet] [role="radio"][aria-checked="true"]')).toContainText('Birsa Munda');
+    await lock.locator('[data-grd-sheet] [data-id="U-sup"]').click();
+    await expect(lock.locator('[data-grd-sheet]')).toHaveCount(0);
+    // A PIN from before (eight digits) is typed in a field that says so; an all-digit one brings up the number pad; the field never
+    // shows what is typed.
+    await expect(lock.locator('[data-grd-old]')).toHaveText('Your PIN is from before: type it.');
     await expect(lock.locator('#grdPin')).toHaveAttribute('type', 'password');
     await expect(lock.locator('#grdPin')).toHaveAttribute('inputmode', 'numeric');
     await expect(lock.locator('#grdPin')).toBeFocused();
@@ -56,7 +63,7 @@ test.describe('P140: the guard (phone)', () => {
     // The right PIN opens, and the top bar shows who is signed in.
     await lock.locator('#grdPin').fill(PINS.super);
     await lock.locator('#grdPin').press('Enter');
-    await expect(lock).toHaveCount(0);
+    await laterIfAsked(page);
     await expect(page.locator('body')).not.toHaveClass(/inv-locked/);
     await expect(page.locator('#guardUserBtn')).toBeVisible();
     await expect(page.locator('#guardUserBtn')).toHaveAttribute('data-initials', 'BM');
@@ -68,12 +75,12 @@ test.describe('P140: the guard (phone)', () => {
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     const lock = page.locator('#guardRoot'), err = lock.locator('[data-grd-err]'), go = lock.locator('[data-action="invGuardUnlock"]');
-    await lock.locator('[data-id="U-own"]').click();
+    await pickId(page, 'U-own');
     for (let i = 1; i <= 4; i++) {
       await lock.locator('#grdPin').fill('000000');
       await go.click();
       const left = 5 - i;
-      await expect(err).toHaveText(`Wrong PIN. ${left} tr${left === 1 ? 'y' : 'ies'} left.`);
+      await expect(err).toHaveText(`Wrong PIN · ${left} tr${left === 1 ? 'y' : 'ies'} left`);
     }
     await lock.locator('#grdPin').fill('000000');
     await go.click();
@@ -94,7 +101,7 @@ test.describe('P140: the guard (phone)', () => {
     await expect(go).toBeEnabled();
     await lock.locator('#grdPin').fill(PINS.owner);
     await go.click();
-    await expect(lock).toHaveCount(0);
+    await laterIfAsked(page);
     expect(await page.evaluate(() => localStorage.getItem('sep_inv_guard_fail'))).toBeNull();
   });
 
@@ -111,7 +118,7 @@ test.describe('P140: the guard (phone)', () => {
     await tab.goto('/');
     await waitForBoot(tab);
     await expect(tab.locator('#guardRoot')).toBeVisible();
-    await expect(tab.locator('#guardRoot [role="radio"][aria-checked="true"]')).toContainText('Asha Rao');
+    await expect(tab.locator('#guardRoot [data-grd-person="U-own"]')).toContainText('Asha Rao');
     await tab.close();
     // Another browser holding the same book asks too, with nobody chosen.
     const stored = await readStoredState(page);
@@ -294,16 +301,21 @@ test.describe('P140: the guard (phone)', () => {
     await sec.locator('[data-action="invGuardOn"]').click();
     const form = page.locator('[data-grd-form="on"]');
     await form.locator('#grdName').fill('Asha Rao');
-    await form.locator('#grdP1').fill('48291637');
-    await form.locator('#grdP2').fill('48291638');
+    // A PIN is four digits (UI pass 3, U8 §15b): the two alike, not too short, not too easy to guess.
+    await form.locator('#grdP1').fill('4829');
+    await form.locator('#grdP2').fill('4830');
     await form.locator('[data-action="invGuardFormSave"]').click();
     await expect(form.locator('[data-grd-err]')).toHaveText('The two entries differ: type the same PIN twice.');
     await form.locator('#grdP1').fill('482');
     await form.locator('#grdP2').fill('482');
     await form.locator('[data-action="invGuardFormSave"]').click();
-    await expect(form.locator('[data-grd-err]')).toHaveText('A PIN needs 4 characters or more.');
-    await form.locator('#grdP1').fill('48291637');
-    await form.locator('#grdP2').fill('48291637');
+    await expect(form.locator('[data-grd-err]')).toHaveText('A PIN is four digits.');
+    await form.locator('#grdP1').fill('1234');
+    await form.locator('#grdP2').fill('1234');
+    await form.locator('[data-action="invGuardFormSave"]').click();
+    await expect(form.locator('[data-grd-err]')).toHaveText('Too easy to guess: not one digit four times, a run like 1234, or a common PIN.');
+    await form.locator('#grdP1').fill('4829');
+    await form.locator('#grdP2').fill('4829');
     await form.locator('[data-action="invGuardFormSave"]').click();
     const code = page.locator('[data-grd-recovery]');
     await expect(code).toHaveText(/^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
@@ -316,22 +328,25 @@ test.describe('P140: the guard (phone)', () => {
     await expect(page.locator('#guardUserBtn')).toHaveAttribute('data-initials', 'AR');
     await expect(sec.locator('[data-grd-user]')).toHaveCount(1);
     await expect(sec.locator('[data-grd-roles]')).toBeVisible();
-    // Shown once: the code and the PIN are nowhere in the book or on the device.
+    // Shown once: the code and the PIN are nowhere in the book or on the device. Four digits can turn up by chance inside a hash
+    // or a timestamp, so the PIN is looked for as a value of its own (a JSON string or number).
     const bare = recovery.replace(/-/g, '');
     const stored = JSON.stringify(await readStoredState(page));
-    for (const s of [recovery, bare, '48291637']) expect(stored).not.toContain(s);
+    for (const s of [recovery, bare, '"4829"', ':4829,', ':4829}']) expect(stored).not.toContain(s);
     const kept = await page.evaluate(() => JSON.stringify(Object.assign({}, localStorage)) + JSON.stringify(Object.assign({}, sessionStorage)));
-    for (const s of [recovery, bare, '48291637']) expect(kept).not.toContain(s);
+    for (const s of [recovery, bare, '"4829"', ':4829,', ':4829}', '\\"4829\\"']) expect(kept).not.toContain(s);
+    // Its secret says it is four digits.
+    expect((await readStoredState(page)).users[0].secret.len).toBe(4);
     // Forgotten: the lock's Forgot your PIN? asks the owner for the code.
     await page.locator('[data-action="invCloseSettings"]').click();
     await lockNow(page);
     const lock = page.locator('#guardRoot');
     await lock.locator('[data-action="invGuardForgot"]').click();
     await lock.locator('#grdCode').fill('AAAA-BBBB-CCCC');
-    await lock.locator('#grdNew1').fill('7777');
-    await lock.locator('#grdNew2').fill('7777');
+    await lock.locator('#grdNew1').fill('7351');
+    await lock.locator('#grdNew2').fill('7351');
     await lock.locator('[data-action="invGuardRecover"]').click();
-    await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong recovery code. 4 tries left.');
+    await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong recovery code · 4 tries left');
     // Case and dashes do not matter.
     await lock.locator('#grdCode').fill(bare.toLowerCase());
     await lock.locator('[data-action="invGuardRecover"]').click();
@@ -343,20 +358,20 @@ test.describe('P140: the guard (phone)', () => {
     await page.locator('[data-grd-code] .inv-dialog-foot [data-action="invCloseConfirm"]').click();
     // The new PIN opens; the old one does not.
     await lockNow(page);
-    await lock.locator('#grdPin').fill('48291637');
+    await lock.locator('#grdPin').fill('4829');
     await lock.locator('[data-action="invGuardUnlock"]').click();
-    await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong PIN. 4 tries left.');
-    await lock.locator('#grdPin').fill('7777');
+    await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong PIN · 4 tries left');
+    await lock.locator('#grdPin').fill('7351');
     await lock.locator('[data-action="invGuardUnlock"]').click();
     await expect(lock).toHaveCount(0);
     // The spent code no longer resets.
     await lockNow(page);
     await lock.locator('[data-action="invGuardForgot"]').click();
     await lock.locator('#grdCode').fill(recovery);
-    await lock.locator('#grdNew1').fill('8888');
-    await lock.locator('#grdNew2').fill('8888');
+    await lock.locator('#grdNew1').fill('8642');
+    await lock.locator('#grdNew2').fill('8642');
     await lock.locator('[data-action="invGuardRecover"]').click();
-    await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong recovery code. 4 tries left.');
+    await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong recovery code · 4 tries left');
     // Somebody else forgetting is sent to the owner.
   });
 
@@ -372,7 +387,7 @@ test.describe('P140: the guard (phone)', () => {
     await expect(ask.locator('.inv-dialog-title')).toHaveText('Save rate & weight check');
     await ask.locator('#grdAskPin').fill('111111');
     await ask.locator('[data-action="invGuardAskOk"]').click();
-    await expect(ask.locator('[data-grd-err]')).toHaveText('Wrong PIN. 4 tries left.');
+    await expect(ask.locator('[data-grd-err]')).toHaveText('Wrong PIN · 4 tries left');
     expect((await readStoredState(page)).rateCheck.pct).toBe(10);
     await ask.locator('#grdAskPin').fill(PINS.owner);
     await ask.locator('[data-action="invGuardAskOk"]').click();
@@ -426,14 +441,16 @@ test.describe('P140: the guard (phone)', () => {
     await page.locator('[data-grd-menu] [data-action="invGuardChangePin"]').click();
     const form = page.locator('[data-grd-form="mine"]');
     await form.locator('#grdCur').fill('9999');
-    await form.locator('#grdP1').fill('mango4471');
-    await form.locator('#grdP2').fill('mango4471');
+    // A new PIN is four digits (UI pass 3, U8 §15b); the PIN from before is typed as it was.
+    await form.locator('#grdP1').fill('5307');
+    await form.locator('#grdP2').fill('5307');
     await form.locator('[data-action="invGuardFormSave"]').click();
-    await expect(form.locator('[data-grd-err]')).toHaveText('Wrong PIN. 4 tries left.');
+    await expect(form.locator('[data-grd-err]')).toHaveText('Wrong PIN · 4 tries left');
     await form.locator('#grdCur').fill(PINS.office);
     await form.locator('[data-action="invGuardFormSave"]').click();
     await expect(form).toHaveCount(0);
-    const pins = [...Object.values(PINS), 'mango4471'];
+    // Four digits can turn up by chance inside a hash or a timestamp: the new PIN is looked for as a value of its own.
+    const pins = [...Object.values(PINS), '"5307"', ':5307,', ':5307}', '\\"5307\\"'];
     const book = await page.evaluate(async () => (await (window as any).readPersistedStateRaw()) as string);
     const device = await page.evaluate(() => JSON.stringify(Object.assign({}, localStorage)) + JSON.stringify(Object.assign({}, sessionStorage)));
     for (const p of pins) { expect(book).not.toContain(p); expect(device).not.toContain(p); }
@@ -447,7 +464,8 @@ test.describe('P140: the guard (phone)', () => {
     }
     // The new PIN is the one that opens.
     await lockNow(page);
-    await unlock(page, 'U-off', 'mango4471');
+    expect(JSON.parse(book).users.find((u: any) => u.id === 'U-off').secret.len).toBe(4);
+    await unlock(page, 'U-off', '5307');
   });
 
   test('the lock and every guard dialog are drawn from the components: nothing retired, unstyled, cut or too small', async ({ page }) => {
@@ -461,7 +479,7 @@ test.describe('P140: the guard (phone)', () => {
     // The lock hides the page on purpose: a blank page is what it is for.
     await at('lock', async () => { await expect(page.locator('#guardRoot')).toBeVisible(); });
     stops[stops.length - 1].blank = false;
-    await page.locator('#guardRoot [data-id="U-own"]').click();
+    await pickId(page, 'U-own');
     await at('lock, the owner chosen', async () => { await expect(page.locator('#grdPin')).toBeVisible(); });
     stops[stops.length - 1].blank = false;
     // This book was given its users without a recovery code: the owner's Forgot says so, and offers no fields.
@@ -470,9 +488,9 @@ test.describe('P140: the guard (phone)', () => {
     stops[stops.length - 1].blank = false;
     await expect(page.locator('#grdCode')).toHaveCount(0);
     // A user who is not the owner is sent to the owner.
-    await page.locator('#guardRoot [data-id="U-sup"]').click();
+    await pickId(page, 'U-sup');
     await page.locator('#guardRoot [data-action="invGuardForgot"]').click();
-    await expect(page.locator('#guardRoot [data-grd-forgot]')).toHaveText('Ask the owner to reset it.');
+    await expect(page.locator('#guardRoot [data-grd-forgot]')).toHaveText('The owner can reset it.');
     await unlock(page, 'U-own', PINS.owner);
     await at('user menu', async () => { await page.locator('#guardUserBtn').click(); await expect(page.locator('[data-grd-menu]')).toBeVisible(); });
     await g(page, 'closeOverlay()');

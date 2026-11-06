@@ -2768,12 +2768,71 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
   position: fixed; inset: 0; z-index: var(--z-lock); display: flex; padding: var(--sp-16);
   overflow-y: auto; overscroll-behavior: contain; background: var(--bg); color: var(--text-1);
 }
+:root { --guard-w: 23.5rem; --guard-desk-w: 58rem; --pin-w: 3.25rem; --pin-h: 3.5rem; --pin-dot: 0.75rem; --key-h: 3.5rem; --guard-mark: 3.5rem;
+  --guard-sheet-h: 80dvh; --dur-shake: 360ms; }
+/* UI pass 3, U8 (§15a): the sign-in. On the phone one lifted card, the mark in a lifted tile, the person, four wells and the
+   keypad; on the desktop a panel of the day beside the card. Nothing of the book's figures is drawn before sign-in. */
 .inv-guard-card {
-  width: 100%; max-width: var(--max-w); margin: auto; padding: var(--sp-20);
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
+  position: relative; width: 100%; max-width: var(--guard-w); margin: auto; padding: var(--sp-24) var(--sp-20) var(--sp-20);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-2);
 }
-.inv-guard-brand { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-16); font-size: var(--fs-14); font-weight: 600; color: var(--text-2); }
-.inv-guard-title { font-size: var(--fs-19); font-weight: 600; line-height: 1.3; margin-bottom: var(--sp-12); }
+.inv-guard-frame { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-32); width: 100%; max-width: var(--guard-desk-w); margin: auto; align-items: center; }
+.inv-guard-frame > .inv-guard-card { margin: 0; max-width: none; }
+.inv-guard-panel { display: flex; flex-direction: column; gap: var(--sp-12); padding: var(--sp-16); min-width: 0; }
+.inv-guard-brand { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); font-size: var(--fs-14); font-weight: 600; color: var(--text-2); }
+.inv-guard-mark { justify-content: center; margin-bottom: var(--sp-8); }
+.inv-guard-mark .inv-ico-mark, .inv-guard-panel .inv-ico-mark { width: var(--guard-mark); height: var(--guard-mark); filter: drop-shadow(0 0.25rem 0.5rem color-mix(in oklab, var(--text-1) 18%, transparent)); }
+.inv-guard-eyebrow { text-align: center; font-size: var(--fs-12); font-weight: 600; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--text-3); }
+.inv-guard-title { font-size: var(--fs-22); font-weight: 600; line-height: 1.25; margin-bottom: var(--sp-8); }
+.inv-guard:not(.inv-guard-desk) .inv-guard-title { text-align: center; margin-top: var(--sp-4); }
+.inv-guard-sub { color: var(--text-2); font-size: var(--fs-14); margin-bottom: var(--sp-12); }
+.inv-guard-co { display: block; font-size: var(--fs-17); font-weight: 600; color: var(--text-1); }
+.inv-guard-line { color: var(--text-3); font-size: var(--fs-13); font-weight: 400; }
+.inv-guard-clock { font-family: var(--ff-num); font-variant-numeric: tabular-nums; font-size: var(--fs-24); font-weight: 600; line-height: 1.1; }
+.inv-guard-date { color: var(--text-2); font-size: var(--fs-14); }
+.inv-guard-fact { display: flex; flex-direction: column; gap: var(--sp-6); font-size: var(--fs-13); color: var(--text-2); }
+.inv-guard-fact-k { font-size: var(--fs-12); font-weight: 600; color: var(--text-3); }
+.inv-guard-person { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-10) var(--sp-12); margin: var(--sp-8) 0 var(--sp-12);
+  border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-1); }
+.inv-guard-person > .inv-btn { margin-left: auto; flex: none; }
+.inv-guard-pin { display: flex; flex-direction: column; align-items: center; }
+.inv-guard-desk .inv-guard-pin { align-items: flex-start; }
+.inv-guard-forgot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-top: var(--sp-8); }
+.inv-guard-forgot > .inv-btn { padding-left: 0; }
+.inv-guard-foot { margin-top: var(--sp-16); padding-top: var(--sp-12); border-top: var(--hair) solid var(--border); text-align: center; color: var(--text-3); font-size: var(--fs-12); }
+.inv-guard-theme { position: fixed; top: var(--sp-8); right: var(--sp-8); z-index: 1; border-color: transparent; background: none; box-shadow: none; color: var(--text-2); }
+.inv-guard:not(.inv-guard-desk) { padding-top: calc(var(--sp-8) + var(--touch)); }
+/* The four wells: one input laid over them, a dot filled a digit; wrong is the danger tone and a shake. */
+.inv-pin { position: relative; display: inline-flex; margin: var(--sp-4) 0; }
+.inv-pin-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: var(--fs-16); cursor: text;
+  caret-color: transparent; appearance: none; background: transparent; color: transparent; }
+.inv-pin-wells { display: flex; gap: var(--sp-10); pointer-events: none; }
+.inv-pin-well { display: grid; place-items: center; width: var(--pin-w); height: var(--pin-h); border-radius: var(--r-tile); background: var(--well); box-shadow: var(--press-1);
+  border: var(--hair) solid transparent; transition: border-color var(--dur-1), background var(--dur-1); }
+.inv-pin-well.inv-pin-on::after { content: ""; width: var(--pin-dot); height: var(--pin-dot); border-radius: var(--r-full); background: var(--text-1); }
+.inv-pin:focus-within .inv-pin-well { border-color: var(--border); }
+/* The well the next digit goes into, while the PIN is being typed. */
+.inv-pin:not([data-wrong]):focus-within:is(:not([data-n]), [data-n="0"]) .inv-pin-well:nth-child(1), .inv-pin:not([data-wrong]):focus-within[data-n="1"] .inv-pin-well:nth-child(2),
+.inv-pin:not([data-wrong]):focus-within[data-n="2"] .inv-pin-well:nth-child(3), .inv-pin:not([data-wrong]):focus-within[data-n="3"] .inv-pin-well:nth-child(4) { border-color: var(--accent); }
+.inv-pin[data-wrong] .inv-pin-well { border-color: var(--danger); background: var(--danger-bg); }
+.inv-pin[data-wrong] .inv-pin-well.inv-pin-on::after { background: var(--danger); }
+.inv-pin[data-wrong] .inv-pin-wells { animation: inv-pin-shake var(--dur-shake) var(--ease); }
+@keyframes inv-pin-shake { 0%, 100% { transform: none; } 20%, 60% { transform: translateX(calc(-1 * var(--sp-6))); } 40%, 80% { transform: translateX(var(--sp-6)); } }
+@media (prefers-reduced-motion: reduce) { .inv-pin[data-wrong] .inv-pin-wells { animation: none; } }
+/* The keypad (the phone's): 1–9, Forgot your PIN?, 0, ⌫; each key a lifted card. */
+.inv-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-10); margin: var(--sp-12) 0 var(--sp-16); }
+.inv-key { min-height: var(--key-h); border: var(--hair) solid var(--edge); border-radius: var(--r-key); background: var(--surface); box-shadow: var(--lift-1);
+  color: var(--text-1); font-family: var(--ff-num); font-size: var(--fs-22); font-weight: 500; cursor: pointer; touch-action: manipulation; }
+.inv-key:active { background: var(--well); box-shadow: var(--press-1); }
+.inv-key:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--lift-1); }
+.inv-key-text { font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); display: grid; place-items: center; line-height: 1.2; padding: 0 var(--sp-6); white-space: normal; }
+.inv-key-text svg { width: 20px; height: 20px; }
+.inv-dialog .inv-keypad { max-width: var(--guard-w); }
+/* The phone's IDs as a sheet over the lock (Not you?), inside it: the lock is the only layer that takes a tap. */
+.inv-guard-scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 2; }
+.inv-guard-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; max-height: var(--guard-sheet-h); overflow-y: auto; padding: var(--sp-12) var(--sp-16) var(--sp-20);
+  background: var(--surface); border-radius: var(--r-card) var(--r-card) 0 0; box-shadow: var(--shadow-dialog); }
+.inv-guard-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-8); }
 /* Rows on their container's own padding (the lock's users, Settings' users, the user's menu), ruled off above. */
 .inv-guard-rows { border-top: var(--hair) solid var(--border); margin-bottom: var(--sp-12); }
 .inv-guard-rows > .inv-row { padding-left: 0; padding-right: 0; }

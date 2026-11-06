@@ -720,12 +720,18 @@ var KB_APP_GUIDES = [
     '2. CAUTION: If you forget the owner PIN and you do not have the recovery code, the books stay locked. Write down the **recovery code** that the app shows. Keep it away from the phone.\n' +
     '3. Tap **Add user** for each person. Type the name, the role (Office, Supervisor, Floor) and the PIN. Tell each person their PIN.\n' +
     '4. Tap **Push to GitHub**. Then register every other device (*Setting up: a new device*). Turn the guard on **once**, on 1 device only. The other devices get it from GitHub.\n\n' +
+    'NOTE: A PIN is 4 digits. The app refuses 1 digit 4 times (1111), a run (1234, 9876) and the common PINs (1212, 1004, 2000, 2580, 6969).\n\n' +
     '# The roles\n- The grid under the users shows **What each role opens and may change**: pages, floor entries, rates, payments, settings, and if the role sees wages and money.\n' +
     '- An important change (an invoice, a rate, a payment, a void, Settings) asks for the PIN again after the set minutes pass.\n\n' +
+    '# Sign in\n- On the phone, the app shows the last person who signed in. Tap the 4 digits on the keypad, then tap **Sign in**. The app does not sign in at the 4th digit by itself.\n' +
+    '- If you are someone else, tap **Not you?** and pick your ID. On the computer, pick your ID, type the 4 digits and press Enter.\n' +
+    '- A wrong PIN turns the boxes red. After 5 wrong PINs, that ID waits 30 seconds, then longer each time. The other IDs can still sign in.\n' +
+    '- A PIN that was set before PINs were 4 digits is typed in a field. When it is right, the app asks for a new 4-digit PIN. **Later** keeps the old PIN until the next sign-in.\n' +
+    '- **Forgot your PIN?**: the owner types the recovery code. Anyone else asks the owner, who taps **Reset PIN** on their row.\n\n' +
     '# Every day\n- The app locks after the set minutes in the background. When you open the app, it asks for a PIN.\n' +
     '- The ID button in the top bar has **Change my PIN**, **Switch user** and **Lock now**.\n' +
     '- **Reset PIN** on a user gives the user a new PIN. **Deactivate** keeps the history of the user and stops their sign-in. The other devices get an added, reset or deactivated user with the next push and pull.',
-    { roles: ['owner'], version: 1 }),
+    { roles: ['owner'], version: 2 }),
   // The news and the weather (feeds.js, docs/UI_PASS_3.md §9e): every role reads it, since a widget with no feed links it.
   _kbg('feeds', 'Setting up: the news and weather', 'Where the news and the weather come from, the place of the plant, and what the app sends', ['pageHome'],
     'The news comes from the GDELT Project and the weather from MET Norway. The shop can put its own **feeds Worker** on Cloudflare between them and the app. If the Worker is not there, the app asks GDELT and MET Norway straight from this device.\n\n' +

@@ -30,7 +30,9 @@ var GRD_ALG = 'PBKDF2-SHA256';
    to 351 ms at best under the same load, too near the 400 ms allowed. A phone is three to five times slower, a quarter to a
    third of a second. A stored secret carries its own count, so raising this later leaves every PIN already set working. */
 var GRD_ITER = 210000;
-var GRD_MIN_LEN = 4;
+var GRD_PIN_LEN = 4;                          // a PIN is four digits (docs/UI_PASS_3.md §15b)
+var GRD_PIN_EASY = ['1212', '1004', '2000', '2580', '6969'];   // refused, with one digit four times and a run up or down
+var GRD_SEEN_KEY = 'sep_inv_guard_seen';      // when each ID last signed in on this device (localStorage): {uid: ms}
 var GRD_FREE_TRIES = 5;                       // wrong PINs before the first lockout
 var GRD_FAIL_FIRST_MS = 30000, GRD_FAIL_MAX_MS = 15 * 60000;
 var GRD_GRACE_MS = 3000;                      // a PIN just given lets the change it was asked for go through
@@ -241,7 +243,12 @@ function grdMakeSecret(pin) {
   var salt = new Uint8Array(16);
   crypto.getRandomValues(salt);
   var s = grdB64(salt), p = grdNorm(pin);
-  return grdHash(p, s, GRD_ITER).then(function(h) { return { alg: GRD_ALG, iter: GRD_ITER, salt: s, hash: h, digits: /^\d+$/.test(p) }; });
+  // `len: 4` marks a PIN of the four digits the sign-in's wells take; a PIN set before (any other) is typed in a field.
+  return grdHash(p, s, GRD_ITER).then(function(h) {
+    var out = { alg: GRD_ALG, iter: GRD_ITER, salt: s, hash: h, digits: /^\d+$/.test(p) };
+    if (/^\d{4}$/.test(p)) out.len = GRD_PIN_LEN;
+    return out;
+  });
 }
 /* Every character compared, whatever the first difference. */
 function grdSame(a, b) {
@@ -254,14 +261,20 @@ function grdVerify(secret, pin) {
   if (!secret || !secret.salt || !secret.hash || !grdCryptoOk()) return Promise.resolve(false);
   return grdHash(pin, secret.salt, secret.iter || GRD_ITER).then(function(h) { return grdSame(h, secret.hash); }, function() { return false; });
 }
-/* A PIN or password as typed: four characters or more, both entries alike. '' when it will do, else why not. */
+/* A new PIN as typed: exactly four digits, not too easy to guess, both entries alike. '' when it will do, else why not.
+   Too easy: one digit four times (0000…9999), a straight run up or down (0123…6789, 9876…3210), and the five common ones. */
+function grdPinEasy(p) {
+  return /^(\d)\1{3}$/.test(p) || '0123456789'.indexOf(p) >= 0 || '9876543210'.indexOf(p) >= 0 || GRD_PIN_EASY.indexOf(p) >= 0;
+}
 function grdPinProblem(a, b) {
   var p = grdNorm(a);
-  if (p.length < GRD_MIN_LEN) return 'A PIN needs ' + GRD_MIN_LEN + ' characters or more.';
-  if (p.length > 64) return 'Keep it to 64 characters.';
+  if (!/^\d{4}$/.test(p)) return 'A PIN is four digits.';
+  if (grdPinEasy(p)) return 'Too easy to guess: not one digit four times, a run like 1234, or a common PIN.';
   if (b != null && p !== grdNorm(b)) return 'The two entries differ: type the same PIN twice.';
   return '';
 }
+/* A PIN of four digits, which the wells take; any other was set before U8 and is typed. */
+function grdIsFour(u) { return !!(u && u.secret && u.secret.len === GRD_PIN_LEN); }
 /* The recovery code: 12 characters from the crypto source, in groups of four. */
 function grdNewCode() {
   var out = '', buf = new Uint8Array(1), n = GRD_CODE_ABC.length, cap = 256 - (256 % n);
@@ -328,7 +341,7 @@ function grdFailWords(noun, uid) {
   var f = grdFailRead(uid);
   if (!f.n) return '';
   var tries = GRD_FREE_TRIES - f.n;
-  return 'Wrong ' + (noun || 'PIN') + '. ' + (tries > 0 ? tries + ' tr' + (tries === 1 ? 'y' : 'ies') + ' left.' : 'Try again.');
+  return 'Wrong ' + (noun || 'PIN') + ' · ' + (tries > 0 ? tries + ' tr' + (tries === 1 ? 'y' : 'ies') + ' left' : 'try again');
 }
 /* The ID a field's PIN is checked for: its error line carries it (data-grd-uid). */
 function grdUidAttr(uid) { return ' data-grd-uid="' + escHtml(String(uid == null ? '' : uid)) + '"'; }
@@ -344,7 +357,7 @@ function grdTickStart() {
       if (left > 0) any = true;
       if (el.dataset.grdLockout || left > 0) { el.textContent = left > 0 ? 'Locked for ' + grdSecs(left) + '.' : ''; el.dataset.grdLockout = left > 0 ? '1' : ''; }
       var box = el.closest('#guardRoot, .inv-dialog'), go = box && box.querySelector('[data-grd-go]');
-      if (go) go.disabled = left > 0;
+      if (go) grdGoSet(go, left > 0);
     });
     if (!any) { clearInterval(_grdTick); _grdTick = null; }
   }, 1000);
@@ -353,13 +366,97 @@ function grdTickStart() {
 function grdShowFail(errEl, goEl, noun, uid) {
   var left = grdFailLeftMs(uid);
   if (errEl) { errEl.textContent = grdFailWords(noun, uid); errEl.dataset.grdLockout = left > 0 ? '1' : ''; }
-  if (goEl) goEl.disabled = left > 0;
+  if (goEl) grdGoSet(goEl, left > 0);
   if (left > 0) grdTickStart();
+  grdPinWrong(errEl);
 }
 /* A field drawn while its ID is locked out says so at once and counts down; otherwise it starts blank. */
 function grdShowLockout(errEl, goEl, uid) {
-  if (grdFailLeftMs(uid) > 0) grdShowFail(errEl, goEl, null, uid); else if (goEl) goEl.disabled = false;
+  if (grdFailLeftMs(uid) > 0) grdShowFail(errEl, goEl, null, uid); else if (goEl) grdGoSet(goEl, false);
 }
+
+/* ---------- The four wells and the keypad (§15a, §15b) ----------
+   A PIN of four digits is typed into one input laid over four wells (a dot filled a digit), so a keyboard, a paste and a test's
+   fill all reach it; on the phone the keypad writes into it and the system's keyboard stays down (inputmode none). Sign in on the
+   lock is enabled at four digits, never sent at the fourth (a slip would spend a try). */
+function grdDesk() { return !!(document.body && document.body.classList.contains('inv-desktop')); }
+function grdWellsHtml(id, label) {
+  var w = '';
+  for (var i = 0; i < GRD_PIN_LEN; i++) w += '<span class="inv-pin-well"></span>';
+  return '<div class="inv-pin" data-pin><input class="inv-pin-input" id="' + id + '" type="password" inputmode="' + (grdDesk() ? 'numeric' : 'none') +
+    '" pattern="[0-9]*" maxlength="' + GRD_PIN_LEN + '" autocomplete="off" data-pin-input' + (label ? ' aria-label="' + escHtml(label) + '"' : '') + '>' +
+    '<span class="inv-pin-wells" aria-hidden="true">' + w + '</span></div>';
+}
+/* The phone's keypad: 1–9, the key on its left (Forgot your PIN? on the lock), 0, ⌫. */
+function grdKeypadHtml(left) {
+  var k = function(d) { return '<button type="button" class="inv-key" data-action="invGuardKey" data-k="' + d + '">' + d + '</button>'; };
+  var h = '';
+  for (var i = 1; i <= 9; i++) h += k(i);
+  return '<div class="inv-keypad" data-grd-keypad>' + h + (left || '<span></span>') + k(0) +
+    '<button type="button" class="inv-key inv-key-text" data-action="invGuardKey" data-k="back" aria-label="Delete the last digit">' + iconSvg('backspace') + '</button></div>';
+}
+function grdLockedFor(box) {
+  var err = box && box.querySelector('[data-grd-err][data-grd-uid]');
+  return !!(err && err.dataset.grdUid && grdFailLeftMs(err.dataset.grdUid) > 0);
+}
+/* The box's Go: off while its ID is locked out, and on the lock while a well is not yet full. */
+function grdGoSet(go, locked) {
+  if (!go) return;
+  var box = go.closest('#guardRoot');
+  var short = !!box && Array.prototype.some.call(box.querySelectorAll('[data-pin-input]'), function(i) { return i.value.length < GRD_PIN_LEN; });
+  go.disabled = !!locked || short;
+}
+/* After a wrong entry, the wells say so: red, and a shake (a colour alone under reduced motion). */
+function grdPinWrong(errEl) {
+  var box = errEl && errEl.closest('#guardRoot, .inv-dialog');
+  if (!box || !errEl.textContent) return;
+  box.querySelectorAll('[data-pin]').forEach(function(p) { p.removeAttribute('data-wrong'); void p.offsetWidth; p.setAttribute('data-wrong', ''); });
+}
+/* A well's input as typed: digits only, four at most; its dots, and its box's Go. Full by typing, the next empty well is next. */
+function grdPinSync(inp, typed) {
+  var v = String(inp.value || '').replace(/\D/g, '').slice(0, GRD_PIN_LEN);
+  if (inp.value !== v) inp.value = v;
+  var wrap = inp.closest('[data-pin]');
+  if (wrap) {
+    wrap.removeAttribute('data-wrong');
+    wrap.dataset.n = String(v.length);
+    Array.prototype.forEach.call(wrap.querySelectorAll('.inv-pin-well'), function(w, i) { w.classList.toggle('inv-pin-on', i < v.length); });
+  }
+  var box = inp.closest('#guardRoot, .inv-dialog');
+  if (!box) return;
+  var go = box.querySelector('[data-grd-go]');
+  if (go && !go.dataset.busy) grdGoSet(go, grdLockedFor(box));
+  if (v.length === GRD_PIN_LEN) {
+    var ins = Array.prototype.slice.call(box.querySelectorAll('[data-pin-input]')), next = ins.slice(ins.indexOf(inp) + 1).find(function(i) { return !i.value; });
+    if (next) { box.dataset.pinAt = next.id; if (typed && document.activeElement === inp) { try { next.focus({ preventScroll: true }); } catch (e) { /* convenience */ } } }
+  }
+}
+/* A key of the keypad: into the well last used, else the first not full; ⌫ takes the last digit, from the well before if empty. */
+function grdPinKey(btn) {
+  var box = btn.closest('#guardRoot, .inv-dialog');
+  if (!box) return;
+  var ins = Array.prototype.slice.call(box.querySelectorAll('[data-pin-input]'));
+  if (!ins.length) return;
+  var at = ins.find(function(i) { return i.id === box.dataset.pinAt; }) || ins.find(function(i) { return i.value.length < GRD_PIN_LEN; }) || ins[ins.length - 1];
+  var k = btn.dataset.k;
+  if (k === 'back') {
+    if (!at.value) { var prev = ins.slice(0, ins.indexOf(at)).reverse().find(function(i) { return !!i.value; }); if (prev) at = prev; }
+    at.value = at.value.slice(0, -1);
+  } else {
+    if (at.value.length >= GRD_PIN_LEN) { var nx = ins.slice(ins.indexOf(at) + 1).find(function(i) { return i.value.length < GRD_PIN_LEN; }); if (!nx) return; at = nx; }
+    at.value += k;
+  }
+  box.dataset.pinAt = at.id;
+  at.dispatchEvent(new Event('input', { bubbles: true }));
+}
+// Every well, wherever it is drawn (the lock, the PIN asked again, Settings' forms): read before the lock stops the event.
+document.addEventListener('input', function(e) { var t = e.target; if (t && t.matches && t.matches('[data-pin-input]')) grdPinSync(t, true); }, true);
+document.addEventListener('focusin', function(e) {
+  var t = e.target;
+  if (!t || !t.matches || !t.matches('[data-pin-input]')) return;
+  var box = t.closest('#guardRoot, .inv-dialog');
+  if (box) box.dataset.pinAt = t.id;
+}, true);
 
 /* ---------- The PIN, asked again in the one dialog shell ---------- */
 var _grdAsk = null;
@@ -383,6 +480,7 @@ function grdPinAsk(u, title) {
       '<p class="inv-note inv-mb-8">Enter your PIN to go on.</p>' +
       '<div class="inv-field"><label class="inv-field-label" for="grdAskPin">PIN for ' + escHtml(u.name) + '</label>' +
       grdPinInput('grdAskPin', u) + '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
+      (grdIsFour(u) && !grdDesk() ? grdKeypadHtml() : '') +
       '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
       '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardAskOk" data-grd-go>Go on</button></div></div>';
     try {
@@ -424,7 +522,7 @@ function grdAskSubmit() {
     if (ask.done) return;
     if (ok) { grdFailClear(uid); ask.finish(true); return; }
     grdFailNote(uid);
-    if (inp) { inp.value = ''; inp.focus(); }
+    if (inp) { inp.value = ''; grdPinSync(inp); inp.focus(); }
     if (go) go.disabled = false;
     grdShowFail(err, go, null, uid);
   });
@@ -436,47 +534,132 @@ var _grdForgot = false;    // the lock shows the owner's recovery
 var _grdBusy = false;
 var _grdFocusBack = null;  // where focus was when the lock came down
 
-function grdPinInput(id, u, extra) {
-  return '<input class="inv-input" id="' + id + '" type="password" autocomplete="off"' + (u && u.secret && u.secret.digits ? ' inputmode="numeric"' : '') +
-    ' maxlength="64"' + (extra || '') + '>';
+/* A PIN's field: the four wells for a new PIN (no user) and for a PIN of four digits; a typed field for a PIN set before. */
+function grdPinInput(id, u) {
+  if (!u || grdIsFour(u)) return grdWellsHtml(id);
+  return '<input class="inv-input" id="' + id + '" type="password" autocomplete="off"' + (u.secret && u.secret.digits ? ' inputmode="numeric"' : '') + ' maxlength="64">';
 }
+/* When each ID last signed in on this device: a fact of the device, never the book's. */
+function grdSeenMap() { try { var m = JSON.parse(localStorage.getItem(GRD_SEEN_KEY) || '{}'); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; } catch (e) { return {}; } }
+function grdSeenNote(uid) { try { var m = grdSeenMap(); m[uid] = Date.now(); localStorage.setItem(GRD_SEEN_KEY, JSON.stringify(m)); } catch (e) { /* remembered nowhere */ } }
+function grdClock(ms) { var d = new Date(ms), h = d.getHours(), m = d.getMinutes(); return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
+/* 'today, 9:12 AM', 'yesterday, 7:12 PM', '12 Oct, 7:12 PM'; '' when never. */
+function grdWhen(ms) {
+  if (!ms || !isFinite(ms)) return '';
+  var d = new Date(ms), iso = isoOf(d), today = localDateStr();
+  var day = iso === today ? 'today' : iso === isoAddDays(today, -1) ? 'yesterday' : d.getDate() + ' ' + GRD_MON[d.getMonth()] + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');
+  return day + ', ' + grdClock(ms);
+}
+var GRD_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var GRD_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+var GRD_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function grdDateLine(d) { return GRD_DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + GRD_MONTHS[d.getMonth()]; }
+/* An ID's row: its initials, its name, its role and when it was last in here. */
+function grdIdRowHtml(x, inSheet) {
+  var seen = grdWhen(grdSeenMap()[x.id]);
+  return '<button type="button" class="inv-row inv-row-2" role="radio" aria-checked="' + (x.id === _grdPick) + '" data-action="invGuardPick" data-id="' + escHtml(x.id) + '"' + (inSheet ? ' data-grd-in-sheet' : '') + '>' +
+    '<span class="inv-row-lead"><span class="inv-avatar">' + escHtml(grdInitials(x.name)) + '</span></span>' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.name) + '</span><span class="inv-row-meta">' + escHtml(grdRoleName(x.role) + (seen ? ' · last in ' + seen : '')) + '</span></span></button>';
+}
+/* The person chosen, on the phone: their row, and Not you? opening the IDs as a sheet. */
+function grdPersonHtml(u, swap) {
+  var seen = grdWhen(grdSeenMap()[u.id]);
+  return '<div class="inv-guard-person" data-grd-person="' + escHtml(u.id) + '"><span class="inv-avatar">' + escHtml(grdInitials(u.name)) + '</span>' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(u.name) + '</span><span class="inv-row-meta">' + escHtml(grdRoleName(u.role) + (seen ? ' · last in ' + seen : '')) + '</span></span>' +
+    (swap ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardNotYou">Not you?</button>' : '') + '</div>';
+}
+/* The foot: this device registered, and when the book last synced. Never a figure of the book (§15a). */
+function grdFootText(desk) {
+  var dev = typeof devRegistered === 'function' && devRegistered();
+  var sync = typeof ghLastSyncAt === 'function' ? ghLastSyncAt() : null;
+  var parts = [];
+  if (dev) parts.push('This ' + (desk ? 'computer' : 'phone') + ' is registered');
+  if (sync && !desk) parts.push('synced ' + grdWhen(sync).replace(/^today, /, ''));
+  if (desk) parts.push(dev ? 'it locks after a while away' : 'This computer locks after a while away');
+  return parts.join(' · ');
+}
+/* The desktop's panel: the company and its line, the date and the clock, the weather now, Tata's week, the book's last sync. */
+function grdPanelHtml(co) {
+  var c = (S && S.company) || {}, line = [c.add1, c.add2].filter(Boolean).map(function(x) { return String(x).replace(/\s+/g, ' ').trim(); }).join(' · ');
+  var now = new Date(), wx = typeof feedDayViz === 'function' ? feedDayViz() : null, sync = typeof ghLastSyncAt === 'function' ? ghLastSyncAt() : null;
+  var week = '';
+  try { week = typeof mktPlantWeek === 'function' && typeof mktWeekHtml === 'function' ? mktWeekHtml(mktPlantWeek()) : ''; } catch (e) { week = ''; }
+  return '<aside class="inv-guard-panel" data-grd-panel>' +
+    '<div class="inv-guard-brand">' + markSvg('lg', 'tile') + '<span class="inv-row-main"><span class="inv-guard-co">' + escHtml(co) + '</span>' +
+    (line ? '<span class="inv-guard-line">' + escHtml(line) + '</span>' : '') + '</span></div>' +
+    '<div class="inv-guard-clock" data-grd-clock>' + grdClock(now.getTime()) + '</div><div class="inv-guard-date" data-grd-date>' + grdDateLine(now) + '</div>' +
+    (wx ? '<div class="inv-guard-fact" data-grd-wx>' + wx.html + '</div>' : '') +
+    (week ? '<div class="inv-guard-fact"><span class="inv-guard-fact-k">Tata’s plant this week</span>' + week + '</div>' : '') +
+    (sync ? '<div class="inv-guard-fact inv-guard-line" data-grd-sync>Book · synced ' + escHtml(grdWhen(sync).replace(/^today, /, '')) + '</div>' : '') +
+    '</aside>';
+}
+var _grdUpgrade = null;    // the ID whose PIN from before was just right: asked to set four digits
+var _grdSheet = false;     // the phone's IDs, open as a sheet (Not you?)
 function grdLockHtml() {
   var users = grdActiveUsers().slice().sort(function(a, b) { return GRD_ROLES.indexOf(a.role) - GRD_ROLES.indexOf(b.role) || String(a.name).localeCompare(String(b.name)); });
   if (!users.some(function(u) { return u.id === _grdPick; })) _grdPick = null;
-  var u = _grdPick ? grdUserById(_grdPick) : null;
-  var h = '<div class="inv-guard-card">' +
-    '<div class="inv-guard-brand">' + markSvg('sm', 'tile') + '<span>' + escHtml((S && S.company && S.company.name) || 'SEP Invoicing') + '</span></div>' +
-    '<h1 class="inv-guard-title" id="grdTitle">Who is using the app?</h1>' +
-    '<div class="inv-guard-rows" role="radiogroup" aria-labelledby="grdTitle">' + users.map(function(x) {
-      return '<button type="button" class="inv-row inv-row-2" role="radio" aria-checked="' + (x.id === _grdPick) + '" data-action="invGuardPick" data-id="' + escHtml(x.id) + '">' +
-        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.name) + '</span><span class="inv-row-meta">' + escHtml(grdRoleName(x.role)) + '</span></span></button>';
-    }).join('') + '</div>';
-  if (!u) return h + '<p class="inv-note">Choose your name to unlock.</p></div>';
-  if (_grdForgot && u.role === 'owner') {
+  var u = _grdPick ? grdUserById(_grdPick) : null, desk = grdDesk();
+  if (!u || _grdUpgrade !== u.id) _grdUpgrade = null;
+  var co = (S && S.company && S.company.name) || 'SEP Invoicing';
+  var dark = document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  var theme = '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-guard-theme" data-action="invGuardTheme" aria-label="' + (dark ? 'Light theme' : 'Dark theme') + '">' + iconSvg(dark ? 'sun' : 'moon') + '</button>';
+  var rows = function() { return '<div class="inv-guard-rows" role="radiogroup" aria-labelledby="grdTitle">' + users.map(function(x) { return grdIdRowHtml(x); }).join('') + '</div>'; };
+  var pick = '<p class="inv-guard-sub">Pick your ID, then type your PIN.</p>';
+  var h = (desk ? '' : '<div class="inv-guard-brand inv-guard-mark">' + markSvg('lg', 'tile') + '</div><div class="inv-guard-eyebrow">' + escHtml(co) + '</div>') +
+    '<h1 class="inv-guard-title" id="grdTitle">Welcome back</h1>';
+  var errLine = function() { return '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div>'; };
+  var body;
+  if (!u) body = pick + rows();
+  else if (_grdUpgrade) {
+    body = grdPersonHtml(u, false) +
+      '<p class="inv-guard-sub" data-grd-upgrade>Your PIN is right. A PIN is four digits now: set yours.</p>' +
+      '<div class="inv-field"><label class="inv-field-label" for="grdUp1">New PIN</label>' + grdWellsHtml('grdUp1') + '</div>' +
+      '<div class="inv-field"><label class="inv-field-label" for="grdUp2">New PIN again</label>' + grdWellsHtml('grdUp2') + errLine() +
+      '<div class="inv-field-hint">Not one digit four times, a run like 1234, or a common PIN.</div></div>' +
+      (desk ? '' : grdKeypadHtml()) +
+      '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardUpgrade" data-grd-go>Set a 4-digit PIN</button>' +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-block inv-mt-8" data-action="invGuardLater">Later</button>';
+  } else if (_grdForgot && u.role === 'owner') {
     var hasCode = !!(grdCfg().recovery && grdCfg().recovery.hash);
-    return h + (hasCode
+    body = (desk ? pick + rows() : grdPersonHtml(u, true)) + (hasCode
       ? '<p class="inv-note inv-mb-8">The recovery code was shown once, when the guard was turned on. It resets the owner&rsquo;s PIN.</p>' +
         '<div class="inv-field"><label class="inv-field-label" for="grdCode">Recovery code</label><input class="inv-input inv-id" id="grdCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></div>' +
-        '<div class="inv-field"><label class="inv-field-label" for="grdNew1">New PIN</label>' + grdPinInput('grdNew1', null) + '</div>' +
-        '<div class="inv-field"><label class="inv-field-label" for="grdNew2">New PIN again</label>' + grdPinInput('grdNew2', null) +
-        '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
+        '<div class="inv-field"><label class="inv-field-label" for="grdNew1">New PIN</label>' + grdWellsHtml('grdNew1') + '</div>' +
+        '<div class="inv-field"><label class="inv-field-label" for="grdNew2">New PIN again</label>' + grdWellsHtml('grdNew2') + errLine() + '</div>' +
+        (desk ? '' : grdKeypadHtml()) +
         '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardRecover" data-grd-go>Reset the PIN</button>'
       : '<div class="inv-callout inv-callout-warning inv-mb-8">No recovery code is on record in this book, so a forgotten owner PIN cannot be reset. The owner&rsquo;s PIN is changed only with the PIN itself or the recovery code: once in, make one in Settings &rarr; Access &rarr; Users &amp; access &rarr; New recovery code.</div>') +
-      '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="0">Back to the PIN</button></div>';
+      '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="0">Back to the PIN</button>';
+  } else {
+    var four = grdIsFour(u);
+    var hint = u.role === 'owner' ? 'use your recovery code' : 'the owner can reset it';
+    var forgotKey = '<button type="button" class="inv-key inv-key-text" data-action="invGuardForgot" data-v="1">Forgot your PIN?</button>';
+    body = (desk ? pick + rows() : grdPersonHtml(u, users.length > 1)) +
+      '<div class="inv-field inv-guard-pin"><label class="inv-field-label" for="grdPin">PIN for ' + escHtml(u.name) + '</label>' + grdPinInput('grdPin', u) + errLine() +
+      (four ? '' : '<div class="inv-field-hint" data-grd-old>Your PIN is from before: type it.</div>') + '</div>' +
+      (four && !desk ? grdKeypadHtml(_grdForgot ? '' : forgotKey) : '') +
+      '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardUnlock" data-grd-go>Sign in</button>' +
+      (_grdForgot ? '<p class="inv-note inv-mt-8" data-grd-forgot>The owner can reset it.</p>'
+        : four && !desk ? '' : '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardForgot" data-v="1">Forgot your PIN?</button><span class="inv-guard-line">' + hint + '</span></p>');
   }
-  return h + '<div class="inv-field inv-mt-16"><label class="inv-field-label" for="grdPin">PIN for ' + escHtml(u.name) + '</label>' + grdPinInput('grdPin', u) +
-    '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
-    '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardUnlock" data-grd-go>Unlock</button>' +
-    (_grdForgot ? '<p class="inv-note inv-mt-8" data-grd-forgot>Ask the owner to reset it.</p>'
-      : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="1">Forgot your PIN?</button>') + '</div>';
+  var foot = grdFootText(desk);
+  var card = '<div class="inv-guard-card">' + h + body + (foot ? '<p class="inv-guard-foot" data-grd-foot>' + escHtml(foot) + '</p>' : '') + '</div>';
+  var sheet = !desk && _grdSheet && u ? '<div class="inv-guard-scrim" data-action="invGuardSheetClose"></div><div class="inv-guard-sheet" data-grd-sheet role="dialog" aria-label="Who is signing in?">' +
+    '<div class="inv-guard-sheet-head"><span class="inv-row-title">Who is signing in?</span>' +
+    '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-dialog-close" data-action="invGuardSheetClose" aria-label="Close">' + iconSvg('close') + '</button></div>' +
+    '<div class="inv-guard-rows" role="radiogroup" aria-label="Who is signing in?">' + users.map(function(x) { return grdIdRowHtml(x, true); }).join('') + '</div></div>' : '';
+  return theme + (desk ? '<div class="inv-guard-frame">' + grdPanelHtml(co) + card + '</div>' : card) + sheet;
 }
 function grdRenderLock() {
   var root = document.getElementById('guardRoot');
   if (!root) return;
   var had = document.activeElement && root.contains(document.activeElement) ? document.activeElement.id : '';
   root.innerHTML = grdLockHtml();
+  root.classList.toggle('inv-guard-desk', grdDesk());
   grdShowLockout(root.querySelector('[data-grd-err]'), root.querySelector('[data-grd-go]'), _grdPick);
-  var f = (had && document.getElementById(had)) || root.querySelector('#grdPin, #grdCode') || root.querySelector('[aria-checked="true"]') || root.querySelector('button');
+  grdGoSet(root.querySelector('[data-grd-go]'), grdLockedFor(root));
+  var f = (had && document.getElementById(had)) || root.querySelector('[data-grd-sheet] [aria-checked="true"], [data-grd-sheet] button') ||
+    root.querySelector('#grdPin, #grdCode, #grdUp1') || root.querySelector('[aria-checked="true"]') || root.querySelector('.inv-guard-card button');
   if (f) { try { f.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
 /* The layer, made once and kept: the shell under it inert and hidden (body.inv-locked), nothing under it taking a tap or a
@@ -495,6 +678,7 @@ function grdShowLock(why) {
     ['keydown', 'keyup', 'input', 'change', 'touchstart', 'touchend'].forEach(function(t) {
       root.addEventListener(t, function(e) {
         if (t === 'keydown' && e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') { e.preventDefault(); grdLockSubmit(); }
+        if (t === 'keydown' && e.key === 'Escape' && _grdSheet) { e.preventDefault(); _grdSheet = false; grdRenderLock(); }
         e.stopPropagation();
       });
     });
@@ -504,6 +688,8 @@ function grdShowLock(why) {
   if (a && a.blur && !root.contains(a)) { try { a.blur(); } catch (e) { /* nothing focused */ } }
   _grdLocked = true;
   _grdForgot = false;
+  _grdUpgrade = null;
+  _grdSheet = false;
   if (why === 'switch') _grdPick = null;
   else if (!_grdPick) { try { _grdPick = localStorage.getItem(GRD_LAST_KEY) || null; } catch (e) { _grdPick = null; } }
   document.body.appendChild(root);
@@ -511,6 +697,18 @@ function grdShowLock(why) {
   document.body.classList.add('inv-locked');
   grdRenderLock();
   grdUserBtnDraw();
+  grdLockClockStart();
+}
+/* The desktop panel's clock, on the minute while the lock is down. */
+var _grdClockT = null;
+function grdLockClockStart() {
+  if (_grdClockT) return;
+  _grdClockT = setInterval(function() {
+    if (!_grdLocked) { clearInterval(_grdClockT); _grdClockT = null; return; }
+    var now = new Date(), c = document.querySelector('#guardRoot [data-grd-clock]'), d = document.querySelector('#guardRoot [data-grd-date]');
+    if (c) c.textContent = grdClock(now.getTime());
+    if (d) d.textContent = grdDateLine(now);
+  }, 15000);
 }
 function grdInertAll(on) {
   Array.prototype.forEach.call(document.body.children, function(el) {
@@ -522,6 +720,9 @@ function grdInertAll(on) {
 function grdHideLock() {
   _grdLocked = false;
   _grdForgot = false;
+  _grdUpgrade = null;
+  _grdSheet = false;
+  if (_grdClockT) { clearInterval(_grdClockT); _grdClockT = null; }
   document.body.classList.remove('inv-locked');
   grdInertAll(false);
   var root = document.getElementById('guardRoot');
@@ -560,6 +761,7 @@ function grdSignIn(u) {
   var now = Date.now();
   grdSessWrite({ userId: u.id, at: now, askAt: now, hiddenAt: null });
   try { localStorage.setItem(GRD_LAST_KEY, u.id); } catch (e) { /* remembered on this window only */ }
+  grdSeenNote(u.id);
   grdFailClear(u.id);
   _grdPick = u.id;
   // The owner looking at another's screen ends with the next sign-in (faces.js), the owner's own coming back included:
@@ -645,7 +847,7 @@ function grdRunWaiting() {
   waiting.forEach(function(fn) { try { fn(); } catch (e) { if (typeof errReport === 'function') errReport(e, 'guard: after the unlock'); } });
 }
 function grdLockSubmit() {
-  if (_grdForgot) grdRecover(); else grdUnlock();
+  if (_grdUpgrade) grdUpgradeSave(); else if (_grdForgot) grdRecover(); else grdUnlock();
 }
 function grdUnlock() {
   var root = document.getElementById('guardRoot');
@@ -660,16 +862,18 @@ function grdUnlock() {
   if (go) go.disabled = true;
   grdVerify(u.secret, pin).then(function(ok) {
     _grdBusy = false;
-    if (inp) inp.value = '';
+    if (inp) { inp.value = ''; if (inp.matches('[data-pin-input]')) grdPinSync(inp); }
     if (!_grdLocked) return;
     // Still the user chosen, and still active: another window may have changed the book meanwhile.
     var now = grdUserById(u.id);
+    // A PIN from before, right: asked to become four digits before the lock lifts (§15b); Later signs in on the old one.
+    if (ok && now && now.active !== false && !grdIsFour(now) && grdCryptoOk()) { grdFailClear(now.id); _grdUpgrade = now.id; grdRenderLock(); return; }
     if (ok && now && now.active !== false) { grdSignIn(now); return; }
     if (ok) { grdRenderLock(); return; }
     grdFailNote(u.id);
     // The field on screen is still this ID's only if the same person is still chosen.
     if (_grdPick !== u.id) return;
-    if (go) go.disabled = false;
+    grdGoSet(go, false);
     grdShowFail(err, go, null, u.id);
     if (inp) inp.focus();
   });
@@ -693,7 +897,7 @@ function grdRecover() {
     if (!ok) {
       _grdBusy = false;
       grdFailNote(u.id);
-      if (go) go.disabled = false;
+      grdGoSet(go, false);
       grdShowFail(err, go, 'recovery code', u.id);
       return null;
     }
@@ -711,6 +915,33 @@ function grdRecover() {
       grdShowCode(next, 'reset');
     });
   });
+}
+
+/* A PIN from before, replaced with four digits on the lock, then signed in (its save names them in the change log). */
+function grdUpgradeSave() {
+  var root = document.getElementById('guardRoot');
+  var u = _grdUpgrade ? grdUserById(_grdUpgrade) : null;
+  if (!root || !u || _grdBusy) return;
+  var err = root.querySelector('[data-grd-err]'), go = root.querySelector('[data-grd-go]');
+  var bad = grdPinProblem((root.querySelector('#grdUp1') || {}).value, (root.querySelector('#grdUp2') || {}).value);
+  if (bad) { if (err) { err.textContent = bad; grdPinWrong(err); } return; }
+  _grdBusy = true;
+  if (go) go.disabled = true;
+  grdMakeSecret(root.querySelector('#grdUp1').value).then(function(secret) {
+    _grdBusy = false;
+    var now = grdUserById(u.id);
+    if (!_grdLocked || _grdUpgrade !== u.id || !now || now.active === false) { if (_grdLocked) grdRenderLock(); return; }
+    now.secret = secret;
+    now.updatedAt = Date.now();
+    grdSignIn(now);
+    saveState();
+    showToast('Your PIN is four digits now');
+  });
+}
+function grdUpgradeLater() {
+  var u = _grdUpgrade ? grdUserById(_grdUpgrade) : null;
+  if (!u || u.active === false) { _grdUpgrade = null; grdRenderLock(); return; }
+  grdSignIn(u);
 }
 
 /* ---------- The top bar's button and its menu ---------- */
@@ -884,7 +1115,7 @@ function grdFormOpen(mode, id) {
   _grdForm = { mode: mode, id: id || null };
   var title = { on: 'Turn on the guard', add: 'Add a user', edit: 'Edit ' + escHtml(u ? u.name : ''), pin: 'Reset ' + escHtml(u ? u.name : '') + '’s PIN', mine: 'Change my PIN' }[mode];
   var pins = function(lbl) {
-    return grdFieldHtml('grdP1', lbl, grdPinInput('grdP1', null), GRD_MIN_LEN + ' characters or more: digits only bring up a number pad.') +
+    return grdFieldHtml('grdP1', lbl, grdPinInput('grdP1', null), 'Four digits: not one digit four times, a run like 1234, or a common PIN.') +
       grdFieldHtml('grdP2', lbl + ' again', grdPinInput('grdP2', null));
   };
   var roleSel = function(sel) {
@@ -920,8 +1151,10 @@ function grdFormOpen(mode, id) {
   var ok = { on: 'Turn on', add: 'Add user', edit: 'Save', pin: 'Set PIN', mine: 'Change PIN' }[mode];
   // The current PIN is checked under the ID it is for (the lockout's count, per ID).
   var errUid = mode === 'mine' ? grdUidAttr(grdUserId()) : '';
+  // The phone's keypad, where the form takes a PIN in wells.
+  var keys = !grdDesk() && /data-pin-input/.test(body) ? grdKeypadHtml() : '';
   dialogOpen('<div class="inv-dialog" data-grd-form="' + mode + '">' + dialogHeadHtml(title, 'invCloseConfirm') + body +
-    '<div class="inv-field-error" data-grd-err' + errUid + ' role="alert"></div>' +
+    '<div class="inv-field-error" data-grd-err' + errUid + ' role="alert"></div>' + keys +
     '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button>' +
     '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardFormSave" data-grd-go>' + ok + '</button></div></div>');
 }
@@ -945,7 +1178,7 @@ async function grdFormSave() {
     f.busy = true;
     var right = await grdVerify(me.secret, grdVal('grdCur'));
     f.busy = false;
-    if (!right) { grdFailNote(mid); grdShowFail(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'), null, mid); var c = document.getElementById('grdCur'); if (c) { c.value = ''; c.focus(); } return false; }
+    if (!right) { grdFailNote(mid); grdShowFail(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'), null, mid); var c = document.getElementById('grdCur'); if (c) { c.value = ''; if (c.matches('[data-pin-input]')) grdPinSync(c); c.focus(); } return false; }
     grdFailClear(mid);
     me = grdUser();
     // Still the person whose PIN was checked: a switch of user meanwhile changes nobody's PIN.
@@ -1205,7 +1438,8 @@ var GRD_SETTINGS_SEC = {
     '(an invoice or credit note issued, edited, cancelled, deleted or moved to another state; rates and the client master; any void; payments and wages; an import; Settings; users) ' +
     'once the second figure has passed since it was last given. A backup imported or a pull from GitHub replaces the book and its IDs, so it is the owner’s alone. ' +
     'Five wrong tries for an ID lock that ID for 30 seconds, doubling to 15 minutes; the others still unlock. ' +
-    'A PIN of four digits stops someone at the screen, not someone holding a copy of the book: give the owner six or more, or a password.',
+    'A PIN is four digits, not one digit four times, a run like 1234 or a common PIN; a PIN set before is asked to become four digits at its next sign-in. ' +
+    'A PIN stops someone at the screen; the recovery code keeps what is sealed.',
   saveIf: function() { return grdOn() && grdIsOwner(); },
   save: function() { return grdUsersSave(); }
 };
@@ -1213,7 +1447,18 @@ var GRD_SETTINGS_SEC = {
 /* ---------- Actions (events.js routes every invGuard… here) ---------- */
 function guardAction(action, btn) {
   switch (action) {
-    case 'invGuardPick': _grdPick = btn.dataset.id; _grdForgot = false; grdRenderLock(); return true;
+    case 'invGuardPick': _grdPick = btn.dataset.id; _grdForgot = false; _grdUpgrade = null; _grdSheet = false; grdRenderLock(); return true;
+    case 'invGuardNotYou': _grdSheet = true; grdRenderLock(); return true;
+    case 'invGuardSheetClose': _grdSheet = false; grdRenderLock(); return true;
+    case 'invGuardKey': grdPinKey(btn); return true;
+    case 'invGuardUpgrade': grdUpgradeSave(); return true;
+    case 'invGuardLater': grdUpgradeLater(); return true;
+    case 'invGuardTheme': {
+      var d = document.documentElement, dark = d.dataset.theme === 'dark' || (!d.dataset.theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (typeof appearanceSet === 'function') appearanceSet('theme', dark ? 'light' : 'dark');
+      if (_grdLocked) grdRenderLock();
+      return true;
+    }
     case 'invGuardUnlock': grdUnlock(); return true;
     case 'invGuardForgot': _grdForgot = btn.dataset.v === '1'; grdRenderLock(); return true;
     case 'invGuardRecover': grdRecover(); return true;

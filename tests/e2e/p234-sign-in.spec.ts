@@ -88,14 +88,15 @@ test.describe('P234: sign-in (phone)', () => {
     await expect(lock.locator('[data-grd-err]')).toHaveText('Wrong PIN · 4 tries left');
     await expect(lock.locator('[data-pin]')).toHaveAttribute('data-wrong', '');
     expect(await dots(page)).toBe(0);
-    const look = await lock.locator('[data-pin]').evaluate(el => {
+    // The well's edge eases into the danger tone (--dur-1): read once it has settled, as CI's runner can read it mid-way.
+    const look = () => lock.locator('[data-pin]').evaluate(el => {
       const w = el.querySelector('.inv-pin-well')!, probe = document.createElement('div');
       probe.style.color = 'var(--danger)'; document.body.appendChild(probe);
       const out = { border: getComputedStyle(w).borderTopColor, danger: getComputedStyle(probe).color, anim: getComputedStyle(el.querySelector('.inv-pin-wells')!).animationName };
       probe.remove(); return out;
     });
-    expect(look.border).toBe(look.danger);
-    expect(look.anim).toBe('inv-pin-shake');
+    await expect.poll(async () => { const l = await look(); return l.border === l.danger; }).toBe(true);
+    expect((await look()).anim).toBe('inv-pin-shake');
     // A digit typed again takes the red away.
     await tap(page, '4');
     await expect(lock.locator('[data-pin]')).not.toHaveAttribute('data-wrong', '');

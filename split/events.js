@@ -86,6 +86,8 @@ function onDocClick(e) {
     case 'invSwitchTab': wsSwitchTab(btn.dataset.tab, btn.dataset.v); break;
     // A guided flow's step opens its guide at the section it names (state.js uiFlowGuideGo).
     case 'invFlowGuide': uiFlowGuideGo(btn.dataset.id, btn.dataset.sec); break;
+    case 'invPointerOk': uiPointerClose(); break;
+    case 'invPointerGuide': uiPointerClose(); uiFlowGuideGo(btn.dataset.id, btn.dataset.sec); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an

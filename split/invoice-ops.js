@@ -437,7 +437,7 @@ function renderRegisterList() {
   let html = '';
 
   if (filtered.length === 0) {
-    html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
+    html += '<div class="inv-panel">' + uiEmptyHtml('No invoices found') + '</div>';
   } else {
     // Rows grouped by invoice date, each group with its count and taxable (§7).
     // Sorted by number they are grouped by series instead: a day heading over a
@@ -502,7 +502,7 @@ function regRowHtml(inv, opts) {
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();
   var html = '';
-  if (filtered.length === 0) return '<div class="inv-empty">No invoices found</div>';
+  if (filtered.length === 0) return uiEmptyHtml('No invoices found');
 
   var sc = getRegSortConfig();
   // The column heads the register sorts by; the rest are read-only.

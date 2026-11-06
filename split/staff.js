@@ -525,13 +525,9 @@ function attFloorOk() {
 function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWages(); }
 
 function _attEmptyRoster() {
-  return '<div class="inv-panel"><div class="inv-empty">' +
-    iconSvg('userCheck', 'inv-empty-icon') +
-    '<div>No one on the roster yet</div>' +
-    '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
-    'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button>' +
-    '</div></div>';
+  return '<div class="inv-panel">' + uiBlankHtml({ kind: 'empty', icon: 'users', title: 'No one on the roster yet',
+    body: 'Attendance and the labour breakdown both read the roster. Add each worker once with their comp class and rate; the wage arithmetic follows from there.',
+    action: '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button>' }) + '</div>';
 }
 
 /* ===== DAY VIEW ===== */
@@ -615,7 +611,7 @@ function _attDayView() {
     var dot = need == null ? '' : uiDot(areaNeedTone(on, need), areaNeedWord(on, need));
     html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
       ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
-      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : uiEmptyHtml('Nobody here today.')) + '</div>';
   });
   // A line's night (shifts.js): its hands in for the night, against the crew the schedule needs; a short night is a warning,
   // with the EXTRA it books a missing hand.
@@ -628,7 +624,7 @@ function _attDayView() {
       ' <span class="inv-panel-count">' + c.heads + (n.need ? '/' + n.need : '') + '</span></span>' + dot + '</div>' +
       (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '') +
       (c.heads > list.length ? '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-meta">' + (c.heads - list.length) + ' more on the night block, by the roll</span></span></div>' : '') +
-      (!c.heads ? '<div class="inv-empty">Nobody on the night yet: the night’s roll names them.</div>' : '') + '</div>';
+      (!c.heads ? uiEmptyHtml('Nobody on the night yet: the night’s roll names them.') : '') + '</div>';
   });
   // An area no longer on the list (a mark from an older build) still shows its hands.
   Object.keys(byArea).forEach(function(k) {
@@ -1082,7 +1078,7 @@ function _attExtraCard(iso, rec) {
   var html = '<div class="inv-panel inv-panel-flush" id="attExtra"><div class="inv-panel-head">' +
     '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>';
-  if (rows.length === 0) return html + '<div class="inv-empty">None booked for this day</div></div>';
+  if (rows.length === 0) return html + uiEmptyHtml('None booked for this day') + '</div>';
   // data-idx is the row's place in the day's rows, the made blocks included: the setters read it.
   all.forEach(function(x, i) {
     if (attSlotMade(x)) return;
@@ -1315,8 +1311,8 @@ function _attRosterView() {
   var head = (filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : 'Roster') + ' <span class="inv-panel-count">' + shown.length + '</span>';
   if (_isDesktop && all.length) return html + _attRosterDesktop(watched.concat(on), left, wages, watch, head);
   html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>';
-  if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
-  if (!shown.length) return html + '<div class="inv-empty">Nobody here: change the filter</div></div>';
+  if (all.length === 0) return html + uiEmptyHtml('Nobody on file yet') + '</div>';
+  if (!shown.length) return html + uiEmptyHtml('Nobody here: change the filter') + '</div>';
   // The roster as cards (UI pass 3 §12): the hands to watch first, then the active by tier; the hands who left under Left, folded.
   html += '<div class="inv-panel-body"><div class="inv-deck" data-deck-sm data-roster-deck>' + watched.concat(on).map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>';
   if (left.length) html += _attRosterLeftHtml(left, wages, watch);
@@ -1400,7 +1396,7 @@ function _attRosterDesktop(list, left, wages, watch, head) {
   if (!open) _attRosterOpen = null;
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
     '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>' +
-    (list.length || left.length ? '' : '<div class="inv-empty">Nobody here: change the filter</div>') +
+    (list.length || left.length ? '' : uiEmptyHtml('Nobody here: change the filter')) +
     (list.length ? '<div class="inv-panel-body"><div class="inv-deck" data-roster-deck>' + list.map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>' : '') +
     (left.length ? _attRosterLeftHtml(left, wages, watch) : '') + '</div>';
   return h + '</div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
@@ -1433,7 +1429,7 @@ function _attWorkerPaneHtml(w, wages) {
       '<div class="inv-tile"><div class="inv-tile-label">Absent</div><div class="inv-tile-value">' + n.A + '</div><div class="inv-tile-sub">marked absent</div></div>' +
       '<div class="inv-tile"><div class="inv-tile-label">Hours</div><div class="inv-tile-value">' + formatNum(hours, 0) + '</div><div class="inv-tile-sub">' + (ot ? formatNum(ot, 0) + ' of them OT' : 'no OT') + '</div></div>' +
       '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
-  } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
+  } else h += uiEmptyHtml('No day in the last 28 marks this worker.');
   h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
   // Their record (people.js): tenure, reliability, consistency, workload, skills, ties; the owner's alone, motivation and details.
   return h + pplRecordHtml(w);

@@ -243,7 +243,7 @@ function psOpen(keepMonth) {
     '<div class="inv-panel inv-panel-flush inv-mt-8">' +
       group(weekly.length ? 'Weekly · ' + psPeriodLabel(weekly[0]) : '', weekly) +
       group(monthly.length ? 'Monthly · ' + psPeriodLabel(monthly[0]) : '', monthly) +
-      (rows.length ? '' : '<div class="inv-empty">Nobody earned, was paid or carries a balance in ' + escHtml(_monthLabel(month)) + '.</div>') + '</div>' +
+      (rows.length ? '' : uiEmptyHtml('Nobody earned, was paid or carries a balance in ' + escHtml(_monthLabel(month)) + '.')) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
       '<button class="inv-btn inv-btn-primary" data-action="invPsPrint"' + (rows.length ? '' : ' disabled') + '>Preview</button></div></div>', { dismiss: true, replace: !!keepMonth });
 }

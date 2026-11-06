@@ -629,7 +629,7 @@ function todoHomeOpts(n) {
     if (g === 'now' && r.app && r.app.worth > 0) worth += r.app.worth;
   });
   var rows = '';
-  if (!ranked.length) rows = '<div class="inv-empty">Nothing due</div>';
+  if (!ranked.length) rows = uiEmptyHtml('Nothing due');
   (nowRows.length ? nowRows : ranked).slice(0, n || 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {

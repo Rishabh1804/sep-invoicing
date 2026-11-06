@@ -201,7 +201,7 @@ function pipeStageTileHtml(s) {
 
 /* ---------- The open stage's list ---------- */
 function pipeListHtml(s) {
-  if (!s) return '<div class="inv-panel"><div class="inv-empty">Nothing is on its way: no challan awaits an invoice, and every invoice is filed. Create invoice starts the next one.</div></div>';
+  if (!s) return '<div class="inv-panel">' + uiEmptyHtml('Nothing is on its way: no challan awaits an invoice, and every invoice is filed. Create invoice starts the next one.') + '</div>';
   if (s.key === 'awaiting') return pipeAwaitingHtml(s);
   if (s.key === 'owed') return pipeOwedHtml(s);
   return pipeInvoicesHtml(s);

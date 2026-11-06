@@ -30,7 +30,7 @@ function finClientMoneyHtml(clientId) {
   var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money' +
     ' <span class="inv-panel-count">since ' + escHtml(stockShortDate(m.from)) + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(clientId)) + '">Open in Finance</button></div>';
-  if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.</div></div>';
+  if (!m.r) return h + uiEmptyHtml('Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.') + '</div>';
   var row = function(k, v, sub, title) {
     return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
@@ -213,7 +213,7 @@ function finWagesHtml(cls, where) {
   // One line (the tab map, TM6e): how a cash draw is read, wages to the week's payout and drawings past it, is the guide's (Using the
   // app: pay).
   var h = '<div class="inv-panel-body inv-note">Cash drawn is wages up to each week’s payout, drawings past it.</div>';
-  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
+  if (!months.length) h += uiEmptyHtml('No wages on the statement.');
   // The latest three months; the rest one tap away.
   h += uiMoreHtml('pay-wages-months', months.map(function(m) {
     var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01')), named = Object.keys(e.named);

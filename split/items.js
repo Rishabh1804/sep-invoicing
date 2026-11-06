@@ -219,7 +219,7 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
         '<span class="inv-row-end inv-num">' + usage.total + '</span></div>' +
         '<div class="inv-row"><span class="inv-row-main">In the last 30 days</span><span class="inv-row-end inv-num">' + usage.recent + '</span></div>';
     } else {
-      html += '<div class="inv-empty">Unused: on no invoice or challan.</div>';
+      html += uiEmptyHtml('Unused: on no invoice or challan.');
     }
     html += '</div>';
     html += kbLinkedHtml('part', item.id, item.partNumber, 'Knowledge');
@@ -353,7 +353,7 @@ function _renderItemsList() {
   var total = _itemsSorted.length;
 
   if (total === 0) {
-    listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
+    listEl.innerHTML = _isDesktop ? uiEmptyHtml('No items found') : '<div class="inv-panel">' + uiEmptyHtml('No items found') + '</div>';
   } else {
     var moreKey = 'items-' + view;
     listEl.innerHTML = _isDesktop ? _itemsTableHtml(_itemsSorted, moreKey)
@@ -553,7 +553,7 @@ function openMergeTool() {
     dialogHeadHtml('Merge duplicates');
 
   if (groups.length === 0) {
-    html += '<div class="inv-empty">No duplicate groups found</div>';
+    html += uiEmptyHtml('No duplicate groups found');
   } else {
     html += '<p class="inv-note">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found, each of one gauge. Pick the item to keep in each group, then merge.</p>' +
       '<div class="inv-scroll">';
@@ -863,7 +863,7 @@ function _partWeightsCount() {
 
 function renderPartWeightsList() {
   const entries = Object.entries(S.partWeights || {});
-  if (entries.length === 0) return '<div class="inv-empty">No part weights defined yet</div>';
+  if (entries.length === 0) return uiEmptyHtml('No part weights defined yet');
   return entries.map(([part, wt]) =>
     '<div class="inv-row"><span class="inv-row-main inv-row-title inv-id">' + escHtml(part) + '</span>' +
     '<span class="inv-row-end"><span class="inv-num">' + escHtml(wt) + '</span> kg' +

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="f261d095">
+<meta name="app-build" content="a1fdc8e1">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -79,7 +79,7 @@
   /* Type sizes (§3.4). */
   --fs-11: 0.6875rem; --fs-12: 0.75rem; --fs-13: 0.8125rem; --fs-14: 0.875rem; --fs-16: 1rem;
   --fs-17: 1.0625rem; --fs-18: 1.125rem; --fs-19: 1.1875rem; --fs-22: 1.375rem; --fs-24: 1.5rem;
-  --ls-tight: -0.02em;
+  --ls-tight: -0.02em; --ls-caps: 0.04em;
 
   --sp-2: 0.125rem; --sp-4: 0.25rem; --sp-6: 0.375rem;
   --sp-8: 0.5rem; --sp-10: 0.625rem; --sp-12: 0.75rem;
@@ -183,7 +183,7 @@
   --kb-measure: 42rem; --kb-ico: 2rem; --kb-ico-sm: 1.5rem; --kb-glance-k: 6.5rem; --kb-big-h: 3.125rem; --kb-card-w: 15rem; --kb-lib-w: 17.5rem; --kb-ctx-w: 20rem; --kb-rail-w: 4rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
-  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem;
+  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --pointer-w: 20rem;
   --r-toast: calc(var(--sp-10) + 0.5lh);
   --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem;
   --palette-h: 32rem;   /* the search palette's one height on the desktop (search.js) */
@@ -1254,6 +1254,12 @@ body.inv-desktop .inv-page-active:has(.inv-pane-host):not(:has(.inv-hidden .inv-
 body.inv-desktop .inv-pane-host {
   display: flex; flex: 1 1 0; min-height: var(--pane-host-min); overflow: hidden; container: masterdetail / inline-size;
 }
+/* The list stands in a card on the page (UI pass 3, §14a): the host is the card, the list and the pane its two columns, each
+   scrolling inside it; the table's head stays at the card's top in the card's own colour. Rows keep their heights. */
+body.inv-desktop .inv-pane-host {
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-1);
+}
+body.inv-desktop .inv-pane-host .inv-table thead th { background: var(--surface); }
 body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; container: list / inline-size; }
 
 /* A list's selection bar stays in view at the foot of the page: above the bottom bar on the phone, at the edge on the
@@ -1799,6 +1805,9 @@ button.inv-row:hover, a.inv-row:hover { background: var(--surface-2); }
 .inv-row-end .inv-btn-link { font-size: var(--fs-13); }
 /* On the phone an end can stack its figure over its status, so the title keeps its room (Power → Cuts). */
 body:not(.inv-desktop) .inv-row-end-stack { flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
+/* Two status badges at a row's end stack on the phone (UI pass 3, U7): each carries its icon now, and side by side they took the
+   room a row's meta line needs (Knowledge's article with *Published* and *Change waiting*). */
+body:not(.inv-desktop) .inv-row-end:has(> .inv-badge ~ .inv-badge) { flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 button.inv-row-main { display: block; padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; align-self: stretch; }
 /* A row's button reaches the row's top and bottom edges, over its padding, so the row's full height is the tap: it stopped
    short by the padding and was 43px on a two-line row, 31px on a one-line one. */
@@ -1871,7 +1880,7 @@ details.inv-row-fold[open] > summary::after { transform: translateY(-25%) rotate
 .inv-row-group {
   display: flex; justify-content: space-between; align-items: center; min-height: var(--sp-32);
   padding: 0 var(--pad-x); background: var(--bg); border-bottom: var(--hair) solid var(--border);
-  font-size: var(--fs-12); color: var(--text-3);
+  font-size: var(--fs-12); color: var(--text-3); font-variant-caps: all-small-caps; letter-spacing: var(--ls-caps);
 }
 .inv-row-selected, .inv-row[aria-selected="true"] { background: var(--accent-soft); }
 /* A row holding blocks (a quoted line, a callout, a field) keeps its end at the top. */
@@ -1925,10 +1934,10 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 /* The open row is marked by its rule; a ticked row keeps the selection fill. A muted
    (cancelled) row fades through .inv-row-muted on the tr — fading the cells as well
    compounded to a third. */
-.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
+.inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--accent-soft); }
 .inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A row list beside its pane marks the open record the way a table does (Receivables, Production → Entries). */
-.inv-row[aria-current="true"] { background: var(--surface-2); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
+.inv-row[aria-current="true"] { background: var(--accent-soft); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
 .inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2019,6 +2028,13 @@ body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 .inv-badge-ok { background: var(--ok-bg); color: var(--ok); }
 .inv-badge-info { background: var(--info-bg); color: var(--info); }
 .inv-badge-neutral { background: var(--surface-2); color: var(--text-2); }
+/* A status badge carries its tone's icon before its word (§3d, §14a; uiStatusIconVars draws each as a mask). Neutral has none. */
+:is(.inv-badge-ok, .inv-badge-warning, .inv-badge-danger, .inv-badge-info)::before {
+  content: ''; flex: none; width: var(--sp-12); height: var(--sp-12); background: currentColor; -webkit-mask: var(--ico-ok) center / contain no-repeat; mask: var(--ico-ok) center / contain no-repeat;
+}
+.inv-badge-warning::before { -webkit-mask-image: var(--ico-warning); mask-image: var(--ico-warning); }
+.inv-badge-danger::before { -webkit-mask-image: var(--ico-danger); mask-image: var(--ico-danger); }
+.inv-badge-info::before { -webkit-mask-image: var(--ico-info); mask-image: var(--ico-info); }
 
 /* §6.14 Detail pane and key/value grid */
 .inv-pane { background: var(--surface); border-left: var(--hair) solid var(--border); padding: var(--sp-16); display: flex; flex-direction: column; gap: var(--sp-12); }
@@ -2203,12 +2219,18 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
 }
-.inv-dialog-title { min-width: 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
+.inv-dialog-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; overflow-wrap: anywhere; }
 /* The content between a dialog's head and its foot: a name typed without a space (a part, a client) breaks rather than pushing
    the sheet past the phone's edge, and nothing else about its size changes. */
 .inv-dialog-body { overflow-wrap: break-word; }
-.inv-dialog-close { border-color: transparent; background: none; box-shadow: none; color: var(--text-3); font-size: var(--fs-19); }
+.inv-dialog-close { flex: none; border-color: transparent; background: none; box-shadow: none; color: var(--text-2); }
 .inv-dialog-close:hover { color: var(--text-1); }
+/* A sheet (a dialog on the phone, More and Filter among them, UI pass 3 §14a) shows its grabber: a short bar centred over its head,
+   decorative (a sheet is closed by its ×, Back or the scrim, never by a drag). */
+body:not(.inv-desktop) .inv-dialog::before {
+  content: ''; display: block; flex: none; width: var(--sp-32); height: var(--sp-4); margin: calc(var(--sp-8) - var(--sp-20)) auto var(--sp-12);
+  border-radius: var(--r-full); background: color-mix(in oklab, var(--text-3) 45%, transparent);
+}
 /* The actions, primary last, held at the foot of a dialog that scrolls. */
 .inv-dialog-foot {
   position: sticky; bottom: calc(var(--sp-20) * -1); z-index: 1;
@@ -2221,6 +2243,8 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   .inv-dialog { animation: inv-slide-up var(--dur-2) var(--ease); }
   body.inv-desktop .inv-dialog { animation-name: inv-scale-in; }
   .inv-toast { animation: inv-fade-in var(--dur-1) var(--ease); }
+  /* A dialog drawn again in place does not slide in again (§14a). */
+  .inv-scrim-dialog[data-redrawn] > .inv-dialog { animation: none; }
 }
 @keyframes inv-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes inv-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -2263,13 +2287,36 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
   background: var(--text-1); color: var(--surface); border-radius: var(--r-toast); box-shadow: var(--shadow-pop);
   font-size: var(--fs-14); font-weight: 500;
 }
-.inv-toast::before {
-  content: ''; display: inline-block; width: var(--sp-8); height: var(--sp-8); border-radius: 50%; margin-right: var(--sp-8); vertical-align: middle;
+/* Its kind's icon leads (§14a): the status mark of the other theme, since the toast's fill is the other theme's (it inverts). */
+.inv-toast { display: flex; align-items: flex-start; gap: var(--sp-8); }
+.inv-toast-ico { flex: none; width: var(--sp-20); height: var(--sp-20); --ico-tint: transparent; color-scheme: dark; }
+:root[data-theme="dark"] .inv-toast-ico { color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .inv-toast-ico { color-scheme: light; } }
+.inv-toast-success .inv-toast-ico { color: var(--ok-mark); }
+.inv-toast-error .inv-toast-ico { color: var(--danger-mark); }
+.inv-toast-warning .inv-toast-ico { color: var(--warning-mark); }
+.inv-toast-info .inv-toast-ico { color: var(--info-mark); }
+
+/* First-visit pointers (UI pass 3, §14d; design §6.39): a small card floating by the control it names, a layer (it floats like a menu),
+   its arrow at the control; placed by uiPointerPlace's custom properties, so nothing on the screen moves for it. */
+.inv-pointer {
+  --surface: light-dark(var(--c-surface), var(--c-surface-2));
+  position: fixed; top: var(--ptr-top); left: var(--ptr-left); z-index: var(--z-dropdown); width: max-content; max-width: min(calc(100vw - var(--sp-16)), var(--pointer-w));
+  padding: var(--sp-12) var(--sp-12) var(--sp-8); border: var(--hair) solid color-mix(in oklab, var(--accent) 45%, var(--edge)); border-radius: var(--r-tile);
+  background: var(--surface); box-shadow: var(--shadow-dialog); color: var(--text-1); font-size: var(--fs-13); line-height: 1.4;
 }
-.inv-toast-success::before { background: var(--ok); }
-.inv-toast-error::before { background: var(--danger); }
-.inv-toast-warning::before { background: var(--warning); }
-.inv-toast-info::before { background: var(--info); }
+.inv-scrim .inv-pointer { z-index: var(--z-dialog); }
+.inv-pointer::before {
+  content: ''; position: absolute; left: var(--ptr-arrow); width: var(--sp-10); height: var(--sp-10); transform: translateX(-50%) rotate(45deg);
+  background: var(--surface); border: var(--hair) solid color-mix(in oklab, var(--accent) 45%, var(--edge));
+}
+.inv-pointer[data-side="below"]::before { top: calc(var(--sp-10) / -2); border-right: none; border-bottom: none; }
+.inv-pointer[data-side="above"]::before { bottom: calc(var(--sp-10) / -2); border-left: none; border-top: none; }
+.inv-pointer-text { margin: 0 0 var(--sp-6); }
+.inv-pointer-text strong { color: var(--accent-soft-text); }
+.inv-pointer-acts { display: flex; justify-content: flex-end; gap: var(--sp-6); }
+@media (prefers-reduced-motion: no-preference) { .inv-pointer { animation: inv-fade-in var(--dur-2) var(--ease); } }
+@media print { .inv-pointer { display: none; } }
 
 /* §6.18 Callouts, notes, empty states */
 .inv-callout {
@@ -2296,12 +2343,6 @@ ul.inv-note { padding-left: var(--sp-16); }
 /* A fold opened by a link-like summary ("Message text"). */
 summary.inv-summary { display: inline-block; list-style: none; font-size: var(--fs-12); }
 summary.inv-summary::-webkit-details-marker { display: none; }
-.inv-empty {
-  padding: var(--sp-24) var(--sp-16); text-align: center; color: var(--text-3); font-size: var(--fs-13);
-  border: none; background: none;
-}
-.inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
-.inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
 
 /* A register photo on its check (Production → Read register photo): the picture as wide as the panel, never wider. */
 .inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-tile); }
@@ -2351,19 +2392,21 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 :is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
 
 /* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
-   tone, and, as a <details>, folds open to what is under it. A card (UI pass 3, §3b, §3d): lifted (--lift-1), a card's corners,
-   filled in its tone from its tone's background to a step deeper (160°), as on the approved board; a plain card is the surface. */
+   tone, and, as a <details>, folds open to what is under it. A card (UI pass 3, §3b; §14a, U7): lifted (--lift-1), a card's corners,
+   the board's rule for its tone (§24c): quiet while all is well (the surface, its tone in its figure and icon alone), a top edge from
+   amber, the edge and the red tint for red. The 160° wash of §3d is gone. */
 .inv-hero {
-  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--edge));
-  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-card); color: var(--text-1); margin-bottom: var(--gap);
-  box-shadow: var(--lift-1);
-  background: linear-gradient(160deg, var(--tone-bg) 0%, color-mix(in oklab, var(--tone) 7%, var(--tone-bg)) 100%);
+  --hero-tone: var(--accent-soft-text);
+  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--edge); border-radius: var(--r-card); color: var(--text-1); margin-bottom: var(--gap);
+  box-shadow: var(--lift-1); background: var(--surface);
 }
+.inv-hero-warning { box-shadow: inset 0 var(--tone-edge) 0 0 var(--warning-mark), var(--lift-1); }
+.inv-hero-danger { background: var(--card-danger); box-shadow: inset 0 var(--tone-edge) 0 0 var(--danger-mark), var(--lift-1); }
 .inv-hero-danger { --hero-tone: var(--danger); }
 .inv-hero-warning { --hero-tone: var(--warning); }
 .inv-hero-ok { --hero-tone: var(--ok); }
 .inv-hero-info { --hero-tone: var(--info); }
-.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--edge); }
+.inv-hero-neutral { --hero-tone: var(--text-1); }
 .inv-hero-head {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
   padding: var(--sp-12) var(--sp-16); list-style: none;
@@ -2392,14 +2435,10 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
 .inv-hero-body + .inv-hero-foot { padding-top: 0; }
 
-/* §6.26 The boxes inside a card (UI pass 3, §3b): a card in its deck lifts off it, lighter than the card in both themes and in its
-   own tone where it has one; a tile sinks into it, a well; what a hero opens to (its sheet: rows, a question's story) draws no box
-   of its own, only a hairline under the head. */
-.inv-deck-item {
-  background: linear-gradient(160deg,
-    light-dark(color-mix(in oklab, var(--tone-bg) 40%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg))) 0%,
-    light-dark(color-mix(in oklab, var(--tone-bg) 75%, var(--surface)), color-mix(in oklab, var(--tone) 8%, var(--tone-bg))) 100%);
-}
+/* §6.26 The boxes inside a card (UI pass 3, §3b; §14a, U7): a card in its deck lifts off it, the surface with its tone's left rule
+   (no wash); a tile sinks into it, a well; what a hero opens to (its sheet: rows, a question's story) draws no box of its own, only a
+   hairline under the head. */
+.inv-deck-item { background: var(--surface); }
 /* A tile in a coded block that names a tone is a well of it: a step deeper in its tone than the card in light, its tone sunk toward
    the page in dark. A tile that names none is the card's own fill under the well's veil (.inv-tile), never coded in the card's tone. */
 :is(.inv-hero, .inv-coded) .inv-tile:is(.inv-tile-danger, .inv-tile-warning, .inv-tile-ok, .inv-tile-info, [data-tone]) {
@@ -2407,22 +2446,22 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
     light-dark(color-mix(in oklab, var(--tone) 13%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 60%, var(--bg))) 0%,
     light-dark(color-mix(in oklab, var(--tone) 9%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 45%, var(--bg))) 100%);
 }
-.inv-hero-sheet { border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero-sheet { border-top: var(--hair) solid var(--border); }
 /* What a sheet holds is drawn on the card: a panel or a strip inside it has no fill or box of its own, and its hairlines
    take the card's tone. */
 .inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; box-shadow: none; }
-.inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: var(--border); }
 /* An analysis's caption and its folded working (§6.27) are drawn on the card's box: no page-coloured band, the card's hairlines. */
-.inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
-.inv-hero details.inv-row-fold > summary:hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+.inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: var(--border); }
+.inv-hero details.inv-row-fold > summary:hover { background: var(--surface-2); }
 :is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--edge)); }
-.inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+.inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: var(--surface-2); }
 /* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
-.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)), .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
+.inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
   background: light-dark(color-mix(in oklab, var(--tone-bg) 55%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg)));
   border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
 }
-.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover, .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+.inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* The sheet reaches the card's edges: a row inside keeps the width a flush panel's row has, and the last one keeps the card's
    corners (a hovered row's fill stays inside them). */
 .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); }
@@ -2477,7 +2516,7 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-deck[data-deck-sm] { --deck-min: var(--deck-min-sm); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
-  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--edge)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
+  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--edge)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 80%, var(--surface));
   border-radius: var(--r-card); box-shadow: var(--lift-1); transition: border-color var(--dur-1);
 }
 .inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
@@ -2730,6 +2769,10 @@ a.inv-btn { text-decoration: none; }
    button with role=option), its cursor aria-selected as in a suggestion list (§6.16). */
 .inv-dialog-palette { display: flex; flex-direction: column; overflow: hidden; }
 .inv-dialog-palette > .inv-dialog-head, .inv-dialog-palette > .inv-search, .inv-dialog-palette > .inv-keys { flex: 0 0 auto; }
+/* Search's field is a large well with its icon (UI pass 3, §14a); each result is led by its kind's icon. */
+.inv-dialog-palette > .inv-search { min-height: calc(var(--ctl-h) + var(--sp-8)); padding: 0 var(--sp-16); }
+.inv-dialog-palette > .inv-search svg { width: var(--sp-20); height: var(--sp-20); }
+.inv-dialog-palette > .inv-search input { font-size: var(--fs-16); }
 .inv-dialog-palette > [role="listbox"] { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin: var(--sp-12) 0 0; }
 .inv-dialog-palette > .inv-keys { margin: auto 0 0; padding-top: var(--sp-12); align-items: center; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
@@ -5137,10 +5180,127 @@ function uiBlankHtml(o) {
   var icon = typeof iconSvg === 'function' ? iconSvg(o.icon || UI_BLANK_ICON[kind]) : '';
   return '<div class="inv-blank' + (o.small ? ' inv-blank-sm' : '') + '" data-blank="' + kind + '"' + (kind === 'loading' ? ' aria-busy="true"' : '') + '>' +
     '<span class="inv-blank-icon">' + icon + '</span><div class="inv-blank-text">' +
-    (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : '') +
-    (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : '') + '</div>' +
+    (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : o.titleHtml ? '<p class="inv-blank-title">' + o.titleHtml + '</p>' : '') +
+    (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : o.bodyHtml && !o.small ? '<p class="inv-blank-body">' + o.bodyHtml + '</p>' : '') + '</div>' +
     (o.action ? '<div class="inv-blank-act">' + o.action + '</div>' : '') + '</div>';
 }
+/* A screen's own empty text as the blank state (UI pass 3, §14b, U7): every list, panel and chart that once drew its own "No …" line
+   draws this, so an empty place reads one way across the app. `html` is the screen's words, already escaped (a link or a name in it
+   kept): its first sentence the title, the rest under it; a text with markup, or one sentence, is its own title when short and the
+   body under the icon when long. kind: empty (the default), early, notset, offline, error (uiBlankHtml's). */
+function uiEmptyHtml(html, kind) {
+  var h = String(html == null ? '' : html), o = { kind: kind || 'empty' };
+  var plain = !/[<&]/.test(h), cut = plain ? h.search(/[.:;] (?=[A-Z])/) : -1;
+  if (cut > 0 && cut < 70) { o.titleHtml = h.slice(0, cut + 1); o.bodyHtml = h.slice(cut + 2); }
+  else if (h.replace(/<[^>]*>|&[a-z]+;/g, ' ').length <= 70) o.titleHtml = h;
+  else o.bodyHtml = h;
+  return uiBlankHtml(o);
+}
+/* ===== FIRST-VISIT POINTERS (docs/UI_PASS_3.md §14d, §26e; design §6.39) =====
+   A small card pointing at one control the first time a person meets it: *New: …*, **Read the guide** (its guide, at the section)
+   and **Got it**. Shown once a person a device (localStorage sep_inv_pointers, keyed by the ID signed in, '-' with the guard off),
+   at most one a screen visit, only once the screen has drawn and the control is in view; never over a form with typed work, a
+   dialog the control is not in, or a board being arranged; off under a test browser unless a fixture turns it on
+   (window.__sepPointersOn). It floats (fixed, placed by two custom properties under or over its control), so nothing on the screen
+   moves for it, and it takes no focus: Escape or Got it shuts it. A pointer is {id, at (its control), text, guide: [id, section]}. */
+var UI_POINTERS = [
+  { id: 'home-customise', at: '#pageHome [data-action="invWdgArrange"][data-board="home"]', text: 'Customise moves, sizes and adds the cards on Home.', guide: ['app-today', 'Customise and More'] },
+  { id: 'gallery-sections', at: '.inv-gallery-chips', text: 'Pick a kind to see only those widgets.', guide: ['app-today', 'Arrange the widgets'] },
+  { id: 'stats-tables', at: '#statsToolbar .inv-viewtab[data-tab="tables"]', text: 'Tables holds the figures behind the Dashboard, sorted by any head.', guide: ['app-stats', 'Tables'] },
+  { id: 'stock-spend', at: '#pageStock [data-action="invStockSpend"]', text: 'Spend and prices: what each line costs, from whom, and its price over time.', guide: ['app-stock', 'Spend and prices'] },
+  { id: 'flow-preview', at: '.inv-page-active [data-flow-preview]', text: 'What Save records says what Save writes, and the checks, before you save.', guide: ['app-add', ''] },
+  { id: 'roster-cards', at: '#pageStaff [data-roster-card]', text: 'Each hand is a card. Tap one to open the record.', guide: ['app-day', 'Roster'] },
+  { id: 'case-full', at: '#pagePower [data-action="invPowerCaseFull"]', text: 'The picture leads. The full case is here, under it.', guide: ['app-power', 'Case'] },
+  { id: 'messages-reread', at: '#pageMessages [data-action="invTbMore"]', text: 'Read every message again, under More, lists what the reader now reads otherwise.', guide: ['app-messages', 'Read every message again'] },
+  { id: 'prod-photo', at: '#pageProduction [data-action="invTbMore"]', text: 'Read register photo, under More: Claude reads a page of the VAT register.', guide: ['app-production', 'Put the data in'] }
+];
+var PTR_KEY = 'sep_inv_pointers';
+var _ptrVisit = '', _ptrTimer = null;
+function uiPointersOn() { return !navigator.webdriver || !!window.__sepPointersOn; }
+function _ptrWho() { return typeof grdOn === 'function' && grdOn() ? (grdUserId() || '-') : '-'; }
+function _ptrSeen() { try { var m = JSON.parse(localStorage.getItem(PTR_KEY) || '{}'); return (m && typeof m === 'object' ? m : {}); } catch (e) { return {}; } }
+function uiPointerSeen(id) { var m = _ptrSeen(), w = m[_ptrWho()]; return !!(w && w[id]); }
+function _ptrMark(id) {
+  var m = _ptrSeen(), w = _ptrWho();
+  m[w] = m[w] || {}; m[w][id] = Date.now();
+  try { localStorage.setItem(PTR_KEY, JSON.stringify(m)); } catch (e) { /* a pointer seen again is no harm */ }
+}
+/* Where the screen ends for a pointer: the window's foot, or the top of what floats over the page's foot (the phone's bar, a sticky
+   action bar), so a pointer never covers them nor points at a control behind them. */
+function _ptrFoot(inLayer) {
+  var foot = window.innerHeight;
+  if (inLayer) return foot;
+  document.querySelectorAll('.inv-navbar, .inv-page-active .inv-actionbar').forEach(function(b) {
+    var r = b.getBoundingClientRect();
+    if (r.height && r.top < foot && r.top > window.innerHeight / 2) foot = r.top;
+  });
+  return foot;
+}
+/* The control a pointer points at, if it may be pointed at now: drawn, wholly in view, not under a layer it is not part of. */
+function _ptrAnchor(pt) {
+  var el = document.querySelector(pt.at);
+  if (!el || !el.isConnected || el.closest('[hidden], .inv-hidden')) return null;
+  var r = el.getBoundingClientRect();
+  if (!r.width || !r.height || r.top < 0 || r.bottom > _ptrFoot(!!el.closest('.inv-scrim')) || r.left < 0 || r.right > window.innerWidth) return null;
+  var scrims = document.querySelectorAll('.inv-scrim');
+  if (scrims.length && !scrims[scrims.length - 1].contains(el)) return null;
+  return el;
+}
+function uiPointerSchedule() {
+  if (_ptrTimer || !uiPointersOn()) return;
+  _ptrTimer = setTimeout(function() { _ptrTimer = null; try { uiPointerTick(); } catch (e) { /* a pointer never takes a render with it */ } }, 700);
+}
+function uiPointerTick() {
+  if (!uiPointersOn() || !S) return;
+  // A pointer whose control has gone, or whose screen was left, goes with it.
+  var cur = document.querySelector('.inv-pointer');
+  if (cur) { if (!cur._at || !cur._at.isConnected || location.search !== _ptrVisit) uiPointerClose(); else return; }
+  if (_pageTyped || document.querySelector('.inv-scrim-dialog[data-typed], .inv-wboard[data-arranging], body.inv-locked, .inv-print-view-active')) return;
+  var visit = location.search;
+  if (visit === _ptrVisit) return;
+  for (var i = 0; i < UI_POINTERS.length; i++) {
+    var pt = UI_POINTERS[i];
+    if (uiPointerSeen(pt.id)) continue;
+    var el = _ptrAnchor(pt);
+    if (!el) continue;
+    uiPointer(pt, el);
+    _ptrVisit = visit;
+    return;
+  }
+}
+/* Draws one pointer at its control and marks it seen. */
+function uiPointer(pt, el) {
+  _ptrMark(pt.id);
+  var box = document.createElement('div');
+  box.className = 'inv-pointer';
+  box.setAttribute('role', 'note');
+  box.dataset.pointer = pt.id;
+  box.innerHTML = '<p class="inv-pointer-text"><strong>New:</strong> ' + escHtml(pt.text) + '</p><div class="inv-pointer-acts">' +
+    (pt.guide && pt.guide[0] ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPointerGuide" data-id="' + escHtml(pt.guide[0]) + '" data-sec="' + escHtml(pt.guide[1] || '') + '">Read the guide</button>' : '') +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPointerOk">Got it</button></div>';
+  var host = el.closest('.inv-scrim') || document.body;
+  host.appendChild(box);
+  box._at = el;
+  uiPointerPlace(box);
+}
+function uiPointerPlace(box) {
+  box = box || document.querySelector('.inv-pointer');
+  if (!box) return;
+  var el = box._at;
+  if (!el || !el.isConnected) { uiPointerClose(); return; }
+  var r = el.getBoundingClientRect(), h = box.offsetHeight, w = box.offsetWidth, gap = 10, foot = _ptrFoot(!!el.closest('.inv-scrim'));
+  var below = r.bottom + gap + h <= foot || r.top - gap - h < 0;
+  var left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+  box.dataset.side = below ? 'below' : 'above';
+  box.style.setProperty('--ptr-top', Math.round(below ? r.bottom + gap : r.top - gap - h) + 'px');
+  box.style.setProperty('--ptr-left', Math.round(left) + 'px');
+  box.style.setProperty('--ptr-arrow', Math.round(Math.max(16, Math.min(w - 16, r.left + r.width / 2 - left))) + 'px');
+}
+function uiPointerClose() { document.querySelectorAll('.inv-pointer').forEach(function(b) { b.remove(); }); }
+window.addEventListener('resize', function() { uiPointerPlace(); });
+document.addEventListener('scroll', function() { if (document.querySelector('.inv-pointer')) uiPointerPlace(); else uiPointerSchedule(); }, true);
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.querySelector('.inv-pointer')) uiPointerClose(); }, true);
+
 /* ===== A GUIDED FLOW (docs/UI_PASS_3.md §11a, §26b; design §6.37) =====
    The owner, 15 Oct 2026: "The Enter by hand screen is primitive in design, and doesn't engage or leads the user, increases the
    learning curve." Every form a person fills by hand is cut into numbered steps that lead without hiding: each step its number in
@@ -5674,6 +5834,18 @@ function iconSvg(name, cls) { return iconPathSvg(ICONS[name] || '', cls); }
 function iconPathSvg(paths, cls) {
   return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' ' + ICON_ATTRS + '>' + String(paths || '').replace(/<path d="d:/g, '<path class="inv-ico-tint" d="') + '</svg>';
 }
+/* A status badge carries its tone's icon (UI pass 3, §3d, §14a): each of the four status icons is set once on the root as a mask image
+   (--ico-<tone>, the outline alone, its tint left out), which a badge of that tone draws before its word in its own colour. A badge
+   is a span written in many places; the icon follows its class, so none of them changes. */
+var STATUS_ICON = { ok: 'done', warning: 'alert', danger: 'cancel', info: 'info' };
+function uiStatusIconVars() {
+  var root = document.documentElement;
+  Object.keys(STATUS_ICON).forEach(function(tone) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" ' + ICON_ATTRS.replace('currentColor', '#000').replace('1.75', '2.25') + '>' +
+      String(ICONS[STATUS_ICON[tone]] || '').replace(/<path d="d:[^"]*"\/>/g, '') + '</svg>';
+    root.style.setProperty('--ico-' + tone, 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+  });
+}
 /* body.html's icons are slots, <span data-icon="name">, so the set has one source (§4): each is replaced by its icon, carrying the
    slot's classes and any other attribute it held. Run once at the start, before the shell is drawn. A name the set does not hold
    leaves its slot as it is, where P228 finds it. */
@@ -5854,8 +6026,9 @@ function keepScroll(fn) {
    (The More sheet, an inv-scrim that was not a dialog, went with Direction B's workspaces; Add is a dialog like the rest.)
    `title` is HTML: the caller escapes what came from the user. */
 function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
-  var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
-    '" aria-label="' + (closeLabel || 'Close') + '">&times;</button>';
+  // Close is a ghost icon button (UI pass 3, §14a).
+  var close = '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
+    '" aria-label="' + (closeLabel || 'Close') + '">' + iconSvg('close') + '</button>';
   return '<div class="inv-dialog-head"><span class="inv-dialog-title">' + title + '</span>' +
     (actionsHtml ? '<span class="inv-toolbar inv-toolbar-tight">' + actionsHtml + close + '</span>' : close) + '</div>';
 }
@@ -5866,7 +6039,7 @@ var FLIP_MS = 200;
 /* The desktop detail pane's head (§6.14): what is open, and the button that closes the pane. */
 function paneHeadHtml(titleHtml, closeAction) {
   return '<div class="inv-pane-head">' + titleHtml +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">' + iconSvg('close') + '</button></div>';
 }
 /* A screen drawn whole with its list and pane in it keeps where both were scrolled (UX overhaul 2, step 7). The list and
    the pane scroll inside themselves, and a redraw replaced them, so a Void deep in Production's entries, History's Show more
@@ -5896,7 +6069,9 @@ function dialogOpen(html, opts) {
   opts = opts || {};
   if (opts.replace) {
     var open = document.querySelectorAll('.inv-scrim-dialog');
-    if (open.length) { open[open.length - 1].innerHTML = html; return open[open.length - 1]; }
+    // A dialog drawn again in place is the dialog already open: it does not slide in again (UI pass 3, §14a; found building U2's
+    // gallery: the credit note, the guard's form, the planner's card and the quotation replayed their entrance at every redraw).
+    if (open.length) { var top = open[open.length - 1]; top.dataset.redrawn = '1'; top.innerHTML = html; return top; }
   }
   var scrim = document.createElement('div');
   scrim.className = 'inv-scrim inv-scrim-dialog';
@@ -6536,7 +6711,7 @@ var _ovObserver = null;
 function uiOverflowCuesStart() {
   if (_ovObserver || typeof MutationObserver === 'undefined') return;
   var queued = false;
-  var run = function() { queued = false; try { uiOverflowCues(); } catch (e) { /* a cue must never take a render with it */ } };
+  var run = function() { queued = false; try { uiOverflowCues(); } catch (e) { /* a cue must never take a render with it */ } uiPointerSchedule(); };
   var later = function() { if (!queued) { queued = true; requestAnimationFrame(run); } };
   // After a render, before it is painted: the observer's callback is a microtask. What the pass itself writes (a title,
   // data-more) is not watched; the note it inserts is, and the pass after it changes nothing.
@@ -6638,13 +6813,18 @@ function numberToWords(n) {
   return result + ' Only';
 }
 
+/* A toast's kind as its status icon (§3d): success done, error cancel, warning alert, info info. */
+var TOAST_ICON = { success: 'done', error: 'cancel', warning: 'alert', info: 'info' };
+function toastIconHtml(type) { return iconSvg(TOAST_ICON[type] || 'info', 'inv-toast-ico'); }
 function showToast(msg, type='success') {
   // Single gateway: remove any existing toast first
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   const dur = type === 'error' ? 4000 : type === 'warning' ? 3000 : 2000;
   const t = document.createElement('div');
   t.className = 'inv-toast inv-toast-' + type;
-  t.textContent = msg;
+  // Its kind's icon leads its words (UI pass 3, §14a), the words its only text.
+  t.innerHTML = toastIconHtml(type);
+  t.appendChild(document.createTextNode(msg));
   document.body.appendChild(t);
   setTimeout(() => t.remove(), dur);
 }
@@ -10510,7 +10690,7 @@ function renderClientList(filter) {
   }
 
   if (filtered.length === 0) {
-    el.innerHTML = _isDesktop ? '<div class="inv-empty">No clients found</div>' : '<div class="inv-panel"><div class="inv-empty">No clients found</div></div>';
+    el.innerHTML = _isDesktop ? uiEmptyHtml('No clients found') : '<div class="inv-panel">' + uiEmptyHtml('No clients found') + '</div>';
     return;
   }
   const overrides = c => (c.itemRates && c.itemRates.length) ? c.itemRates.length + ' override' + (c.itemRates.length > 1 ? 's' : '') : '';
@@ -10608,7 +10788,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   if (!isAdd) {
     rates = _clientCardHtml('Rate history', (c.rates || []).length,
       _clientRateRowsHtml(c, true) ||
-        '<div class="inv-empty">No rate on record</div>',
+        uiEmptyHtml('No rate on record'),
       '<div class="inv-panel-body">' + _clientRateFieldsHtml(false) +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddRate" data-client="' + c.id + '">Add rate</button></div>', 'ceditRates');
   }
@@ -11090,7 +11270,7 @@ function _pieceRatesEditHtml(c) {
   var rows = _sortedPieceRates(c).map(function(pr) {
     return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom,
       ' data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate"');
-  }).join('') || '<div class="inv-empty">No piece rates on record. Fill them from what has been billed, or add one below.</div>';
+  }).join('') || uiEmptyHtml('No piece rates on record. Fill them from what has been billed, or add one below.');
   var body = (_pieceFillReport && _pieceFillReport.clientId === c.id ? _pieceFillReportHtml(_pieceFillReport) : '') +
     '<div class="inv-panel-body"><div class="inv-fields">' +
     _cfield('ceditPiecePart', 'Part', '<input class="inv-input inv-id" id="ceditPiecePart" placeholder="CLAMP 165X83 (NT)">') +
@@ -11276,7 +11456,7 @@ function _pieceWeightsEditHtml(c) {
   var rows = _sortedCard(c.pieceWeights).map(function(pw) {
     return _cardRowHtml(_partGaugeHtml(pw), escHtml(pw.kgPerPiece) + ' kg/pc', pw.effectiveFrom,
       ' data-action="invRemovePieceWeight" data-client="' + c.id + '" data-idx="' + pw._i + '" aria-label="Remove piece weight"');
-  }).join('') || '<div class="inv-empty">No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.</div>';
+  }).join('') || uiEmptyHtml('No piece weights on record. For a client billed by the kilo whose challans also count pieces, fill them from what has been billed.');
   var body = (_weightFillReport && _weightFillReport.clientId === c.id ? _weightFillReportHtml(_weightFillReport) : '') +
     '<div class="inv-panel-body"><div class="inv-fields">' +
     _cfield('ceditWtPart', 'Part', '<input class="inv-input inv-id" id="ceditWtPart" placeholder="BRACKET 101">') +
@@ -11582,7 +11762,7 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
         '<span class="inv-row-end inv-num">' + usage.total + '</span></div>' +
         '<div class="inv-row"><span class="inv-row-main">In the last 30 days</span><span class="inv-row-end inv-num">' + usage.recent + '</span></div>';
     } else {
-      html += '<div class="inv-empty">Unused: on no invoice or challan.</div>';
+      html += uiEmptyHtml('Unused: on no invoice or challan.');
     }
     html += '</div>';
     html += kbLinkedHtml('part', item.id, item.partNumber, 'Knowledge');
@@ -11716,7 +11896,7 @@ function _renderItemsList() {
   var total = _itemsSorted.length;
 
   if (total === 0) {
-    listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
+    listEl.innerHTML = _isDesktop ? uiEmptyHtml('No items found') : '<div class="inv-panel">' + uiEmptyHtml('No items found') + '</div>';
   } else {
     var moreKey = 'items-' + view;
     listEl.innerHTML = _isDesktop ? _itemsTableHtml(_itemsSorted, moreKey)
@@ -11916,7 +12096,7 @@ function openMergeTool() {
     dialogHeadHtml('Merge duplicates');
 
   if (groups.length === 0) {
-    html += '<div class="inv-empty">No duplicate groups found</div>';
+    html += uiEmptyHtml('No duplicate groups found');
   } else {
     html += '<p class="inv-note">' + groups.length + ' candidate group' + (groups.length !== 1 ? 's' : '') + ' found, each of one gauge. Pick the item to keep in each group, then merge.</p>' +
       '<div class="inv-scroll">';
@@ -12226,7 +12406,7 @@ function _partWeightsCount() {
 
 function renderPartWeightsList() {
   const entries = Object.entries(S.partWeights || {});
-  if (entries.length === 0) return '<div class="inv-empty">No part weights defined yet</div>';
+  if (entries.length === 0) return uiEmptyHtml('No part weights defined yet');
   return entries.map(([part, wt]) =>
     '<div class="inv-row"><span class="inv-row-main inv-row-title inv-id">' + escHtml(part) + '</span>' +
     '<span class="inv-row-end"><span class="inv-num">' + escHtml(wt) + '</span> kg' +
@@ -16099,7 +16279,7 @@ function devListHtml() {
   }).join('');
   return '<div class="inv-panel inv-panel-flush inv-mt-16" data-card="devices"><div class="inv-panel-head"><span class="inv-panel-title">Devices ' +
     '<span class="inv-panel-count">' + live + '</span></span></div>' +
-    (body || '<div class="inv-empty">No device is registered yet. Register this one above.</div>') + '</div>';
+    (body || uiEmptyHtml('No device is registered yet. Register this one above.')) + '</div>';
 }
 
 function devSettingsBody() {
@@ -16646,7 +16826,7 @@ function renderRegisterList() {
   let html = '';
 
   if (filtered.length === 0) {
-    html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
+    html += '<div class="inv-panel">' + uiEmptyHtml('No invoices found') + '</div>';
   } else {
     // Rows grouped by invoice date, each group with its count and taxable (§7).
     // Sorted by number they are grouped by series instead: a day heading over a
@@ -16711,7 +16891,7 @@ function regRowHtml(inv, opts) {
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();
   var html = '';
-  if (filtered.length === 0) return '<div class="inv-empty">No invoices found</div>';
+  if (filtered.length === 0) return uiEmptyHtml('No invoices found');
 
   var sc = getRegSortConfig();
   // The column heads the register sorts by; the rest are read-only.
@@ -17807,7 +17987,7 @@ function showNumberAudit() {
   var html = '<div class="inv-dialog">' + dialogHeadHtml('Number audit');
 
   if (a.entries.length === 0) {
-    html += '<div class="inv-empty">No invoice numbers issued yet.</div>';
+    html += uiEmptyHtml('No invoice numbers issued yet.');
   } else {
     // Each financial year's series is its own run.
     html += '<p class="inv-note inv-mb-8">' + a.series.map(function(r) {
@@ -17828,7 +18008,7 @@ function showNumberAudit() {
     if (explained.length > 0) html += _numAuditPanelHtml('Voided, with a reason', explained);
 
     if (a.unaccounted.length === 0 && explained.length === 0) {
-      html += '<div class="inv-empty">Unbroken series. No gaps to explain.</div>';
+      html += uiEmptyHtml('Unbroken series. No gaps to explain.');
     }
   }
 
@@ -18073,7 +18253,7 @@ function pipeStageTileHtml(s) {
 
 /* ---------- The open stage's list ---------- */
 function pipeListHtml(s) {
-  if (!s) return '<div class="inv-panel"><div class="inv-empty">Nothing is on its way: no challan awaits an invoice, and every invoice is filed. Create invoice starts the next one.</div></div>';
+  if (!s) return '<div class="inv-panel">' + uiEmptyHtml('Nothing is on its way: no challan awaits an invoice, and every invoice is filed. Create invoice starts the next one.') + '</div>';
   if (s.key === 'awaiting') return pipeAwaitingHtml(s);
   if (s.key === 'owed') return pipeOwedHtml(s);
   return pipeInvoicesHtml(s);
@@ -18931,7 +19111,7 @@ function renderIMList() {
   let html = '';
 
   if (filtered.length === 0) {
-    html += '<div class="inv-panel"><div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div></div>';
+    html += '<div class="inv-panel">' + uiEmptyHtml('' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '')) + '</div>';
   } else {
     // Grouped by challan date with the day's value (§7): the tab says whether it is billed.
     // Awaiting invoice's count and amount are its verdict's (imVerdictHtml): its list carries no head of its own.
@@ -19000,7 +19180,7 @@ function renderIMSelBar() {
 function _buildIMTableHtml() {
   var filtered = getFilteredIM();
   var html = '';
-  if (filtered.length === 0) return html + '<div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div>';
+  if (filtered.length === 0) return html + uiEmptyHtml('' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '')) + '';
 
   var sc = getIMSortConfig();
   var th = function(key, label, cls) {
@@ -21658,7 +21838,7 @@ function renderCreditNoteList(keepForm) {
   if (_billForm) html += '<div data-cn-form>' + _billsCnFormHtml() + '</div>';
 
   if (notes.length === 0) {
-    html += '<div class="inv-empty">No credit notes yet. A batch rebate is raised from a Register selection; any other note, or one already issued, from the head of this list.</div>';
+    html += uiEmptyHtml('No credit notes yet. A batch rebate is raised from a Register selection; any other note, or one already issued, from the head of this list.');
   } else {
     html += '<div class="inv-panel inv-panel-flush">';
     notes.forEach(function(cn) {
@@ -22005,7 +22185,7 @@ function qtRowHtml(q) {
 }
 function qtListHtml() {
   var all = qtSorted(getQuotations().filter(qtMatches));
-  if (!all.length) return '<div class="inv-panel"><div class="inv-empty">' + (getQuotations().length ? 'No quotation matches' : 'No quotation yet. New quotation drafts one: it takes a number only when it is issued.') + '</div></div>';
+  if (!all.length) return '<div class="inv-panel">' + uiEmptyHtml('' + (getQuotations().length ? 'No quotation matches' : 'No quotation yet. New quotation drafts one: it takes a number only when it is issued.')) + '</div>';
   var grp = function(list) { return list.map(qtRowHtml).join(''); };
   var drafts = all.filter(function(q) { return q.status === 'draft'; }), live = all.filter(function(q) { return q.status === 'issued'; }),
     acc = all.filter(function(q) { return q.status === 'accepted'; }), rest = all.filter(function(q) { return /^(superseded|declined|void)$/.test(q.status); });
@@ -24749,13 +24929,9 @@ function attFloorOk() {
 function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWages(); }
 
 function _attEmptyRoster() {
-  return '<div class="inv-panel"><div class="inv-empty">' +
-    iconSvg('userCheck', 'inv-empty-icon') +
-    '<div>No one on the roster yet</div>' +
-    '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
-    'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button>' +
-    '</div></div>';
+  return '<div class="inv-panel">' + uiBlankHtml({ kind: 'empty', icon: 'users', title: 'No one on the roster yet',
+    body: 'Attendance and the labour breakdown both read the roster. Add each worker once with their comp class and rate; the wage arithmetic follows from there.',
+    action: '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add the first worker</button>' }) + '</div>';
 }
 
 /* ===== DAY VIEW ===== */
@@ -24839,7 +25015,7 @@ function _attDayView() {
     var dot = need == null ? '' : uiDot(areaNeedTone(on, need), areaNeedWord(on, need));
     html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
       ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
-      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
+      (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : uiEmptyHtml('Nobody here today.')) + '</div>';
   });
   // A line's night (shifts.js): its hands in for the night, against the crew the schedule needs; a short night is a warning,
   // with the EXTRA it books a missing hand.
@@ -24852,7 +25028,7 @@ function _attDayView() {
       ' <span class="inv-panel-count">' + c.heads + (n.need ? '/' + n.need : '') + '</span></span>' + dot + '</div>' +
       (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '') +
       (c.heads > list.length ? '<div class="inv-row inv-row-auto"><span class="inv-row-main"><span class="inv-row-meta">' + (c.heads - list.length) + ' more on the night block, by the roll</span></span></div>' : '') +
-      (!c.heads ? '<div class="inv-empty">Nobody on the night yet: the night’s roll names them.</div>' : '') + '</div>';
+      (!c.heads ? uiEmptyHtml('Nobody on the night yet: the night’s roll names them.') : '') + '</div>';
   });
   // An area no longer on the list (a mark from an older build) still shows its hands.
   Object.keys(byArea).forEach(function(k) {
@@ -25306,7 +25482,7 @@ function _attExtraCard(iso, rec) {
   var html = '<div class="inv-panel inv-panel-flush" id="attExtra"><div class="inv-panel-head">' +
     '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>';
-  if (rows.length === 0) return html + '<div class="inv-empty">None booked for this day</div></div>';
+  if (rows.length === 0) return html + uiEmptyHtml('None booked for this day') + '</div>';
   // data-idx is the row's place in the day's rows, the made blocks included: the setters read it.
   all.forEach(function(x, i) {
     if (attSlotMade(x)) return;
@@ -25539,8 +25715,8 @@ function _attRosterView() {
   var head = (filt ? (_attRosterFilter === 'watch' ? 'To watch' : 'Check-ins due') : 'Roster') + ' <span class="inv-panel-count">' + shown.length + '</span>';
   if (_isDesktop && all.length) return html + _attRosterDesktop(watched.concat(on), left, wages, watch, head);
   html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>';
-  if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
-  if (!shown.length) return html + '<div class="inv-empty">Nobody here: change the filter</div></div>';
+  if (all.length === 0) return html + uiEmptyHtml('Nobody on file yet') + '</div>';
+  if (!shown.length) return html + uiEmptyHtml('Nobody here: change the filter') + '</div>';
   // The roster as cards (UI pass 3 §12): the hands to watch first, then the active by tier; the hands who left under Left, folded.
   html += '<div class="inv-panel-body"><div class="inv-deck" data-deck-sm data-roster-deck>' + watched.concat(on).map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>';
   if (left.length) html += _attRosterLeftHtml(left, wages, watch);
@@ -25624,7 +25800,7 @@ function _attRosterDesktop(list, left, wages, watch, head) {
   if (!open) _attRosterOpen = null;
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
     '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">' + head + '</span></div>' +
-    (list.length || left.length ? '' : '<div class="inv-empty">Nobody here: change the filter</div>') +
+    (list.length || left.length ? '' : uiEmptyHtml('Nobody here: change the filter')) +
     (list.length ? '<div class="inv-panel-body"><div class="inv-deck" data-roster-deck>' + list.map(function(w) { return attRosterCardHtml(w, wages, watch); }).join('') + '</div></div>' : '') +
     (left.length ? _attRosterLeftHtml(left, wages, watch) : '') + '</div>';
   return h + '</div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
@@ -25657,7 +25833,7 @@ function _attWorkerPaneHtml(w, wages) {
       '<div class="inv-tile"><div class="inv-tile-label">Absent</div><div class="inv-tile-value">' + n.A + '</div><div class="inv-tile-sub">marked absent</div></div>' +
       '<div class="inv-tile"><div class="inv-tile-label">Hours</div><div class="inv-tile-value">' + formatNum(hours, 0) + '</div><div class="inv-tile-sub">' + (ot ? formatNum(ot, 0) + ' of them OT' : 'no OT') + '</div></div>' +
       '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
-  } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
+  } else h += uiEmptyHtml('No day in the last 28 marks this worker.');
   h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
   // Their record (people.js): tenure, reliability, consistency, workload, skills, ties; the owner's alone, motivation and details.
   return h + pplRecordHtml(w);
@@ -27545,7 +27721,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass, opts) {
   var html = _labPanelHead('labour', title || 'Labour', formatCurrency(lab.total), extraClass);
 
   if (lab.rosterSize === 0) {
-    return html + '<div class="inv-empty">Nobody on the roster</div></div>';
+    return html + uiEmptyHtml('Nobody on the roster') + '</div>';
   }
 
   // Fixed and variable, and — where there is tonnage to divide by — the ₹/kg, as one strip: in Stats the ₹/kg
@@ -28518,7 +28694,7 @@ function _attAreasView() {
       : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') + '</div>';
 
   if (stats.recordedDays === 0) {
-    return html + '<div class="inv-panel"><div class="inv-empty">No attendance recorded in this range.</div></div>';
+    return html + '<div class="inv-panel">' + uiEmptyHtml('No attendance recorded in this range.') + '</div>';
   }
 
   html += _areaExtraCard(stats, flags);
@@ -28647,8 +28823,8 @@ function _areaExtraCard(stats, flags) {
   var html = _labPanelHead('extra', 'The extra, checked', formatNum(totalExtra, 1) + ' h', '', 'areaExtra');
   if (totalExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0) {
     // Nothing to reconcile, and why nothing was expected: an idle line is an assumption doing real work.
-    return html + '<div class="inv-empty">No extra hours booked, and every area that ran was at its complement' +
-      (stats.idleDays > 0 ? ': ' + stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's') + ' idle and not counted' : '') + '</div></div>';
+    return html + uiEmptyHtml('No extra hours booked, and every area that ran was at its complement' +
+      (stats.idleDays > 0 ? ': ' + stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's') + ' idle and not counted' : '')) + '</div>';
   }
   // The card above says the extra is only counted; this row is what to do about it (the floor's own full house, ruled 11 Jun 2026).
   if (!stats.normed) html += '<div class="inv-row inv-row-2" data-area-nonorm><span class="inv-row-main"><span class="inv-row-title">Set each area’s complement below</span>' +
@@ -29751,7 +29927,7 @@ function payHistoryHtml(w) {
     sub: weekly ? (payHandPays(w.id).length ? 'counted from the first payment typed for them' : 'no payment typed for them yet') :
       cf ? 'monthly balances counted from ' + _monthLabel(cf) : 'monthly balances are not counted yet: Pay, Count from a month',
     attrs: ' data-pay-history-now="' + gstRound(now.amount) + '"' });
-  if (!rows.length) return h + '<div class="inv-empty">Nothing earned or paid in the last ' + PAY_HISTORY_PERIODS + (weekly ? ' weeks' : ' months') + '.</div></div>';
+  if (!rows.length) return h + uiEmptyHtml('Nothing earned or paid in the last ' + PAY_HISTORY_PERIODS + (weekly ? ' weeks' : ' months') + '.') + '</div>';
   rows.forEach(function(r) {
     var label = weekly ? 'Week ' + attPayWeekNumber(r.from) + ' · ' + formatDate(r.to) : _monthLabel(r.from.slice(0, 7));
     var st = payHistoryState(r), key = 'pay-hist-' + w.id + '-' + r.from;
@@ -29934,7 +30110,7 @@ function _payrollPaidCard() {
   // Its Import is the toolbar's More (§1a-10: files behind More); what a month on record replaces is the guide's.
   var h = '<div class="inv-panel inv-panel-flush" id="payrollPaid"><div class="inv-panel-head"><span class="inv-panel-title">Monthly payroll as paid</span>' +
     '<span class="inv-panel-count">' + recs.filter(function(r) { return !r.voidedAt; }).length + '</span></div>';
-  if (!recs.length) return h + '<div class="inv-empty">No closed month on record: the monthly tier is worked out from the marks.</div></div>';
+  if (!recs.length) return h + uiEmptyHtml('No closed month on record: the monthly tier is worked out from the marks.') + '</div>';
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
@@ -30159,7 +30335,7 @@ function attOnSiteTone(d, areasShort) {
 function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '>' + (headBtn === null ? '' : '<div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
     '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>');
-  if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
+  if (!d.marked) return h + uiEmptyHtml('Nothing recorded yet.') + '</div>';
   // On site against the roster, judged at the rest-day gate's 90% and 80% and the floor's number (attOnSiteTone).
   var onTone = attOnSiteTone(d), floorTone = d.complement ? areaNeedTone(d.floorHeads, d.complement) : null;
   h += '<div class="inv-tiles inv-tiles-flush">' +
@@ -31152,7 +31328,7 @@ function renderStockList(open) {
     return groups[g].length && (!_stockFilter || _stockFilter === g || (_stockFilter === 'none' && g === 'bath'));
   });
   if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
-  if (!shown.length) h += '<div class="inv-panel"><div class="inv-empty">No line in this group. Press its tile again to see every line.</div></div>';
+  if (!shown.length) h += '<div class="inv-panel">' + uiEmptyHtml('No line in this group. Press its tile again to see every line.') + '</div>';
   else {
     h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
     shown.forEach(function(g) {
@@ -31538,7 +31714,7 @@ function stockDayEntriesHtml(date) {
   var live = list.filter(function(e) { return !e.voided; }).length;
   var h = '<div class="inv-panel inv-panel-flush inv-mt-8" id="stockDayEntries" data-card="stockDay"><div class="inv-panel-head"><span class="inv-panel-title">Entered for ' + escHtml(stockShortDate(date)) +
     ' <span class="inv-panel-count">' + live + '</span></span></div>';
-  if (!list.length) return h + '<div class="inv-empty">Nothing entered for this day yet. Pick another date above to check it.</div></div>';
+  if (!list.length) return h + uiEmptyHtml('Nothing entered for this day yet. Pick another date above to check it.') + '</div>';
   var replayed = {};
   list.forEach(function(e) {
     var it = names[e.itemId];
@@ -31822,7 +31998,7 @@ function stockItemBodyHtml(item) {
   var all = stockData().entries.filter(function(e) { return e.itemId === item.id; });
   all = stockSortEntries(all).reverse();
   h += '<div class="inv-panel inv-panel-flush" id="stockEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries <span class="inv-panel-count">' + all.length + '</span></span></div>';
-  if (!all.length) h += '<div class="inv-empty">Nothing recorded on this line yet.</div>';
+  if (!all.length) h += uiEmptyHtml('Nothing recorded on this line yet.');
   var checks = stockEntryChecks(item.id);
   all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit, e.voided ? null : checks[e.id]); });
   return h + '</div>' + kbLinkedHtml('stock', item.id, item.name, 'Knowledge');
@@ -32179,7 +32355,7 @@ function renderStockCheck() {
   var h = stockBackBar('Stock', 'To check');
   var msgs = stockRereadAll(), list = stockChecksAll();
   h += '<div class="inv-panel inv-panel-flush" id="stockReread"><div class="inv-panel-head"><span class="inv-panel-title">Messages read differently now <span class="inv-panel-count">' + msgs.length + '</span></span></div>';
-  if (!msgs.length) h += '<div class="inv-empty">Every saved message reads the same with the reader as it is now.</div>';
+  if (!msgs.length) h += uiEmptyHtml('Every saved message reads the same with the reader as it is now.');
   msgs.forEach(function(d) {
     var p = d.paste;
     h += '<div class="inv-row inv-row-auto inv-row-top inv-row-flow" data-paste="' + escHtml(p.id) + '"><div class="inv-row-main">' +
@@ -32195,7 +32371,7 @@ function renderStockCheck() {
   });
   h += '</div>';
   h += '<div class="inv-panel inv-panel-flush" id="stockChecks"><div class="inv-panel-head"><span class="inv-panel-title">Entries that do not fit <span class="inv-panel-count">' + list.length + '</span></span></div>';
-  if (!list.length) h += '<div class="inv-empty">No entry in the last ' + STOCK_CHECK_DAYS + ' days needs a second look.</div>';
+  if (!list.length) h += uiEmptyHtml('No entry in the last ' + STOCK_CHECK_DAYS + ' days needs a second look.');
   list.forEach(function(x) {
     var unit = x.item.unit || '';
     h += '<div class="inv-row inv-row-auto inv-row-top inv-row-flow" data-entry="' + escHtml(x.e.id) + '"><div class="inv-row-main">' +
@@ -33544,7 +33720,7 @@ function renderStockReorder() {
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
     '<div class="inv-note">Suggested = daily use × (lead time + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. The lead time is the supplier’s where it is set on them (Money → Payments → Suppliers), else these ' + cfg.leadDays + ' days. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
-    h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
+    h += '<div class="inv-panel">' + uiEmptyHtml('Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.') + '</div>';
   } else {
     h += '<div class="inv-panel inv-panel-flush" id="stockReorder" data-nodirty>' + (_isDesktop ? stockReorderTableHtml(L) : stockReorderRowsHtml(L)) + '</div>';
   }
@@ -33721,7 +33897,7 @@ function _billsPowerHtml() {
     return { parts: parts };
   }), { n: 3, noun: 'months' });
   if (!bills.length) {
-    if (!missing.length) h += '<div class="inv-empty">No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.</div>';
+    if (!missing.length) h += uiEmptyHtml('No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.');
     return h + '</div>';
   }
   var rows = bills.map(function(b) {
@@ -35590,8 +35766,8 @@ function renderBank(tab) {
   return _bankRecvTabHtml(rows);
 }
 function _bankNoStatementHtml(what) {
-  return '<div class="inv-panel" data-bank-none><div class="inv-empty">' + what + ' the bank statement, and none is imported yet. ' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button></div></div>';
+  return '<div class="inv-panel" data-bank-none>' + uiBlankHtml({ kind: 'notset', title: 'No bank statement imported yet', body: what + ' the bank statement.',
+    action: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button>' }) + '</div>';
 }
 /* A verdict is said in the worst tone of what its card holds. */
 function _bankWorst(tones) {
@@ -35670,7 +35846,7 @@ function _bankOwedHtml(cls, recv, from, fromTxt) {
   h += '<div class="inv-panel-body inv-note" data-recv-from>Since ' + fromTxt + '. A receipt pays the invoices it adds up to exactly, else the oldest first.</div>';
   if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + (sgN === 1 ? 'A client’s' : todoPlural(sgN, 'client') + '’') +
     ' first payments most likely paid work from before ' + fromTxt + ': open ' + (sgN === 1 ? 'it' : 'each') + ' to check what was owed then.</div>';
-  if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
+  if (!recv.length) h += uiEmptyHtml('No invoices or receipts since ' + fromTxt + '.');
   var payHist = bankPayHistory(recv);
   recv.forEach(function(r) {
     var open = _bankOpen === String(r.client.id), dtp = bankDaysToPay(r.client.id, payHist);
@@ -35805,7 +35981,7 @@ function _bankPaymentsHtml(cls) {
   // Electricity: each payment is a month's bill.
   var power = bankPowerRows(cls).slice().reverse(), p = '';
   p += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid <span class="inv-panel-count">' + power.length + '</span></span></div>';
-  if (!power.length) p += '<div class="inv-empty">No payment to JBVNL on the statement.</div>';
+  if (!power.length) p += uiEmptyHtml('No payment to JBVNL on the statement.');
   power.forEach(function(v) {
     // The bill made from this payment first; else any bill for its month, typed by hand or made from another payment.
     var m = bankBillMonth(v.row), bill = bankBillOf(v.row) || costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === m; });
@@ -35833,7 +36009,7 @@ function _bankPaymentsHtml(cls) {
   ['gst', 'tax', 'charges', 'other'].forEach(function(k) {
     if (tot[k]) o += '<div class="inv-row"><span class="inv-row-main">' + escHtml(bankCatLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(tot[k]) + '</span></div>';
   });
-  if (!Object.keys(tot).length) o += '<div class="inv-empty">Nothing else.</div>';
+  if (!Object.keys(tot).length) o += uiEmptyHtml('Nothing else.');
   return h + fold('pay-other', o + '</div>');
 }
 
@@ -35842,8 +36018,8 @@ function _bankTabHtml(rows) {
   if (!rows.length) {
     return uiVerdictHtml({ screen: 'Bank statement', verdict: 'No bank statement yet', tone: 'neutral', facts: ['the bank’s .xls as it comes, or saved as .xlsx'], attrs: ' id="bankVerdict"' }) +
       '<div class="inv-toolbar" data-bank-toolbar="bank"><button class="inv-btn inv-btn-primary" data-action="invBankImport">Import the statement</button></div>' +
-      '<div class="inv-panel" id="bankHead"><div class="inv-empty">Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
-      'a later statement that overlaps it adds only the rows that are new.</div></div>' + uiFoldCard('bank-imports', _bankImportsHtml(), false);
+      '<div class="inv-panel" id="bankHead">' + uiEmptyHtml('Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
+      'a later statement that overlaps it adds only the rows that are new.', 'notset') + '</div>' + uiFoldCard('bank-imports', _bankImportsHtml(), false);
   }
   var breaks = bankContinuity(rows);
   return _bankVerdictHtml(rows) + _bankToolbarHtml() + _bankStatementHtml(bankClassify(rows)) + uiFoldCard('bank-check', _bankCheckHtml(breaks), breaks.length > 0) +
@@ -36081,7 +36257,7 @@ function _bankStatementHtml(cls) {
     return !q || (v.row.narration + ' ' + v.party + ' ' + v.row.chq).toLowerCase().indexOf(q) >= 0;
   }).reverse();
   var h = '<div class="inv-panel inv-panel-flush" id="bankStatement"><div class="inv-panel-head"><span class="inv-panel-title">Statement</span><span class="inv-panel-count">' + list.length + '</span></div>';
-  if (!list.length) h += '<div class="inv-empty">No row matches.</div>';
+  if (!list.length) h += uiEmptyHtml('No row matches.');
   // The latest thirty, newest first; the rest one tap away (UX overhaul 2, step 6: the statement ran 18 phone screens).
   // The count in the head and every total read the whole statement. A row being edited is always shown.
   var rows = [];
@@ -36661,7 +36837,7 @@ function suppPanelHtml() {
   var t = suppTotals(), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   var h = '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers <span class="inv-panel-count">' + t.rows.length + '</span></span>' +
     (t.set && money ? '<span class="inv-dot inv-dot-' + (t.owed > 0 ? 'warning' : 'ok') + '" data-supp-owed-all="' + t.owed + '">' + escHtml(t.owed > 0 ? finRs(t.owed) + ' owed' : 'nothing owed') + '</span>' : '') + '</div>';
-  if (!t.rows.length) h += '<div class="inv-empty">No supplier yet: a stock bill names its company, and a payment set to Supplier on the statement its payee.</div>';
+  if (!t.rows.length) h += uiEmptyHtml('No supplier yet: a stock bill names its company, and a payment set to Supplier on the statement its payee.');
   h += uiMoreHtml('supp-rows', t.rows.map(function(x) {
     var L = x.L, set = L.balance != null;
     var meta = [set ? suppOldestText(L) : x.last ? 'last bill ' + stockShortDate(x.last.date) : todoPlural(x.sp.pays.length, 'payment'), suppLeadText(x.lead, true)];
@@ -36770,7 +36946,7 @@ function suppLedgerHtml(sp, L) {
   var after = L.after.slice().reverse(), before = L.before.slice().reverse();
   var h = '<div class="inv-panel inv-panel-flush" data-supp-ledger><div class="inv-panel-head"><span class="inv-panel-title">' + (L.op ? 'Since ' + escHtml(formatDate(L.op.date)) : 'Bills and payments') +
     ' <span class="inv-panel-count">' + after.length + '</span></span></div>';
-  if (!after.length) h += '<div class="inv-empty">' + (L.op ? 'Nothing since: what is owed is the balance set.' : 'No bill or payment on record.') + '</div>';
+  if (!after.length) h += uiEmptyHtml('' + (L.op ? 'Nothing since: what is owed is the balance set.' : 'No bill or payment on record.')) + '';
   h += uiMoreHtml('supp-ledger-' + sp.id, after.map(function(l) { return row(l, !!L.op); }), { n: 12, noun: 'lines' });
   if (L.op) h += '<div class="inv-row" data-supp-opening><span class="inv-row-main"><span class="inv-row-title">Owed on ' + escHtml(formatDate(L.op.date)) + '</span>' +
     (L.op.note ? '<span class="inv-row-meta">' + escHtml(L.op.note) + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(L.op.amount)) + '</span></div>';
@@ -37398,7 +37574,7 @@ function suppCompareHtml(item) {
   if (K.qty > 0) parts.push('ordering ' + stockFmtQty(K.qty) + ' ' + unit);
   h += '<p class="inv-note" data-supp-cmp-ctx>' + escHtml(parts.join(' · ')) + '</p>';
   if (K.pick && K.pick.lost) h += '<div class="inv-callout inv-callout-warning">' + escHtml('You chose ' + K.pick.lost + ' for this line, and it no longer sells it on record: the app picks again until you choose.') + '</div>';
-  if (!K.cands.length) h += '<div class="inv-panel"><div class="inv-empty">No supplier has sold this line on record. Add a price a supplier quoted to weigh one, or add the bill when it is bought.</div></div>';
+  if (!K.cands.length) h += '<div class="inv-panel">' + uiEmptyHtml('No supplier has sold this line on record. Add a price a supplier quoted to weigh one, or add the bill when it is bought.') + '</div>';
   else h += '<div class="inv-deck inv-coded" data-supp-cands>' + K.cands.map(function(c) { return suppCandCardHtml(item, K, c); }).join('') + '</div>';
   h += '<p class="inv-note">Prices before GST, at each one’s last bill or a price quoted since. A lead time is in working days, Sundays out, set on the supplier. What is owed is shown where their balance is set.</p>';
   var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Close</button>' +
@@ -37809,7 +37985,7 @@ function finOwedHeroHtml(rows, cls, recv) {
       (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) : '') + '</span></button>' +
       '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneOwed(r.oldestDays, loose > 0)) + '</span></div>';
   }).join('');
-  if (!top.length) body = '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(from)) + '.</div>';
+  if (!top.length) body = uiEmptyHtml('Nothing owed since ' + escHtml(formatDate(from)) + '.');
   if (loose) body += '<div class="inv-row" data-fin-loose><span class="inv-row-main inv-row-meta">' + todoPlural(loose, 'receipt') + ' with no client: what is owed reads high</span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></span></div>';
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Owed to us</span>', title: escHtml(title), fig: finHeroFig(owed), sub: sub,
@@ -37891,7 +38067,7 @@ function finOverviewHtml() {
   var heroes = '<div class="inv-heroes inv-heroes-4" data-fin-heroes>' + finCashHeroHtml(rows, months) + finOwedHeroHtml(rows, cls, recv) + finGstHeroHtml(cls) + finOutHeroHtml(cls, months) + '</div>';
   var fold = function(key, card) { return uiFoldCard(key, card, !!_isDesktop); };
   if (!has) {
-    return heroes + '<div class="inv-panel"><div class="inv-empty">Import the bank statement on the Bank tab. The balance, what clients owe and where money went all read from it; GST due reads from the invoices.</div></div>' +
+    return heroes + '<div class="inv-panel">' + uiEmptyHtml('Import the bank statement on the Bank tab. The balance, what clients owe and where money went all read from it; GST due reads from the invoices.', 'notset') + '</div>' +
       fold('fin-gst', finGstChartHtml(finMonths(6), cls));
   }
 
@@ -38588,7 +38764,7 @@ function psOpen(keepMonth) {
     '<div class="inv-panel inv-panel-flush inv-mt-8">' +
       group(weekly.length ? 'Weekly · ' + psPeriodLabel(weekly[0]) : '', weekly) +
       group(monthly.length ? 'Monthly · ' + psPeriodLabel(monthly[0]) : '', monthly) +
-      (rows.length ? '' : '<div class="inv-empty">Nobody earned, was paid or carries a balance in ' + escHtml(_monthLabel(month)) + '.</div>') + '</div>' +
+      (rows.length ? '' : uiEmptyHtml('Nobody earned, was paid or carries a balance in ' + escHtml(_monthLabel(month)) + '.')) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
       '<button class="inv-btn inv-btn-primary" data-action="invPsPrint"' + (rows.length ? '' : ' disabled') + '>Preview</button></div></div>', { dismiss: true, replace: !!keepMonth });
 }
@@ -39500,7 +39676,7 @@ function todoHomeOpts(n) {
     if (g === 'now' && r.app && r.app.worth > 0) worth += r.app.worth;
   });
   var rows = '';
-  if (!ranked.length) rows = '<div class="inv-empty">Nothing due</div>';
+  if (!ranked.length) rows = uiEmptyHtml('Nothing due');
   (nowRows.length ? nowRows : ranked).slice(0, n || 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
@@ -40542,7 +40718,7 @@ function mrgHeldOpenDialog() {
   var list = mrgHeldOpen();
   dialogOpen('<div class="inv-dialog" data-mrg-held role="dialog" aria-modal="true" aria-labelledby="mrgTitle">' + dialogHeadHtml('<span id="mrgTitle">Held for you</span>') +
     '<div class="inv-note">Two devices changed the same thing before either saw the other\'s change. What stands is the owner\'s change, else the later one; the other is held here. Keep what stands, or use the one held.</div>' +
-    '<div class="inv-panel inv-panel-flush inv-mt-8">' + (list.length ? list.map(mrgHeldRowHtml).join('') : '<div class="inv-empty">Nothing is held.</div>') + '</div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8">' + (list.length ? list.map(mrgHeldRowHtml).join('') : uiEmptyHtml('Nothing is held.')) + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true, replace: !!document.querySelector('[data-mrg-held]') });
 }
 /* Use the one held: written where it was, the value that stood held in its place, so the choice can be made again. */
@@ -40731,7 +40907,7 @@ function prsListHtml() {
     if (_prsStageFilter !== 'open' && _prsStageFilter !== 'all' && st !== _prsStageFilter) return false;
     return !q || [p.name, p.contact, p.process, p.parts, p.phone, p.notes].join(' ').toLowerCase().indexOf(q) >= 0;
   });
-  if (!list.length) return '<div class="inv-empty">' + (getProspects().length ? 'No prospect matches.' : 'No prospects yet. Add a firm you have approached, or mean to.') + '</div>';
+  if (!list.length) return uiEmptyHtml('' + (getProspects().length ? 'No prospect matches.' : 'No prospects yet. Add a firm you have approached, or mean to.')) + '';
   // Due first (most late first), then by the next follow-up, then the rest by name.
   list.sort(function(a, b) {
     var la = prsLate(a), lb = prsLate(b);
@@ -48689,7 +48865,7 @@ function openClientDrillOverlay(clientId) {
     .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
     .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
     .slice(0, 5);
-  var recentHtml = recentInvs.length === 0 ? '<div class="inv-empty">No invoices</div>' : recentInvs.map(function(inv) {
+  var recentHtml = recentInvs.length === 0 ? uiEmptyHtml('No invoices') : recentInvs.map(function(inv) {
     return statsRow('<span class="inv-id">' + escHtml(inv.displayNumber) + '</span>', escHtml(formatDate(inv.date)),
       '<span class="inv-row-stack">' + statsNum(formatCurrency(inv.grandTotal)) + getStateDotHtml(inv) + '</span>');
   }).join('');
@@ -48698,7 +48874,7 @@ function openClientDrillOverlay(clientId) {
     if (im.clientId !== clientId) return false;
     return im.items.some(function(it) { return !it.invoiced; });
   });
-  var challanHtml = pendingChallans.length === 0 ? '<div class="inv-empty">No pending challans</div>' : pendingChallans.map(function(im) {
+  var challanHtml = pendingChallans.length === 0 ? uiEmptyHtml('No pending challans') : pendingChallans.map(function(im) {
     var pItems = im.items.filter(function(it) { return !it.invoiced; });
     var pAmt = pItems.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0);
     return statsRow(im.challanNo ? 'Ch. <span class="inv-id">' + escHtml(im.challanNo) + '</span>' : 'No number',
@@ -49164,11 +49340,11 @@ function renderHistory() {
 
   if (events.length === 0) {
     var filtered = _historyType !== 'all' || _historySearch || _historyClientFilter || _historyDateFrom || _historyDateTo || _historyWho;
-    area.innerHTML = '<div class="inv-panel"><div class="inv-empty">' +
+    area.innerHTML = '<div class="inv-panel">' + uiEmptyHtml('' +
       (_historyType === 'change' && !_historySearch && !_historyClientFilter && !_historyDateFrom && !_historyDateTo && !_historyWho
         ? 'No changes logged yet: every save from now on is listed here, with who made it'
         : filtered ? 'No activity matches these filters' : 'No activity yet: invoices, challans and attendance appear here as they are recorded') +
-      '</div>' + (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '') + '</div>';
+      '') + (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '') + '</div>';
     return;
   }
 
@@ -51437,7 +51613,7 @@ function finClientMoneyHtml(clientId) {
   var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money' +
     ' <span class="inv-panel-count">since ' + escHtml(stockShortDate(m.from)) + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(clientId)) + '">Open in Finance</button></div>';
-  if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.</div></div>';
+  if (!m.r) return h + uiEmptyHtml('Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.') + '</div>';
   var row = function(k, v, sub, title) {
     return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
@@ -51620,7 +51796,7 @@ function finWagesHtml(cls, where) {
   // One line (the tab map, TM6e): how a cash draw is read, wages to the week's payout and drawings past it, is the guide's (Using the
   // app: pay).
   var h = '<div class="inv-panel-body inv-note">Cash drawn is wages up to each week’s payout, drawings past it.</div>';
-  if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
+  if (!months.length) h += uiEmptyHtml('No wages on the statement.');
   // The latest three months; the rest one tap away.
   h += uiMoreHtml('pay-wages-months', months.map(function(m) {
     var e = byMonth[m], slip = payrollPaidFor(bankPrevMonth(m + '-01')), named = Object.keys(e.named);
@@ -53098,7 +53274,7 @@ function dashPricePanelHtml() {
   if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
   var it = stockItem(_dashPriceItem), zinc = !!(it && it.key === 'ZINC'), z = zinc ? dashZincHtml() : null;
   return _dashSection('dashPrice', zinc ? 'Price trend: market against bills' : 'Price trend',
-    priced.length ? '<div id="dashPriceChart">' + (zinc ? z.body : dashPriceChart()) + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
+    priced.length ? '<div id="dashPriceChart">' + (zinc ? z.body : dashPriceChart()) + '</div>' : uiEmptyHtml('No bill with a price yet.'),
     priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
       priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '',
     zinc ? z.rows : '');
@@ -56756,7 +56932,7 @@ function pplRecordHtml(w, opts) {
       return '<div class="inv-row inv-row-2" data-ppl-skill="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span><span class="inv-row-meta">' +
         escHtml(d ? d + ' day' + (d === 1 ? '' : 's') + ' there in 90' : 'no day there in 90') + (s && !d ? ' · <span class="inv-fig-warning">rated, never worked there lately</span>' : '') + '</span></span>' +
         '<span class="inv-row-end">' + (s ? pplDotsHtml(s) : '<span class="inv-row-meta">not rated</span>') + '</span></div>';
-    }).join('') : '<div class="inv-empty">No area worked or rated yet.</div>') +
+    }).join('') : uiEmptyHtml('No area worked or rated yet.')) +
     (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
   // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
   if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
@@ -56766,7 +56942,7 @@ function pplRecordHtml(w, opts) {
       var o = t.staffId != null ? staffById(t.staffId) : null, k = PPL_TIES.find(function(x) { return x[0] === t.kind; });
       return '<div class="inv-row inv-row-2" data-ppl-tie="' + escHtml(t.kind || '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (t.owner ? pplOwnerName() : o ? o.name : t.name)) + '</span>' +
         (t.note ? '<span class="inv-row-meta">' + escHtml(t.note) + '</span>' : '') + '</span></div>';
-    }).join('') : '<div class="inv-empty">None recorded.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('None recorded.')) + '</div>';
   if (owner) {
     var p = w.profile || {}, em = p.emergency || {};
     var kv = [['Designation', p.designation], ['Phone', p.phone], ['Son or daughter of', p.guardian], ['Address', p.address], ['Blood group', p.bloodGroup], ['Born', p.dob ? formatDate(p.dob) : ''], ['Joined', p.joined ? formatDate(p.joined) : ''],
@@ -56774,7 +56950,7 @@ function pplRecordHtml(w, opts) {
       ['Languages', p.languages], ['Notes', p.notes]].filter(function(x) { return x[1]; });
     h += '<div class="inv-panel inv-panel-flush" data-ppl-personal="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Personal details</span><span class="inv-row-meta">the owner’s alone</span></div>' +
       (kv.length ? '<div class="inv-panel-body"><div class="inv-kv">' + kv.map(function(x) { return '<div' + (x[0] === 'Address' || x[0] === 'Notes' ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(x[1]) + '</div></div>'; }).join('') + '</div></div>'
-        : '<div class="inv-empty">None recorded.</div>') +
+        : uiEmptyHtml('None recorded.')) +
       '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPplEdit" data-id="' + id + '">Details, skills and ties</button></div>';
   }
   return h;
@@ -57412,7 +57588,7 @@ function idcLogDraw(note) {
     (_idcLog.length ? _idcLog.map(function(x) {
       return '<div class="inv-row inv-row-2" data-idc-row><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.iso)) + '</span></span>' +
         '<span class="inv-row-end">' + uiDot(x.kind === 'in' ? 'ok' : 'info', (x.kind === 'in' ? 'In ' : 'Out ') + escHtml(relayClockLabel(x.min))) + '</span></div>';
-    }).join('') : '<div class="inv-empty">Nothing scanned yet.</div>');
+    }).join('') : uiEmptyHtml('Nothing scanned yet.'));
 }
 /* The dialog shut any way, or the app put in the background: the camera goes off with it. */
 document.addEventListener('visibilitychange', function() {
@@ -58380,7 +58556,7 @@ function prodPlantHtml() {
   plant.rows.forEach(function(x) { (byClient[x.r.m.clientId] = byClient[x.r.m.clientId] || []).push(x); });
   var ids = Object.keys(byClient).sort(function(a, b) { return prodClientName(a).localeCompare(prodClientName(b)); });
   h += '<div class="inv-panel inv-panel-flush" id="prodPlantList"><div class="inv-panel-head"><span class="inv-panel-title">Open challan lines</span><span class="inv-panel-count">' + plant.rows.length + '</span></div>';
-  if (!ids.length) h += '<div class="inv-empty">Nothing open on the challans.</div>';
+  if (!ids.length) h += uiEmptyHtml('Nothing open on the challans.');
   // A client is one row that opens to its lines (its open quantity and its first stage as two facts, what is open at its end),
   // plated and not invoiced first: a book of many challans drew every line (thirteen phone screens on the long book). One client
   // on screen (the filter) is its lines.
@@ -58446,7 +58622,7 @@ function prodLinesHtml() {
   if (line === 'pickling') {
     var loads = prodDayLoads(day);
     return h + '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
-      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
+      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : uiEmptyHtml('No pickling recorded this day.')) + '</div>';
   }
   var r = prodDayLine(day, line);
   var groups = { general: [], ot: [] };
@@ -58454,7 +58630,7 @@ function prodLinesHtml() {
   var also = idx.also.filter(function(e) { return e.date === day && e.line === line; });
   h += '<div class="inv-panel inv-panel-flush" id="prodRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs</span>' +
     (r.entries.length ? '<span class="inv-panel-count">' + r.entries.length + '</span>' : '') + '</div>';
-  if (!r.entries.length && !also.length) h += '<div class="inv-empty">No plating recorded on ' + escHtml(PROD_LINE_LABEL[line]) + ' this day: a gap, not a zero.</div>';
+  if (!r.entries.length && !also.length) h += uiEmptyHtml('No plating recorded on ' + escHtml(PROD_LINE_LABEL[line]) + ' this day: a gap, not a zero.');
   // Copies saved twice count until settled: the day's plating and efficiency read high by them, and say so (Vulcanus M-3).
   var twN = r.entries.filter(function(e) { return idx.twinSkip[e.id]; }).length;
   if (twN) h += '<div class="inv-callout inv-callout-warning" data-prod-twin-note>' + escHtml(todoPlural(twN, 'run') + ' saved twice: the plated figure and the efficiency read high until the copy is voided.') + '</div>';
@@ -58581,7 +58757,7 @@ function prodLineStockHtml(line) {
   var ids = Object.keys(L.items).sort(function(a, b) { return (L.items[b].rs - L.items[a].rs) || (L.items[b].qty - L.items[a].qty); });
   var h = '<div class="inv-panel inv-panel-flush" id="prodLineStock"><div class="inv-panel-head"><span class="inv-panel-title">Into the bath, ' + STOCK_LINE_DAYS + ' days</span>' +
     (ids.length ? '<span class="inv-panel-count">' + ids.length + '</span>' : '') + '</div>';
-  if (!ids.length) h += '<div class="inv-empty">No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.</div>';
+  if (!ids.length) h += uiEmptyHtml('No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.');
   ids.forEach(function(id) {
     var r = L.items[id], unit = r.item.unit || '', pt = stockPerTonneText(r.perT, r.est || r.soFar, r.atMost), sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
     var f = { label: r.item.name, src: r.soFar ? ['neutral', 'so far'] : null, value: pt ? pt + ' ' + (unit || 'unit') + '/t' : '',
@@ -58698,7 +58874,7 @@ function prodEntriesHtml() {
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   var lh = '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">' +
     (f.day ? 'Entries, ' + formatDate(f.day) : f.flag ? 'Entries, every date' : 'Entries, 60 days') + '</span><span class="inv-panel-count">' + list.length + '</span></div>';
-  if (!list.length) lh += '<div class="inv-empty">Nothing here.</div>';
+  if (!list.length) lh += uiEmptyHtml('Nothing here.');
   var rows = [], last = '';
   list.slice(0, 300).forEach(function(e) {
     if (e.date !== last) { last = e.date; rows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + escHtml(formatDate(e.date)) + '</span></div>'] }); }
@@ -62849,6 +63025,7 @@ function showToastAct(msg, label, fn) {
   var t = document.createElement('div');
   t.className = 'inv-toast inv-toast-success inv-toast-act';
   t.setAttribute('role', 'status');
+  t.innerHTML = toastIconHtml('success');
   var span = document.createElement('span');
   span.textContent = msg;
   var b = document.createElement('button');
@@ -67597,7 +67774,7 @@ function renderFace() {
 function faceHtml() {
   var u = faceUser(), duties = faceDuties(u), day = faceDayIso(), isToday = day === localDateStr();
   if (!u || !duties.length) {
-    return '<div class="inv-panel"><div class="inv-empty">No duties are set for this ID. The owner sets what each person enters: Settings → Access → Users & access → Edit → Enters.</div></div>';
+    return '<div class="inv-panel">' + uiEmptyHtml('No duties are set for this ID. The owner sets what each person enters: Settings → Access → Users & access → Edit → Enters.', 'notset') + '</div>';
   }
   var me = grdUser(), seenAs = !me || me.id !== u.id;
   var steps = duties.map(function(d) { return { d: d, s: faceStep(d, day, u) }; });
@@ -67660,7 +67837,7 @@ function faceEnteredHtml(u, day) {
       '<span class="inv-row-meta">' + escHtml(act.charAt(0).toUpperCase() + act.slice(1) + (e.n ? '' : ' ' + noun)) + '</span></span><span class="inv-row-end inv-num">' + escHtml(clock) + '</span></div>');
   });
   var h = '<div class="inv-panel inv-panel-flush" id="faceEntered"><div class="inv-panel-head"><span class="inv-panel-title">What you entered <span class="inv-panel-count">' + rows.length + '</span></span></div>';
-  if (!rows.length) return h + '<div class="inv-empty">Nothing yet on this day.</div></div>';
+  if (!rows.length) return h + uiEmptyHtml('Nothing yet on this day.') + '</div>';
   return h + uiMoreHtml('face-entered', rows, { n: FACE_ENTERED_MAX, noun: 'entries' }) + '</div>';
 }
 /* The paper for the person's duties (facesheet.js, F5: the blank sheets, and the day as entered, to file), and whether their
@@ -68755,7 +68932,7 @@ function faceRollInHtml(f) {
   var present = roster.filter(function(w) { return f.place[String(w.id)] !== 'absent'; }), body = {};
   body.early = '<div class="inv-panel inv-panel-flush" data-face-early><div class="inv-panel-head"><span class="inv-panel-title">6:00 AM <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
     '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a 6 AM block</button></div>' +
-    (f.blocks.length ? '' : '<div class="inv-empty">No early block today.</div>') + '</div>' + f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, present); }).join('');
+    (f.blocks.length ? '' : uiEmptyHtml('No early block today.')) + '</div>' + f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, present); }).join('');
   // Where each hand stood: a row a hand in the Day view's order, its place one pick; the counts above them.
   var opts = function(v) {
     return '<option value=""' + (!v ? ' selected' : '') + '>Not marked</option>' + FACE_ROLL_SECTIONS.map(function(s) { return '<option value="' + s.id + '"' + (v === s.id ? ' selected' : '') + '>' + escHtml(s.title) + '</option>'; }).join('') +
@@ -68814,9 +68991,9 @@ function faceRollOutHtml(f) {
       return '<div class="inv-row inv-row-2 inv-row-flow" data-face-left="' + escHtml(id) + '"><span class="inv-row-main"><label class="inv-row-title" for="' + sel + '">' + escHtml(w.name) + '</label>' +
         (kept ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(FACE_BY_HAND) + '</span>' : '') + '</span>' +
         '<span class="inv-row-end">' + faceOutSelectHtml(sel, 'data-face-out="' + escHtml(id) + '"' + (kept ? ' disabled' : ''), (f.outAt && f.outAt[id]) || '17:00', 720, true) + '</span></div>';
-    }).join('') : '<div class="inv-empty">Nobody: everyone present is on a late block.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('Nobody: everyone present is on a late block.')) + '</div>';
   body.late = '<div class="inv-panel inv-panel-flush" data-face-late><div class="inv-panel-head"><span class="inv-panel-title">Late blocks <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
-    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a block</button></div>' + (f.blocks.length ? '' : '<div class="inv-empty">No late block today.</div>') + '</div>' +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a block</button></div>' + (f.blocks.length ? '' : uiEmptyHtml('No late block today.')) + '</div>' +
     f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, roster); }).join('');
   var before = faceBackBar(FACE_FORM_TITLE['roll-out']) + faceRollSavedHtml(f) +
     (present.length ? '' : '<div class="inv-callout inv-callout-warning">The in-time roll of this day is not in: the out-time roll names only the blocks’ crews.</div>');
@@ -70954,7 +71131,7 @@ function powerCutsHtml(a) {
   h += '<div class="inv-toolbar" data-power-toolbar="cuts"><button class="inv-btn inv-btn-primary" data-action="invPowerAddCut">Enter a cut</button>' +
     uiToolbarMoreHtml([{ label: 'Import history', action: 'invPowerImport' }], { icon: phone }) + '</div>';
   h += pcsCompleteHtml(pcsAnalysis(a), powerLoadRowHtml(L));
-  if (!a.cuts.length) return h + '<div class="inv-panel"><div class="inv-empty">No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.</div></div>';
+  if (!a.cuts.length) return h + '<div class="inv-panel">' + uiEmptyHtml('No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.') + '</div>';
   // A cut is one line (the day and why, the clock and how long, the damage and where it fell) that opens to what the damage is made
   // of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass).
   a.months.slice().reverse().forEach(function(m, mi) {
@@ -71027,7 +71204,7 @@ function powerLoadHtml(a) {
   // Bills are added on Money → Payments: the door only for a role that opens Money (the empty line says where they go).
   h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span>' +
     (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button>' : '') + '</div>';
-  if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money → Payments; their details are set here.</div>';
+  if (!L.bills.length) h += uiEmptyHtml('No electricity bill entered. Bills are added in Money → Payments; their details are set here.');
   L.bills.slice().reverse().forEach(function(b) {
     var facts = [b.kwh ? ['Units', formatNum(b.kwh, 0) + ' kWh'] : b.units ? ['Units', formatNum(b.units, 0)] : null, b.kvah ? ['kVAh', formatNum(b.kvah, 0)] : null,
       b.kwh && b.kvah ? ['Power factor', formatNum(b.kwh / b.kvah, 3)] : null, b.md ? ['Peak drawn', formatNum(b.md, 2) + ' kVA'] : null, b.kvaBilled ? ['Billed at', formatNum(b.kvaBilled, 0) + ' kVA'] : null,
@@ -72169,8 +72346,8 @@ function pcsCausesHtml(a) {
     links: [todo ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTab" data-tab="cuts" data-pcs-todo>' + escHtml(todoPlural(todo, 'cut') + ' to complete, on Cuts') + '</button>' : ''],
     attrs: ' id="pcsVerdict"' });
   if (!t.reasoned) {
-    return h + '<div class="inv-panel"><div class="inv-empty" data-pcs-none>No cut has a reason yet. Complete a cut on Cuts (the time the power came back, why it went, what brought it back) ' +
-      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.</div></div>';
+    return h + '<div class="inv-panel" data-pcs-none>' + uiEmptyHtml('No cut has a reason yet. Complete a cut on Cuts (the time the power came back, why it went, what brought it back) ' +
+      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.') + '</div>';
   }
   h += '<div class="inv-panels">';
   h += '<div class="inv-panel" id="pcsReasons"><div class="inv-panel-head"><span class="inv-panel-title">What causes them <span class="inv-note">by what they cost</span></span></div>' +
@@ -72183,7 +72360,7 @@ function pcsCausesHtml(a) {
       return { label: x.c.name, value: x.median != null ? x.median : 0, display: x.median != null ? 'back in ' + powerDur(Math.round(x.median)) : 'no time back yet',
         sub: [todoPlural(x.n, 'cut'), rs.length ? 'for ' + rs.join(', ') : ''].filter(Boolean).join(' · '), tone: 'neutral' };
     }), { unit: 'count' })
-      : '<div class="inv-empty">No fix recorded yet: what brought the power back is asked with the reason.</div>') + '</div>';
+      : uiEmptyHtml('No fix recorded yet: what brought the power back is asked with the reason.')) + '</div>';
   h += pcsListHtml('reason') + pcsListHtml('fix');
   return h + '</div>';
 }
@@ -74052,8 +74229,8 @@ function renderPlanner() {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_plnView === t[0]) + '" data-action="invPlnView" data-v="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
   if (!B || !(B.kg > 0)) {
-    el.innerHTML = h + '<div class="inv-empty">The planner starts from the book: it needs invoices with weights in the last three full months (' +
-      escHtml(B ? formatDate(B.period.from) + ' to ' + formatDate(B.period.to) : '') + '). There are none yet.</div>' + plnRegistersOnlyHtml();
+    el.innerHTML = h + uiEmptyHtml('The planner starts from the book: it needs invoices with weights in the last three full months (' +
+      escHtml(B ? formatDate(B.period.from) + ' to ' + formatDate(B.period.to) : '') + '). There are none yet.') + plnRegistersOnlyHtml();
     viewTabReveal(el.querySelector('.inv-viewtabs'));
     _plnMoved = false;
     return;
@@ -74192,7 +74369,7 @@ function plnMachinesHtml() {
       return plnRowHtml({ key: 'pl-machine-' + x.id, attrs: ' data-pl-machine="' + escHtml(x.id) + '"', title: x.item,
         facts: [xu ? pltPlaceWords(xu) : stn ? stn.name : pltStationName(x.station), run[0] !== 'run' ? run[1] : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''],
         end: '<span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPltEdit" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.')) + '</div>';
 }
 function plnChecklistHtml() {
   var list = plnLive('checklist'), done = list.filter(function(x) { return x.status === 'in'; }).length;
@@ -74204,7 +74381,7 @@ function plnChecklistHtml() {
       var t = tone(x.status), facts = [x.cost ? formatCurrency(x.cost) : '', x.owner || '', x.due ? 'due ' + formatDate(x.due) : '', x.evidence || ''].filter(Boolean);
       return plnRowHtml({ key: 'pl-check-' + x.id, attrs: ' data-pl-check="' + escHtml(x.id) + '"', title: (x.ref ? x.ref + ' · ' : '') + x.what, facts: facts.length ? facts : ['nothing set'],
         end: '<span class="inv-dot inv-dot-' + t[2] + '">' + t[1] + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="checklist" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }), { n: 12, noun: 'items' }) : '<div class="inv-empty">No checklist yet. Start from the standard’s sections, then set each item’s status, cost and who owns it; the AIAG manual is the source.</div>') + '</div>';
+    }), { n: 12, noun: 'items' }) : uiEmptyHtml('No checklist yet. Start from the standard’s sections, then set each item’s status, cost and who owns it; the AIAG manual is the source.')) + '</div>';
 }
 function plnLendersHtml() {
   var list = plnLive('lenders'), sc = plnScenario();
@@ -74217,7 +74394,7 @@ function plnLendersHtml() {
         end: inPlay && !_isDesktop ? '<span class="inv-dot inv-dot-ok">In play</span>' : '',
         actions: [sc ? '<button class="inv-btn inv-btn-sm ' + (inPlay ? 'inv-btn-secondary' : 'inv-btn-ghost') + '" data-action="invPlnLoan" data-id="' + escHtml(x.id) + '">' + (inPlay ? 'In play · take out' : 'Play') + '</button>' : '',
           '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="lenders" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">No lender recorded. A lender’s offer (amount, rate, months, what it ties) is a record; play one as the scenario’s loan.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('No lender recorded. A lender’s offer (amount, rate, months, what it ties) is a record; play one as the scenario’s loan.')) + '</div>';
 }
 function plnHeardHtml() {
   var list = plnLive('heard').slice().sort(function(a, b) { return String(b.on || '').localeCompare(String(a.on || '')); });
@@ -74226,14 +74403,14 @@ function plnHeardHtml() {
     (list.length ? list.map(function(x) {
       return plnRowHtml({ key: 'pl-heard-' + x.id, attrs: ' data-pl-heard="' + escHtml(x.id) + '"', title: x.what, facts: [x.from ? 'from ' + x.from : '', x.on ? formatDate(x.on) : '', 'one report'],
         end: '<span class="inv-num">' + escHtml(x.value || '') + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="heard" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">Nothing heard yet: a rate a client says another plater charges, a certificate a competitor holds. One report is one report: it names who said it and when.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('Nothing heard yet: a rate a client says another plater charges, a certificate a competitor holds. One report is one report: it names who said it and when.')) + '</div>';
 }
 function plnHeldHtml(clientId) {
   var list = plnLive('heldBack').filter(function(x) { return clientId == null || String(x.clientId) === String(clientId); });
   return '<div class="inv-panel inv-panel-flush" id="plnHeld"><div class="inv-panel-head"><span class="inv-panel-title">Work held back <span class="inv-panel-count">' + list.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnRegEdit" data-k="heldBack"' + (clientId != null ? ' data-client="' + escHtml(String(clientId)) + '"' : '') + '>Add</button></div>' +
     (list.length ? list.map(function(x) { return plnHeldRowHtml(x, clientId == null); }).join('') :
-      '<div class="inv-empty">' + (clientId != null ? 'Nothing recorded as held back by this client.' : 'Nothing recorded as held back.') + ' Work a client sends elsewhere for want of certificates, turnaround or approval is a record: its tonnes, rate and line, and your read of the chance.</div>') + '</div>';
+      uiEmptyHtml('' + (clientId != null ? 'Nothing recorded as held back by this client.' : 'Nothing recorded as held back.') + ' Work a client sends elsewhere for want of certificates, turnaround or approval is a record: its tonnes, rate and line, and your read of the chance.')) + '</div>';
 }
 function plnHeldRowHtml(x, named) {
   var sc = plnScenario(), k = 'held:' + x.id, inPlan = sc && (sc.plan || {})[k] != null;
@@ -74507,7 +74684,7 @@ function plnBoardHtml(P) {
   }).join('');
   return '<div class="inv-panel inv-panel-flush inv-pl-wide" id="plnBoard"><div class="inv-panel-head"><span class="inv-panel-title">The board <span class="inv-panel-count">' + P.L.length + ' moves</span></span>' +
     '<span class="inv-panel-count">everything planned on every view · tap a move to shift it</span></div><div class="inv-scroll-x"><table class="inv-table inv-table-grid inv-pl-board"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
-    (P.L.length ? '' : '<div class="inv-empty">Nothing planned yet. Plan moves on Moves (Plant, Tech tree, Staff, Clients), play a loan or a card of your own, or Suggest a start under More (the CQI-11 path at its earliest).</div>') + '</div>';
+    (P.L.length ? '' : uiEmptyHtml('Nothing planned yet. Plan moves on Moves (Plant, Tech tree, Staff, Clients), play a loan or a card of your own, or Suggest a start under More (the CQI-11 path at its earliest).')) + '</div>';
 }
 function plnPinHtml(key) {
   var P = plnPlanned(_plnMode), mv = P.L.find(function(x) { return x.key === key; });
@@ -74576,7 +74753,7 @@ function plnHandHtml(P) {
       return plnRowHtml({ key: 'pl-card-' + k.id, attrs: ' data-pl-card="' + escHtml(k.id) + '"', title: k.title, facts: plnCardFacts(k),
         end: _isDesktop ? '' : inPlan ? plnMoveEnd(key, true) : plnMoveCtlHtml(key, false, 1),
         actions: [_isDesktop || inPlan ? plnMoveCtlHtml(key, inPlan, 1) : '', '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCard" data-id="' + escHtml(k.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">A move the planner does not know: new work at a rate on a line, more kilos a round on a line, or a saving a month, with its cost and its chance. New card makes one.</div>') +
+    }).join('') : uiEmptyHtml('A move the planner does not know: new work at a rate on a line, more kilos a round on a line, or a saving a month, with its cost and its chance. New card makes one.')) +
     '<div class="inv-panel-body inv-note">A loan is played from Moves → Finance → Lenders, one at a time.</div></div>';
 }
 function plnCardFacts(k) {
@@ -74589,7 +74766,7 @@ function plnReplayHtml() {
   return '<div class="inv-panel inv-panel-flush" id="plnReplay"><div class="inv-panel-head"><span class="inv-panel-title">One run, played out</span><span class="inv-panel-count">' + escHtml('trial ' + _plnReplay.n + ' · lowest cash ' + formatInrShort(t.low)) + '</span></div>' +
     (t.events.length ? t.events.slice(0, 14).map(function(e) {
       return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (e[2] === 'ok' ? 'ok' : e[2] === 'danger' ? 'danger' : 'warning') + '">' + escHtml(e[1]) + '</span></span></span><span class="inv-row-end"><span class="inv-num">' + escHtml(plnMonthLabel(Math.min(PLN_N - 1, e[0]))) + '</span></span></div>';
-    }).join('') : '<div class="inv-empty">Nothing happened in this run that the plan did not already say.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('Nothing happened in this run that the plan did not already say.')) + '</div>';
 }
 function plnLedgerHtml() {
   var P = plnPlanned(_plnMode), m = _plnMonth, mo = P.months[m], b = P.base[m], B = P.B;
@@ -75027,7 +75204,7 @@ function plnFinanceHtml() {
       [['In', function(e) { return e.in ? plnRs(e.in) : '—'; }], ['Interest', function(e) { return e.interest ? plnRs(e.interest) : '—'; }], ['Principal', function(e) { return e.principal ? plnRs(e.principal) : '—'; }], ['Owed after', function(e) { return e.bal ? plnRs(e.bal) : '—'; }]].map(function(r) {
         return '<tr><th scope="row">' + r[0] + '</th>' + sch.map(function(e) { return '<td class="inv-num">' + escHtml(r[1](e)) + '</td>'; }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>') + '</div>';
-  } else h += '<div class="inv-panel"><div class="inv-empty">No loan in this plan. Play a lender below; its terms are then the plan’s to change.</div></div>';
+  } else h += '<div class="inv-panel">' + uiEmptyHtml('No loan in this plan. Play a lender below; its terms are then the plan’s to change.') + '</div>';
   return h + plnLendersHtml() + plnHeardHtml() + '</div>';
 }
 
@@ -75434,12 +75611,17 @@ var KB_APP_GUIDES = [
     '- The app pays each tier for the days and hours that are recorded. Thus if nobody typed some days in a range, the labour figure is **low**, not neutral. The monthly tier is low twice. A day that nobody typed also lowers the attendance that its rest-day gate uses.\n' +
     '- The rest-day gate is a monthly rule. For a range shorter than a month, the gate examines each rest day on that range only. The rest credit of the daily tier counts the days in the range. Thus if a range cuts a week in half, the credit for that week is too low.\n' +
     '- **Variable labour by area** puts the hourly pool, the daily tier, overtime and the extra in the area where each was worked. It does not include the day pay and rest days of the monthly crew. That crew is the standing crew, and its cost does not follow the area where it stood. It includes the overtime of the monthly crew, because each overtime hour was worked in a specific area.\n' +
-    '- **The extra** is hours that the sheet books to an area, not to a person. They are real paid hours with no name on them. In the bill, they are 1 pooled line. The bill counts them once and never in the wage of a person. The crew present in the short area receive the extra pro-rata. The supervisor pays it out, and People → Areas shows the split.',
+    '- **The extra** is hours that the sheet books to an area, not to a person. They are real paid hours with no name on them. In the bill, they are 1 pooled line. The bill counts them once and never in the wage of a person. The crew present in the short area receive the extra pro-rata. The supervisor pays it out, and People → Areas shows the split.\n\n' +
+    '# Roster\n' +
+    '- People → **Roster** shows each hand as a card: the initials, the name, the area and the rate. Under them are the tier, the time at the plant, 3 bars and the top skills.\n' +
+    '- The 3 bars are reliability, consistency and workload over 90 days. A card shows a badge only for a state, for example a hand to watch or a hand who is not active.\n' +
+    '- Tap a card to open the record of that hand. **Filter** shows one area, one tier, the hands to watch or the check-ins that are due. The hands who left are under **Left**.',
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
-    // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5).
-    { version: 7 }),
+    // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5). Version 8: the Roster's cards (UI pass 3,
+    // U7: the first-visit pointer on them reads this section).
+    { version: 8 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +
@@ -75539,6 +75721,7 @@ var KB_APP_GUIDES = [
     '# Put the data in\n' +
     '- **Paste** the pickling loads and the production list from WhatsApp. Before the app saves, it shows each line with what it read.\n' +
     '- The register clerk types **the VAT register’s page** as written, on **Mine**. You can also enter it here by hand. The app reads both the same way. It applies the START rule, asks about a struck row each time and reads the total of the day.\n' +
+    '- **Read register photo** (under More) reads a photo of a VAT register page or its power log. Claude reads the photo. Then the app shows each run before it saves. Set the Claude key first: Settings → Connections → Photo reading.\n' +
     '- If there is nothing to paste, use **Enter by hand** (under More). The form stays open for the next entry.\n' +
     '- To correct a figure, make a new entry. Do not edit the figure. To remove a wrong entry, void it with a reason.\n' +
     '- **Print sheets** (under More) prints the pickling sheet, the barrel batches and the 2 VAT register pages for a day. Print them blank to fill by hand, or as entered for the file.\n\n' +
@@ -75578,7 +75761,8 @@ var KB_APP_GUIDES = [
     // barrels; a rectifier is supporting equipment, with the line it serves (T-IO, 29 Oct 2026).
     // Version 9: a hand run of a client the register does not show counts; Count it, Leave it out; a register run saved twice (4 Nov 2026).
     // Version 10: a run of the supervisor's message of a client the register does not show waits for approval (owner, 5 Nov 2026).
-    { version: 10 }),
+    // Version 11: Read register photo, back since 3 Nov 2026 (read by Claude), and the first-visit pointer on More (UI pass 3, U7).
+    { version: 11 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -75699,6 +75883,24 @@ var KB_APP_GUIDES = [
     '- Press **A** to open Add. Press **Backspace** to go back. To open a screen in a new window, press Ctrl and click.',
     // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026).
     { version: 2 }),
+  // The Messages screen (msgview.js; owner, 31 Oct 2026), written with UI pass 3's U7 (§26e: no guide named the screen).
+  _kbg('messages', 'Using the app: messages', 'Every WhatsApp message kept, read line by line, corrected and read again', ['pageMessages'],
+    'The app keeps every message that you paste or import from WhatsApp. **Messages** is in the top bar, beside History. Only the owner opens it.\n\n' +
+    '# The list\n' +
+    '- The card shows how many messages are not saved and how many the app could not read.\n' +
+    '- The list shows the messages by day. Each row shows the sender, the kind and the status: **Saved**, **Not saved**, **Not read** or **Not a report**.\n' +
+    '- **Filter** shows one kind, one sender, one status or one day. Search finds a word in the text.\n\n' +
+    '# One message\n' +
+    '- Tap a message to open it. Each line of the text is beside what the app read from it.\n' +
+    '- If the kind is wrong, set the kind. The sorter learns from it.\n' +
+    '- To correct the text, edit it and read it again. The app shows what the new reading changes. Nothing is saved until you save.\n' +
+    '- A message that a reader saved goes back to the review of that reader. The book is never written from this screen.\n\n' +
+    '# Read every message again\n' +
+    '- **Read every message again** (under More) sorts every message again with the reader as it is now.\n' +
+    '- It lists each message that it reads in a different way. It writes nothing to the book.\n' +
+    '- Use it after a correction, to see what else the correction changes.\n\n' +
+    '# What the app learnt\n' +
+    '- Each kind that you set by hand and each heading that the roll reader learnt is in a list. **Forget** removes a lesson.'),
   _kbg('knowledge', 'Using the app: the knowledge base', 'Read, write, approve and train', ['pageKnow'],
     '- Tap the book in the top bar to open the guides for the screen that you are on.\n' +
     '- Tap **Write** to write an article. An article can be a how-to, a process, a part, a client requirement, a ruling, a fault, an incident or a decision.\n' +
@@ -76556,7 +76758,7 @@ function kbStartHtml() {
   }).join('') + '</div>';
   var recent = own.filter(function(a) { return kbLive(a); }).sort(function(x, y) { return (y.approvedAt || y.at || 0) - (x.approvedAt || x.at || 0); }).slice(0, 8);
   h += '<div class="inv-panel inv-panel-flush" id="kbRecent"><div class="inv-panel-head"><span class="inv-panel-title">Latest</span></div>' +
-    (recent.length ? recent.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.</div>') + '</div>';
+    (recent.length ? recent.map(function(a) { return kbRowHtml(a); }).join('') : uiEmptyHtml('Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.')) + '</div>';
   return { body: h };
 }
 
@@ -76631,10 +76833,10 @@ function kbLibraryHtml() {
     var ranked = kbAskRank(list, _kbFilter.q);
     return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }),
       body: '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Best matches <span class="inv-panel-count">' + ranked.length + '</span></span></div>' +
-        (ranked.length ? uiMoreHtml('kb-ask', ranked.map(function(a) { return kbRowHtml(a); }), { noun: 'articles' }) : '<div class="inv-empty">Nothing matches. Try fewer words, or the word the shop uses.</div>') + '</div>' };
+        (ranked.length ? uiMoreHtml('kb-ask', ranked.map(function(a) { return kbRowHtml(a); }), { noun: 'articles' }) : uiEmptyHtml('Nothing matches. Try fewer words, or the word the shop uses.')) + '</div>' };
   }
   var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(_kbShelf ? kbShelfTitle(_kbShelf) : 'Articles') + ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
-  if (!list.length) h += '<div class="inv-empty">' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.') + '</div>';
+  if (!list.length) h += uiEmptyHtml('' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.')) + '';
   var rows = [];
   // The shop's own articles first, by kind; the app's guides after them, as one group: 32 of them had led the list and put
   // everything the shop wrote past its first thirty rows.
@@ -76658,10 +76860,10 @@ function kbTroubleHtml() {
         // Two facts (the tab map, TM6): the article's title where the symptom names the row, then what it holds.
         '<span class="inv-row-meta">' + escHtml([a.symptom ? a.title : '', todoPlural((a.causes || []).length, 'cause') + (n ? ', ' + todoPlural(n, 'incident') : '')].filter(Boolean).join(' · ')) + '</span></button>' +
         '<span class="inv-row-end">' + (a.status === 'published' ? '' : kbStatusHtml(a)) + '</span></div>';
-    }).join('') : '<div class="inv-empty">No fault written yet' + (_kbFilter.q ? ' for that' : '') + '.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('No fault written yet' + (_kbFilter.q ? ' for that' : '') + '.')) + '</div>';
   var inc = all.filter(function(a) { return a.kind === 'incident' && a.status !== 'retired'; }).sort(function(x, y) { return String(kbDayOf(y)).localeCompare(String(kbDayOf(x))); });
   h += '<div class="inv-panel inv-panel-flush" id="kbIncidents"><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + inc.length + '</span></span></div>' +
-    (inc.length ? uiMoreHtml('kb-inc', inc.map(function(a) { return kbRowHtml(a); }), { noun: 'incidents' }) : '<div class="inv-empty">No incident logged yet. Log one when something goes wrong: what, when, which part, the cause and the fix.</div>') + '</div>';
+    (inc.length ? uiMoreHtml('kb-inc', inc.map(function(a) { return kbRowHtml(a); }), { noun: 'incidents' }) : uiEmptyHtml('No incident logged yet. Log one when something goes wrong: what, when, which part, the cause and the fix.')) + '</div>';
   // Its verdict (TM6f): the faults written, and the incidents of the last 30 days, which are something going wrong on the plant.
   var from = isoAddDays(localDateStr(), -29), recent = inc.filter(function(a) { return String(kbDayOf(a)) >= from; });
   var verdict = uiVerdictHtml({ screen: 'Troubleshoot' + (_kbFilter.q ? ' · searched' : ''), tone: recent.length ? 'warning' : 'ok',
@@ -76681,7 +76883,7 @@ function kbRecordsHtml() {
     verdict: todoPlural(list.length, 'record') + (due ? ' · ' + todoPlural(due, 'decision') + ' due for review' : ''),
     facts: [todoPlural(n('ruling'), 'ruling'), todoPlural(n('decision'), 'decision')], key: 'pageKnow-records', attrs: ' data-kb-verdict="records"' });
   var h = '<div class="inv-panel inv-panel-flush" id="kbRecords"><div class="inv-panel-head"><span class="inv-panel-title">Records <span class="inv-panel-count">' + list.length + '</span></span></div>';
-  if (!list.length) h += '<div class="inv-empty">No record yet.</div>';
+  if (!list.length) h += uiEmptyHtml('No record yet.');
   var rows = [], last = '';
   list.forEach(function(a) {
     var m = String(kbDayOf(a)).slice(0, 7);
@@ -76727,7 +76929,7 @@ function kbTrainVerdictHtml(paths, roster, sees) {
    opens People or Floor: Knowledge is every role's page, the roster is not. */
 function kbTrainingHtml() {
   var paths = kbPaths(), sees = kbSeesRoster(), roster = sees ? staffActive() : [], verdict = kbTrainVerdictHtml(paths, roster, sees), h = '';
-  if (!paths.length) h += '<div class="inv-empty">No training path yet.</div>';
+  if (!paths.length) h += uiEmptyHtml('No training path yet.');
   paths.forEach(function(p) {
     var arts = kbPathArticles(p), who = kbPathWho(p, roster);
     // A path shows its first five lessons, the rest one tap away (the length pass's rule): the paths grew with the entry
@@ -76741,13 +76943,13 @@ function kbTrainingHtml() {
     // The head says whom the path is for (kbPathWho: the floor's hands or the office's), where the role sees the roster.
     h += '<div class="inv-panel inv-panel-flush" data-kb-path="' + escHtml(p.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(p.title) + ' <span class="inv-panel-count">' + arts.length + '</span></span>' +
       (sees ? '<span class="inv-note" data-kb-path-who>for ' + escHtml(todoPlural(who.length, 'hand')) + '</span>' : '') + '</div>' +
-      (rows.length ? uiMoreHtml('kb-path-' + p.id, rows, { n: rows.length === 6 ? 6 : 5, noun: 'lessons' }) : '<div class="inv-empty">None of this path&rsquo;s lessons is published yet.</div>') + '</div>';
+      (rows.length ? uiMoreHtml('kb-path-' + p.id, rows, { n: rows.length === 6 ? 6 : 5, noun: 'lessons' }) : uiEmptyHtml('None of this path&rsquo;s lessons is published yet.')) + '</div>';
   });
   if (!sees) return { verdict: verdict, body: h };
   // The roster against every lesson given: a hand's row is its area, its end its standing.
   var lessons = kbReadable().filter(kbIsLesson);
   h += '<div class="inv-panel inv-panel-flush" id="kbRoster"><div class="inv-panel-head"><span class="inv-panel-title">The roster <span class="inv-panel-count">' + roster.length + '</span></span></div>';
-  if (!roster.length) h += '<div class="inv-empty">Nobody on the roster yet.</div>';
+  if (!roster.length) h += uiEmptyHtml('Nobody on the roster yet.');
   var rec = kbTrainOk();
   h += uiMoreHtml('kb-roster', roster.map(function(w) {
     var yes = 0, due = 0;
@@ -76854,7 +77056,7 @@ function kbDayContextHtml(a) {
   } catch (e) { /* attendance not readable */ }
   return '<div class="inv-panel inv-panel-flush" data-kb-day><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml('That day in the book, ' + formatDate(d)) + '</span></div>' +
     (rows.length ? rows.slice(0, 40).map(function(r) { return '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-row-title">' + escHtml(r.k) + '</div><div class="inv-row-meta inv-row-wrap">' + escHtml(r.t) + '</div></div></div>'; }).join('')
-      : '<div class="inv-empty">Nothing recorded that day' + (part || line ? ' for this part or line' : '') + '.</div>') + '</div>';
+      : uiEmptyHtml('Nothing recorded that day' + (part || line ? ' for this part or line' : '') + '.')) + '</div>';
 }
 
 /* ---------- Writing ---------- */
@@ -77949,7 +78151,7 @@ function kbKindIco(kind) {
   return '<span class="inv-kb-ico" aria-hidden="true">' + iconPathSvg(KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</span>';
 }
 /* An app guide carries its subject's icon (the book on every one had read as one guide); the shop's articles their kind's. */
-var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield', 'app-feeds': 'news' };
+var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-messages': 'message', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield', 'app-feeds': 'news' };
 function kbArtIco(a) {
   var k = a && KB_GUIDE_ICON[a.id];
   return k && ICONS[k] ? '<span class="inv-kb-ico" aria-hidden="true">' + iconSvg(k) + '</span>' : kbKindIco(a ? a.kind : '');
@@ -78185,7 +78387,7 @@ function kbArticleKindHtml(a) {
     var incs = kbReadable().filter(function(x) { return x.kind === 'incident' && x.faultId === a.id && x.status !== 'retired'; });
     h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
       (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
-      (incs.length ? incs.map(function(x) { return kbRowHtml(x); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
+      (incs.length ? incs.map(function(x) { return kbRowHtml(x); }).join('') : uiEmptyHtml('None logged yet.')) + '</div>';
   }
   if (a.kind === 'incident') h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
   if (a.kind === 'decision') h += '<div id="kbSecoptions" data-kb-sec="options">' + kbDecisionHtml(a) + '</div>';
@@ -78413,7 +78615,7 @@ function kbSheetOpen(tab, redraw) {
   var ctx = secs.filter(function(s) { return s.key !== 'notes'; });
   var body = _kbSheetTab === 'notes' ? (notes ? notes.html : '') : ctx.map(function(s) {
     return '<section class="inv-kb-ctx-sec" data-kb-ctx="' + s.key + '"><h3 class="inv-kb-ctx-h">' + escHtml(s.title) + (s.count !== '' ? ' <span class="inv-panel-count">' + s.count + '</span>' : '') + '</h3>' + s.html + '</section>';
-  }).join('') || '<div class="inv-empty">Nothing linked to this article yet.</div>';
+  }).join('') || uiEmptyHtml('Nothing linked to this article yet.');
   var tabs = '<div class="inv-viewtabs" role="tablist" aria-label="About this article">' + [['context', 'Context'], ['notes', 'Notes']].map(function(t) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_kbSheetTab === t[0]) + '" data-action="invKbSheet" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
@@ -78943,7 +79145,7 @@ function renderClientPerformance(container) {
     }).join('') + '</select></label></div>';
 
   if (clientId == null) {
-    container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">No clients yet</div></div>';
+    container.innerHTML = html + '<div class="inv-panel">' + uiEmptyHtml('No clients yet') + '</div>';
     return;
   }
   // The verdict leads (the tab map, TM5f), the client picker under it; the client's flags are its tiles, and only a fifth
@@ -78973,7 +79175,7 @@ function renderClientPerformance(container) {
   var renames = cpFindRenames(stopped, fresh);
 
   if (monthly.length === 0 && classified.length === 0) {
-    container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">Nothing recorded for this client yet</div></div>';
+    container.innerHTML = html + '<div class="inv-panel">' + uiEmptyHtml('Nothing recorded for this client yet') + '</div>';
     return;
   }
 
@@ -79223,7 +79425,7 @@ function cpWorkedListHtml(clientId) {
     (_cpScope === 'all' ? ' · ' + todoPlural(Object.keys(tot.clients).length, 'client') : '') + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 && cpSeesMoney() ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + escHtml(cpQtyText(tot.nos, tot.kg)) + '</span></div>';
-  if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
+  if (!list.length) return h + uiEmptyHtml('' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.')) + '';
   var rows = list.map(function(r) {
     var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
     // Two facts (§3b-11): its documents, and when; its platings in its title.
@@ -80597,7 +80799,7 @@ function runIMDuplicateScan() {
     dialogHeadHtml('Duplicate check');
 
   if (groups.length === 0 && blanks.length === 0) {
-    html += '<div class="inv-empty">No duplicate challans and no blank challan numbers.</div>';
+    html += uiEmptyHtml('No duplicate challans and no blank challan numbers.');
   } else {
     html += '<div class="inv-note inv-mb-8">Challans matched on client, date and line quantities. Nothing here is deleted automatically — a duplicate record is the evidence of the pattern, and only you know which copy is the real one.</div>';
   }
@@ -81067,6 +81269,8 @@ function onDocClick(e) {
     case 'invSwitchTab': wsSwitchTab(btn.dataset.tab, btn.dataset.v); break;
     // A guided flow's step opens its guide at the section it names (state.js uiFlowGuideGo).
     case 'invFlowGuide': uiFlowGuideGo(btn.dataset.id, btn.dataset.sec); break;
+    case 'invPointerOk': uiPointerClose(); break;
+    case 'invPointerGuide': uiPointerClose(); uiFlowGuideGo(btn.dataset.id, btn.dataset.sec); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
@@ -82962,7 +83166,7 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -83166,11 +83370,14 @@ var SRCH_KINDS = [
   ['stock', 'Stock lines', 'Stock line', false], ['bank', 'Bank rows', 'Bank row', false],
   ['quote', 'Quotations', 'Quotation', true], ['cn', 'Credit notes', 'Credit note', true], ['kb', 'Knowledge', 'Article', false]
 ];
+/* Each kind's icon, leading its rows in the palette (UI pass 3, §14a). */
+var SRCH_KIND_ICON = { screen: 'compass', invoice: 'invoice', challan: 'challan', client: 'client', part: 'part', worker: 'worker',
+  stock: 'chemical', bank: 'bank', quote: 'quote', cn: 'note', kb: 'book' };
 var _srchKindMap = null;
 function srchKindOf(k) {
   if (!_srchKindMap) {
     _srchKindMap = {};
-    SRCH_KINDS.forEach(function(x) { _srchKindMap[x[0]] = { kind: x[0], group: x[1], one: x[2], ident: x[3] }; });
+    SRCH_KINDS.forEach(function(x) { _srchKindMap[x[0]] = { kind: x[0], group: x[1], one: x[2], ident: x[3], icon: SRCH_KIND_ICON[x[0]] }; });
   }
   return _srchKindMap[k] || { kind: k, group: k, one: k, ident: false };
 }
@@ -83778,7 +83985,7 @@ function srchClose() {
 function srchOptHtml(n, e) {
   var kd = srchKindOf(e.kind);
   return '<button type="button" class="inv-row inv-row-2" role="option" id="srchOpt' + n + '" tabindex="-1" aria-selected="false" data-action="invSearchPick" data-n="' + n + '">' +
-    '<span class="inv-row-main"><span class="inv-row-title' + (kd.ident ? ' inv-id' : '') + '">' + escHtml(e.title || kd.one) + '</span>' +
+    (kd.icon ? '<span class="inv-row-lead">' + iconSvg(kd.icon) + '</span>' : '') + '<span class="inv-row-main"><span class="inv-row-title' + (kd.ident ? ' inv-id' : '') + '">' + escHtml(e.title || kd.one) + '</span>' +
     (e.sub ? '<span class="inv-row-meta">' + escHtml(e.sub) + '</span>' : '') + '</span>' +
     '<span class="inv-row-end"><span class="inv-badge inv-badge-neutral">' + escHtml(kd.one) + '</span></span></button>';
 }
@@ -83823,8 +84030,8 @@ function srchRender() {
       html += srchGroupHtml(g.kind, kd.group, g.items.length, inner);
     });
     if (!res.groups.length) {
-      html = '<div class="inv-empty">Nothing matches &ldquo;' + escHtml(q) + '&rdquo;. Search reads invoices, challans, clients, parts, workers, stock lines, ' +
-        'bank rows, quotations, credit notes and the screens; a number matches whole, an amount to the paisa.</div>';
+      html = uiEmptyHtml('Nothing matches &ldquo;' + escHtml(q) + '&rdquo;. Search reads invoices, challans, clients, parts, workers, stock lines, ' +
+        'bank rows, quotations, credit notes and the screens; a number matches whole, an amount to the paisa.');
     }
     say = res.total ? res.total + ' result' + (res.total === 1 ? '' : 's') : 'Nothing matches';
   }
@@ -85255,7 +85462,7 @@ checkForUpdate(false);
 
 // body.html's icons are slots of the one set (Icons v3, state.js): filled now, before the book loads and long before inv-booted,
 // so the shell shows them from its first draw.
-bootStep('the icons', function() { iconFill(document.body); });
+bootStep('the icons', function() { iconFill(document.body); uiStatusIconVars(); });
 
 // The GitHub token is read into memory beside the book (devices.js: locked to the device), so getGhToken() answers
 // before anything asks. That read never rejects and never holds the start past its own time limit.

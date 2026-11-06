@@ -91,7 +91,7 @@ test.describe('P151: search finds what is asked, whole', () => {
     await search(page, 'SEP');
     expect(await titles(page, 'invoice')).toEqual([]);
     await search(page, 'sep zzz');
-    await expect(page.locator('#srchList .inv-empty')).toContainText('Nothing matches');
+    await expect(page.locator('#srchList .inv-blank')).toContainText('Nothing matches');
     // Beside a name it narrows to that client's invoices.
     await search(page, 'sep alpha');
     expect(await titles(page, 'invoice')).toEqual(['SEP/2026-27/01234', 'SEP/2026-27/00834', 'SEP/2026-27/00083']);

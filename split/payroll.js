@@ -930,7 +930,7 @@ function payHistoryHtml(w) {
     sub: weekly ? (payHandPays(w.id).length ? 'counted from the first payment typed for them' : 'no payment typed for them yet') :
       cf ? 'monthly balances counted from ' + _monthLabel(cf) : 'monthly balances are not counted yet: Pay, Count from a month',
     attrs: ' data-pay-history-now="' + gstRound(now.amount) + '"' });
-  if (!rows.length) return h + '<div class="inv-empty">Nothing earned or paid in the last ' + PAY_HISTORY_PERIODS + (weekly ? ' weeks' : ' months') + '.</div></div>';
+  if (!rows.length) return h + uiEmptyHtml('Nothing earned or paid in the last ' + PAY_HISTORY_PERIODS + (weekly ? ' weeks' : ' months') + '.') + '</div>';
   rows.forEach(function(r) {
     var label = weekly ? 'Week ' + attPayWeekNumber(r.from) + ' · ' + formatDate(r.to) : _monthLabel(r.from.slice(0, 7));
     var st = payHistoryState(r), key = 'pay-hist-' + w.id + '-' + r.from;
@@ -1113,7 +1113,7 @@ function _payrollPaidCard() {
   // Its Import is the toolbar's More (§1a-10: files behind More); what a month on record replaces is the guide's.
   var h = '<div class="inv-panel inv-panel-flush" id="payrollPaid"><div class="inv-panel-head"><span class="inv-panel-title">Monthly payroll as paid</span>' +
     '<span class="inv-panel-count">' + recs.filter(function(r) { return !r.voidedAt; }).length + '</span></div>';
-  if (!recs.length) return h + '<div class="inv-empty">No closed month on record: the monthly tier is worked out from the marks.</div></div>';
+  if (!recs.length) return h + uiEmptyHtml('No closed month on record: the monthly tier is worked out from the marks.') + '</div>';
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
@@ -1338,7 +1338,7 @@ function attOnSiteTone(d, areasShort) {
 function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '>' + (headBtn === null ? '' : '<div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
     '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>');
-  if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
+  if (!d.marked) return h + uiEmptyHtml('Nothing recorded yet.') + '</div>';
   // On site against the roster, judged at the rest-day gate's 90% and 80% and the floor's number (attOnSiteTone).
   var onTone = attOnSiteTone(d), floorTone = d.complement ? areaNeedTone(d.floorHeads, d.complement) : null;
   h += '<div class="inv-tiles inv-tiles-flush">' +

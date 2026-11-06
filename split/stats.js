@@ -1063,7 +1063,7 @@ function openClientDrillOverlay(clientId) {
     .filter(function(i) { return i.clientId === clientId && i.status === 'active'; })
     .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); })
     .slice(0, 5);
-  var recentHtml = recentInvs.length === 0 ? '<div class="inv-empty">No invoices</div>' : recentInvs.map(function(inv) {
+  var recentHtml = recentInvs.length === 0 ? uiEmptyHtml('No invoices') : recentInvs.map(function(inv) {
     return statsRow('<span class="inv-id">' + escHtml(inv.displayNumber) + '</span>', escHtml(formatDate(inv.date)),
       '<span class="inv-row-stack">' + statsNum(formatCurrency(inv.grandTotal)) + getStateDotHtml(inv) + '</span>');
   }).join('');
@@ -1072,7 +1072,7 @@ function openClientDrillOverlay(clientId) {
     if (im.clientId !== clientId) return false;
     return im.items.some(function(it) { return !it.invoiced; });
   });
-  var challanHtml = pendingChallans.length === 0 ? '<div class="inv-empty">No pending challans</div>' : pendingChallans.map(function(im) {
+  var challanHtml = pendingChallans.length === 0 ? uiEmptyHtml('No pending challans') : pendingChallans.map(function(im) {
     var pItems = im.items.filter(function(it) { return !it.invoiced; });
     var pAmt = pItems.reduce(function(s, it) { return s + imLineOpen(it).amount; }, 0);
     return statsRow(im.challanNo ? 'Ch. <span class="inv-id">' + escHtml(im.challanNo) + '</span>' : 'No number',
@@ -1538,11 +1538,11 @@ function renderHistory() {
 
   if (events.length === 0) {
     var filtered = _historyType !== 'all' || _historySearch || _historyClientFilter || _historyDateFrom || _historyDateTo || _historyWho;
-    area.innerHTML = '<div class="inv-panel"><div class="inv-empty">' +
+    area.innerHTML = '<div class="inv-panel">' + uiEmptyHtml('' +
       (_historyType === 'change' && !_historySearch && !_historyClientFilter && !_historyDateFrom && !_historyDateTo && !_historyWho
         ? 'No changes logged yet: every save from now on is listed here, with who made it'
         : filtered ? 'No activity matches these filters' : 'No activity yet: invoices, challans and attendance appear here as they are recorded') +
-      '</div>' + (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '') + '</div>';
+      '') + (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '') + '</div>';
     return;
   }
 

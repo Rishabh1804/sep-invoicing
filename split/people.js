@@ -187,7 +187,7 @@ function pplRecordHtml(w, opts) {
       return '<div class="inv-row inv-row-2" data-ppl-skill="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span><span class="inv-row-meta">' +
         escHtml(d ? d + ' day' + (d === 1 ? '' : 's') + ' there in 90' : 'no day there in 90') + (s && !d ? ' · <span class="inv-fig-warning">rated, never worked there lately</span>' : '') + '</span></span>' +
         '<span class="inv-row-end">' + (s ? pplDotsHtml(s) : '<span class="inv-row-meta">not rated</span>') + '</span></div>';
-    }).join('') : '<div class="inv-empty">No area worked or rated yet.</div>') +
+    }).join('') : uiEmptyHtml('No area worked or rated yet.')) +
     (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
   // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
   if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
@@ -197,7 +197,7 @@ function pplRecordHtml(w, opts) {
       var o = t.staffId != null ? staffById(t.staffId) : null, k = PPL_TIES.find(function(x) { return x[0] === t.kind; });
       return '<div class="inv-row inv-row-2" data-ppl-tie="' + escHtml(t.kind || '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (t.owner ? pplOwnerName() : o ? o.name : t.name)) + '</span>' +
         (t.note ? '<span class="inv-row-meta">' + escHtml(t.note) + '</span>' : '') + '</span></div>';
-    }).join('') : '<div class="inv-empty">None recorded.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('None recorded.')) + '</div>';
   if (owner) {
     var p = w.profile || {}, em = p.emergency || {};
     var kv = [['Designation', p.designation], ['Phone', p.phone], ['Son or daughter of', p.guardian], ['Address', p.address], ['Blood group', p.bloodGroup], ['Born', p.dob ? formatDate(p.dob) : ''], ['Joined', p.joined ? formatDate(p.joined) : ''],
@@ -205,7 +205,7 @@ function pplRecordHtml(w, opts) {
       ['Languages', p.languages], ['Notes', p.notes]].filter(function(x) { return x[1]; });
     h += '<div class="inv-panel inv-panel-flush" data-ppl-personal="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Personal details</span><span class="inv-row-meta">the owner’s alone</span></div>' +
       (kv.length ? '<div class="inv-panel-body"><div class="inv-kv">' + kv.map(function(x) { return '<div' + (x[0] === 'Address' || x[0] === 'Notes' ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(x[1]) + '</div></div>'; }).join('') + '</div></div>'
-        : '<div class="inv-empty">None recorded.</div>') +
+        : uiEmptyHtml('None recorded.')) +
       '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPplEdit" data-id="' + id + '">Details, skills and ties</button></div>';
   }
   return h;

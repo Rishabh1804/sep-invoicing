@@ -45,11 +45,14 @@ var SRCH_KINDS = [
   ['stock', 'Stock lines', 'Stock line', false], ['bank', 'Bank rows', 'Bank row', false],
   ['quote', 'Quotations', 'Quotation', true], ['cn', 'Credit notes', 'Credit note', true], ['kb', 'Knowledge', 'Article', false]
 ];
+/* Each kind's icon, leading its rows in the palette (UI pass 3, §14a). */
+var SRCH_KIND_ICON = { screen: 'compass', invoice: 'invoice', challan: 'challan', client: 'client', part: 'part', worker: 'worker',
+  stock: 'chemical', bank: 'bank', quote: 'quote', cn: 'note', kb: 'book' };
 var _srchKindMap = null;
 function srchKindOf(k) {
   if (!_srchKindMap) {
     _srchKindMap = {};
-    SRCH_KINDS.forEach(function(x) { _srchKindMap[x[0]] = { kind: x[0], group: x[1], one: x[2], ident: x[3] }; });
+    SRCH_KINDS.forEach(function(x) { _srchKindMap[x[0]] = { kind: x[0], group: x[1], one: x[2], ident: x[3], icon: SRCH_KIND_ICON[x[0]] }; });
   }
   return _srchKindMap[k] || { kind: k, group: k, one: k, ident: false };
 }
@@ -657,7 +660,7 @@ function srchClose() {
 function srchOptHtml(n, e) {
   var kd = srchKindOf(e.kind);
   return '<button type="button" class="inv-row inv-row-2" role="option" id="srchOpt' + n + '" tabindex="-1" aria-selected="false" data-action="invSearchPick" data-n="' + n + '">' +
-    '<span class="inv-row-main"><span class="inv-row-title' + (kd.ident ? ' inv-id' : '') + '">' + escHtml(e.title || kd.one) + '</span>' +
+    (kd.icon ? '<span class="inv-row-lead">' + iconSvg(kd.icon) + '</span>' : '') + '<span class="inv-row-main"><span class="inv-row-title' + (kd.ident ? ' inv-id' : '') + '">' + escHtml(e.title || kd.one) + '</span>' +
     (e.sub ? '<span class="inv-row-meta">' + escHtml(e.sub) + '</span>' : '') + '</span>' +
     '<span class="inv-row-end"><span class="inv-badge inv-badge-neutral">' + escHtml(kd.one) + '</span></span></button>';
 }
@@ -702,8 +705,8 @@ function srchRender() {
       html += srchGroupHtml(g.kind, kd.group, g.items.length, inner);
     });
     if (!res.groups.length) {
-      html = '<div class="inv-empty">Nothing matches &ldquo;' + escHtml(q) + '&rdquo;. Search reads invoices, challans, clients, parts, workers, stock lines, ' +
-        'bank rows, quotations, credit notes and the screens; a number matches whole, an amount to the paisa.</div>';
+      html = uiEmptyHtml('Nothing matches &ldquo;' + escHtml(q) + '&rdquo;. Search reads invoices, challans, clients, parts, workers, stock lines, ' +
+        'bank rows, quotations, credit notes and the screens; a number matches whole, an amount to the paisa.');
     }
     say = res.total ? res.total + ' result' + (res.total === 1 ? '' : 's') : 'Nothing matches';
   }

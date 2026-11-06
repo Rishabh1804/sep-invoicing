@@ -147,7 +147,7 @@ function renderFace() {
 function faceHtml() {
   var u = faceUser(), duties = faceDuties(u), day = faceDayIso(), isToday = day === localDateStr();
   if (!u || !duties.length) {
-    return '<div class="inv-panel"><div class="inv-empty">No duties are set for this ID. The owner sets what each person enters: Settings → Access → Users & access → Edit → Enters.</div></div>';
+    return '<div class="inv-panel">' + uiEmptyHtml('No duties are set for this ID. The owner sets what each person enters: Settings → Access → Users & access → Edit → Enters.', 'notset') + '</div>';
   }
   var me = grdUser(), seenAs = !me || me.id !== u.id;
   var steps = duties.map(function(d) { return { d: d, s: faceStep(d, day, u) }; });
@@ -210,7 +210,7 @@ function faceEnteredHtml(u, day) {
       '<span class="inv-row-meta">' + escHtml(act.charAt(0).toUpperCase() + act.slice(1) + (e.n ? '' : ' ' + noun)) + '</span></span><span class="inv-row-end inv-num">' + escHtml(clock) + '</span></div>');
   });
   var h = '<div class="inv-panel inv-panel-flush" id="faceEntered"><div class="inv-panel-head"><span class="inv-panel-title">What you entered <span class="inv-panel-count">' + rows.length + '</span></span></div>';
-  if (!rows.length) return h + '<div class="inv-empty">Nothing yet on this day.</div></div>';
+  if (!rows.length) return h + uiEmptyHtml('Nothing yet on this day.') + '</div>';
   return h + uiMoreHtml('face-entered', rows, { n: FACE_ENTERED_MAX, noun: 'entries' }) + '</div>';
 }
 /* The paper for the person's duties (facesheet.js, F5: the blank sheets, and the day as entered, to file), and whether their
@@ -1305,7 +1305,7 @@ function faceRollInHtml(f) {
   var present = roster.filter(function(w) { return f.place[String(w.id)] !== 'absent'; }), body = {};
   body.early = '<div class="inv-panel inv-panel-flush" data-face-early><div class="inv-panel-head"><span class="inv-panel-title">6:00 AM <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
     '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a 6 AM block</button></div>' +
-    (f.blocks.length ? '' : '<div class="inv-empty">No early block today.</div>') + '</div>' + f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, present); }).join('');
+    (f.blocks.length ? '' : uiEmptyHtml('No early block today.')) + '</div>' + f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, present); }).join('');
   // Where each hand stood: a row a hand in the Day view's order, its place one pick; the counts above them.
   var opts = function(v) {
     return '<option value=""' + (!v ? ' selected' : '') + '>Not marked</option>' + FACE_ROLL_SECTIONS.map(function(s) { return '<option value="' + s.id + '"' + (v === s.id ? ' selected' : '') + '>' + escHtml(s.title) + '</option>'; }).join('') +
@@ -1364,9 +1364,9 @@ function faceRollOutHtml(f) {
       return '<div class="inv-row inv-row-2 inv-row-flow" data-face-left="' + escHtml(id) + '"><span class="inv-row-main"><label class="inv-row-title" for="' + sel + '">' + escHtml(w.name) + '</label>' +
         (kept ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(FACE_BY_HAND) + '</span>' : '') + '</span>' +
         '<span class="inv-row-end">' + faceOutSelectHtml(sel, 'data-face-out="' + escHtml(id) + '"' + (kept ? ' disabled' : ''), (f.outAt && f.outAt[id]) || '17:00', 720, true) + '</span></div>';
-    }).join('') : '<div class="inv-empty">Nobody: everyone present is on a late block.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('Nobody: everyone present is on a late block.')) + '</div>';
   body.late = '<div class="inv-panel inv-panel-flush" data-face-late><div class="inv-panel-head"><span class="inv-panel-title">Late blocks <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
-    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a block</button></div>' + (f.blocks.length ? '' : '<div class="inv-empty">No late block today.</div>') + '</div>' +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a block</button></div>' + (f.blocks.length ? '' : uiEmptyHtml('No late block today.')) + '</div>' +
     f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, roster); }).join('');
   var before = faceBackBar(FACE_FORM_TITLE['roll-out']) + faceRollSavedHtml(f) +
     (present.length ? '' : '<div class="inv-callout inv-callout-warning">The in-time roll of this day is not in: the out-time roll names only the blocks’ crews.</div>');

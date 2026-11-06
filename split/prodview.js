@@ -445,7 +445,7 @@ function prodPlantHtml() {
   plant.rows.forEach(function(x) { (byClient[x.r.m.clientId] = byClient[x.r.m.clientId] || []).push(x); });
   var ids = Object.keys(byClient).sort(function(a, b) { return prodClientName(a).localeCompare(prodClientName(b)); });
   h += '<div class="inv-panel inv-panel-flush" id="prodPlantList"><div class="inv-panel-head"><span class="inv-panel-title">Open challan lines</span><span class="inv-panel-count">' + plant.rows.length + '</span></div>';
-  if (!ids.length) h += '<div class="inv-empty">Nothing open on the challans.</div>';
+  if (!ids.length) h += uiEmptyHtml('Nothing open on the challans.');
   // A client is one row that opens to its lines (its open quantity and its first stage as two facts, what is open at its end),
   // plated and not invoiced first: a book of many challans drew every line (thirteen phone screens on the long book). One client
   // on screen (the filter) is its lines.
@@ -511,7 +511,7 @@ function prodLinesHtml() {
   if (line === 'pickling') {
     var loads = prodDayLoads(day);
     return h + '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
-      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
+      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : uiEmptyHtml('No pickling recorded this day.')) + '</div>';
   }
   var r = prodDayLine(day, line);
   var groups = { general: [], ot: [] };
@@ -519,7 +519,7 @@ function prodLinesHtml() {
   var also = idx.also.filter(function(e) { return e.date === day && e.line === line; });
   h += '<div class="inv-panel inv-panel-flush" id="prodRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs</span>' +
     (r.entries.length ? '<span class="inv-panel-count">' + r.entries.length + '</span>' : '') + '</div>';
-  if (!r.entries.length && !also.length) h += '<div class="inv-empty">No plating recorded on ' + escHtml(PROD_LINE_LABEL[line]) + ' this day: a gap, not a zero.</div>';
+  if (!r.entries.length && !also.length) h += uiEmptyHtml('No plating recorded on ' + escHtml(PROD_LINE_LABEL[line]) + ' this day: a gap, not a zero.');
   // Copies saved twice count until settled: the day's plating and efficiency read high by them, and say so (Vulcanus M-3).
   var twN = r.entries.filter(function(e) { return idx.twinSkip[e.id]; }).length;
   if (twN) h += '<div class="inv-callout inv-callout-warning" data-prod-twin-note>' + escHtml(todoPlural(twN, 'run') + ' saved twice: the plated figure and the efficiency read high until the copy is voided.') + '</div>';
@@ -646,7 +646,7 @@ function prodLineStockHtml(line) {
   var ids = Object.keys(L.items).sort(function(a, b) { return (L.items[b].rs - L.items[a].rs) || (L.items[b].qty - L.items[a].qty); });
   var h = '<div class="inv-panel inv-panel-flush" id="prodLineStock"><div class="inv-panel-head"><span class="inv-panel-title">Into the bath, ' + STOCK_LINE_DAYS + ' days</span>' +
     (ids.length ? '<span class="inv-panel-count">' + ids.length + '</span>' : '') + '</div>';
-  if (!ids.length) h += '<div class="inv-empty">No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.</div>';
+  if (!ids.length) h += uiEmptyHtml('No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.');
   ids.forEach(function(id) {
     var r = L.items[id], unit = r.item.unit || '', pt = stockPerTonneText(r.perT, r.est || r.soFar, r.atMost), sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
     var f = { label: r.item.name, src: r.soFar ? ['neutral', 'so far'] : null, value: pt ? pt + ' ' + (unit || 'unit') + '/t' : '',
@@ -763,7 +763,7 @@ function prodEntriesHtml() {
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   var lh = '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">' +
     (f.day ? 'Entries, ' + formatDate(f.day) : f.flag ? 'Entries, every date' : 'Entries, 60 days') + '</span><span class="inv-panel-count">' + list.length + '</span></div>';
-  if (!list.length) lh += '<div class="inv-empty">Nothing here.</div>';
+  if (!list.length) lh += uiEmptyHtml('Nothing here.');
   var rows = [], last = '';
   list.slice(0, 300).forEach(function(e) {
     if (e.date !== last) { last = e.date; rows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + escHtml(formatDate(e.date)) + '</span></div>'] }); }

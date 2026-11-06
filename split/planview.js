@@ -52,8 +52,8 @@ function renderPlanner() {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_plnView === t[0]) + '" data-action="invPlnView" data-v="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
   if (!B || !(B.kg > 0)) {
-    el.innerHTML = h + '<div class="inv-empty">The planner starts from the book: it needs invoices with weights in the last three full months (' +
-      escHtml(B ? formatDate(B.period.from) + ' to ' + formatDate(B.period.to) : '') + '). There are none yet.</div>' + plnRegistersOnlyHtml();
+    el.innerHTML = h + uiEmptyHtml('The planner starts from the book: it needs invoices with weights in the last three full months (' +
+      escHtml(B ? formatDate(B.period.from) + ' to ' + formatDate(B.period.to) : '') + '). There are none yet.') + plnRegistersOnlyHtml();
     viewTabReveal(el.querySelector('.inv-viewtabs'));
     _plnMoved = false;
     return;
@@ -192,7 +192,7 @@ function plnMachinesHtml() {
       return plnRowHtml({ key: 'pl-machine-' + x.id, attrs: ' data-pl-machine="' + escHtml(x.id) + '"', title: x.item,
         facts: [xu ? pltPlaceWords(xu) : stn ? stn.name : pltStationName(x.station), run[0] !== 'run' ? run[1] : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''],
         end: '<span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPltEdit" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.')) + '</div>';
 }
 function plnChecklistHtml() {
   var list = plnLive('checklist'), done = list.filter(function(x) { return x.status === 'in'; }).length;
@@ -204,7 +204,7 @@ function plnChecklistHtml() {
       var t = tone(x.status), facts = [x.cost ? formatCurrency(x.cost) : '', x.owner || '', x.due ? 'due ' + formatDate(x.due) : '', x.evidence || ''].filter(Boolean);
       return plnRowHtml({ key: 'pl-check-' + x.id, attrs: ' data-pl-check="' + escHtml(x.id) + '"', title: (x.ref ? x.ref + ' · ' : '') + x.what, facts: facts.length ? facts : ['nothing set'],
         end: '<span class="inv-dot inv-dot-' + t[2] + '">' + t[1] + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="checklist" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }), { n: 12, noun: 'items' }) : '<div class="inv-empty">No checklist yet. Start from the standard’s sections, then set each item’s status, cost and who owns it; the AIAG manual is the source.</div>') + '</div>';
+    }), { n: 12, noun: 'items' }) : uiEmptyHtml('No checklist yet. Start from the standard’s sections, then set each item’s status, cost and who owns it; the AIAG manual is the source.')) + '</div>';
 }
 function plnLendersHtml() {
   var list = plnLive('lenders'), sc = plnScenario();
@@ -217,7 +217,7 @@ function plnLendersHtml() {
         end: inPlay && !_isDesktop ? '<span class="inv-dot inv-dot-ok">In play</span>' : '',
         actions: [sc ? '<button class="inv-btn inv-btn-sm ' + (inPlay ? 'inv-btn-secondary' : 'inv-btn-ghost') + '" data-action="invPlnLoan" data-id="' + escHtml(x.id) + '">' + (inPlay ? 'In play · take out' : 'Play') + '</button>' : '',
           '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="lenders" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">No lender recorded. A lender’s offer (amount, rate, months, what it ties) is a record; play one as the scenario’s loan.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('No lender recorded. A lender’s offer (amount, rate, months, what it ties) is a record; play one as the scenario’s loan.')) + '</div>';
 }
 function plnHeardHtml() {
   var list = plnLive('heard').slice().sort(function(a, b) { return String(b.on || '').localeCompare(String(a.on || '')); });
@@ -226,14 +226,14 @@ function plnHeardHtml() {
     (list.length ? list.map(function(x) {
       return plnRowHtml({ key: 'pl-heard-' + x.id, attrs: ' data-pl-heard="' + escHtml(x.id) + '"', title: x.what, facts: [x.from ? 'from ' + x.from : '', x.on ? formatDate(x.on) : '', 'one report'],
         end: '<span class="inv-num">' + escHtml(x.value || '') + '</span>', actions: ['<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="heard" data-id="' + escHtml(x.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">Nothing heard yet: a rate a client says another plater charges, a certificate a competitor holds. One report is one report: it names who said it and when.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('Nothing heard yet: a rate a client says another plater charges, a certificate a competitor holds. One report is one report: it names who said it and when.')) + '</div>';
 }
 function plnHeldHtml(clientId) {
   var list = plnLive('heldBack').filter(function(x) { return clientId == null || String(x.clientId) === String(clientId); });
   return '<div class="inv-panel inv-panel-flush" id="plnHeld"><div class="inv-panel-head"><span class="inv-panel-title">Work held back <span class="inv-panel-count">' + list.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnRegEdit" data-k="heldBack"' + (clientId != null ? ' data-client="' + escHtml(String(clientId)) + '"' : '') + '>Add</button></div>' +
     (list.length ? list.map(function(x) { return plnHeldRowHtml(x, clientId == null); }).join('') :
-      '<div class="inv-empty">' + (clientId != null ? 'Nothing recorded as held back by this client.' : 'Nothing recorded as held back.') + ' Work a client sends elsewhere for want of certificates, turnaround or approval is a record: its tonnes, rate and line, and your read of the chance.</div>') + '</div>';
+      uiEmptyHtml('' + (clientId != null ? 'Nothing recorded as held back by this client.' : 'Nothing recorded as held back.') + ' Work a client sends elsewhere for want of certificates, turnaround or approval is a record: its tonnes, rate and line, and your read of the chance.')) + '</div>';
 }
 function plnHeldRowHtml(x, named) {
   var sc = plnScenario(), k = 'held:' + x.id, inPlan = sc && (sc.plan || {})[k] != null;
@@ -507,7 +507,7 @@ function plnBoardHtml(P) {
   }).join('');
   return '<div class="inv-panel inv-panel-flush inv-pl-wide" id="plnBoard"><div class="inv-panel-head"><span class="inv-panel-title">The board <span class="inv-panel-count">' + P.L.length + ' moves</span></span>' +
     '<span class="inv-panel-count">everything planned on every view · tap a move to shift it</span></div><div class="inv-scroll-x"><table class="inv-table inv-table-grid inv-pl-board"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
-    (P.L.length ? '' : '<div class="inv-empty">Nothing planned yet. Plan moves on Moves (Plant, Tech tree, Staff, Clients), play a loan or a card of your own, or Suggest a start under More (the CQI-11 path at its earliest).</div>') + '</div>';
+    (P.L.length ? '' : uiEmptyHtml('Nothing planned yet. Plan moves on Moves (Plant, Tech tree, Staff, Clients), play a loan or a card of your own, or Suggest a start under More (the CQI-11 path at its earliest).')) + '</div>';
 }
 function plnPinHtml(key) {
   var P = plnPlanned(_plnMode), mv = P.L.find(function(x) { return x.key === key; });
@@ -576,7 +576,7 @@ function plnHandHtml(P) {
       return plnRowHtml({ key: 'pl-card-' + k.id, attrs: ' data-pl-card="' + escHtml(k.id) + '"', title: k.title, facts: plnCardFacts(k),
         end: _isDesktop ? '' : inPlan ? plnMoveEnd(key, true) : plnMoveCtlHtml(key, false, 1),
         actions: [_isDesktop || inPlan ? plnMoveCtlHtml(key, inPlan, 1) : '', '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCard" data-id="' + escHtml(k.id) + '">Edit</button>'] });
-    }).join('') : '<div class="inv-empty">A move the planner does not know: new work at a rate on a line, more kilos a round on a line, or a saving a month, with its cost and its chance. New card makes one.</div>') +
+    }).join('') : uiEmptyHtml('A move the planner does not know: new work at a rate on a line, more kilos a round on a line, or a saving a month, with its cost and its chance. New card makes one.')) +
     '<div class="inv-panel-body inv-note">A loan is played from Moves → Finance → Lenders, one at a time.</div></div>';
 }
 function plnCardFacts(k) {
@@ -589,7 +589,7 @@ function plnReplayHtml() {
   return '<div class="inv-panel inv-panel-flush" id="plnReplay"><div class="inv-panel-head"><span class="inv-panel-title">One run, played out</span><span class="inv-panel-count">' + escHtml('trial ' + _plnReplay.n + ' · lowest cash ' + formatInrShort(t.low)) + '</span></div>' +
     (t.events.length ? t.events.slice(0, 14).map(function(e) {
       return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (e[2] === 'ok' ? 'ok' : e[2] === 'danger' ? 'danger' : 'warning') + '">' + escHtml(e[1]) + '</span></span></span><span class="inv-row-end"><span class="inv-num">' + escHtml(plnMonthLabel(Math.min(PLN_N - 1, e[0]))) + '</span></span></div>';
-    }).join('') : '<div class="inv-empty">Nothing happened in this run that the plan did not already say.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('Nothing happened in this run that the plan did not already say.')) + '</div>';
 }
 function plnLedgerHtml() {
   var P = plnPlanned(_plnMode), m = _plnMonth, mo = P.months[m], b = P.base[m], B = P.B;
@@ -1027,7 +1027,7 @@ function plnFinanceHtml() {
       [['In', function(e) { return e.in ? plnRs(e.in) : '—'; }], ['Interest', function(e) { return e.interest ? plnRs(e.interest) : '—'; }], ['Principal', function(e) { return e.principal ? plnRs(e.principal) : '—'; }], ['Owed after', function(e) { return e.bal ? plnRs(e.bal) : '—'; }]].map(function(r) {
         return '<tr><th scope="row">' + r[0] + '</th>' + sch.map(function(e) { return '<td class="inv-num">' + escHtml(r[1](e)) + '</td>'; }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>') + '</div>';
-  } else h += '<div class="inv-panel"><div class="inv-empty">No loan in this plan. Play a lender below; its terms are then the plan’s to change.</div></div>';
+  } else h += '<div class="inv-panel">' + uiEmptyHtml('No loan in this plan. Play a lender below; its terms are then the plan’s to change.') + '</div>';
   return h + plnLendersHtml() + plnHeardHtml() + '</div>';
 }
 

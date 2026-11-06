@@ -1102,8 +1102,8 @@ function renderBank(tab) {
   return _bankRecvTabHtml(rows);
 }
 function _bankNoStatementHtml(what) {
-  return '<div class="inv-panel" data-bank-none><div class="inv-empty">' + what + ' the bank statement, and none is imported yet. ' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button></div></div>';
+  return '<div class="inv-panel" data-bank-none>' + uiBlankHtml({ kind: 'notset', title: 'No bank statement imported yet', body: what + ' the bank statement.',
+    action: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button>' }) + '</div>';
 }
 /* A verdict is said in the worst tone of what its card holds. */
 function _bankWorst(tones) {
@@ -1182,7 +1182,7 @@ function _bankOwedHtml(cls, recv, from, fromTxt) {
   h += '<div class="inv-panel-body inv-note" data-recv-from>Since ' + fromTxt + '. A receipt pays the invoices it adds up to exactly, else the oldest first.</div>';
   if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + (sgN === 1 ? 'A client’s' : todoPlural(sgN, 'client') + '’') +
     ' first payments most likely paid work from before ' + fromTxt + ': open ' + (sgN === 1 ? 'it' : 'each') + ' to check what was owed then.</div>';
-  if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
+  if (!recv.length) h += uiEmptyHtml('No invoices or receipts since ' + fromTxt + '.');
   var payHist = bankPayHistory(recv);
   recv.forEach(function(r) {
     var open = _bankOpen === String(r.client.id), dtp = bankDaysToPay(r.client.id, payHist);
@@ -1317,7 +1317,7 @@ function _bankPaymentsHtml(cls) {
   // Electricity: each payment is a month's bill.
   var power = bankPowerRows(cls).slice().reverse(), p = '';
   p += '<div class="inv-panel inv-panel-flush" id="bankPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity paid <span class="inv-panel-count">' + power.length + '</span></span></div>';
-  if (!power.length) p += '<div class="inv-empty">No payment to JBVNL on the statement.</div>';
+  if (!power.length) p += uiEmptyHtml('No payment to JBVNL on the statement.');
   power.forEach(function(v) {
     // The bill made from this payment first; else any bill for its month, typed by hand or made from another payment.
     var m = bankBillMonth(v.row), bill = bankBillOf(v.row) || costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === m; });
@@ -1345,7 +1345,7 @@ function _bankPaymentsHtml(cls) {
   ['gst', 'tax', 'charges', 'other'].forEach(function(k) {
     if (tot[k]) o += '<div class="inv-row"><span class="inv-row-main">' + escHtml(bankCatLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(tot[k]) + '</span></div>';
   });
-  if (!Object.keys(tot).length) o += '<div class="inv-empty">Nothing else.</div>';
+  if (!Object.keys(tot).length) o += uiEmptyHtml('Nothing else.');
   return h + fold('pay-other', o + '</div>');
 }
 
@@ -1354,8 +1354,8 @@ function _bankTabHtml(rows) {
   if (!rows.length) {
     return uiVerdictHtml({ screen: 'Bank statement', verdict: 'No bank statement yet', tone: 'neutral', facts: ['the bank’s .xls as it comes, or saved as .xlsx'], attrs: ' id="bankVerdict"' }) +
       '<div class="inv-toolbar" data-bank-toolbar="bank"><button class="inv-btn inv-btn-primary" data-action="invBankImport">Import the statement</button></div>' +
-      '<div class="inv-panel" id="bankHead"><div class="inv-empty">Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
-      'a later statement that overlaps it adds only the rows that are new.</div></div>' + uiFoldCard('bank-imports', _bankImportsHtml(), false);
+      '<div class="inv-panel" id="bankHead">' + uiEmptyHtml('Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
+      'a later statement that overlaps it adds only the rows that are new.', 'notset') + '</div>' + uiFoldCard('bank-imports', _bankImportsHtml(), false);
   }
   var breaks = bankContinuity(rows);
   return _bankVerdictHtml(rows) + _bankToolbarHtml() + _bankStatementHtml(bankClassify(rows)) + uiFoldCard('bank-check', _bankCheckHtml(breaks), breaks.length > 0) +
@@ -1593,7 +1593,7 @@ function _bankStatementHtml(cls) {
     return !q || (v.row.narration + ' ' + v.party + ' ' + v.row.chq).toLowerCase().indexOf(q) >= 0;
   }).reverse();
   var h = '<div class="inv-panel inv-panel-flush" id="bankStatement"><div class="inv-panel-head"><span class="inv-panel-title">Statement</span><span class="inv-panel-count">' + list.length + '</span></div>';
-  if (!list.length) h += '<div class="inv-empty">No row matches.</div>';
+  if (!list.length) h += uiEmptyHtml('No row matches.');
   // The latest thirty, newest first; the rest one tap away (UX overhaul 2, step 6: the statement ran 18 phone screens).
   // The count in the head and every total read the whole statement. A row being edited is always shown.
   var rows = [];

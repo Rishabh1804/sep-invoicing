@@ -106,8 +106,13 @@ export function lookSuite(layout: 'phone' | 'desktop') {
         await openNeeds(page);
         for (const sel of ['#homeNeeds .inv-hero', '#homeNeeds .inv-deck-item']) {
           const c = await boxOf(page, sel);
-          expect(layers(c.shadow).length, `${scheme} ${sel}: two shadows`).toBe(2);
-          expect(outer(c.shadow), `${scheme} ${sel}: outside it`).toBe(true);
+          // Two shadows outside it, the lift. Since U7 (§14a) a hero takes the board's rule, so an amber or red one adds its top edge as
+          // one inset line; nothing else is inset, and a plain card or a deck card carries none.
+          const cls = (await page.locator(sel).first().getAttribute('class')) || '';
+          const edged = /inv-hero-(warning|danger)/.test(cls);
+          const outs = layers(c.shadow).filter(x => !/inset/.test(x)), ins = layers(c.shadow).filter(x => /inset/.test(x));
+          expect(outs.length, `${scheme} ${sel}: two shadows outside it`).toBe(2);
+          expect(ins.length, `${scheme} ${sel} (${cls}): its edge only where amber or red`).toBe(edged ? 1 : 0);
           expect(c.radius, `${scheme} ${sel}: a card's corners`).toBe(rCard);
         }
         await openHome(page);

@@ -47,7 +47,7 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Built 4 Nov 2026 (§26i) |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Built 5 Nov 2026 (P231; §26j) |
 | U6 | The power case and the reports lead with a one-page picture; the full text an optional copy (§13) | Built 5 Nov 2026 (P232; §26k) |
-| U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Not built |
+| U7 | Across the app: lists, dialogs, sheets, toasts and search in the new look; one set of blank states; dark checked everywhere; first-visit pointers (§14) | Built 5 Nov 2026 (P233; §26l) |
 | U8 | Sign-in and the 4-digit PIN; the app's icon, splash and favicon from the new mark (§15) | Not built |
 | U9 | Docs, the full suite, every screen measured, the draft PR made ready; then the QA chain on the owner's word | Not built |
 
@@ -2591,4 +2591,47 @@ Where the build departs from §13 and §26d, and why:
   to open from the queue (`printNeed`'s `owner`), its picture listing the sender's own tasks too.
 - **Measured** (P195's long book, the phone): Power → Case 2.16 → 1.08 screens, Reports 2.64 → 1.07; both budgets lowered to 1.5.
 - **A data flow**: none. The book does not change.
+
+### 26l. U7 as built (5 Nov 2026)
+
+Where the build departs from §14 and §26e, and why:
+- **The tone rule** (§14a): every `.inv-hero` is the board's card (U2R, §24c): the surface, `--edge`, `--lift-1`; amber adds the
+  3 px top edge in `--warning-mark`, red the edge in `--danger-mark` and `--card-danger`; ok, info and plain are quiet, their tone in
+  the figure (`--hero-tone`) and the eyebrow's icon. The 160° wash is gone. A card in a deck is the surface with its tone's left rule
+  (no wash); a tile that names a tone stays a well of it; a hero's hairlines, rows and folds are the card's own `--border` and
+  `--surface-2`, never mixed in the tone; a control in a hero is the plain control (`.inv-coded` blocks keep their tinted controls).
+- **Lists** (§14a): on the desktop the list-and-pane host is the card (surface, edge, `--r-card`, lift), its list and pane its two
+  columns; the table's sticky head takes the card's colour; rows keep `--row-h`; the open row (`aria-current`) is `--accent-soft` with
+  its rule; a group's head is in small capitals (`--ls-caps`). The phone's lists were already cards (panels).
+- **Badges** (§3d, §14a): a status badge of a tone carries that tone's icon before its word, drawn as a mask of the icon's outline
+  (`uiStatusIconVars`, at boot: `--ico-ok`, `--ico-warning`, `--ico-danger`, `--ico-info` on the root), so the badges written in many
+  places changed none of their markup. Neutral carries none. A dot and its word in a row's end stay as they are (§3d).
+- **Dialogs and sheets** (§14a): the title `--fs-17`; close the ghost icon button with the `close` icon (`dialogHeadHtml`, and the
+  pane's head); on the phone every dialog shows its grabber (a decorative bar, `::before`). **A dialog drawn again in place does not
+  slide in again**: `dialogOpen`'s `replace` marks the scrim `data-redrawn`, and its dialog's entrance is off, which reaches all five
+  dialogs that redraw that way at once (the credit note's two, the guard's form, the planner's card, the quotation).
+- **Toasts** (§14a): led by the kind's icon (`toastIconHtml`: success `done`, error `cancel`, warning `alert`, info `info`) in the other
+  theme's mark (the toast's fill inverts), its words its only text; Undo's toast too.
+- **Search** (§14a): was already grouped with the keys at its foot; its field is now the large well (`--fs-16`, its icon 20 px) and
+  each result is led by its kind's icon (`SRCH_KIND_ICON`).
+- **The blank states** (§14b): the census found **107 places a screen drew its own empty line** (`class="inv-empty"` in 33 modules):
+  each is now `uiEmptyHtml(words, kind)`, which draws `uiBlankHtml` with the screen's own words (escaped by the caller, links kept): the
+  first sentence the title and the rest under it, a short line its title, a long one its body. Four say what is not set (`notset`): the
+  bank statement not imported (two), Money's Overview without it, Mine with no duties. The roster's first-run card is a full blank with
+  its *Add the first worker*. `.inv-empty` and `.inv-empty-icon` are gone from the stylesheet and are retired names to P76. **The
+  charts' `emptyText` needed nothing**: every builder already drew it through `uiBlankHtml` (`_chartEmpty`, since U1). The few *No …*
+  sentences that stand in a line of a form or a note (a stock line with no price, a cause with nothing like it) are notes, not empty
+  places, and stay. The picture pages' *Nothing … on record* is paper's own (`inv-pcp-none`, U6): no icon on paper.
+- **The pointers** (§14d): `uiPointer` and `UI_POINTERS` (state.js; `inv-pointer`, design §6.39): nine, the list of §14d and §26e
+  (Home's Customise, the gallery's kinds, Stats' Tables, Stock's Spend and prices, a guided flow's preview, the Roster's cards, the
+  Case's Read the full case, Messages' and Production's More for *Read every message again* and *Read register photo*: both live in
+  More, so the pointer names them at its button). Checked after every render and scroll, at most one a screen visit (the address), only
+  with the control wholly in view above the phone's bar and a sticky action bar, never while a form holds typed work, a dialog the
+  control is not in is open, a board is being arranged or the app is locked; marked seen when drawn, per person and device
+  (`sep_inv_pointers`), Escape or *Got it* shuts it, *Read the guide* opens the guide at its section (`uiFlowGuideGo`). Under a test
+  browser only with `window.__sepPointersOn`. Placed by custom properties (`--ptr-top`, `--ptr-left`, `--ptr-arrow`), so nothing moves.
+- **The guides** each pointer opens were read for their section: *Using the app: attendance* gained **Roster** (version 8), *Using the
+  app: production* gained *Read register photo* (version 11: back since 3 Nov, read by Claude), and **Using the app: messages**
+  (`app-messages`, new) is written for the Messages screen.
+- **A data flow**: none. The book does not change; `sep_inv_pointers` is the device's.
 

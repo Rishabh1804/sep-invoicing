@@ -212,7 +212,7 @@ function dashPricePanelHtml() {
   if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
   var it = stockItem(_dashPriceItem), zinc = !!(it && it.key === 'ZINC'), z = zinc ? dashZincHtml() : null;
   return _dashSection('dashPrice', zinc ? 'Price trend: market against bills' : 'Price trend',
-    priced.length ? '<div id="dashPriceChart">' + (zinc ? z.body : dashPriceChart()) + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
+    priced.length ? '<div id="dashPriceChart">' + (zinc ? z.body : dashPriceChart()) + '</div>' : uiEmptyHtml('No bill with a price yet.'),
     priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
       priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '',
     zinc ? z.rows : '');

@@ -76,7 +76,7 @@ function _billsPowerHtml() {
     return { parts: parts };
   }), { n: 3, noun: 'months' });
   if (!bills.length) {
-    if (!missing.length) h += '<div class="inv-empty">No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.</div>';
+    if (!missing.length) h += uiEmptyHtml('No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.');
     return h + '</div>';
   }
   var rows = bills.map(function(b) {

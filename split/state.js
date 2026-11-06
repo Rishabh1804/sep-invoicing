@@ -948,10 +948,127 @@ function uiBlankHtml(o) {
   var icon = typeof iconSvg === 'function' ? iconSvg(o.icon || UI_BLANK_ICON[kind]) : '';
   return '<div class="inv-blank' + (o.small ? ' inv-blank-sm' : '') + '" data-blank="' + kind + '"' + (kind === 'loading' ? ' aria-busy="true"' : '') + '>' +
     '<span class="inv-blank-icon">' + icon + '</span><div class="inv-blank-text">' +
-    (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : '') +
-    (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : '') + '</div>' +
+    (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : o.titleHtml ? '<p class="inv-blank-title">' + o.titleHtml + '</p>' : '') +
+    (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : o.bodyHtml && !o.small ? '<p class="inv-blank-body">' + o.bodyHtml + '</p>' : '') + '</div>' +
     (o.action ? '<div class="inv-blank-act">' + o.action + '</div>' : '') + '</div>';
 }
+/* A screen's own empty text as the blank state (UI pass 3, §14b, U7): every list, panel and chart that once drew its own "No …" line
+   draws this, so an empty place reads one way across the app. `html` is the screen's words, already escaped (a link or a name in it
+   kept): its first sentence the title, the rest under it; a text with markup, or one sentence, is its own title when short and the
+   body under the icon when long. kind: empty (the default), early, notset, offline, error (uiBlankHtml's). */
+function uiEmptyHtml(html, kind) {
+  var h = String(html == null ? '' : html), o = { kind: kind || 'empty' };
+  var plain = !/[<&]/.test(h), cut = plain ? h.search(/[.:;] (?=[A-Z])/) : -1;
+  if (cut > 0 && cut < 70) { o.titleHtml = h.slice(0, cut + 1); o.bodyHtml = h.slice(cut + 2); }
+  else if (h.replace(/<[^>]*>|&[a-z]+;/g, ' ').length <= 70) o.titleHtml = h;
+  else o.bodyHtml = h;
+  return uiBlankHtml(o);
+}
+/* ===== FIRST-VISIT POINTERS (docs/UI_PASS_3.md §14d, §26e; design §6.39) =====
+   A small card pointing at one control the first time a person meets it: *New: …*, **Read the guide** (its guide, at the section)
+   and **Got it**. Shown once a person a device (localStorage sep_inv_pointers, keyed by the ID signed in, '-' with the guard off),
+   at most one a screen visit, only once the screen has drawn and the control is in view; never over a form with typed work, a
+   dialog the control is not in, or a board being arranged; off under a test browser unless a fixture turns it on
+   (window.__sepPointersOn). It floats (fixed, placed by two custom properties under or over its control), so nothing on the screen
+   moves for it, and it takes no focus: Escape or Got it shuts it. A pointer is {id, at (its control), text, guide: [id, section]}. */
+var UI_POINTERS = [
+  { id: 'home-customise', at: '#pageHome [data-action="invWdgArrange"][data-board="home"]', text: 'Customise moves, sizes and adds the cards on Home.', guide: ['app-today', 'Customise and More'] },
+  { id: 'gallery-sections', at: '.inv-gallery-chips', text: 'Pick a kind to see only those widgets.', guide: ['app-today', 'Arrange the widgets'] },
+  { id: 'stats-tables', at: '#statsToolbar .inv-viewtab[data-tab="tables"]', text: 'Tables holds the figures behind the Dashboard, sorted by any head.', guide: ['app-stats', 'Tables'] },
+  { id: 'stock-spend', at: '#pageStock [data-action="invStockSpend"]', text: 'Spend and prices: what each line costs, from whom, and its price over time.', guide: ['app-stock', 'Spend and prices'] },
+  { id: 'flow-preview', at: '.inv-page-active [data-flow-preview]', text: 'What Save records says what Save writes, and the checks, before you save.', guide: ['app-add', ''] },
+  { id: 'roster-cards', at: '#pageStaff [data-roster-card]', text: 'Each hand is a card. Tap one to open the record.', guide: ['app-day', 'Roster'] },
+  { id: 'case-full', at: '#pagePower [data-action="invPowerCaseFull"]', text: 'The picture leads. The full case is here, under it.', guide: ['app-power', 'Case'] },
+  { id: 'messages-reread', at: '#pageMessages [data-action="invTbMore"]', text: 'Read every message again, under More, lists what the reader now reads otherwise.', guide: ['app-messages', 'Read every message again'] },
+  { id: 'prod-photo', at: '#pageProduction [data-action="invTbMore"]', text: 'Read register photo, under More: Claude reads a page of the VAT register.', guide: ['app-production', 'Put the data in'] }
+];
+var PTR_KEY = 'sep_inv_pointers';
+var _ptrVisit = '', _ptrTimer = null;
+function uiPointersOn() { return !navigator.webdriver || !!window.__sepPointersOn; }
+function _ptrWho() { return typeof grdOn === 'function' && grdOn() ? (grdUserId() || '-') : '-'; }
+function _ptrSeen() { try { var m = JSON.parse(localStorage.getItem(PTR_KEY) || '{}'); return (m && typeof m === 'object' ? m : {}); } catch (e) { return {}; } }
+function uiPointerSeen(id) { var m = _ptrSeen(), w = m[_ptrWho()]; return !!(w && w[id]); }
+function _ptrMark(id) {
+  var m = _ptrSeen(), w = _ptrWho();
+  m[w] = m[w] || {}; m[w][id] = Date.now();
+  try { localStorage.setItem(PTR_KEY, JSON.stringify(m)); } catch (e) { /* a pointer seen again is no harm */ }
+}
+/* Where the screen ends for a pointer: the window's foot, or the top of what floats over the page's foot (the phone's bar, a sticky
+   action bar), so a pointer never covers them nor points at a control behind them. */
+function _ptrFoot(inLayer) {
+  var foot = window.innerHeight;
+  if (inLayer) return foot;
+  document.querySelectorAll('.inv-navbar, .inv-page-active .inv-actionbar').forEach(function(b) {
+    var r = b.getBoundingClientRect();
+    if (r.height && r.top < foot && r.top > window.innerHeight / 2) foot = r.top;
+  });
+  return foot;
+}
+/* The control a pointer points at, if it may be pointed at now: drawn, wholly in view, not under a layer it is not part of. */
+function _ptrAnchor(pt) {
+  var el = document.querySelector(pt.at);
+  if (!el || !el.isConnected || el.closest('[hidden], .inv-hidden')) return null;
+  var r = el.getBoundingClientRect();
+  if (!r.width || !r.height || r.top < 0 || r.bottom > _ptrFoot(!!el.closest('.inv-scrim')) || r.left < 0 || r.right > window.innerWidth) return null;
+  var scrims = document.querySelectorAll('.inv-scrim');
+  if (scrims.length && !scrims[scrims.length - 1].contains(el)) return null;
+  return el;
+}
+function uiPointerSchedule() {
+  if (_ptrTimer || !uiPointersOn()) return;
+  _ptrTimer = setTimeout(function() { _ptrTimer = null; try { uiPointerTick(); } catch (e) { /* a pointer never takes a render with it */ } }, 700);
+}
+function uiPointerTick() {
+  if (!uiPointersOn() || !S) return;
+  // A pointer whose control has gone, or whose screen was left, goes with it.
+  var cur = document.querySelector('.inv-pointer');
+  if (cur) { if (!cur._at || !cur._at.isConnected || location.search !== _ptrVisit) uiPointerClose(); else return; }
+  if (_pageTyped || document.querySelector('.inv-scrim-dialog[data-typed], .inv-wboard[data-arranging], body.inv-locked, .inv-print-view-active')) return;
+  var visit = location.search;
+  if (visit === _ptrVisit) return;
+  for (var i = 0; i < UI_POINTERS.length; i++) {
+    var pt = UI_POINTERS[i];
+    if (uiPointerSeen(pt.id)) continue;
+    var el = _ptrAnchor(pt);
+    if (!el) continue;
+    uiPointer(pt, el);
+    _ptrVisit = visit;
+    return;
+  }
+}
+/* Draws one pointer at its control and marks it seen. */
+function uiPointer(pt, el) {
+  _ptrMark(pt.id);
+  var box = document.createElement('div');
+  box.className = 'inv-pointer';
+  box.setAttribute('role', 'note');
+  box.dataset.pointer = pt.id;
+  box.innerHTML = '<p class="inv-pointer-text"><strong>New:</strong> ' + escHtml(pt.text) + '</p><div class="inv-pointer-acts">' +
+    (pt.guide && pt.guide[0] ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPointerGuide" data-id="' + escHtml(pt.guide[0]) + '" data-sec="' + escHtml(pt.guide[1] || '') + '">Read the guide</button>' : '') +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPointerOk">Got it</button></div>';
+  var host = el.closest('.inv-scrim') || document.body;
+  host.appendChild(box);
+  box._at = el;
+  uiPointerPlace(box);
+}
+function uiPointerPlace(box) {
+  box = box || document.querySelector('.inv-pointer');
+  if (!box) return;
+  var el = box._at;
+  if (!el || !el.isConnected) { uiPointerClose(); return; }
+  var r = el.getBoundingClientRect(), h = box.offsetHeight, w = box.offsetWidth, gap = 10, foot = _ptrFoot(!!el.closest('.inv-scrim'));
+  var below = r.bottom + gap + h <= foot || r.top - gap - h < 0;
+  var left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+  box.dataset.side = below ? 'below' : 'above';
+  box.style.setProperty('--ptr-top', Math.round(below ? r.bottom + gap : r.top - gap - h) + 'px');
+  box.style.setProperty('--ptr-left', Math.round(left) + 'px');
+  box.style.setProperty('--ptr-arrow', Math.round(Math.max(16, Math.min(w - 16, r.left + r.width / 2 - left))) + 'px');
+}
+function uiPointerClose() { document.querySelectorAll('.inv-pointer').forEach(function(b) { b.remove(); }); }
+window.addEventListener('resize', function() { uiPointerPlace(); });
+document.addEventListener('scroll', function() { if (document.querySelector('.inv-pointer')) uiPointerPlace(); else uiPointerSchedule(); }, true);
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.querySelector('.inv-pointer')) uiPointerClose(); }, true);
+
 /* ===== A GUIDED FLOW (docs/UI_PASS_3.md §11a, §26b; design §6.37) =====
    The owner, 15 Oct 2026: "The Enter by hand screen is primitive in design, and doesn't engage or leads the user, increases the
    learning curve." Every form a person fills by hand is cut into numbered steps that lead without hiding: each step its number in
@@ -1485,6 +1602,18 @@ function iconSvg(name, cls) { return iconPathSvg(ICONS[name] || '', cls); }
 function iconPathSvg(paths, cls) {
   return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' ' + ICON_ATTRS + '>' + String(paths || '').replace(/<path d="d:/g, '<path class="inv-ico-tint" d="') + '</svg>';
 }
+/* A status badge carries its tone's icon (UI pass 3, §3d, §14a): each of the four status icons is set once on the root as a mask image
+   (--ico-<tone>, the outline alone, its tint left out), which a badge of that tone draws before its word in its own colour. A badge
+   is a span written in many places; the icon follows its class, so none of them changes. */
+var STATUS_ICON = { ok: 'done', warning: 'alert', danger: 'cancel', info: 'info' };
+function uiStatusIconVars() {
+  var root = document.documentElement;
+  Object.keys(STATUS_ICON).forEach(function(tone) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" ' + ICON_ATTRS.replace('currentColor', '#000').replace('1.75', '2.25') + '>' +
+      String(ICONS[STATUS_ICON[tone]] || '').replace(/<path d="d:[^"]*"\/>/g, '') + '</svg>';
+    root.style.setProperty('--ico-' + tone, 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")');
+  });
+}
 /* body.html's icons are slots, <span data-icon="name">, so the set has one source (§4): each is replaced by its icon, carrying the
    slot's classes and any other attribute it held. Run once at the start, before the shell is drawn. A name the set does not hold
    leaves its slot as it is, where P228 finds it. */
@@ -1665,8 +1794,9 @@ function keepScroll(fn) {
    (The More sheet, an inv-scrim that was not a dialog, went with Direction B's workspaces; Add is a dialog like the rest.)
    `title` is HTML: the caller escapes what came from the user. */
 function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
-  var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
-    '" aria-label="' + (closeLabel || 'Close') + '">&times;</button>';
+  // Close is a ghost icon button (UI pass 3, §14a).
+  var close = '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
+    '" aria-label="' + (closeLabel || 'Close') + '">' + iconSvg('close') + '</button>';
   return '<div class="inv-dialog-head"><span class="inv-dialog-title">' + title + '</span>' +
     (actionsHtml ? '<span class="inv-toolbar inv-toolbar-tight">' + actionsHtml + close + '</span>' : close) + '</div>';
 }
@@ -1677,7 +1807,7 @@ var FLIP_MS = 200;
 /* The desktop detail pane's head (§6.14): what is open, and the button that closes the pane. */
 function paneHeadHtml(titleHtml, closeAction) {
   return '<div class="inv-pane-head">' + titleHtml +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">' + iconSvg('close') + '</button></div>';
 }
 /* A screen drawn whole with its list and pane in it keeps where both were scrolled (UX overhaul 2, step 7). The list and
    the pane scroll inside themselves, and a redraw replaced them, so a Void deep in Production's entries, History's Show more
@@ -1707,7 +1837,9 @@ function dialogOpen(html, opts) {
   opts = opts || {};
   if (opts.replace) {
     var open = document.querySelectorAll('.inv-scrim-dialog');
-    if (open.length) { open[open.length - 1].innerHTML = html; return open[open.length - 1]; }
+    // A dialog drawn again in place is the dialog already open: it does not slide in again (UI pass 3, §14a; found building U2's
+    // gallery: the credit note, the guard's form, the planner's card and the quotation replayed their entrance at every redraw).
+    if (open.length) { var top = open[open.length - 1]; top.dataset.redrawn = '1'; top.innerHTML = html; return top; }
   }
   var scrim = document.createElement('div');
   scrim.className = 'inv-scrim inv-scrim-dialog';
@@ -2347,7 +2479,7 @@ var _ovObserver = null;
 function uiOverflowCuesStart() {
   if (_ovObserver || typeof MutationObserver === 'undefined') return;
   var queued = false;
-  var run = function() { queued = false; try { uiOverflowCues(); } catch (e) { /* a cue must never take a render with it */ } };
+  var run = function() { queued = false; try { uiOverflowCues(); } catch (e) { /* a cue must never take a render with it */ } uiPointerSchedule(); };
   var later = function() { if (!queued) { queued = true; requestAnimationFrame(run); } };
   // After a render, before it is painted: the observer's callback is a microtask. What the pass itself writes (a title,
   // data-more) is not watched; the note it inserts is, and the pass after it changes nothing.
@@ -2449,13 +2581,18 @@ function numberToWords(n) {
   return result + ' Only';
 }
 
+/* A toast's kind as its status icon (§3d): success done, error cancel, warning alert, info info. */
+var TOAST_ICON = { success: 'done', error: 'cancel', warning: 'alert', info: 'info' };
+function toastIconHtml(type) { return iconSvg(TOAST_ICON[type] || 'info', 'inv-toast-ico'); }
 function showToast(msg, type='success') {
   // Single gateway: remove any existing toast first
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   const dur = type === 'error' ? 4000 : type === 'warning' ? 3000 : 2000;
   const t = document.createElement('div');
   t.className = 'inv-toast inv-toast-' + type;
-  t.textContent = msg;
+  // Its kind's icon leads its words (UI pass 3, §14a), the words its only text.
+  t.innerHTML = toastIconHtml(type);
+  t.appendChild(document.createTextNode(msg));
   document.body.appendChild(t);
   setTimeout(() => t.remove(), dur);
 }

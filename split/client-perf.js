@@ -360,7 +360,7 @@ function renderClientPerformance(container) {
     }).join('') + '</select></label></div>';
 
   if (clientId == null) {
-    container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">No clients yet</div></div>';
+    container.innerHTML = html + '<div class="inv-panel">' + uiEmptyHtml('No clients yet') + '</div>';
     return;
   }
   // The verdict leads (the tab map, TM5f), the client picker under it; the client's flags are its tiles, and only a fifth
@@ -390,7 +390,7 @@ function renderClientPerformance(container) {
   var renames = cpFindRenames(stopped, fresh);
 
   if (monthly.length === 0 && classified.length === 0) {
-    container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">Nothing recorded for this client yet</div></div>';
+    container.innerHTML = html + '<div class="inv-panel">' + uiEmptyHtml('Nothing recorded for this client yet') + '</div>';
     return;
   }
 
@@ -640,7 +640,7 @@ function cpWorkedListHtml(clientId) {
     (_cpScope === 'all' ? ' · ' + todoPlural(Object.keys(tot.clients).length, 'client') : '') + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 && cpSeesMoney() ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + escHtml(cpQtyText(tot.nos, tot.kg)) + '</span></div>';
-  if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
+  if (!list.length) return h + uiEmptyHtml('' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.')) + '';
   var rows = list.map(function(r) {
     var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
     // Two facts (§3b-11): its documents, and when; its platings in its title.

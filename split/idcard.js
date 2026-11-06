@@ -184,7 +184,7 @@ function idcLogDraw(note) {
     (_idcLog.length ? _idcLog.map(function(x) {
       return '<div class="inv-row inv-row-2" data-idc-row><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.iso)) + '</span></span>' +
         '<span class="inv-row-end">' + uiDot(x.kind === 'in' ? 'ok' : 'info', (x.kind === 'in' ? 'In ' : 'Out ') + escHtml(relayClockLabel(x.min))) + '</span></div>';
-    }).join('') : '<div class="inv-empty">Nothing scanned yet.</div>');
+    }).join('') : uiEmptyHtml('Nothing scanned yet.'));
 }
 /* The dialog shut any way, or the app put in the background: the camera goes off with it. */
 document.addEventListener('visibilitychange', function() {

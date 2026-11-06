@@ -879,7 +879,7 @@ function renderCreditNoteList(keepForm) {
   if (_billForm) html += '<div data-cn-form>' + _billsCnFormHtml() + '</div>';
 
   if (notes.length === 0) {
-    html += '<div class="inv-empty">No credit notes yet. A batch rebate is raised from a Register selection; any other note, or one already issued, from the head of this list.</div>';
+    html += uiEmptyHtml('No credit notes yet. A batch rebate is raised from a Register selection; any other note, or one already issued, from the head of this list.');
   } else {
     html += '<div class="inv-panel inv-panel-flush">';
     notes.forEach(function(cn) {

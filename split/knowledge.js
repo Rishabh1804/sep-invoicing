@@ -588,7 +588,7 @@ function kbStartHtml() {
   }).join('') + '</div>';
   var recent = own.filter(function(a) { return kbLive(a); }).sort(function(x, y) { return (y.approvedAt || y.at || 0) - (x.approvedAt || x.at || 0); }).slice(0, 8);
   h += '<div class="inv-panel inv-panel-flush" id="kbRecent"><div class="inv-panel-head"><span class="inv-panel-title">Latest</span></div>' +
-    (recent.length ? recent.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.</div>') + '</div>';
+    (recent.length ? recent.map(function(a) { return kbRowHtml(a); }).join('') : uiEmptyHtml('Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.')) + '</div>';
   return { body: h };
 }
 
@@ -663,10 +663,10 @@ function kbLibraryHtml() {
     var ranked = kbAskRank(list, _kbFilter.q);
     return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }),
       body: '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Best matches <span class="inv-panel-count">' + ranked.length + '</span></span></div>' +
-        (ranked.length ? uiMoreHtml('kb-ask', ranked.map(function(a) { return kbRowHtml(a); }), { noun: 'articles' }) : '<div class="inv-empty">Nothing matches. Try fewer words, or the word the shop uses.</div>') + '</div>' };
+        (ranked.length ? uiMoreHtml('kb-ask', ranked.map(function(a) { return kbRowHtml(a); }), { noun: 'articles' }) : uiEmptyHtml('Nothing matches. Try fewer words, or the word the shop uses.')) + '</div>' };
   }
   var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(_kbShelf ? kbShelfTitle(_kbShelf) : 'Articles') + ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
-  if (!list.length) h += '<div class="inv-empty">' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.') + '</div>';
+  if (!list.length) h += uiEmptyHtml('' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.')) + '';
   var rows = [];
   // The shop's own articles first, by kind; the app's guides after them, as one group: 32 of them had led the list and put
   // everything the shop wrote past its first thirty rows.
@@ -690,10 +690,10 @@ function kbTroubleHtml() {
         // Two facts (the tab map, TM6): the article's title where the symptom names the row, then what it holds.
         '<span class="inv-row-meta">' + escHtml([a.symptom ? a.title : '', todoPlural((a.causes || []).length, 'cause') + (n ? ', ' + todoPlural(n, 'incident') : '')].filter(Boolean).join(' · ')) + '</span></button>' +
         '<span class="inv-row-end">' + (a.status === 'published' ? '' : kbStatusHtml(a)) + '</span></div>';
-    }).join('') : '<div class="inv-empty">No fault written yet' + (_kbFilter.q ? ' for that' : '') + '.</div>') + '</div>';
+    }).join('') : uiEmptyHtml('No fault written yet' + (_kbFilter.q ? ' for that' : '') + '.')) + '</div>';
   var inc = all.filter(function(a) { return a.kind === 'incident' && a.status !== 'retired'; }).sort(function(x, y) { return String(kbDayOf(y)).localeCompare(String(kbDayOf(x))); });
   h += '<div class="inv-panel inv-panel-flush" id="kbIncidents"><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + inc.length + '</span></span></div>' +
-    (inc.length ? uiMoreHtml('kb-inc', inc.map(function(a) { return kbRowHtml(a); }), { noun: 'incidents' }) : '<div class="inv-empty">No incident logged yet. Log one when something goes wrong: what, when, which part, the cause and the fix.</div>') + '</div>';
+    (inc.length ? uiMoreHtml('kb-inc', inc.map(function(a) { return kbRowHtml(a); }), { noun: 'incidents' }) : uiEmptyHtml('No incident logged yet. Log one when something goes wrong: what, when, which part, the cause and the fix.')) + '</div>';
   // Its verdict (TM6f): the faults written, and the incidents of the last 30 days, which are something going wrong on the plant.
   var from = isoAddDays(localDateStr(), -29), recent = inc.filter(function(a) { return String(kbDayOf(a)) >= from; });
   var verdict = uiVerdictHtml({ screen: 'Troubleshoot' + (_kbFilter.q ? ' · searched' : ''), tone: recent.length ? 'warning' : 'ok',
@@ -713,7 +713,7 @@ function kbRecordsHtml() {
     verdict: todoPlural(list.length, 'record') + (due ? ' · ' + todoPlural(due, 'decision') + ' due for review' : ''),
     facts: [todoPlural(n('ruling'), 'ruling'), todoPlural(n('decision'), 'decision')], key: 'pageKnow-records', attrs: ' data-kb-verdict="records"' });
   var h = '<div class="inv-panel inv-panel-flush" id="kbRecords"><div class="inv-panel-head"><span class="inv-panel-title">Records <span class="inv-panel-count">' + list.length + '</span></span></div>';
-  if (!list.length) h += '<div class="inv-empty">No record yet.</div>';
+  if (!list.length) h += uiEmptyHtml('No record yet.');
   var rows = [], last = '';
   list.forEach(function(a) {
     var m = String(kbDayOf(a)).slice(0, 7);
@@ -759,7 +759,7 @@ function kbTrainVerdictHtml(paths, roster, sees) {
    opens People or Floor: Knowledge is every role's page, the roster is not. */
 function kbTrainingHtml() {
   var paths = kbPaths(), sees = kbSeesRoster(), roster = sees ? staffActive() : [], verdict = kbTrainVerdictHtml(paths, roster, sees), h = '';
-  if (!paths.length) h += '<div class="inv-empty">No training path yet.</div>';
+  if (!paths.length) h += uiEmptyHtml('No training path yet.');
   paths.forEach(function(p) {
     var arts = kbPathArticles(p), who = kbPathWho(p, roster);
     // A path shows its first five lessons, the rest one tap away (the length pass's rule): the paths grew with the entry
@@ -773,13 +773,13 @@ function kbTrainingHtml() {
     // The head says whom the path is for (kbPathWho: the floor's hands or the office's), where the role sees the roster.
     h += '<div class="inv-panel inv-panel-flush" data-kb-path="' + escHtml(p.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(p.title) + ' <span class="inv-panel-count">' + arts.length + '</span></span>' +
       (sees ? '<span class="inv-note" data-kb-path-who>for ' + escHtml(todoPlural(who.length, 'hand')) + '</span>' : '') + '</div>' +
-      (rows.length ? uiMoreHtml('kb-path-' + p.id, rows, { n: rows.length === 6 ? 6 : 5, noun: 'lessons' }) : '<div class="inv-empty">None of this path&rsquo;s lessons is published yet.</div>') + '</div>';
+      (rows.length ? uiMoreHtml('kb-path-' + p.id, rows, { n: rows.length === 6 ? 6 : 5, noun: 'lessons' }) : uiEmptyHtml('None of this path&rsquo;s lessons is published yet.')) + '</div>';
   });
   if (!sees) return { verdict: verdict, body: h };
   // The roster against every lesson given: a hand's row is its area, its end its standing.
   var lessons = kbReadable().filter(kbIsLesson);
   h += '<div class="inv-panel inv-panel-flush" id="kbRoster"><div class="inv-panel-head"><span class="inv-panel-title">The roster <span class="inv-panel-count">' + roster.length + '</span></span></div>';
-  if (!roster.length) h += '<div class="inv-empty">Nobody on the roster yet.</div>';
+  if (!roster.length) h += uiEmptyHtml('Nobody on the roster yet.');
   var rec = kbTrainOk();
   h += uiMoreHtml('kb-roster', roster.map(function(w) {
     var yes = 0, due = 0;
@@ -886,7 +886,7 @@ function kbDayContextHtml(a) {
   } catch (e) { /* attendance not readable */ }
   return '<div class="inv-panel inv-panel-flush" data-kb-day><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml('That day in the book, ' + formatDate(d)) + '</span></div>' +
     (rows.length ? rows.slice(0, 40).map(function(r) { return '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-row-title">' + escHtml(r.k) + '</div><div class="inv-row-meta inv-row-wrap">' + escHtml(r.t) + '</div></div></div>'; }).join('')
-      : '<div class="inv-empty">Nothing recorded that day' + (part || line ? ' for this part or line' : '') + '.</div>') + '</div>';
+      : uiEmptyHtml('Nothing recorded that day' + (part || line ? ' for this part or line' : '') + '.')) + '</div>';
 }
 
 /* ---------- Writing ---------- */

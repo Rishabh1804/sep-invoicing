@@ -2670,5 +2670,9 @@ Where the build departs from §15 and §26f, and why:
   device key on each owner device, never by a PIN. Risk 7 says so. Nothing of the server is built.
 - **The guide** *Setting up: IDs, PINs and roles* is version 2: four digits, the keypad, Not you?, the PIN from before, Forgot.
 - **Icons v3** gained `sun`, `moon` and `backspace` (Lucide's).
+- **Stats → Tables → By part names the client short** on screen (`clientShortName`, the whole name its title; the export keeps the
+  whole name): measured on 6 Nov 2026, the month's sixth day put more parts in the table, and a name ending in *PRIVATE LIMITED* stood
+  four lines tall in the phone's column, taking the screen to 1.56 against its budget of 1.5 on main's build too; now 1.46. The budget
+  is not raised.
 - **A data flow**: `len: 4` on a user's secret travels with the users (§16), and is never compared by the change log (the secret is
   not). `sep_inv_guard_seen` is the device's.

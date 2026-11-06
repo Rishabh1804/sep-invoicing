@@ -232,8 +232,8 @@ test.describe('P228: icons v3, the set', () => {
     }
     for (const f of readdirSync(SPLIT).filter(f => /\.html$/.test(f))) if (/<svg\b/.test(src(f))) hits.push(f);
     expect(hits).toEqual([]);
-    // The mark's two copies went to the one builder.
-    expect(src('guard.js')).toContain("markSvg('sm', 'tile')");
+    // The mark's two copies went to the one builder (the sign-in draws it large since U8, §15a).
+    expect(src('guard.js')).toContain("markSvg('lg', 'tile')");
     expect(src('workspace.js')).toContain("markSvg('sm', 'tile')");
     await page.goto('about:blank');
   });
@@ -284,7 +284,8 @@ test.describe('P228: icons v3, the set', () => {
     expect(m.stops).toBe(2);
     expect(m.tile).toBe(true);
     expect(m.nut).toBe(true);
-    expect(m.lock).toContain('class="inv-ico-mark inv-ico-mark-tile"');
+    // The sign-in draws the tile large (UI pass 3, U8 §15a).
+    expect(m.lock).toContain('class="inv-ico-mark inv-ico-mark-lg inv-ico-mark-tile"');
     expect(m.lock).not.toContain('viewBox="0 0 512 512"');
   });
 

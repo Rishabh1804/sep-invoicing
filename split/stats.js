@@ -853,6 +853,9 @@ function statsPartTable(pa) {
       h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml((function() {
           var cc = (S.clients || []).find(function(x) { return String(x.id) === String(shared[0]); }); return cc ? clientShortName(cc.name) : 'another client'; })() +
           (shared.length > 1 ? ' and ' + (shared.length - 1) + ' more' : '')) + ', counted apart</div>' : ''),
+        // The client named short on screen, its whole name its title (the export keeps the whole name): a name ending in PRIVATE
+        // LIMITED had stood four lines tall in the phone's column, a row of the table each.
+        client: '<span title="' + escHtml(r.clientName || '') + '">' + escHtml(clientShortName(r.clientName || '')) + '</span>',
         perKg: r.perKg != null ? '<span class="inv-row-stack"><span data-fig>' + figHtml(formatNum(r.perKg, 2), pa.periodCost.perKg > 0 ? figToneAgainst(r.perKg, pa.periodCost.perKg, 5) : null) + '</span>' +
           (pst ? statsPriceChip(pst) : '') + '</span>' : '&mdash;' } };
   });

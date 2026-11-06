@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { loadAppWithState, readStoredState, waitForBoot, answerAsk, openSettingsAt, switchTab, emptyState, noSeedIM, todayIso, workdayIso, type SepState, openNeeds } from './fixtures';
-import { PINS, g, guardBook, withUsers, unlock, windowGone, lockNow } from './p140-guard.fixture';
+import { PINS, g, guardBook, laterIfAsked, lockNow, pickId, unlock, windowGone, withUsers } from './p140-guard.fixture';
 
 // P152: the guard's QA (the audit of 2 Oct 2026, QA4 and QA2). What it pins, each a finding the auditor reproduced:
 // - QA4-5: the owner's own PIN is changed only with the PIN it has, and a new recovery code asks the PIN, inside the window.
@@ -80,10 +80,10 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(form).toBeVisible();
     await expect(page.locator('[data-grd-form="pin"]')).toHaveCount(0);
     await form.locator('#grdCur').fill('11112222');
-    await form.locator('#grdP1').fill('55556666');
-    await form.locator('#grdP2').fill('55556666');
+    await form.locator('#grdP1').fill('5307');
+    await form.locator('#grdP2').fill('5307');
     await form.locator('[data-action="invGuardFormSave"]').click();
-    await expect(form.locator('[data-grd-err]')).toHaveText('Wrong PIN. 4 tries left.');
+    await expect(form.locator('[data-grd-err]')).toHaveText('Wrong PIN · 4 tries left');
     await form.locator('.inv-dialog-foot [data-action="invCloseConfirm"]').click();
     await expect(form).toHaveCount(0);
     // Asked for by name, the reset of one's own PIN is that change too.
@@ -216,41 +216,41 @@ test.describe('P152: the guard, after its QA', () => {
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     const lock = page.locator('#guardRoot'), err = lock.locator('[data-grd-err]'), go = lock.locator('[data-action="invGuardUnlock"]');
-    await lock.locator('[data-id="U-own"]').click();
+    await pickId(page, 'U-own');
     for (let i = 1; i <= 4; i++) {
       await lock.locator('#grdPin').fill('000000');
       await go.click();
       const left = 5 - i;
-      await expect(err).toHaveText(`Wrong PIN. ${left} tr${left === 1 ? 'y' : 'ies'} left.`);
+      await expect(err).toHaveText(`Wrong PIN · ${left} tr${left === 1 ? 'y' : 'ies'} left`);
     }
     // The supervisor's right PIN: their own count, never the owner's.
     await unlock(page, 'U-sup', PINS.super);
     await lockNow(page);
-    await lock.locator('[data-id="U-own"]').click();
+    await pickId(page, 'U-own');
     await lock.locator('#grdPin').fill('000000');
     await go.click();
     await expect(err).toHaveText('Locked for 30 seconds.');
     await expect(go).toBeDisabled();
     // The owner locked out does not lock out the others.
-    await lock.locator('[data-id="U-sup"]').click();
+    await pickId(page, 'U-sup');
     await expect(err).toHaveText('');
     await expect(go).toBeEnabled();
     await lock.locator('#grdPin').fill(PINS.super);
     await go.click();
-    await expect(lock).toHaveCount(0);
+    await laterIfAsked(page);
     // Kept by ID on the device, and the supervisor's success left the owner's lockout standing.
     const fails = await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_guard_fail') || 'null'));
     expect(fails.ids['u:U-own'].n).toBe(5);
     expect(fails.ids['u:U-sup']).toBeUndefined();
     // The owner's lockout runs on, and ends; then the owner's right PIN clears it.
     await lockNow(page);
-    await lock.locator('[data-id="U-own"]').click();
+    await pickId(page, 'U-own');
     await expect(err).toHaveText(/^Locked for (2[0-9]|30) seconds\.$/);
     await page.clock.fastForward(31_000);
     await expect(go).toBeEnabled();
     await lock.locator('#grdPin').fill(PINS.owner);
     await go.click();
-    await expect(lock).toHaveCount(0);
+    await laterIfAsked(page);
     expect(await page.evaluate(() => localStorage.getItem('sep_inv_guard_fail'))).toBeNull();
   });
 
@@ -507,11 +507,11 @@ test.describe('P152: the guard, after its QA', () => {
     // The users were made with the guard off (by nobody): only what is saved from here on is looked at.
     const t0 = await page.evaluate(() => Date.now());
     const lock = page.locator('#guardRoot');
-    await lock.locator('[data-id="U-own"]').click();
+    await pickId(page, 'U-own');
     await lock.locator('[data-action="invGuardForgot"]').click();
     await lock.locator('#grdCode').fill('ABCD-EFGH-JKMN');
-    await lock.locator('#grdNew1').fill('97531864');
-    await lock.locator('#grdNew2').fill('97531864');
+    await lock.locator('#grdNew1').fill('9753');
+    await lock.locator('#grdNew2').fill('9753');
     await lock.locator('[data-action="invGuardRecover"]').click();
     await expect(lock).toHaveCount(0);
     await page.locator('[data-grd-code] .inv-dialog-foot [data-action="invCloseConfirm"]').click();
@@ -524,7 +524,7 @@ test.describe('P152: the guard, after its QA', () => {
     await openSettingsAt(page, 'users');
     await page.locator('[data-action="invGuardOff"]').click();
     const ask = page.locator('[data-grd-ask]');
-    await ask.locator('#grdAskPin').fill('97531864');
+    await ask.locator('#grdAskPin').fill('9753');
     await ask.locator('[data-action="invGuardAskOk"]').click();
     expect(await answerAsk(page, 'ok')).toContain('Turn off the guard?');
     await expect.poll(async () => (await usersBy()).length).toBeGreaterThan(by.length);

@@ -1451,6 +1451,15 @@ A status badge carries its tone's icon before its word (U7, §3d): `done`, `aler
 `--ico-<tone>`; a neutral badge none. A toast is led by its kind's icon. A screen with nothing to show draws the blank state (§6.32)
 through `uiEmptyHtml` with its own words, never a line of its own.
 
+### 6.40 The PIN's wells and the keypad — `grdWellsHtml`, `grdKeypadHtml` (guard.js), `inv-pin`, `inv-keypad` (UI pass 3, §15)
+Four wells (`--pin-w` by `--pin-h`, `--r-tile`, `--well` and `--press-1`), a dot filled a digit, the next well edged in the accent
+while it is being typed; one input laid over them takes the digits, so a keyboard, a paste and a label all reach it. Wrong is the
+danger edge and fill and a short shake (`--dur-shake`), a colour alone under reduced motion. The keypad is the phone's: twelve keys
+of `--key-h` in three columns, each a lifted card (`--r-key`, `--lift-1`, a well when pressed), 1–9, a text key on the left (the lock's
+*Forgot your PIN?*), 0 and ⌫. The sign-in (`inv-guard-*`): on the phone one lifted card, the mark in its tile, the company as the
+eyebrow, *Welcome back*, the person in a well with *Not you?*, the wells, the keypad, Sign in; on the desktop a panel of the day beside
+the card, the IDs as rows. Nothing of the book's figures is drawn on it.
+
 ## 7. How each screen is assembled
 
 | Screen | Phone | Desktop |

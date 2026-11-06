@@ -788,6 +788,8 @@ function _applyModeSwitch(newDesktop, newTablet) {
   renderSidebar();
   switchTab(regFilter.activeTab || 'pageHome');
   if (typed) _pageTyped = true;
+  // The lock is drawn per layout (its panel and wells on the desktop, the keypad on the phone): drawn again for the new one.
+  if (typeof _grdLocked !== 'undefined' && _grdLocked && typeof grdRenderLock === 'function') grdRenderLock();
 }
 
 /* The desktop sidebar (renderSidebar, markSideActive) and the phone bar are the workspaces' shell: workspace.js. */

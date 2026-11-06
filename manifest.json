@@ -12,7 +12,7 @@
   "orientation": "portrait-primary",
   "lang": "en-IN",
   "dir": "ltr",
-  "background_color": "#eef2f3",
+  "background_color": "#e1e6eb",
   "theme_color": "#f8fafa",
   "categories": [
     "business",
@@ -33,10 +33,16 @@
       "purpose": "any"
     },
     {
-      "src": "icon-512.png",
+      "src": "icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "shortcuts": [

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loadAppWithState, waitForBoot, openSettingsAt } from './fixtures';
 import { sweepState, sweep, problems, type Stop } from './sweep-fixture';
-import { PINS, g, guardBook, withUsers, unlock } from './p140-guard.fixture';
+import { PINS, g, guardBook, pickId, unlock, withUsers } from './p140-guard.fixture';
 
 // P140 (desktop): the guard on the desktop layout. How long an unlock takes on the sweep book, measured; who is signed in,
 // in the desktop's top bar; the rail and the tab rows showing only the doors the role opens; a role's page taken away in Settings sending
@@ -11,6 +11,13 @@ test.describe('P140: the guard (desktop)', () => {
   test('an unlock takes under 400 ms on the desktop project, on the sweep book', async ({ page }) => {
     await loadAppWithState(page, sweepState());
     await withUsers(page);
+    // The owner's PIN is four digits (UI pass 3, U8 §15b), so the tap opens the app rather than asking to set four digits.
+    await page.evaluate(async () => {
+      const w = window as any, S = (0, eval)('S');
+      S.users.find((u: any) => u.role === 'owner').secret = await w.grdMakeSecret('4829');
+      await w.saveState();
+      w.grdRenderLock();
+    });
     const runs = await page.evaluate(async (pin) => {
       const w = window as any, S = (0, eval)('S');
       const secret = S.users.find((u: any) => u.role === 'owner').secret;
@@ -21,7 +28,7 @@ test.describe('P140: the guard (desktop)', () => {
         out.push({ ms: Math.round(performance.now() - t), ok });
       }
       return { out, iter: secret.iter };
-    }, PINS.owner);
+    }, '4829');
     const ms = runs.out.map(r => r.ms).sort((a, b) => a - b);
     // The machine is shared with other test runs, so the quickest of three is the cost of the hash itself.
     console.log(`P140 unlock hash at ${runs.iter} iterations: best ${ms[0]} ms, median ${ms[1]} ms, all ${JSON.stringify(runs.out.map(r => r.ms))}`);
@@ -30,8 +37,8 @@ test.describe('P140: the guard (desktop)', () => {
     expect(ms[0]).toBeLessThan(400);
     // And the whole unlock, from the tap to the lock gone, timed in the page (the test's own polling would add its steps).
     const lock = page.locator('#guardRoot');
-    await lock.locator('[data-id="U-own"]').click();
-    await lock.locator('#grdPin').fill(PINS.owner);
+    await pickId(page, 'U-own');
+    await lock.locator('#grdPin').fill('4829');
     await page.evaluate(() => {
       const w = window as any;
       w.__grdT0 = 0; w.__grdT1 = 0;

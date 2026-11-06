@@ -103,10 +103,15 @@ held     (id TEXT PRIMARY KEY, store TEXT, rid TEXT, at TEXT, body TEXT)   -- wh
     check a PIN it never sees (§6).
   - **Sealed, readable on the owner's devices alone**: a worker's personal details (`w.profile`), the check-ins
     (`S.peopleCheckins`), the knowledge base's private notes, the motivation index's inputs (one list, `SRV_SEALED`). The device
-    encrypts each such record (AES-GCM) before it leaves; the key is made once on the owner's device and kept wrapped by the owner's
-    PIN (PBKDF2, as the guard's own hash); the hub and the office copy hold only ciphertext (`sealed = 1`). A new owner device unwraps
-    the key with the PIN. **A forgotten PIN with no recovery loses the sealed records**: the owner's recovery code (guard.js) wraps the
-    key as well, and Settings says so before the first seal. A spec sweeps every request body for a sealed field in clear.
+    encrypts each such record (AES-GCM) before it leaves; the key is made once on the owner's device. **Amended at U8 (UI pass 3
+    §15c, 6 Nov 2026): the sealing key never travels wrapped by a PIN.** A PIN is four digits now, and PBKDF2 at 210,000 iterations
+    over 10,000 PINs is seconds on one graphics card, so a copy of the hub or of the office's SQLite file holding a PIN-wrapped key
+    would open what is sealed. On the hub and in the office copy the key is wrapped by the **recovery code** alone (12 characters
+    of a 31-letter alphabet, about 59 bits, through PBKDF2); on each owner device it is kept under a device key that cannot leave
+    the device (a non-extractable AES-GCM key in IndexedDB, as the GitHub token is kept today), used once the PIN has passed at the
+    screen. A new owner device types the recovery code once. The hub and the office copy hold only ciphertext (`sealed = 1`).
+    **A lost recovery code with no owner device left loses the sealed records**, and Settings says so before the first seal. A
+    spec sweeps every request body for a sealed field in clear. Nothing of the server is built at U8.
 - **A row's size** (Cloudflare's limits, read 15 Oct 2026): a row up to 2 MB, a statement up to 100 KB, 100 bound parameters a query.
   The largest record is about 29 KB, so a push sends records as bound parameters a few to a statement and never builds a statement
   past 100 KB; a record over 90 KB is refused with its name (none exists).
@@ -275,5 +280,5 @@ its limit.
 | 4 | One `merge.js` on both sides holds what it holds today | Held items the device's merge would not have held | The shared file, tested on both sides |
 | 5 | A locked, signed-in PC keeps printing (the owner's check, 15 Oct 2026) | A job that waits while the PC is locked | Windows' auto sign-in on the station's own account |
 | 6 | Android lets the app sync in the background (TWA: Chrome's periodic sync; Capacitor: native wake) | A phone whose entries reach the hub only when opened | The battery setting named on that phone; a foreground service while a duty is due |
-| 7 | The owner keeps the PIN or the recovery code | Sealed records nobody can open | The recovery code wraps the key too; Settings says so before the first seal |
+| 7 | The owner keeps the recovery code, or an owner device (the key is wrapped by the code on the hub, by a device key on each owner device; never by a PIN: U8) | Sealed records nobody can open | Settings says so before the first seal; a new owner device types the code once |
 | 8 | A device's guard is enough for owner-only (not sealed) records | A copied book read off a device | Seal that kind as well |

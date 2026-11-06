@@ -36,7 +36,7 @@ const NEEDS: Record<string, string> = {
   idcPreview: 'printNeed({ owner: true })',
   ckPrint: 'printNeed({ owner: true })',
   stockSheetPreview: "printNeed({ pages: ['pageStock'] })",
-  rptPrint: "printNeed({ pages: ['pageReports'], owner: current })",
+  rptPrint: "printNeed({ pages: ['pageReports'], owner: current, wages: grdSeesWages() })",
   powerPrint: "printNeed({ pages: ['pagePower'] })",
   plnReportOpen: "printNeed({ pages: ['pagePlanner'] })",
   fshShow: 'printNeed(need)',
@@ -204,12 +204,13 @@ test('a report of the current period lists the sender’s own open tasks, so it 
     (0, eval)('_rptState = { kind: "monthly", from: ' + JSON.stringify(f) + ' }; rptPrint()');
     return JSON.parse(JSON.stringify((0, eval)('_printNeed')));
   }, from);
-  // This month: its open items are the sender's To-do, each task by its own need, so the owner's alone.
-  expect(await need(W.slice(0, 8) + '01')).toEqual({ pages: ['pageReports'], owner: true });
+  // This month: its open items are the sender's To-do, each task by its own need, so the owner's alone. Drawn for an ID that sees
+  // wages, it carries the payout and the labour, so it needs wages too (the QA chain of 6 Nov 2026, Iuno H-1).
+  expect(await need(W.slice(0, 8) + '01')).toEqual({ pages: ['pageReports'], owner: true, wages: true });
   await page.locator('#invPrintView [data-action="invClosePrint"]').click();
   // A month gone lists no open items: the Reports page's own gate.
   const last = new Date(W + 'T00:00:00'); last.setDate(1); last.setMonth(last.getMonth() - 1);
-  expect(await need(isoOf(last))).toEqual({ pages: ['pageReports'], owner: false });
+  expect(await need(isoOf(last))).toEqual({ pages: ['pageReports'], owner: false, wages: true });
 });
 
 test('a run of Print it here is the ID’s that started it: another signing in is asked nothing, and the job goes back unshown', async ({ page }) => {

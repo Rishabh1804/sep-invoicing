@@ -2840,4 +2840,4 @@ empty month; the picture drew a month of imported cuts as a gap; four tests coul
 empty week, H-2 at 100% weighed, H-1's picture). Each is folded, the tests rebuilt so each fails on the build before. His fifth, that
 the period's figure compares two sets of lines, holds only at the typed cost (above, L-5).
 
-**Specs rewritten to the same fact**: P73 and P211 read the *below cost* badge on the Realisation tile, where it now stands.
+**Specs rewritten to the same fact**: P73 and P211 read the *below cost* badge on the Realisation tile, where it now stands. P247 reads a report's print job with its `wages`, which it now carries.

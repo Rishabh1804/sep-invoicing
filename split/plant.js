@@ -139,10 +139,12 @@ function pltCapWords(cap) {
   return cap.nAvail + ' of ' + cap.n + ' ' + noun + (cap.n === 1 ? '' : 's') + ' working · ' +
     (cap.used && cap.used.pct != null ? 'running at ' + Math.round(cap.used.pct * 100) + '%' : Math.round(cap.pct * 100) + '% available');
 }
-function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
+/* A line half or more down is danger, the one judge Floor's line card reads (prodLineEfficiency's avail ≤ 0.5; Vulcanus M-7, the
+   QA chain of 6 Nov 2026: Equipment had read it a warning, danger only with nothing working). */
+function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 || (cap.pct != null && cap.pct <= 0.5) ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
 function pltCapDot(cap) {
   var t = pltCapTone(cap);
-  return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : t === 'danger' ? 'Nothing working' : cap.down.length + ' not working');
+  return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : cap.nAvail === 0 ? 'Nothing working' : cap.down.length + ' not working');
 }
 
 /* ---------- Drawn ---------- */

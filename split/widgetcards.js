@@ -2084,8 +2084,10 @@ wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, 
     var first = top.rows[0], name = statsPartLabel(first);
     var below = by === 'rate' && cost > 0 ? top.rows.filter(function(r) { return r.perKg < cost; }).length : 0;
     var fig = by === 'tonnage' ? wcFigUnit(formatNum(first.kg, 0), 'kg') : by === 'rate' ? wcFigUnit(formatCurrency(first.perKg), '/kg', cost > 0 ? figToneAgainst(first.perKg, cost, 5) : null) : inrFigHtml(first.amount);
-    return { state: 'ok', tone: below ? 'warning' : 'neutral', top: top, by: by, cost: cost, fig: fig,
-      say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: below ? 'warning' : 'neutral',
+    // Toned by its worst bar, each judged as By part judges it (Iuno M-1).
+    var worst = !below ? 'neutral' : top.rows.some(function(r) { return figToneAgainst(r.perKg, cost, 5) === 'danger'; }) ? 'danger' : 'warning';
+    return { state: 'ok', tone: worst, top: top, by: by, cost: cost, fig: fig,
+      say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: worst,
       // The parts left out for want of a weight are always said (Vulcanus M-2): a ranking that hides them reads better than the truth.
       detail: top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
         : todoPlural(top.total, 'part') + ' billed' };
@@ -2100,7 +2102,8 @@ wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, 
       return { label: statsPartLabel(r), value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
         sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown') +
           (shared(r) ? ' · code also sent by another client' : ''),
-        tone: by === 'rate' && cost > 0 ? (r.perKg < cost ? 'danger' : 'good') : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
+        // The one judge, as By part's chip (Iuno M-1, the QA chain of 6 Nov 2026): within 5% under the cost is a warning, not red.
+        tone: by === 'rate' && cost > 0 ? ({ ok: 'good', warning: 'warning', danger: 'danger' })[figToneAgainst(r.perKg, cost, 5)] || null : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
     }), { unit: by === 'tonnage' ? 'kg' : by === 'rate' ? 'rate' : 'money', max: max, labelHead: 'Part', ariaLabel: 'Top parts', bare: true }) + '</div>';
   },
   source: function(d, size, ctx) { return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'one client’s part a row'] }; } });

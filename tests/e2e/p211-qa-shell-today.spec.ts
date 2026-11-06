@@ -227,7 +227,8 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await openStatsTab(page, 'board');
     const margin = page.locator('#statsVerdict [data-tile="margin"]');
     await expect(margin).toHaveClass(/inv-tile-warning/);
-    await expect(margin.locator('.inv-badge')).toHaveClass(/inv-badge-warning/);
+    // The below-cost badge is the price's, on Realisation (Iuno H-2, the QA chain of 6 Nov 2026).
+    await expect(page.locator('#statsVerdict [data-tile="realisation"] .inv-badge')).toHaveClass(/inv-badge-warning/);
     await expect(page.locator('#statsVerdict')).toHaveClass(/inv-hero-warning/);
     // The month's report says what a kilo left in the same tone.
     await g(page, `rptSet('monthly', localDateStr())`);

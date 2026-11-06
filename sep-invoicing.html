@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="95f9e1f8">
+<meta name="app-build" content="5f17b65f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -5359,7 +5359,8 @@ function uiPointerPlace(box) {
 function uiPointerClose() { document.querySelectorAll('.inv-pointer').forEach(function(b) { b.remove(); }); }
 window.addEventListener('resize', function() { uiPointerPlace(); });
 document.addEventListener('scroll', function() { if (document.querySelector('.inv-pointer')) uiPointerPlace(); else uiPointerSchedule(); }, true);
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.querySelector('.inv-pointer')) uiPointerClose(); }, true);
+// Escape shuts the pointer and nothing else: it had gone on to shut the dialog or the layer under it too (Vulcanus L-5).
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.querySelector('.inv-pointer')) { uiPointerClose(); e.preventDefault(); e.stopPropagation(); } }, true);
 
 /* ===== A GUIDED FLOW (docs/UI_PASS_3.md §11a, §26b; design §6.37) =====
    The owner, 15 Oct 2026: "The Enter by hand screen is primitive in design, and doesn't engage or leads the user, increases the
@@ -6160,6 +6161,8 @@ function _dialogMarkTyped(e) {
   if (!t || !t.closest || !t.matches || !t.matches('input, textarea, select')) return;
   if (t.closest('.inv-search, [data-nodirty], [data-ui-ask]')) return;
   var scrim = t.closest('.inv-scrim-dialog');
+  // A first-visit pointer shown before anything was typed goes the moment typing starts (Vulcanus L-5, the QA chain of 6 Nov 2026).
+  if (typeof uiPointerClose === 'function') uiPointerClose();
   if (scrim) { scrim.dataset.typed = '1'; return; }
   // A field typed on the page itself (not a toolbar's filter or a segmented choice) makes the page a form in
   // progress: a book loaded from another window then waits to be drawn (bookRedraw).
@@ -9170,6 +9173,7 @@ function grdAskSubmit() {
   if (grdFailLeftMs(uid) > 0) { grdShowFail(err, go, null, uid); return; }
   var pin = inp ? inp.value : '';
   if (!grdNorm(pin)) { if (err) err.textContent = 'Enter your PIN.'; if (inp) inp.focus(); return; }
+  if (grdIsFour(ask.user) && !/^\d{4}$/.test(grdNorm(pin))) { if (err) err.textContent = 'Type the four digits.'; if (inp) inp.focus(); return; }
   ask.busy = true;
   if (go) go.disabled = true;
   grdVerify(ask.user.secret, pin).then(function(ok) {
@@ -9249,6 +9253,15 @@ function grdPanelHtml(co) {
     '</aside>';
 }
 var _grdUpgrade = null;    // the ID whose PIN from before was just right: asked to set four digits
+var _grdUpgradeAt = 0;     // when that PIN was right: the screen is good for GRD_UPGRADE_MS, never across the app put away
+var GRD_UPGRADE_MS = 120000;
+/* The screen that sets four digits after a PIN from before stands for the PIN typed: once it is old, or the app was put away,
+   it is gone, and the PIN is typed again (Castor H-1, the QA chain of 6 Nov 2026: it had stood for good, and Later signed in). */
+function grdUpgradeLive() {
+  if (_grdUpgrade && Date.now() - _grdUpgradeAt <= GRD_UPGRADE_MS) return true;
+  if (_grdUpgrade) { _grdUpgrade = null; if (_grdLocked) { grdRenderLock(); var e = document.querySelector('#guardRoot [data-grd-err]'); if (e) e.textContent = 'Type your PIN again.'; } }
+  return false;
+}
 var _grdSheet = false;     // the phone's IDs, open as a sheet (Not you?)
 function grdLockHtml() {
   var users = grdActiveUsers().slice().sort(function(a, b) { return GRD_ROLES.indexOf(a.role) - GRD_ROLES.indexOf(b.role) || String(a.name).localeCompare(String(b.name)); });
@@ -9332,7 +9345,7 @@ function grdShowLock(why) {
     // swipe to another screen) never see them. Taps go on to events.js, which routes the lock's actions here.
     ['keydown', 'keyup', 'input', 'change', 'touchstart', 'touchend'].forEach(function(t) {
       root.addEventListener(t, function(e) {
-        if (t === 'keydown' && e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') { e.preventDefault(); grdLockSubmit(); }
+        if (t === 'keydown' && e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') { e.preventDefault(); var g = root.querySelector('[data-grd-go]'); if (!g || !g.disabled) grdLockSubmit(); }
         if (t === 'keydown' && e.key === 'Escape' && _grdSheet) { e.preventDefault(); _grdSheet = false; grdRenderLock(); }
         e.stopPropagation();
       });
@@ -9512,6 +9525,7 @@ function grdUnlock() {
   if (grdFailLeftMs(u.id) > 0) { grdShowFail(err, go, null, u.id); return; }
   var pin = inp ? inp.value : '';
   if (!grdNorm(pin)) { if (err) err.textContent = 'Enter your PIN.'; if (inp) inp.focus(); return; }
+  if (grdIsFour(u) && !/^\d{4}$/.test(grdNorm(pin))) { if (err) err.textContent = 'Type the four digits.'; if (inp) inp.focus(); return; }
   if (!grdCryptoOk()) { if (err) err.textContent = 'This browser cannot check a PIN here: open the app from its https address.'; return; }
   _grdBusy = true;
   if (go) go.disabled = true;
@@ -9522,7 +9536,10 @@ function grdUnlock() {
     // Still the user chosen, and still active: another window may have changed the book meanwhile.
     var now = grdUserById(u.id);
     // A PIN from before, right: asked to become four digits before the lock lifts (§15b); Later signs in on the old one.
-    if (ok && now && now.active !== false && !grdIsFour(now) && grdCryptoOk()) { grdFailClear(now.id); _grdUpgrade = now.id; grdRenderLock(); return; }
+    if (ok && now && now.active !== false && !grdIsFour(now) && now.secret && !grdPinProblem(pin, pin)) {
+      grdFailClear(now.id); grdSignIn(now); now.secret.len = GRD_PIN_LEN; now.updatedAt = Date.now(); saveState(); return;
+    }
+    if (ok && now && now.active !== false && !grdIsFour(now) && grdCryptoOk()) { grdFailClear(now.id); _grdUpgrade = now.id; _grdUpgradeAt = Date.now(); grdRenderLock(); return; }
     if (ok && now && now.active !== false) { grdSignIn(now); return; }
     if (ok) { grdRenderLock(); return; }
     grdFailNote(u.id);
@@ -9574,6 +9591,7 @@ function grdRecover() {
 
 /* A PIN from before, replaced with four digits on the lock, then signed in (its save names them in the change log). */
 function grdUpgradeSave() {
+  if (!grdUpgradeLive()) return;
   var root = document.getElementById('guardRoot');
   var u = _grdUpgrade ? grdUserById(_grdUpgrade) : null;
   if (!root || !u || _grdBusy) return;
@@ -9594,6 +9612,7 @@ function grdUpgradeSave() {
   });
 }
 function grdUpgradeLater() {
+  if (!grdUpgradeLive()) return;
   var u = _grdUpgrade ? grdUserById(_grdUpgrade) : null;
   if (!u || u.active === false) { _grdUpgrade = null; grdRenderLock(); return; }
   grdSignIn(u);
@@ -9712,6 +9731,7 @@ function grdRecheck() {
   grdAfterUser();
 }
 document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden' && _grdUpgrade) { _grdUpgrade = null; if (_grdLocked) grdRenderLock(); }
   if (!S || !grdOn()) return;
   var s = grdSessRead();
   if (document.visibilityState === 'hidden') {
@@ -9726,6 +9746,7 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 window.addEventListener('pagehide', function() {
+  if (_grdUpgrade) { _grdUpgrade = null; if (_grdLocked) grdRenderLock(); }
   var s = S && grdOn() ? grdSessRead() : null;
   if (s) { s.hiddenAt = Date.now(); grdSessWrite(s); }
 });
@@ -10094,7 +10115,8 @@ var GRD_SETTINGS_SEC = {
     'once the second figure has passed since it was last given. A backup imported or a pull from GitHub replaces the book and its IDs, so it is the owner’s alone. ' +
     'Five wrong tries for an ID lock that ID for 30 seconds, doubling to 15 minutes; the others still unlock. ' +
     'A PIN is four digits, not one digit four times, a run like 1234 or a common PIN; a PIN set before is asked to become four digits at its next sign-in. ' +
-    'A PIN stops someone at the screen; the recovery code keeps what is sealed.',
+    // What four digits cannot stop, said (Castor H-2, the QA chain of 6 Nov 2026; whether the owner's may be longer is the owner's).
+    'A PIN stops someone at the screen; the recovery code keeps what is sealed. Four digits do not stop someone who holds a copy of the book: its PINs can be worked out from it, so a backup is kept as safely as the book.',
   saveIf: function() { return grdOn() && grdIsOwner(); },
   save: function() { return grdUsersSave(); }
 };
@@ -33758,7 +33780,11 @@ function renderLiveCostCard(period, tonnage) {
     h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +
       ' ' + costSrcBadge(r.source) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.note) + '</span></span>' +
       '<span class="inv-row-end">' + money(r) + '</span></summary>';
-    if (r.detail.length) {
+    // Labour's tiers are pay: drawn only to an ID that sees wages, the row's total to one that sees money (Iuno H-1, the QA chain
+    // of 6 Nov 2026: Stats hid the labour card and showed its tiers here).
+    if (r.key === 'labour' && r.detail.length && !grdSeesWages()) {
+      h += '<div class="inv-row-children"><div class="inv-row" data-cost-tiers-held><span class="inv-row-main"><span class="inv-row-meta">The tiers are shown to an ID that sees wages.</span></span></div></div>';
+    } else if (r.detail.length) {
       h += '<div class="inv-row-children">' + r.detail.map(function(d) {
         return '<div class="inv-row' + (d.sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(d.label) + '</span>' +
           (d.sub ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(d.sub) + '</span>' : '') + '</span>' +
@@ -48728,6 +48754,12 @@ function statsTableSwitchHtml() {
    under it within 5% a warning); four factors: revenue net of credit notes and its change on the same days, what was plated and
    billed with the share weighed and of two shifts, realisation against the cost, and what the period left after the full cost.
    The large accounts below the full cost are a fact of it (By client's verdict, until U3). */
+/* What a period left after its full cost: its whole revenue less its whole cost (the live cost a kilo × the kilos weighed), the one
+   figure Stats' verdict, The period in figures, the money question and the report draw (Iuno H-2, the QA chain of 6 Nov 2026: the
+   question and the report had drawn contribution × the weighed kilos, which left the unweighed lines' revenue out, and a month read
+   positive on one and negative a tap away). Its tone is its own: the revenue against the whole cost, the one judge at 5%. */
+function statsPeriodLeft(rev, costKg, kg) { return gstRound((rev || 0) - costKg * kg); }
+function statsLeftTone(rev, costKg, kg) { return figToneAgainst(rev || 0, costKg * kg, 5); }
 function statsVerdictHtml(pa) {
   var per = _statsPeriod, plabel = PERIOD_LABELS[per] || '', word = ADV_PERIOD_WORDS[per] || 'the period';
   var tonnage = pa.tonnage, filtered = pa.filtered, prior = pa.prior, perKg = '<span class="inv-tile-of">/kg</span>';
@@ -48740,7 +48772,7 @@ function statsVerdictHtml(pa) {
   var contribution = realisation != null && costKg > 0 ? realisation - costKg : null;
   // What the period left after its full cost is its whole revenue less its whole cost (Iuno H-1): read as contribution × the
   // weighed kilos it left out every unweighed line's revenue against the plant's whole cost.
-  var margin = contribution != null ? gstRound(totalRev - costKg * tonnage.kg) : null;
+  var margin = contribution != null ? statsPeriodLeft(totalRev, costKg, tonnage.kg) : null;
   var pct = function(cur, prev) { if (!comparable || prev == null || !prev) return ''; var x = (cur - prev) / Math.abs(prev) * 100; return Math.abs(x) <= FIG_FLAT_PCT ? 'level' : (x > 0 ? '+' : '−') + formatNum(Math.abs(x), 1) + '%'; };
   var dRev = pct(totalRev, priorRev), dKg = pct(tonnage.kg, priorT.kg);
   var credited = filtered.reduce(function(s, i) { return s + (i._credit || 0); }, 0), cnOut = cnCreditByInvoice().unplaced;
@@ -48778,11 +48810,13 @@ function statsVerdictHtml(pa) {
       delta: capPct != null ? figHtml(capPct + '% of two shifts', figToneCapacity(capPct)) : '',
       badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="tonnage"' },
     { label: 'Realisation', fig: realisation != null ? escHtml(formatCurrency(realisation)) + perKg : '', tone: realTone,
-      sub: costKg > 0 ? pa.periodCost.label + formatCurrency(costKg) + '/kg' : 'set a cost in Settings', attrs: ' data-tile="realisation"' },
-    // What the period left is the price against the cost again, judged as Realisation is: under it within 5% is a warning, not red.
-    { label: 'Left after the full cost', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : realTone,
-      sub: contribution != null ? (contribution >= 0 ? '+' : '−') + formatCurrency(Math.abs(contribution)) + '/kg' : 'needs tonnage and cost',
-      badge: contribution != null && contribution < 0 ? [realTone, 'below cost'] : null, attrs: ' data-tile="margin"' }];
+      sub: costKg > 0 ? pa.periodCost.label + formatCurrency(costKg) + '/kg' : 'set a cost in Settings',
+      badge: contribution != null && contribution < 0 ? [realTone, 'below cost'] : null, attrs: ' data-tile="realisation"' },
+    // What the period left is its own figure, toned by its own sign (Iuno H-2, the QA chain of 6 Nov 2026: a positive figure had
+    // been drawn amber and badged below cost, the price's tone); the weighed lines' price is Realisation's and the sub's.
+    { label: 'Left after the full cost', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : statsLeftTone(totalRev, costKg, tonnage.kg),
+      sub: contribution != null ? (contribution >= 0 ? '+' : '−') + formatCurrency(Math.abs(contribution)) + '/kg on the weighed lines' : 'needs tonnage and cost',
+      attrs: ' data-tile="margin"' }];
   var verdict = !filtered.length ? 'No invoices ' + word
     : contribution == null ? formatInrShort(totalRev) + ' ' + word + (realisation == null ? ', nothing weighed' : ', no cost to judge by')
     : Math.abs(contribution) < 0.005 ? 'At the ' + (pa.periodCost.label === 'live cost ' ? 'live cost' : 'cost') + ', to the paisa'
@@ -48957,8 +48991,10 @@ function statsPartTable(pa) {
     var label = statsPartLabel(r);
     var shared = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); });
     var known = r.kgKnown && r.kg > 0;
-    var pst = statsPriceState(r.perKg, pa.periodCost.perKg);
-    return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: r.perKg },
+    // A part billed nothing (replating, ruled 24 Sep 2026) has no price to judge: a dash, never Below cost at ₹0 (Iuno L-1).
+    var free = !(Math.abs(r.amount) > 0.005);
+    var pst = free ? null : statsPriceState(r.perKg, pa.periodCost.perKg);
+    return { v: { part: label, client: r.clientName || '', amount: gstRound(r.amount), kg: known ? r.kg : null, perKg: free ? null : r.perKg },
       // The other client named short, and how many more: a row's words stay under 120 characters (P195).
       h: { part: '<div class="inv-row-title">' + escHtml(label) + '</div>' + (shared.length ? '<div class="inv-row-meta">code also sent by ' + escHtml((function() {
           var cc = (S.clients || []).find(function(x) { return String(x.id) === String(shared[0]); }); return cc ? clientShortName(cc.name) : 'another client'; })() +
@@ -48993,11 +49029,14 @@ function statsMonthTable() {
       { k: 'labour', label: 'Labour', num: true, xl: 'num' }, { k: 'measured', label: 'Measured', num: true, xl: 'pct' }],
     rows: rows.map(function(r) {
       // A month billed with nothing weighed has no tonnes to say (a dash, never 0.0); a month part weighed reads as a floor.
-      var tNone = !(r.kg > 0) && r.rev > 0, pst = statsPriceState(r.real, r.cost);
+      // A month under 90% weighed reads its price high: judged only from 90%, as By client judges a client (Vulcanus L-6, the QA
+      // chain of 6 Nov 2026); below it the figure stands plain with what share is weighed.
+      var thin = r.coverage != null && r.coverage < REALISATION_MIN_COVERAGE;
+      var tNone = !(r.kg > 0) && r.rev > 0, pst = thin ? null : statsPriceState(r.real, r.cost);
       return { v: { month: r.label, rev: gstRound(r.rev), t: tNone ? null : r.kg / 1000, real: r.real, cost: r.cost, contrib: r.contrib, labour: r.labour != null && r.labCov >= 0.9 ? r.labour : null,
         measured: r.measured != null ? r.measured * 100 : null, _sort: r.month },
         h: { month: '<span class="inv-nowrap">' + escHtml(r.label) + '</span>',
-          real: r.real != null ? '<span class="inv-row-stack"><span data-fig>' + figHtml(formatNum(r.real, 2), pst ? pst.tone : null) + '</span>' + (pst ? statsPriceChip(pst) : '') + '</span>' : '&mdash;', t: tNone ? '&mdash;' : (r.coverage != null && r.coverage < 0.999 ? '\u2265 ' : '') + formatNum(r.kg / 1000, 1),
+          real: r.real != null ? '<span class="inv-row-stack"><span data-fig>' + figHtml(formatNum(r.real, 2), pst ? pst.tone : null) + '</span>' + (pst ? statsPriceChip(pst) : thin ? '<span class="inv-badge inv-badge-neutral" data-price-chip="thin">' + statsPctOf(r.coverage) + '% weighed</span>' : '') + '</span>' : '&mdash;', t: tNone ? '&mdash;' : (r.coverage != null && r.coverage < 0.999 ? '\u2265 ' : '') + formatNum(r.kg / 1000, 1),
           measured: r.measured != null ? escHtml(statsPctOf(r.measured) + '%') : '&mdash;' } };
     }),
     after: statsBody(statsNote('₹ per kg. Labour where 90% of the month is recorded or paid from the bank; measured is the cost from records.')) };
@@ -50102,12 +50141,13 @@ function statsStoryCards(a, ctx) {
   var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
+  var left = contrib != null ? statsPeriodLeft(sumTaxable(filtered), cost, kg) : null;
   // What a kilo left is the price against the cost, judged as the price is (In one line, Stats' tiles): a loss within 5% of the
   // cost is a warning, as the realisation beside it says.
   var moneyTone = contrib == null ? null : figToneAgainst(real, cost, 5);
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
       real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
-    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
+    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(left != null ? statsSigned(left) + ' ' + escHtml(ADV_PERIOD_WORDS[period] || 'in the period') + ', after the full cost' : ''),
       moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
@@ -56612,10 +56652,12 @@ function pltCapWords(cap) {
   return cap.nAvail + ' of ' + cap.n + ' ' + noun + (cap.n === 1 ? '' : 's') + ' working · ' +
     (cap.used && cap.used.pct != null ? 'running at ' + Math.round(cap.used.pct * 100) + '%' : Math.round(cap.pct * 100) + '% available');
 }
-function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
+/* A line half or more down is danger, the one judge Floor's line card reads (prodLineEfficiency's avail ≤ 0.5; Vulcanus M-7, the
+   QA chain of 6 Nov 2026: Equipment had read it a warning, danger only with nothing working). */
+function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 || (cap.pct != null && cap.pct <= 0.5) ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
 function pltCapDot(cap) {
   var t = pltCapTone(cap);
-  return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : t === 'danger' ? 'Nothing working' : cap.down.length + ' not working');
+  return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : cap.nAvail === 0 ? 'Nothing working' : cap.down.length + ' not working');
 }
 
 /* ---------- Drawn ---------- */
@@ -65532,8 +65574,10 @@ wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, 
     var first = top.rows[0], name = statsPartLabel(first);
     var below = by === 'rate' && cost > 0 ? top.rows.filter(function(r) { return r.perKg < cost; }).length : 0;
     var fig = by === 'tonnage' ? wcFigUnit(formatNum(first.kg, 0), 'kg') : by === 'rate' ? wcFigUnit(formatCurrency(first.perKg), '/kg', cost > 0 ? figToneAgainst(first.perKg, cost, 5) : null) : inrFigHtml(first.amount);
-    return { state: 'ok', tone: below ? 'warning' : 'neutral', top: top, by: by, cost: cost, fig: fig,
-      say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: below ? 'warning' : 'neutral',
+    // Toned by its worst bar, each judged as By part judges it (Iuno M-1).
+    var worst = !below ? 'neutral' : top.rows.some(function(r) { return figToneAgainst(r.perKg, cost, 5) === 'danger'; }) ? 'danger' : 'warning';
+    return { state: 'ok', tone: worst, top: top, by: by, cost: cost, fig: fig,
+      say: (by === 'rate' ? 'Priced worst: ' : by === 'tonnage' ? 'The most tonnes: ' : 'Billed most: ') + name, sayTone: worst,
       // The parts left out for want of a weight are always said (Vulcanus M-2): a ranking that hides them reads better than the truth.
       detail: top.dropped ? top.dropped + ' of ' + top.total + ' parts left out: no known weight' : by === 'rate' && cost > 0 ? below + ' of ' + top.rows.length + ' under the live cost of ' + formatCurrency(cost) + '/kg'
         : todoPlural(top.total, 'part') + ' billed' };
@@ -65548,7 +65592,8 @@ wdgDefine({ id: 'topitems', title: 'Top parts', q: 'Which parts fill the plant, 
       return { label: statsPartLabel(r), value: value, display: by === 'tonnage' ? formatNum(r.kg, 0) + ' kg' : by === 'rate' ? formatCurrency(r.perKg) + '/kg' : inrCard(r.amount).text,
         sub: (r.clientName ? wcClientShort(r.clientName) + ' · ' : '') + (r.kgKnown && r.kg > 0 ? formatNum(r.kg, 0) + ' kg · ' + formatCurrency(r.perKg) + '/kg' : 'weight unknown') +
           (shared(r) ? ' · code also sent by another client' : ''),
-        tone: by === 'rate' && cost > 0 ? (r.perKg < cost ? 'danger' : 'good') : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
+        // The one judge, as By part's chip (Iuno M-1, the QA chain of 6 Nov 2026): within 5% under the cost is a warning, not red.
+        tone: by === 'rate' && cost > 0 ? ({ ok: 'good', warning: 'warning', danger: 'danger' })[figToneAgainst(r.perKg, cost, 5)] || null : null, markPct: by === 'rate' && cost > 0 && max > 0 ? cost / max * 100 : null };
     }), { unit: by === 'tonnage' ? 'kg' : by === 'rate' ? 'rate' : 'money', max: max, labelHead: 'Part', ariaLabel: 'Top parts', bare: true }) + '</div>';
   },
   source: function(d, size, ctx) { return { facts: ['Invoices ' + (ADV_PERIOD_WORDS[ctx.period] || 'of the period'), 'one client’s part a row'] }; } });
@@ -71263,6 +71308,14 @@ function powerAnalysis() {
     e.cost += c.cost.total; e.upper += c.cost.upper; e.lost += c.cost.lost; e.contrib += c.cost.contrib; e.idle += c.cost.idle; e.idleAll += c.cost.idleAll;
     e.recOt += c.cost.recOt; e.restart += c.cost.restart; e.fixed += c.cost.fixed;
   });
+  // Every calendar month of the record, a month with no cut included (Vulcanus H-1, the QA chain of 6 Nov 2026): a month the floor
+  // recorded with no cut is a good month, and one inside a likely-unreported run must be seen to read low. It had listed only the
+  // months holding a cut, so the picture drew four bars for six months and hid the quiet ones.
+  if (first) {
+    for (var mk = first.slice(0, 7), endM = today.slice(0, 7); mk <= endM; mk = isoAddDays(mk + '-28', 7).slice(0, 7)) {
+      if (!months[mk]) months[mk] = { month: mk, cuts: 0, min: 0, open: 0, cost: 0, upper: 0, lost: 0, contrib: 0, idle: 0, idleAll: 0, recOt: 0, restart: 0, fixed: 0, cutsRec: 0, costRec: 0 };
+    }
+  }
   var monthList = Object.keys(months).sort().map(function(m) {
     var e = months[m], start = m + '-01', end = payMonthEnd(start);
     if (end > today) end = today;
@@ -71573,17 +71626,26 @@ function powerCasePictureHtml(a) {
     return '<div class="inv-pcp-tile" data-pcp-tile="' + key + '"><div class="inv-pcp-tile-l">' + label + '</div><div class="inv-pcp-tile-v">' + value + '</div>' +
       (sub ? '<div class="inv-pcp-tile-s">' + sub + '</div>' : '') + '</div>';
   };
-  var range = y ? (y.low != null && y.high != null && y.high > y.low ? escHtml(_pcL(y.low) + ' – ' + _pcL(y.high)) : escHtml(_pcL(y.base))) : '&mdash;';
+  // The complete months' range where there are two prices to it; one complete month its own figure; none, the 90 days' rate, each
+  // said as what it is (Vulcanus M-2, the QA chain of 6 Nov 2026: the 90 days' figure had been captioned as the range).
+  var yRange = y && y.low != null && y.high != null && y.high > y.low, yOne = y && y.low != null && !yRange;
+  var range = !y ? '&mdash;' : escHtml(yRange ? _pcL(y.low) + ' – ' + _pcL(y.high) : yOne ? _pcL(y.low) : _pcL(y.base));
+  var rangeSub = !y ? 'not enough record to read a year' : yRange ? 'the complete months’ range; ' + _pcL(y.base) + ' at the last 90 days’ rate'
+    : yOne ? 'at the complete month, ' + billsMonthLabel(y.lowMonth) + '; ' + _pcL(y.base) + ' at the last 90 days’ rate' : 'at the last 90 days’ rate; no complete month yet';
   h += '<div class="inv-pcp-tiles">' +
     tile('cuts', 'Cuts, last 12 months', escHtml(String(last12.length)), escHtml(a.first > from12 ? 'since ' + formatDate(a.first) : 'on the days on record')) +
     tile('dark', 'Dark in working hours', escHtml(formatNum(inside12 / 60, 0) + ' h'), escHtml(last12.length ? 'about ' + powerDur(inside12 / last12.length) + ' a cut' : '')) +
-    tile('year', 'A year of them costs', range, escHtml(y ? 'the complete months’ range; ' + _pcL(y.base) + ' at the last 90 days’ rate' : 'not enough record to read a year')) +
-    tile('payback', 'Soonest payback', escHtml(best ? _pcMonths(best.payLo) + (best.payHi !== best.payLo ? ' – ' + _pcMonths(best.payHi) : '') : '—'), escHtml(best ? best.label : 'no option pays back at this rate')) +
+    tile('year', 'A year of them costs', range, escHtml(rangeSub)) +
+    // With no year to read, the options are not read yet: said as the full case says it (Vulcanus L-4).
+    tile('payback', 'Soonest payback', escHtml(best ? _pcMonths(best.payLo) + (best.payHi !== best.payLo ? ' – ' + _pcMonths(best.payHi) : '') : '—'), escHtml(best ? best.label : !y ? 'read once there is a year to read against' : 'no option pays back at this rate')) +
     '</div>';
-  // Cuts by month, the last twelve months on record; a month holding a run of likely-unreported days hatched (it reads low).
-  var months = a.months.slice(-12);
+  // Cuts by month, the last twelve calendar months of the record: a month with no day recorded a gap, a month recorded with no cut a
+  // zero, a month holding a run of likely-unreported days hatched (it reads low). Twelve calendar months, so no name comes twice.
+  var m12 = today.slice(0, 7), mk12 = m12;
+  for (var mi = 0; mi < 11; mi++) mk12 = isoAddDays(mk12 + '-01', -1).slice(0, 7);
+  var months = a.months.filter(function(m) { return m.month >= mk12 && m.month <= m12; });
   h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="months"><div class="inv-pcp-h">Cuts by month</div>' +
-    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.cuts, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : '' }; }),
+    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.recorded ? m.cuts : null, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : !m.recorded ? 'no day recorded' : '' }; }),
       { unit: 'count', paper: true, slot: 2, ariaLabel: 'Cuts by month', toDate: months.length && months[months.length - 1].month === today.slice(0, 7) ? months.length - 1 : null }) +
     (months.some(function(m) { return m.quiet > 0; }) ? '<div class="inv-pcp-note">Hatched: a month with days whose power was likely not reported. It reads low.</div>' : '') + '</div>';
   // When they start: the hour each cut began, 6 AM to 10 PM (the bands of the full case, hour by hour); the night's few are said.
@@ -73094,7 +73156,9 @@ function rptHtml(kind, from, to) {
       'of the marks typed, Mon–Sat, a half day half, as People → Attendance reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
       dl(att.pct, patt.pct, 'up'))
     : rptTile('attendance', 'Attendance', '&mdash;', att.days ? 'no mark of the active roster on the days recorded' : 'no working day recorded'));
-  tiles.push(lab.total > 0
+  tiles.push(lab.total > 0 && !grdSeesWages()
+    ? rptTile('labour', 'Labour', '&mdash;', 'shown to an ID that sees wages')
+    : lab.total > 0
     ? rptTile('labour', 'Labour', rptMoney(lab.total), labV.ok ? figHtml(rptMoney(labV.perKg) + '/kg', figToneAgainst(labV.perKg, labourCfg().modelPerKg || 3.55, 10, true)) + ' against the model ' + rptMoney(labourCfg().modelPerKg || 3.55)
       : '₹/kg withheld: ' + labV.why, plab.total > 0 && Math.abs(lab.coverage - plab.coverage) < 0.1 ? dl(lab.total, plab.total, null) : '')
     : rptTile('labour', 'Labour', '&mdash;', 'no attendance recorded'));
@@ -73123,7 +73187,7 @@ function rptHtml(kind, from, to) {
   h += rptStaffHtml(p, end, lab, labV, w);
 
   // 6. Cost & margin
-  if (p.kind !== 'daily' && p.kind !== 'weekly') h += rptCostHtml(p, end, w, lc, real);
+  if (p.kind !== 'daily' && p.kind !== 'weekly') h += rptCostHtml(p, end, w, lc, real, taxable);
 
   // 7. Money
   if (p.kind !== 'daily') h += rptMoneyHtml(p, end, current, brows, bankReach);
@@ -73270,7 +73334,10 @@ function rptStaffHtml(p, end, lab, labV, w) {
     if (dd.marked) body = rptP('On site ' + figHtml(escHtml((dd.p + dd.half) + ' of ' + dd.roster.length), attOnSiteTone(dd)) +
       escHtml((dd.half ? ', ' + dd.half + ' half day' + (dd.half === 1 ? '' : 's') : '') + ', ' + dd.absent.length + ' absent' + (dd.unmarked ? ', ' + dd.unmarked + ' not marked' : '') + '.'), 'onsite') + body;
   }
-  if (p.kind === 'weekly') {
+  // The week's payout and the month's labour are pay: an ID that does not see wages reads the heads and hours alone (Iuno H-1).
+  var wages = grdSeesWages();
+  if (!wages && p.kind !== 'daily') body += rptP('Pay is shown to an ID that sees wages.', 'wages-held');
+  if (wages && p.kind === 'weekly') {
     var fc = payForecast(p.from), wk = fc.week;
     body += '<h4 class="inv-rpt-h4">The payout</h4>' + rptTable([['Pay week ' + escHtml(rptPeriodShort(p))], ['₹', 1]], [
       ['Weekly tiers', escHtml(formatCurrency(wk.workers))], ['EXTRA pool (one line, disbursed by the supervisor)', escHtml(formatCurrency(wk.extra))],
@@ -73279,7 +73346,7 @@ function rptStaffHtml(p, end, lab, labV, w) {
       fc.median != null ? ['Usual (median of ' + fc.medianWeeks + ' weeks)', escHtml(formatCurrency(fc.median))] : null
     ].filter(Boolean), null, 'payout') + rptP(escHtml(wk.recordedDays + ' of ' + wk.workingDays + ' working days recorded' + (wk.sundays ? ', and the Sunday' : '') + '.'));
   }
-  if (p.kind !== 'daily' && p.kind !== 'weekly') {
+  if (wages && p.kind !== 'daily' && p.kind !== 'weekly') {
     var model = labourCfg().modelPerKg || 3.55;
     body += '<h4 class="inv-rpt-h4">Labour</h4>' + rptTable([['Part'], ['₹', 1], ['₹/kg', 1]], [
       ['Fixed (the monthly crew, days and rest days)', escHtml(formatCurrency(lab.fixed)), labV.ok ? formatNum(lab.fixed / w.kg, 2) : ''],
@@ -73292,7 +73359,7 @@ function rptStaffHtml(p, end, lab, labV, w) {
 }
 
 /* 6. The live cost by component with its source, realisation and contribution. */
-function rptCostHtml(p, end, w, lc, real) {
+function rptCostHtml(p, end, w, lc, real, taxable) {
   if (!(w.kg > 0) || !lc) return rptSec('cost', 'Cost & margin', '', rptNone('No weighed tonnage in the period, so no cost per kg to set against it.'));
   var rows = lc.rows.map(function(r) {
     return [escHtml(r.label), escHtml(finRs(r.amount)), formatNum(r.amount / w.kg, 2), escHtml(COST_SRC_LABEL[r.source] || r.source || '')];
@@ -73301,7 +73368,8 @@ function rptCostHtml(p, end, w, lc, real) {
   var contrib = real - lc.perKg, ct = figToneAgainst(real, lc.perKg, 5);
   var body = rptTable([['Component'], ['₹', 1], ['₹/kg', 1], ['Source']], rows, ['Live cost', escHtml(finRs(lc.total)), formatNum(lc.perKg, 2), statsPctOf(lc.measuredShare) + '% measured'], 'cost');
   body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', ct) +
-    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), ct) + ' on the period. ' +
+    // On the period: its whole revenue less its whole cost, the figure Stats draws (statsPeriodLeft, Iuno H-2).
+    ', ' + (function() { var left = statsPeriodLeft(taxable, lc.perKg, w.kg); return figHtml((left >= 0 ? '' : '&minus;') + rptMoney(Math.abs(left)), statsLeftTone(taxable, lc.perKg, w.kg)); })() + ' left on the period after the full cost. ' +
     (statsCostWeighedNote(w) || ''));
   return rptSec('cost', 'Cost & margin', escHtml('The live cost over ' + rptKg(w.kg) + ' invoiced; a stretch not recorded is filled at the model and said in its source.'), body);
 }
@@ -73480,7 +73548,12 @@ function rptPictureHtml(kind, from, to) {
   if (p.kind === 'daily') {
     var ln = PROD_LINES.map(function(l) { return { l: l, r: prodDayLine(p.from, l) }; });
     t1 = 'Plated by line, kg'; t2 = 'Rounds by line';
-    c1 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.kg) : null }; }), { unit: 'kg', paper: true, slot: 3, ariaLabel: t1, emptyText: 'Nothing plated on record' });
+    // A line's kilos as the day card weighs them: pieces nothing weighs are a gap and said, never 0 kg, and a bar resting on an
+    // estimate or leaving pieces out is hatched, known to read low or approximate (Vulcanus M-3, the QA chain of 6 Nov 2026).
+    var unw = ln.reduce(function(s, x) { return s + (x.r.unweighed || 0); }, 0), anyRun = ln.some(function(x) { return x.r.entries.length; });
+    c1 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length && x.r.kg > 0 ? Math.round(x.r.kg) : null, hatch: !!(x.r.unweighed || x.r.est) }; }),
+      { unit: 'kg', paper: true, slot: 3, ariaLabel: t1, emptyText: anyRun ? 'Plated, but no piece weighed' : 'Nothing plated on record' });
+    if (unw) t1 += ' (' + Number(unw).toLocaleString('en-IN') + ' pieces not weighed)';
     c2 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.rounds || 0) : null }; }), { unit: 'count', paper: true, slot: 1, ariaLabel: t2, emptyText: 'No rounds on record' });
   } else {
     var ctx = { today: today, invs: all, power: powerAnalysis() };
@@ -73488,7 +73561,7 @@ function rptPictureHtml(kind, from, to) {
     var td = subs.findIndex(function(sb) { return sb.from <= today && sb.to >= today; });
     var by = p.kind === 'weekly' ? 'by day' : p.kind === 'monthly' ? 'by pay week' : 'by month';
     t1 = 'Invoiced ' + by; t2 = 'Plated ' + by + ', kg (complete days)';
-    c1 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future ? null : f.inv ? gstRound(f.taxable, 0) : 0 }; }),
+    c1 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future || !f.inv ? null : gstRound(f.taxable, 0) }; }),
       { unit: 'money', paper: true, slot: 1, ariaLabel: t1, toDate: td >= 0 ? td : null, emptyText: 'Nothing invoiced' });
     c2 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future || !f.plated ? null : Math.round(f.plated.kg) }; }),
       { unit: 'kg', paper: true, slot: 3, ariaLabel: t2, toDate: td >= 0 ? td : null, emptyText: 'No complete day recorded' });
@@ -73512,7 +73585,9 @@ function rptPictureHtml(kind, from, to) {
   h += '<div class="inv-pcp-sec" data-pcp-sec="look"><div class="inv-pcp-h">' + (current ? 'To look at now' : 'To look at') + '</div>' +
     (look.length ? '<ul class="inv-pcp-list">' + look.map(function(x) { return '<li data-pcp-look="' + x.tone + '"><b class="inv-pcp-' + x.tone + '">' + (x.tone === 'danger' ? 'Red' : 'Amber') + '</b> · ' + escHtml(x.text) + '</li>'; }).join('') + '</ul>'
       : '<p class="inv-pcp-none">' + (current ? 'Nothing red or amber on the To-do.' : 'Nothing in the period’s figures stands out.') + '</p>') + '</div>';
-  return h + '<div class="inv-pcp-foot">Revenue is taxable, net of credit notes; tonnes and realisation are the weighed lines; plated counts complete days only. The report that follows has every figure.</div></div>';
+  // Notes that name no invoice in the book are not taken off any: said, as Stats' verdict says them (Iuno L-3).
+  var cnOut = cnCreditByInvoice().unplaced, cnLine = cnOut && cnOut.n ? ' ' + todoPlural(cnOut.n, 'credit note') + ' (' + finRs(cnOut.amount) + ')' + (cnOut.n === 1 ? ' names no invoice in the book and is' : ' name no invoice in the book and are') + ' not taken off.' : '';
+  return h + '<div class="inv-pcp-foot" data-pcp-foot>Revenue is taxable, net of credit notes; tonnes and realisation are the weighed lines; plated counts complete days only.' + escHtml(cnLine) + ' The report that follows has every figure.</div></div>';
 }
 
 /* ---------- The page ---------- */
@@ -73586,7 +73661,8 @@ function rptPrint(pictureOnly) {
   // its own need: money, wages, the floor, the roster, its page), which no flag on the job can carry whole: only the owner opens
   // it from the office's queue (Iuno M-2, L-5; Castor M-1, L-3 on #162). A past period's lists none: its page's gate.
   var today = localDateStr(), current = p.from <= today && p.to >= today;
-  printNeed({ pages: ['pageReports'], owner: current });
+  // Drawn for an ID that sees wages, it carries the payout and the labour: another ID opens it from the queue only with wages too.
+  printNeed({ pages: ['pageReports'], owner: current, wages: grdSeesWages() });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

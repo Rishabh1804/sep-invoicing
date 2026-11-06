@@ -2771,4 +2771,59 @@ cuts 3 → 4, pay 6 → 8, the planner 4 → 7, the office printer 1 → 3, IDs,
 (new, 3). Some of these moves came from builds outside the pass in the same weeks (the night shift, the planner's details, the print
 station's light, the messages).
 
-**The QA chain over U3–U9 is the owner's to call** (§19, U9).
+**The QA chain over U3–U9 was the owner's to call** (§19, U9), and they called it the same day (§26o).
+
+### 26o. The QA chain over U3–U9 (6 Nov 2026)
+
+The owner: *"Run the QA chain"*. Its scope was what U3, U6, U7 and U8 built, with U9's docs. U4 and U5 had their own chains (§26i,
+§26j). Castor audited the sign-in, Iuno money and controls, and Vulcanus production, plant and power. Each finding fixed has its test
+in **P259**, and each test fails on the build before its fix. Cipher's Edict V followed.
+
+**Castor (the sign-in, U8).**
+- **H-1, fixed.** The screen that asks for four digits after a PIN from before stayed open with nobody signed in. A phone put away
+  on it came back to *Set a 4-digit PIN* or *Later*, which signed in on the old PIN with no PIN typed. Now the screen closes when the
+  app is hidden or left (`visibilitychange`, `pagehide`), and it lapses after two minutes (`GRD_UPGRADE_MS`, `grdUpgradeLive`): Save
+  and Later then redraw the lock with *Type your PIN again.*
+- **M-1, fixed.** On the lock, Enter sent the PIN while Sign in was still disabled, and a wrong try was spent on three digits. Enter
+  now does what the button does. The lock and the PIN asked again (`grdAskSubmit`) refuse fewer than four digits for an ID on four
+  (*Type the four digits.*) and spend no try.
+- **L-1, fixed.** A PIN from before that is already four good digits (`grdPinProblem` passes) was asked to become four. It now signs
+  in with no question and is saved `len: 4`.
+- **H-2, for the owner.** Four digits are 10,000 PINs. Anyone holding a copy of the book (a backup, the GitHub sync file) can try
+  them all offline in minutes, whatever the count of wrong tries on the device. The Settings section now says so, and that a backup is
+  kept as safely as the book. Whether the owner's own ID may keep a longer PIN or a password is the owner's to rule (SERVER.md §4
+  already keeps the sealing key off the PIN).
+
+**Iuno (money and controls).**
+- **H-1, fixed.** An ID that sees money and not wages (the office role given Stats and Reports) saw the labour tiers on Stats' live
+  cost and the week's payout and labour on a report. The tiers now read *The tiers are shown to an ID that sees wages*, and a report's
+  labour tile and staff section say the same and draw no figure. A report's print job needs wages where it was drawn with them
+  (`printNeed({wages})`), so the queue never opens it for an ID without.
+- **H-2, fixed.** What the period left was three figures: Stats' verdict tile (₹/kg × kilos weighed), the money question (*on mtd*)
+  and the report. Each now reads the period's whole revenue less the full cost on its kilos (`statsPeriodLeft`) and is toned by the
+  one judge (`statsLeftTone`, `figToneAgainst` at 5%). The verdict's *below cost* badge moved to Realisation, the tile it judges.
+- **M-1, fixed.** Top parts coloured a part red within 5% under the cost; it now judges as By part does (a warning there).
+- **L-1, fixed.** A part billed nothing (replating) read *Below cost* on By part. It has no price to judge: a dash.
+- **L-2, fixed.** The report's picture drew a stretch with no invoice as a zero bar. It is a gap.
+- **L-3, fixed.** The picture's foot says the credit notes that name no invoice in the book and are not taken off.
+- **L-4 and L-5, noted, not fixed.** The lock draws over a screen without clearing its figures from the page. They are not visible,
+  and they are not reachable until sign-in. The live cost's typed-cost fallback has an edge on a period with nothing weighed. Both are
+  low and left for a later pass.
+
+**Vulcanus (production, plant and power).**
+- **H-1, fixed.** The power record listed only the months that had a cut, so a quiet month vanished from Power → Case's picture, and
+  the twelve bars could span fourteen months. `powerAnalysis` now lists every calendar month from the first cut to today. A month
+  with no day recorded is a gap, *no day recorded*.
+- **M-2, fixed.** The year tile said *the complete months' range* over one month. It says what its figure is: a range, or *at the
+  complete month, <month>*.
+- **L-4, fixed.** With no year to read against, the payback tile says *read once there is a year to read against*, never a blank.
+- **M-3, fixed.** The day's picture drew a line whose pieces nothing weighs at 0 kg. It is a gap (*Plated, but no piece weighed*),
+  hatched where some pieces are estimated, and the chart's title counts the pieces not weighed.
+- **L-5, fixed.** A first-visit pointer stayed over a dialog once typing began there, and its Escape also shut the dialog. Typing now
+  shuts the pointer (`_dialogMarkTyped` → `uiPointerClose`), and its Escape shuts it alone.
+- **L-6, fixed.** By month gave a chip to a month weighed under 90%. Such a month reads *N% weighed* instead, as the realisation
+  rule says.
+- **M-7, fixed.** Equipment coloured a line half down amber where Floor's card read danger. Half or more of a line's units down is
+  danger on both (`pltCapTone`), and *Nothing working* is said only when none is.
+
+**Specs rewritten to the same fact**: P73 and P211 read the *below cost* badge on the Realisation tile, where it now stands.

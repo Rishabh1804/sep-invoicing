@@ -515,6 +515,7 @@ function grdAskSubmit() {
   if (grdFailLeftMs(uid) > 0) { grdShowFail(err, go, null, uid); return; }
   var pin = inp ? inp.value : '';
   if (!grdNorm(pin)) { if (err) err.textContent = 'Enter your PIN.'; if (inp) inp.focus(); return; }
+  if (grdIsFour(ask.user) && !/^\d{4}$/.test(grdNorm(pin))) { if (err) err.textContent = 'Type the four digits.'; if (inp) inp.focus(); return; }
   ask.busy = true;
   if (go) go.disabled = true;
   grdVerify(ask.user.secret, pin).then(function(ok) {
@@ -594,6 +595,15 @@ function grdPanelHtml(co) {
     '</aside>';
 }
 var _grdUpgrade = null;    // the ID whose PIN from before was just right: asked to set four digits
+var _grdUpgradeAt = 0;     // when that PIN was right: the screen is good for GRD_UPGRADE_MS, never across the app put away
+var GRD_UPGRADE_MS = 120000;
+/* The screen that sets four digits after a PIN from before stands for the PIN typed: once it is old, or the app was put away,
+   it is gone, and the PIN is typed again (Castor H-1, the QA chain of 6 Nov 2026: it had stood for good, and Later signed in). */
+function grdUpgradeLive() {
+  if (_grdUpgrade && Date.now() - _grdUpgradeAt <= GRD_UPGRADE_MS) return true;
+  if (_grdUpgrade) { _grdUpgrade = null; if (_grdLocked) { grdRenderLock(); var e = document.querySelector('#guardRoot [data-grd-err]'); if (e) e.textContent = 'Type your PIN again.'; } }
+  return false;
+}
 var _grdSheet = false;     // the phone's IDs, open as a sheet (Not you?)
 function grdLockHtml() {
   var users = grdActiveUsers().slice().sort(function(a, b) { return GRD_ROLES.indexOf(a.role) - GRD_ROLES.indexOf(b.role) || String(a.name).localeCompare(String(b.name)); });
@@ -677,7 +687,7 @@ function grdShowLock(why) {
     // swipe to another screen) never see them. Taps go on to events.js, which routes the lock's actions here.
     ['keydown', 'keyup', 'input', 'change', 'touchstart', 'touchend'].forEach(function(t) {
       root.addEventListener(t, function(e) {
-        if (t === 'keydown' && e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') { e.preventDefault(); grdLockSubmit(); }
+        if (t === 'keydown' && e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') { e.preventDefault(); var g = root.querySelector('[data-grd-go]'); if (!g || !g.disabled) grdLockSubmit(); }
         if (t === 'keydown' && e.key === 'Escape' && _grdSheet) { e.preventDefault(); _grdSheet = false; grdRenderLock(); }
         e.stopPropagation();
       });
@@ -857,6 +867,7 @@ function grdUnlock() {
   if (grdFailLeftMs(u.id) > 0) { grdShowFail(err, go, null, u.id); return; }
   var pin = inp ? inp.value : '';
   if (!grdNorm(pin)) { if (err) err.textContent = 'Enter your PIN.'; if (inp) inp.focus(); return; }
+  if (grdIsFour(u) && !/^\d{4}$/.test(grdNorm(pin))) { if (err) err.textContent = 'Type the four digits.'; if (inp) inp.focus(); return; }
   if (!grdCryptoOk()) { if (err) err.textContent = 'This browser cannot check a PIN here: open the app from its https address.'; return; }
   _grdBusy = true;
   if (go) go.disabled = true;
@@ -867,7 +878,10 @@ function grdUnlock() {
     // Still the user chosen, and still active: another window may have changed the book meanwhile.
     var now = grdUserById(u.id);
     // A PIN from before, right: asked to become four digits before the lock lifts (§15b); Later signs in on the old one.
-    if (ok && now && now.active !== false && !grdIsFour(now) && grdCryptoOk()) { grdFailClear(now.id); _grdUpgrade = now.id; grdRenderLock(); return; }
+    if (ok && now && now.active !== false && !grdIsFour(now) && now.secret && !grdPinProblem(pin, pin)) {
+      grdFailClear(now.id); grdSignIn(now); now.secret.len = GRD_PIN_LEN; now.updatedAt = Date.now(); saveState(); return;
+    }
+    if (ok && now && now.active !== false && !grdIsFour(now) && grdCryptoOk()) { grdFailClear(now.id); _grdUpgrade = now.id; _grdUpgradeAt = Date.now(); grdRenderLock(); return; }
     if (ok && now && now.active !== false) { grdSignIn(now); return; }
     if (ok) { grdRenderLock(); return; }
     grdFailNote(u.id);
@@ -919,6 +933,7 @@ function grdRecover() {
 
 /* A PIN from before, replaced with four digits on the lock, then signed in (its save names them in the change log). */
 function grdUpgradeSave() {
+  if (!grdUpgradeLive()) return;
   var root = document.getElementById('guardRoot');
   var u = _grdUpgrade ? grdUserById(_grdUpgrade) : null;
   if (!root || !u || _grdBusy) return;
@@ -939,6 +954,7 @@ function grdUpgradeSave() {
   });
 }
 function grdUpgradeLater() {
+  if (!grdUpgradeLive()) return;
   var u = _grdUpgrade ? grdUserById(_grdUpgrade) : null;
   if (!u || u.active === false) { _grdUpgrade = null; grdRenderLock(); return; }
   grdSignIn(u);
@@ -1057,6 +1073,7 @@ function grdRecheck() {
   grdAfterUser();
 }
 document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden' && _grdUpgrade) { _grdUpgrade = null; if (_grdLocked) grdRenderLock(); }
   if (!S || !grdOn()) return;
   var s = grdSessRead();
   if (document.visibilityState === 'hidden') {
@@ -1071,6 +1088,7 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 window.addEventListener('pagehide', function() {
+  if (_grdUpgrade) { _grdUpgrade = null; if (_grdLocked) grdRenderLock(); }
   var s = S && grdOn() ? grdSessRead() : null;
   if (s) { s.hiddenAt = Date.now(); grdSessWrite(s); }
 });
@@ -1439,7 +1457,8 @@ var GRD_SETTINGS_SEC = {
     'once the second figure has passed since it was last given. A backup imported or a pull from GitHub replaces the book and its IDs, so it is the owner’s alone. ' +
     'Five wrong tries for an ID lock that ID for 30 seconds, doubling to 15 minutes; the others still unlock. ' +
     'A PIN is four digits, not one digit four times, a run like 1234 or a common PIN; a PIN set before is asked to become four digits at its next sign-in. ' +
-    'A PIN stops someone at the screen; the recovery code keeps what is sealed.',
+    // What four digits cannot stop, said (Castor H-2, the QA chain of 6 Nov 2026; whether the owner's may be longer is the owner's).
+    'A PIN stops someone at the screen; the recovery code keeps what is sealed. Four digits do not stop someone who holds a copy of the book: its PINs can be worked out from it, so a backup is kept as safely as the book.',
   saveIf: function() { return grdOn() && grdIsOwner(); },
   save: function() { return grdUsersSave(); }
 };

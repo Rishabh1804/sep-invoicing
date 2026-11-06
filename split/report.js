@@ -232,7 +232,9 @@ function rptHtml(kind, from, to) {
       'of the marks typed, Mon–Sat, a half day half, as People → Attendance reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
       dl(att.pct, patt.pct, 'up'))
     : rptTile('attendance', 'Attendance', '&mdash;', att.days ? 'no mark of the active roster on the days recorded' : 'no working day recorded'));
-  tiles.push(lab.total > 0
+  tiles.push(lab.total > 0 && !grdSeesWages()
+    ? rptTile('labour', 'Labour', '&mdash;', 'shown to an ID that sees wages')
+    : lab.total > 0
     ? rptTile('labour', 'Labour', rptMoney(lab.total), labV.ok ? figHtml(rptMoney(labV.perKg) + '/kg', figToneAgainst(labV.perKg, labourCfg().modelPerKg || 3.55, 10, true)) + ' against the model ' + rptMoney(labourCfg().modelPerKg || 3.55)
       : '₹/kg withheld: ' + labV.why, plab.total > 0 && Math.abs(lab.coverage - plab.coverage) < 0.1 ? dl(lab.total, plab.total, null) : '')
     : rptTile('labour', 'Labour', '&mdash;', 'no attendance recorded'));
@@ -261,7 +263,7 @@ function rptHtml(kind, from, to) {
   h += rptStaffHtml(p, end, lab, labV, w);
 
   // 6. Cost & margin
-  if (p.kind !== 'daily' && p.kind !== 'weekly') h += rptCostHtml(p, end, w, lc, real);
+  if (p.kind !== 'daily' && p.kind !== 'weekly') h += rptCostHtml(p, end, w, lc, real, taxable);
 
   // 7. Money
   if (p.kind !== 'daily') h += rptMoneyHtml(p, end, current, brows, bankReach);
@@ -408,7 +410,10 @@ function rptStaffHtml(p, end, lab, labV, w) {
     if (dd.marked) body = rptP('On site ' + figHtml(escHtml((dd.p + dd.half) + ' of ' + dd.roster.length), attOnSiteTone(dd)) +
       escHtml((dd.half ? ', ' + dd.half + ' half day' + (dd.half === 1 ? '' : 's') : '') + ', ' + dd.absent.length + ' absent' + (dd.unmarked ? ', ' + dd.unmarked + ' not marked' : '') + '.'), 'onsite') + body;
   }
-  if (p.kind === 'weekly') {
+  // The week's payout and the month's labour are pay: an ID that does not see wages reads the heads and hours alone (Iuno H-1).
+  var wages = grdSeesWages();
+  if (!wages && p.kind !== 'daily') body += rptP('Pay is shown to an ID that sees wages.', 'wages-held');
+  if (wages && p.kind === 'weekly') {
     var fc = payForecast(p.from), wk = fc.week;
     body += '<h4 class="inv-rpt-h4">The payout</h4>' + rptTable([['Pay week ' + escHtml(rptPeriodShort(p))], ['₹', 1]], [
       ['Weekly tiers', escHtml(formatCurrency(wk.workers))], ['EXTRA pool (one line, disbursed by the supervisor)', escHtml(formatCurrency(wk.extra))],
@@ -417,7 +422,7 @@ function rptStaffHtml(p, end, lab, labV, w) {
       fc.median != null ? ['Usual (median of ' + fc.medianWeeks + ' weeks)', escHtml(formatCurrency(fc.median))] : null
     ].filter(Boolean), null, 'payout') + rptP(escHtml(wk.recordedDays + ' of ' + wk.workingDays + ' working days recorded' + (wk.sundays ? ', and the Sunday' : '') + '.'));
   }
-  if (p.kind !== 'daily' && p.kind !== 'weekly') {
+  if (wages && p.kind !== 'daily' && p.kind !== 'weekly') {
     var model = labourCfg().modelPerKg || 3.55;
     body += '<h4 class="inv-rpt-h4">Labour</h4>' + rptTable([['Part'], ['₹', 1], ['₹/kg', 1]], [
       ['Fixed (the monthly crew, days and rest days)', escHtml(formatCurrency(lab.fixed)), labV.ok ? formatNum(lab.fixed / w.kg, 2) : ''],
@@ -430,7 +435,7 @@ function rptStaffHtml(p, end, lab, labV, w) {
 }
 
 /* 6. The live cost by component with its source, realisation and contribution. */
-function rptCostHtml(p, end, w, lc, real) {
+function rptCostHtml(p, end, w, lc, real, taxable) {
   if (!(w.kg > 0) || !lc) return rptSec('cost', 'Cost & margin', '', rptNone('No weighed tonnage in the period, so no cost per kg to set against it.'));
   var rows = lc.rows.map(function(r) {
     return [escHtml(r.label), escHtml(finRs(r.amount)), formatNum(r.amount / w.kg, 2), escHtml(COST_SRC_LABEL[r.source] || r.source || '')];
@@ -439,7 +444,8 @@ function rptCostHtml(p, end, w, lc, real) {
   var contrib = real - lc.perKg, ct = figToneAgainst(real, lc.perKg, 5);
   var body = rptTable([['Component'], ['₹', 1], ['₹/kg', 1], ['Source']], rows, ['Live cost', escHtml(finRs(lc.total)), formatNum(lc.perKg, 2), statsPctOf(lc.measuredShare) + '% measured'], 'cost');
   body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', ct) +
-    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), ct) + ' on the period. ' +
+    // On the period: its whole revenue less its whole cost, the figure Stats draws (statsPeriodLeft, Iuno H-2).
+    ', ' + (function() { var left = statsPeriodLeft(taxable, lc.perKg, w.kg); return figHtml((left >= 0 ? '' : '&minus;') + rptMoney(Math.abs(left)), statsLeftTone(taxable, lc.perKg, w.kg)); })() + ' left on the period after the full cost. ' +
     (statsCostWeighedNote(w) || ''));
   return rptSec('cost', 'Cost & margin', escHtml('The live cost over ' + rptKg(w.kg) + ' invoiced; a stretch not recorded is filled at the model and said in its source.'), body);
 }
@@ -618,7 +624,12 @@ function rptPictureHtml(kind, from, to) {
   if (p.kind === 'daily') {
     var ln = PROD_LINES.map(function(l) { return { l: l, r: prodDayLine(p.from, l) }; });
     t1 = 'Plated by line, kg'; t2 = 'Rounds by line';
-    c1 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.kg) : null }; }), { unit: 'kg', paper: true, slot: 3, ariaLabel: t1, emptyText: 'Nothing plated on record' });
+    // A line's kilos as the day card weighs them: pieces nothing weighs are a gap and said, never 0 kg, and a bar resting on an
+    // estimate or leaving pieces out is hatched, known to read low or approximate (Vulcanus M-3, the QA chain of 6 Nov 2026).
+    var unw = ln.reduce(function(s, x) { return s + (x.r.unweighed || 0); }, 0), anyRun = ln.some(function(x) { return x.r.entries.length; });
+    c1 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length && x.r.kg > 0 ? Math.round(x.r.kg) : null, hatch: !!(x.r.unweighed || x.r.est) }; }),
+      { unit: 'kg', paper: true, slot: 3, ariaLabel: t1, emptyText: anyRun ? 'Plated, but no piece weighed' : 'Nothing plated on record' });
+    if (unw) t1 += ' (' + Number(unw).toLocaleString('en-IN') + ' pieces not weighed)';
     c2 = chartBars(ln.map(function(x) { return { label: prodLineName(x.l), value: x.r.entries.length ? Math.round(x.r.rounds || 0) : null }; }), { unit: 'count', paper: true, slot: 1, ariaLabel: t2, emptyText: 'No rounds on record' });
   } else {
     var ctx = { today: today, invs: all, power: powerAnalysis() };
@@ -626,7 +637,7 @@ function rptPictureHtml(kind, from, to) {
     var td = subs.findIndex(function(sb) { return sb.from <= today && sb.to >= today; });
     var by = p.kind === 'weekly' ? 'by day' : p.kind === 'monthly' ? 'by pay week' : 'by month';
     t1 = 'Invoiced ' + by; t2 = 'Plated ' + by + ', kg (complete days)';
-    c1 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future ? null : f.inv ? gstRound(f.taxable, 0) : 0 }; }),
+    c1 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future || !f.inv ? null : gstRound(f.taxable, 0) }; }),
       { unit: 'money', paper: true, slot: 1, ariaLabel: t1, toDate: td >= 0 ? td : null, emptyText: 'Nothing invoiced' });
     c2 = chartBars(subs.map(function(sb, i) { var f = figs[i]; return { label: sb.short, value: f.future || !f.plated ? null : Math.round(f.plated.kg) }; }),
       { unit: 'kg', paper: true, slot: 3, ariaLabel: t2, toDate: td >= 0 ? td : null, emptyText: 'No complete day recorded' });
@@ -650,7 +661,9 @@ function rptPictureHtml(kind, from, to) {
   h += '<div class="inv-pcp-sec" data-pcp-sec="look"><div class="inv-pcp-h">' + (current ? 'To look at now' : 'To look at') + '</div>' +
     (look.length ? '<ul class="inv-pcp-list">' + look.map(function(x) { return '<li data-pcp-look="' + x.tone + '"><b class="inv-pcp-' + x.tone + '">' + (x.tone === 'danger' ? 'Red' : 'Amber') + '</b> · ' + escHtml(x.text) + '</li>'; }).join('') + '</ul>'
       : '<p class="inv-pcp-none">' + (current ? 'Nothing red or amber on the To-do.' : 'Nothing in the period’s figures stands out.') + '</p>') + '</div>';
-  return h + '<div class="inv-pcp-foot">Revenue is taxable, net of credit notes; tonnes and realisation are the weighed lines; plated counts complete days only. The report that follows has every figure.</div></div>';
+  // Notes that name no invoice in the book are not taken off any: said, as Stats' verdict says them (Iuno L-3).
+  var cnOut = cnCreditByInvoice().unplaced, cnLine = cnOut && cnOut.n ? ' ' + todoPlural(cnOut.n, 'credit note') + ' (' + finRs(cnOut.amount) + ')' + (cnOut.n === 1 ? ' names no invoice in the book and is' : ' name no invoice in the book and are') + ' not taken off.' : '';
+  return h + '<div class="inv-pcp-foot" data-pcp-foot>Revenue is taxable, net of credit notes; tonnes and realisation are the weighed lines; plated counts complete days only.' + escHtml(cnLine) + ' The report that follows has every figure.</div></div>';
 }
 
 /* ---------- The page ---------- */
@@ -724,7 +737,8 @@ function rptPrint(pictureOnly) {
   // its own need: money, wages, the floor, the roster, its page), which no flag on the job can carry whole: only the owner opens
   // it from the office's queue (Iuno M-2, L-5; Castor M-1, L-3 on #162). A past period's lists none: its page's gate.
   var today = localDateStr(), current = p.from <= today && p.to >= today;
-  printNeed({ pages: ['pageReports'], owner: current });
+  // Drawn for an ID that sees wages, it carries the payout and the labour: another ID opens it from the queue only with wages too.
+  printNeed({ pages: ['pageReports'], owner: current, wages: grdSeesWages() });
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;

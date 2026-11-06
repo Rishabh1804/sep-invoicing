@@ -226,12 +226,13 @@ function statsStoryCards(a, ctx) {
   var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
+  var left = contrib != null ? statsPeriodLeft(sumTaxable(filtered), cost, kg) : null;
   // What a kilo left is the price against the cost, judged as the price is (In one line, Stats' tiles): a loss within 5% of the
   // cost is a warning, as the realisation beside it says.
   var moneyTone = contrib == null ? null : figToneAgainst(real, cost, 5);
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
       real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
-    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
+    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(left != null ? statsSigned(left) + ' ' + escHtml(ADV_PERIOD_WORDS[period] || 'in the period') + ', after the full cost' : ''),
       moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [

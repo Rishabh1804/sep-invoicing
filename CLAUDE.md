@@ -76,8 +76,8 @@ lead with one A4 page, the text under its toggle. **U7 is built** (5 Nov 2026; *
 the board's rule for its tone, lists stand in a card, dialogs, toasts, badges and search in the look, one set of blank states, and
 first-visit pointers. **U8 is built** (6 Nov 2026; *UI pass 3: sign-in* below): the sign-in on both layouts, the
 4-digit PIN and the keypad, a PIN from before asked to become four digits, the icons from the mark, SERVER.md §4 amended. **U9 is built**
-(6 Nov 2026): the docs and every screen measured before and after the pass (`docs/UI_PASS_3.md` §26n). **UI pass 3 is built**; its
-QA chain is the owner's to call.
+(6 Nov 2026): the docs and every screen measured before and after the pass (`docs/UI_PASS_3.md` §26n). **UI pass 3 is built**, and
+its QA chain ran the same day (*The QA chain of 6 Nov 2026* below, `docs/UI_PASS_3.md` §26o).
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -291,7 +291,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,314 tests, both layouts (6 Nov 2026)
+pnpm exec playwright test          # 2,329 tests, both layouts (6 Nov 2026)
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1301,6 +1301,24 @@ fixture's `unlock` rewritten to the same facts (four digits where a spec sets a 
   `icon-512-maskable.png`, `favicon.svg`, `favicon-32.png`; the manifest's `background_color` `#e1e6eb`; the service worker `sep-inv-v32`.
 - **SERVER.md §4**: the sealing key is never wrapped by a PIN (the recovery code on the hub, a device key on each owner device).
 - The guide *Setting up: IDs, PINs and roles* is version 2. **A data flow**: `len: 4` on a user's secret, with the users.
+
+### The QA chain of 6 Nov 2026
+`docs/UI_PASS_3.md` §26o (owner: *"Run the QA chain"*, over U3, U6, U7, U8 and U9's docs; U4 and U5 had their own). Castor, Iuno and
+Vulcanus audited, each finding fixed with its test in P259 (failing on the build before), then Cipher. What it leaves as rules:
+- **The four-digit screen is never left open**: hidden or left, it closes, and after two minutes (`GRD_UPGRADE_MS`) Save and Later
+  redraw the lock (`grdUpgradeLive`). Enter on the lock does what Sign in does; fewer than four digits for an ID on four spend no try.
+  A PIN from before that is four good digits signs in and is saved `len: 4`.
+- **A PIN of four digits can be found from any copy of the book** (10,000 tries offline): Settings says so, and whether the owner's
+  ID may keep a longer one is the owner's to rule.
+- **Wages are wages wherever money is shown**: an ID that sees money and not wages sees no labour tier on the live cost, no labour or
+  payout on a report, and a report drawn with wages needs them to open from the queue (`printNeed({wages})`).
+- **What the period left is one figure** (`statsPeriodLeft`: the period's revenue less the full cost on its kilos), toned by the one
+  judge (`statsLeftTone`), on Stats' verdict, the money question and the report. Top parts judges a price as By part does; a part
+  billed nothing has no price; a month under 90% weighed has no chip (*N% weighed*).
+- **A gap is a gap on paper too**: a stretch with no invoice, a line with nothing weighed, a month with no day recorded. The power
+  record lists every calendar month from the first cut. The picture's foot names the credit notes it cannot take off.
+- **Half a line down is danger on Equipment as on Floor** (`pltCapTone`). A first-visit pointer goes when typing starts, and its
+  Escape shuts it alone.
 
 ## Business Domain
 

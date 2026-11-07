@@ -2005,7 +2005,10 @@ accepted duplicate receipt, and for the same purpose: an audit must be able to t
 somebody examined from one nobody was shown. Explained exceptions are counted and listed apart from
 open disagreements, so the card distinguishes *"nobody has looked at this"* from *"this was looked at
 and here is what the record shows"*. Explaining or reopening one is a floor entry (`areaExplainOk`): a role that may
-not make one is told so. Each list shows its first eight and the rest one tap away.
+not make one is told so. Each list shows its first eight and the rest one tap away. **It is offered as Accept (with explanation)**
+(owner, 7 Nov 2026, on a Sunday the supervisor booked 3 hands short of pickling where the rule reads 2: *"accept with explanation
+option should be there"*): the booking stays as booked, and so paid, with why on the record; listed under *Accepted*; and offered
+on People → Attendance → Day's Extra hours card too, where the booking was made (`areaDayFlagsHtml`). P260.
 
 **An acknowledgement is granted against specific figures, never as a blanket silence.** The record
 stores the expected and booked hours it was written about. If the data later moves — a crew
@@ -4598,7 +4601,9 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
   `payMonthPaidFor`, which `wageVsSlip` reads too), since
   salaries go out around the 14th for the month before. Cash pays the pay week it was drawn in, spread over that week's
   seven days, so a week that straddles two months is split. **Cash is wages only up to that week's payout** (`payWeek`:
-  the weekly tiers and the EXTRA); past it, it is the owner's drawings, never a cost (owner, 6 Oct 2026). A week whose
+  the weekly tiers and the EXTRA); past it, it is the owner's drawings, never a cost (owner, 6 Oct 2026). **Cash paid that week to a monthly hand, typed on
+  Pay** and on no bank leg (`bankMonthlyCashIn`; owner, 7 Nov 2026: the night guard's wage paid in cash beside the payout), is
+  wages too, for the month it pays (`payMonthPaidFor`), counted fixed; only the cash past both is drawings. A week whose
   payout is not fully recorded (no attendance, or hourly hands with no hours: the imported history) cannot be split,
   and its month's labour is not known from the bank (`labour.open`). Every SELF draw had been wages, and June–August read
   labour paid at ₹7.87L against ₹4.99L recorded. Electricity pays its bill month (`bankBillMonth`).
@@ -5228,14 +5233,14 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
   nothing. A weekly hand's balance still starts at the first payment typed for them (paid in cash, never on the statement by name).
   The month offered must have its earnings known (a slip or attendance); last month only while no month is. Once balances count, `wageVsSlip` stays quiet: Pay carries
   each month.
-- **Snacks are a line of the weekly payout** (`paySnacks`, in `payWeek`'s total; owner, 10 Oct 2026, on the week of 4 Oct's Saturday
-  cash: *"The 640 is snacks paid for OT and night shifts"*, *"20 per person regular OT, and 60 per person for night OT"*, night *"is when
-  it passes 12 a.m., not before it"*). A person once a day at the higher: night is a block running past midnight or an out past it (a
-  block to 12 AM is regular, whatever hour it starts), regular a block from 5 PM or an out at 6 PM or later; the 6 AM block has none,
-  nor the gate's own twelve hours; every tier. Read off the marks and the blocks' crews (`paySnackKind`). The rates are Settings →
-  Labour → Overtime (`labour.snackOt` 20, `snackNight` 60). The week of 4 Oct comes to the ₹840 paid only so (five on the evening of
-  the 5th, six to 12 AM on the 6th, four on the 7th, four on the night hold of the 8th, four on the night of the 9th and three to 8 PM);
-  the supervisor's sheet had priced the two nights at ₹40. The bank's cash split reads the payout, so the snacks are wages there too.
+- **Snacks are what the supervisor paid** (owner, 7 Nov 2026, on the week to 7 Nov, where the per-head rule came to ₹1,820 and
+  Shyam's message said *NASTA120*: *"Use Shyam's method"*). His nasta is cash he spent and reports: ₹1,390 for the week to 31 Oct
+  (no count of ₹20s and ₹60s makes it), *"NASTA 2200 / 2 WEEK"* in September. So the payout's snacks are that figure, typed for the
+  pay week on Pay's payout card (**Enter** / **Change**, `paySnacksSet`, behind the payments permission; `S.paySnacksPaid[weekStart]`
+  `{amount, at, by}`, in the change log and the merge), nothing until typed. The per-head rule of 10 Oct 2026 (`paySnacks`,
+  `paySnackKind`, Settings' `snackOt` / `snackNight`) is retired; the forecast leaves the typed figure out of the week's pace. The
+  bank's cash split still reads the payout, so the snacks are wages there. **A data flow changed**: `S.paySnacksPaid` travels with the
+  book (backups, GitHub, the merge). P207, P260.
 - **Hours to check** (`payCrewGaps`, Pay's card and To-do rule **`payCrewGap`**, a floor task): a hand named on an overtime block whose
   own times do not reach it (out at or before its start, in at or after the 6 AM block's end, or marked absent). Pay reads each
   hand's own times, so the block's hours were in nobody's pay: on the week of 4 Oct a mark whose area was changed by hand kept the

@@ -392,7 +392,7 @@ test('an examined disagreement becomes a record with its reason on it', async ({
   await expect(blockFlag(page, 'warning')).toHaveCount(1);
 
   await explain(page, 'no fold value reconciles both rows of this block');
-  await expect(page.locator('.inv-toast')).toContainText('Exception recorded');
+  await expect(page.locator('.inv-toast')).toContainText('Accepted with explanation');
 
   // It moves from accusation to precedent, and carries the reason in place.
   await expect(blockFlag(page, 'ack')).toHaveCount(1);

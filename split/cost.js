@@ -459,11 +459,11 @@ function liveCost(from, to, kg) {
     var bl = bk.labour, blMissing = Math.max(0, 1 - bl.known);
     // Paid: the salary transfers to named hands against the cash drawn for the weekly pool.
     var blNamed = 0, blCash = 0;
-    bl.months.forEach(function(mo) { blNamed += mo.named * mo.share; blCash += mo.cash * mo.share; });
+    bl.months.forEach(function(mo) { blNamed += (mo.named + (mo.handCash || 0)) * mo.share; blCash += mo.cash * mo.share; });
     if (blNamed + blCash > 0) labFixed = { share: blNamed / (blNamed + blCash), from: 'bank' };
     var blDetail = bl.months.map(function(mo) {
       return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
-        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.openCounted >= 1 ? formatCurrency(mo.openCounted) + ' cash in weeks whose payout is not recorded, counted as wages: an upper bound' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.handCash >= 1 ? formatCurrency(mo.handCash) + ' cash to monthly hands, typed on Pay' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.openCounted >= 1 ? formatCurrency(mo.openCounted) + ' cash in weeks whose payout is not recorded, counted as wages: an upper bound' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
     });
     if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),

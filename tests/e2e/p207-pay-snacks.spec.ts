@@ -1,10 +1,9 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
 
-// P207: the week's payout as the Saturday's cash pays it (owner, 10 Oct 2026, on the week of 4 Oct: "The 640 is snacks paid for OT
-// and night shifts", "20 per person regular OT, and 60 per person for night OT", night "is when it passes 12 a.m., not before it").
-// Snacks are a line of the payout, a person once a day at the higher rate, read off the blocks' crews and the outs; a hand named on
+// P207: the week's payout as the Saturday's cash pays it. Snacks are a line of the payout: what the supervisor paid, typed for the
+// week (owner, 7 Nov 2026: "Use Shyam's method"; the per-head rule of 10 Oct 2026 is retired); a hand named on
 // a block their own times do not reach is flagged (one such had 13 hours paid nobody); and an out-time roll's numbered line written
 // without its bracket ("14 NAME") is a name, not a note. Made-up names; dates from today.
 
@@ -42,33 +41,28 @@ function book(): SepState {
 }
 
 test.describe('P207: the week’s payout as the Saturday pays it', () => {
-  test('snacks: ₹20 a person on regular overtime, ₹60 past midnight, once a day at the higher; none for the 6 AM block or the gate', async ({ page }) => {
+  // Owner, 7 Nov 2026: "Use Shyam's method". The snacks are what the supervisor paid for the week, typed from his message, never a
+  // count of ₹20s and ₹60s off the marks: the week below, which the old rule priced at ₹220, has none until a figure is typed.
+  test('snacks: the week’s figure as the supervisor paid it, typed on Pay; nothing worked out from the marks', async ({ page }) => {
     await loadAppWithState(page, book());
-    const sn = await ev(page, `paySnacks('${WS}', '${shift(WS, 6)}')`) as any;
-    expect(sn.days[D1]).toEqual({ regular: 3, night: 0, amount: 60 });
-    expect(sn.days[D2]).toEqual({ regular: 2, night: 2, amount: 160 });
-    expect(sn.days[D3]).toBeUndefined();
-    expect(sn.amount).toBe(220);
-    // The payout carries them, and Pay's card says so.
-    const pw = await ev(page, `(function(w){ return { total: w.total, workers: w.workers, extra: w.extra, snacks: w.snacks.amount }; })(payWeek('${WS}'))`) as any;
-    expect(pw.snacks).toBe(220);
-    expect(pw.total).toBeCloseTo(pw.workers + pw.extra + 220, 2);
+    let pw = await ev(page, `(function(w){ return { total: w.total, workers: w.workers, extra: w.extra, snacks: w.snacks }; })(payWeek('${WS}'))`) as any;
+    expect(pw.snacks).toEqual({ amount: 0, entered: false, note: '' });
+    expect(pw.total).toBeCloseTo(pw.workers + pw.extra, 2);
     await switchTab(page, 'pageStaff');
     await ev(page, `_attView = 'pay'; _attWeekStart = '${WS}'; _attDate = '${D1}'; renderAttendance()`);
     const card = page.locator('#payForecast');
     if (!(await card.evaluate(el => (el as HTMLDetailsElement).open))) await card.locator(':scope > summary').click();
-    await expect(card.locator('[data-pay-snacks] .inv-row-end')).toHaveText('₹220.00');
-    await expect(card.locator('[data-pay-snacks] .inv-row-meta')).toHaveText('5 on overtime, 2 on a night');
-  });
-
-  test('the two rates are Settings → Labour → Overtime’s, and the payout follows them', async ({ page }) => {
-    await loadAppWithState(page, book());
+    await expect(card.locator('[data-pay-snacks] .inv-row-meta')).toHaveText('not entered: type the nasta from his message');
+    await card.locator('[data-pay-snacks] [data-action="invPaySnacks"]').click();
+    await answerAsk(page, 'ok', '120');
+    await expect(card.locator('[data-pay-snacks] .inv-row-end .inv-num').first()).toHaveText('₹120.00');
+    pw = await ev(page, `(function(w){ return { total: w.total, workers: w.workers, extra: w.extra, snacks: w.snacks.amount }; })(payWeek('${WS}'))`) as any;
+    expect(pw.snacks).toBe(120);
+    expect(pw.total).toBeCloseTo(pw.workers + pw.extra + 120, 2);
+    expect((await readStoredState(page)).paySnacksPaid[WS].amount).toBe(120);
+    // Settings no longer carries the per-head rates.
     await openSettingsAt(page, 'overtime');
-    await page.locator('#setSnackNight').fill('50');
-    await page.locator('#setSnackNight').dispatchEvent('input');
-    await page.locator('details[data-sec="overtime"] [data-action="invSaveSettingsSec"]').click();
-    expect((await readStoredState(page)).labour.snackNight).toBe(50);
-    expect(await ev(page, `paySnacks('${WS}', '${shift(WS, 6)}').amount`)).toBe(200);
+    await expect(page.locator('#setSnackNight, #setSnackOt')).toHaveCount(0);
   });
 
   test('a hand named on a block their own times do not reach is flagged on Pay and in the To-do, with the day to open', async ({ page }) => {

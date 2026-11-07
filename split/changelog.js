@@ -77,6 +77,7 @@ var CHG_TRACK = [
   // A day's marks merge hand by hand (`deep`, merge.js): two phones marking different hands are both taken, and a hand both
   // marked differently keeps both versions, each with its stamp, for the owner to pick (owner, 28 Oct 2026: "keep both versions").
   { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], deep: ['marks'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
+  { path: 'paySnacksPaid', kind: 'map', noun: 'snacks paid', plural: 'weeks of snacks paid', label: function(r, k) { return chgJoin('week of ' + chgDay(k), chgMoney(r && r.amount)); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
@@ -159,7 +160,7 @@ var CHG_TRACK = [
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
-      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', snackOt: 'Overtime', snackNight: 'Overtime', modelPerKg: 'Modelled labour',
+      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour',
       payCarryFrom: 'Pay → monthly balances', '': 'Labour' },
     dflt: function() { return getDefaultState().labour; } },
   { path: 'rateCheck', kind: 'cfg', sec: 'Rate & weight check', dflt: function() { return RATE_CHECK_DEFAULTS; } },

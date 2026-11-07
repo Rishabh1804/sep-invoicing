@@ -785,17 +785,17 @@ function openAreaExplain(payload) {
   if (!areaExplainOk('explain an exception')) return;
   _exPending = d;
   dialogOpen('<div class="inv-dialog">' +
-    dialogHeadHtml('Explain this exception') +
+    dialogHeadHtml('Accept with explanation') +
     '<div class="inv-note inv-mb-8">' + escHtml(d.label) + ' &middot; ' + formatDate(d.iso) + ' &mdash; ' +
-    'booked <span class="inv-num">' + formatNum(d.booked, 1) + ' h</span> against a predicted ' +
-    '<span class="inv-num">' + formatNum(d.expected, 1) + ' h</span>. Say what the record shows, ' +
-    'so the next reader inherits the finding rather than the puzzle.</div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="areaExReason">Reason</label>' +
+    'booked <span class="inv-num">' + formatNum(d.booked, 1) + ' h</span> against the ' +
+    '<span class="inv-num">' + formatNum(d.expected, 1) + ' h</span> the rule predicts. Accepting keeps the ' + formatNum(d.booked, 1) +
+    ' h as booked, and paid, and records why it is right.</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="areaExReason">Why it is right</label>' +
     '<textarea class="inv-textarea" id="areaExReason" rows="3" ' +
-    'placeholder="e.g. no fold value reconciles both rows of this block"></textarea></div>' +
+    'placeholder="e.g. the supervisor counted 3 hands short: the gate hand stood in pickling"></textarea></div>' +
     '<div class="inv-dialog-foot">' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Record it</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAreaExplainSave">Accept ' + formatNum(d.booked, 1).replace(/\.0$/, '') + ' h</button>' +
     '</div></div>');
   var ta = document.getElementById('areaExReason');
   if (ta) ta.focus();
@@ -814,7 +814,7 @@ function saveAreaExplain() {
   _exPending = null;
   closeOverlay();
   renderAttendance();
-  showToast('Exception recorded');
+  showToast('Accepted with explanation');
 }
 
 function reopenAreaExplain(key) {
@@ -914,7 +914,7 @@ function _areaVerdictHtml(stats, flags, from, to) {
       { label: 'Expected', fig: formatNum(stats.expectedExtra, 1) + '<span class="inv-tile-of"> h</span>', sub: formatNum(cfg.extraHoursPerHead, 0) + ' h a missing hand', attrs: ' data-tile="expected"' },
       { label: 'Booked', fig: formatNum(stats.bookedInNormed, 1) + '<span class="inv-tile-of"> h</span>', tone: !stats.normed ? null : gap > 0.001 ? 'warning' : Math.abs(gap) < 0.001 ? 'ok' : null,
         sub: 'on the areas with a complement', attrs: ' data-tile="booked"' },
-      { label: 'To explain', fig: String(n), tone: n ? (danger ? 'danger' : 'warning') : stats.normed ? 'ok' : null, sub: flags.acked.length ? flags.acked.length + ' explained' : 'unit-days and blocks', attrs: ' data-tile="explain"' },
+      { label: 'To explain', fig: String(n), tone: n ? (danger ? 'danger' : 'warning') : stats.normed ? 'ok' : null, sub: flags.acked.length ? flags.acked.length + ' accepted' : 'unit-days and blocks', attrs: ' data-tile="explain"' },
       { label: 'Not checkable', fig: formatNum(unchecked, 1) + '<span class="inv-tile-of"> h</span>', tone: unchecked > 0 ? 'warning' : null, sub: 'counted in the bill', attrs: ' data-tile="unchecked"' }],
     body: _areaMultiplesHtml(stats, from, to),
     attrs: ' id="areaVerdict"' });
@@ -989,19 +989,15 @@ function _areaExtraCard(stats, flags) {
     html += uiMoreHtml('area-explain', flags.open.map(function(f) {
       var stale = flags.stale.some(function(x) { return exceptionKey(x.d) === exceptionKey(f); });
       return _areaFlagRow(f.tone, f.label, f.iso, f.detail, stale ? 'its explanation no longer matches' : '', f.key === 'shift' ? 'shift' : 'block',
-        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" data-ex="' + encodeURIComponent(JSON.stringify({
-          iso: f.iso, scope: f.scope, key: f.key, kind: f.kind, label: f.label, expected: f.expected, booked: f.booked })) + '">Explain</button>');
+        _areaAcceptBtn(f));
     }), { n: 8, noun: 'to explain' });
   } else if (stats.normed) {
     html += '<div class="inv-row" data-area-passed><span class="inv-row-main"><span class="inv-row-title">Every booking answers a shortfall</span></span>' +
       '<span class="inv-row-end">' + uiDot('ok', 'Passed') + '</span></div>';
   }
   if (flags.acked.length) {
-    html += '<div class="inv-row-group"><span>Explained</span><span class="inv-num">' + flags.acked.length + '</span></div>';
-    html += uiMoreHtml('area-explained', flags.acked.map(function(a) {
-      return _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso, a.d.detail || formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason), a.d.key === 'shift' ? 'shift' : 'block',
-        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
-    }), { n: 8, noun: 'explained' });
+    html += '<div class="inv-row-group"><span>Accepted</span><span class="inv-num">' + flags.acked.length + '</span></div>';
+    html += uiMoreHtml('area-explained', flags.acked.map(_areaAckedRow), { n: 8, noun: 'accepted' });
   }
 
   // How it is worked out: a fact a row, folded (§3c).
@@ -1056,7 +1052,29 @@ function _areaBlockFoldsHtml(stats) {
 /* A disagreement on the card: the area and the day, the hours, and — once somebody has examined it — the
    reason on the record. `tone` is danger (booked at complement), warning (not the predicted amount) or ack
    (explained: a record, not a flag, so it reads neutral). */
-var AREA_FLAG_WORD = { danger: 'At complement', warning: 'Differs', ack: 'Explained' };
+var AREA_FLAG_WORD = { danger: 'At complement', warning: 'Differs', ack: 'Accepted' };
+/* Accept with explanation (owner, 7 Nov 2026, on a Sunday the supervisor booked as 3 hands short where the rule reads 2: "accept
+   with explanation option should be there"): the booking stays as booked, and so paid, with why it is right on the record
+   (recordExtraException). Offered wherever a disagreement is shown: People → Areas, and the day's Extra hours card. */
+function _areaAcceptBtn(f) {
+  return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" title="Accept with explanation" data-ex="' + encodeURIComponent(JSON.stringify({
+    iso: f.iso, scope: f.scope, key: f.key, kind: f.kind, label: f.label, expected: f.expected, booked: f.booked })) + '">Accept</button>';
+}
+function _areaAckedRow(a) {
+  return _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso, a.d.detail || formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason), a.d.key === 'shift' ? 'shift' : 'block',
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
+}
+/* The day's own disagreements, for People → Attendance → Day's Extra hours card: each booking the rule does not reach, with Accept,
+   and each accepted, with its reason and Reopen. '' when the day has none or no complement to check against. */
+function areaDayFlagsHtml(iso) {
+  var flags;
+  try { flags = _areaFlagsOf(areaStats(iso, iso)); } catch (e) { return ''; }
+  var stale = function(f) { return flags.stale.some(function(x) { return exceptionKey(x.d) === exceptionKey(f); }); };
+  var h = flags.open.map(function(f) {
+    return _areaFlagRow(f.tone, f.label, f.iso, f.detail, stale(f) ? 'its explanation no longer matches' : 'more than the rule predicts', f.key === 'shift' ? 'shift' : 'block', _areaAcceptBtn(f));
+  }).join('') + flags.acked.map(_areaAckedRow).join('');
+  return h ? '<div data-att-extra-flags>' + h + '</div>' : '';
+}
 function _areaFlagRow(tone, label, iso, hours, reason, of, action) {
   return '<div class="inv-row inv-row-2" data-flag="' + tone + '"' + (of ? ' data-flag-of="' + of + '"' : '') + '><span class="inv-row-main">' +
     '<span class="inv-row-title"><span class="inv-dot inv-dot-' + (tone === 'ack' ? 'neutral' : tone) + '">' + escHtml(label) + '</span></span>' +

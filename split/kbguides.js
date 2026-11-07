@@ -197,7 +197,7 @@ var KB_APP_GUIDES = [
     '- A line with a night on its schedule (Settings → Labour → **Shifts by line**) has its own card on the board: the hands on the night against the crew that the night needs.\n' +
     '- A hand who comes in at 4 PM or later is on the night, not on the general shift. The general shift does not count that hand.\n' +
     '- The night roll names the crew under a night heading. The heading starts at the time of the schedule. A hand who is only on the night is in at its start.\n' +
-    '- The night is the day it starts on. A night from 6 PM to 6 AM is 12 hours: 4 of them are the overtime of a monthly hand. An hourly hand gets all 12 at the hour rate, with the night snack.\n' +
+    '- The night is the day it starts on. A night from 6 PM to 6 AM is 12 hours: 4 of them are the overtime of a monthly hand. An hourly hand gets all 12 at the hour rate.\n' +
     '- If the night is short of its crew, the EXTRA is the length of the night for each missing hand. The To-do tells you about a short night, and about a hand on 2 shifts back to back.\n\n' +
     '# Week\n' +
     '- The card compares the attendance of the week with the rest-day gate (90% and 80%). It also shows the days that nobody recorded, and the payout until now.\n' +
@@ -224,8 +224,8 @@ var KB_APP_GUIDES = [
     // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
     // Version 5: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 6: the night shift (owner, 29 Oct 2026).
     // Version 7: the next steps, the week as a picture and the month's bar (UI pass 3, U5). Version 8: the Roster's cards (UI pass 3,
-    // U7: the first-visit pointer on them reads this section).
-    { version: 8 }),
+    // U7: the first-visit pointer on them reads this section). Version 9: no night snack worked out (owner, 7 Nov 2026).
+    { version: 9 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** shows the attendance by place. It shows if each area has the correct number of hands, and if the extra is correct. The card at the top shows if the extra agrees with the rule. If it does not agree, the card shows how many bookings you must explain.\n\n' +
@@ -242,7 +242,8 @@ var KB_APP_GUIDES = [
     '- If nobody stood on a unit and nobody booked hours to it, the unit did not run. The app does not include it.\n\n' +
     '# The rows to explain\n' +
     '- These rows are flags on the paperwork. From here, 3 errors look the same: hours booked to the wrong area, an area that nobody typed, and hours that nobody worked. The row gives the area and the day. Use the sheet to find the cause.\n' +
-    '- **Explain** records why a row is correct, against its figures. The figures can change later, for example when a person corrects a crew or types a tag again. Then the note does not agree with the figures, and the row comes back.\n' +
+    '- **Accept** keeps a booking as booked, and so paid, and records why it is correct. For example, the supervisor booked 3 hands short where the rule reads 2. The figures can change later, for example when a person corrects a crew or types a tag again. Then the reason does not agree with the figures, and the row comes back. **Reopen** takes an acceptance back.\n' +
+    '- The Day shows the same rows on its **Extra hours** card, each with **Accept**.\n' +
     '- To examine a block, the app needs 3 things: its in and out times, its named crew and the areas it covers. If 1 is missing, the block is **Not checkable**. Its hours are still paid. But they are not evidence about the staff.\n\n' +
     '# Staffing by area\n' +
     '- The app counts heads from the marks of the day. Thus a hand who moved to a different area counts where they stood. Averages use the recorded days, not the calendar days.\n' +
@@ -252,7 +253,8 @@ var KB_APP_GUIDES = [
     '- The crew present in the area receive its extra between them (owner, 28 Aug 2026). The extra stays 1 pooled figure under EXTRA on the slip. The supervisor pays it out. The shares are the split that he uses to pay it. Nothing here goes into the wage of a hand.\n' +
     '- The app marks a share that is more than 1 shift a day. For example, 24 hours of cover against 2 hands is 12 hours each. Examine such a share against the record before you read it as pay.',
     // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 3: the areas as small charts (UI pass 3, U5).
-    { version: 3 }),
+    // Version 4: Explain is Accept (with explanation), also on the Day's Extra hours card (owner, 7 Nov 2026).
+    { version: 4 }),
   // Floor's Overview (the tab map, TM4a): how its cards are read, which used to be a note under them (§1a-5).
   _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock, power and turnaround', ['pageFloor'],
     'Floor opens on its **Overview**. It shows the day across the plant, with 1 card for each subject, then 1 card for each line. Use the arrows to go to a different day. Tap **Today** to go back to today.\n\n' +
@@ -432,7 +434,7 @@ var KB_APP_GUIDES = [
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +
     '- The shop pays the weekly hands by the week. It pays the monthly hands by the calendar month that contains the week’s Sunday.\n' +
     '- The EXTRA pool is not in the due of any hand. It is 1 line on the slip, and the supervisor pays it out.\n' +
-    '- **Snacks** are a line of the payout. Each person gets snacks once a day, in all tiers. Regular overtime is ₹20: an evening block, or out at 6 PM or later. Night overtime is ₹60: a block or an out past midnight. There are no snacks for the 6 AM block or for the gate’s own hours. The 2 rates are in Settings → Labour → Overtime.\n' +
+    '- **Snacks** are a line of the payout: the nasta that the supervisor paid for the week, as his weekly message gives it. The app does not calculate them. On the payout card, tap **Enter** on Snacks and type the amount. Until you do, the payout has no snacks.\n' +
     '- **Hours to check**, in the card, lists a hand named on an overtime block whose own in or out time does not reach the block. Pay uses the own times of each hand. Thus, the block’s hours are in the pay of no hand until you correct the day. To go to the day, tap **Open the day**.\n' +
     '- **Paid** is the bank’s salaries and the payments typed here. The app records a salary on the statement as wages to the hand that its name matches. If the app only guesses the name, it says so. Set the payee on the statement once. If the statement also holds a payment typed here, the app counts it once.\n' +
     '- A balance carries to the next period until it is paid, recovered by work, or cleared with a reason. **Brought forward** shows each balance and names each month in it.\n' +
@@ -442,13 +444,15 @@ var KB_APP_GUIDES = [
     '- **Pay slips** prints the slips of a selected month for all monthly hands.\n' +
     '- If a payment is wrong, void it with a reason. The app never deletes a payment.\n' +
     '- **Monthly payroll as paid** (**More** → **Import**) holds the slips of a closed month. For a month before this month, the slips are the earnings of the hands they name. If no payment for the month is on record, the app takes the slip as paid.\n' +
-    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash drawn above that payout is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
+    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash paid that week to a monthly hand and recorded on Pay (for example, the night guard’s wage in cash) is wages too, for the month it pays. Cash drawn above both is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
     // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
     // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
-    { roles: ['owner'], version: 8 }),
+    // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method"), and cash paid
+    // to a monthly hand on Pay is wages in the bank's split (the same day).
+    { roles: ['owner'], version: 9 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +

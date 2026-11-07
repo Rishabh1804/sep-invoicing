@@ -207,6 +207,7 @@ function onDocClick(e) {
     case 'invAttAllPresent': attAllPresent(); break;
     case 'invAttStepGo': attStepGo(btn.dataset.go); break;
     case 'invPayStepGo': payStepGo(btn.dataset.go); break;
+    case 'invPaySnacks': paySnacksSet(btn.dataset.week); break;
     case 'invAttEdit': attEditOpen(btn.dataset.id); break;
     case 'invAttEditClose': _attEditId = null; closeOverlay(); break;
     case 'invAttAddExtra': attAddExtra(); break;

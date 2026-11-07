@@ -48,6 +48,7 @@ function getDefaultState() {
     // reporting every area as overstaffed on day one.
     areaTargets: {},
     shiftNeeds: {},
+    paySnacksPaid: {},
     // Attendance, keyed by ISO date. One entry per day the plant was recorded;
     // a day with no key is a day nobody typed, which is not the same fact as a
     // day nobody worked — labour coverage is stated on that distinction.
@@ -57,7 +58,7 @@ function getDefaultState() {
     // attendance gate on its rest days. restCreditMinDays is the daily tier's
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
-    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
+    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice;
@@ -634,7 +635,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'messages', 'msgImports', 'msgProfile', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'paySnacksPaid', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'messages', 'msgImports', 'msgProfile', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
   'devices', 'market'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so

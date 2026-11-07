@@ -218,46 +218,37 @@ function payPartWords(w, part) {
     (x ? (paySeesBank() ? ', the bank legs crossed with ' : ', crossed with ') + x.name + '\u2019s' : '');
 }
 
-/* ---------- Snacks, and a hand on a block their own times do not reach ----------
-   Owner, 10 Oct 2026, on the week of 4 Oct's Saturday payout: "The 640 is snacks paid for OT and night shifts", then "20 per
-   person regular OT, and 60 per person for night OT", and night "is when it passes 12 a.m., not before it". Paid with the
-   Saturday's cash, so a line of the weekly payout. A person once a day, at the higher of the two: night is a block running past
-   midnight, or an out past it (a block to 12 AM is regular, from whatever hour it starts); regular is a block from 5 PM, or an
-   out at 6 PM or later. The 6 AM block has none, nor the gate's own twelve hours: the week of 4 Oct comes
-   to the ₹840 paid only so (five on the evening of the 5th, four on the 7th, four on the night hold of the 8th, four on the night
-   of the 9th and three to 8 PM). Every tier: the monthly hands on a block had theirs too. Read off the day's marks and its
-   blocks' crews, so a hand named on a block counts even where their own out time stops short of it (payCrewGaps). */
-var PAY_SNACK_OUT = 1080;   // 6 PM: an out at it or later is the evening's overtime, not a late leave
-function paySnackKind(x) {
-  if (!x || x.kind !== 'block' || !Array.isArray(x.crew) || !x.crew.length) return 0;
-  var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
-  if (a == null) return 0;
-  // On the day's clock: a block starting after midnight (before 4 AM) is already past it; an end at or before the start ran on.
-  var A = a < 240 ? a + 1440 : a, B = b == null ? A : (a < 240 ? b + 1440 : b <= a ? b + 1440 : b);
-  if (B > 1440) return 2;
-  return A >= 1020 ? 1 : 0;
+/* ---------- Snacks: what the supervisor paid ----------
+   Owner, 10 Oct 2026, ruled snacks a person a day (₹20 regular overtime, ₹60 a night past midnight), counted from the marks. Owner,
+   7 Nov 2026, on the week to 7 Nov, where that count came to ₹1,820 and Shyam's message said "NASTA120": "Use Shyam's method". His
+   nasta is the cash he spent on snacks, as he reports it: ₹1,390 for the week to 31 Oct (no count of ₹20s and ₹60s makes it),
+   "NASTA 2200 / 2 WEEK" in September, one figure for two weeks. So the payout's snacks are that figure, typed for the pay week
+   (`S.paySnacksPaid[weekStart]`: {amount, note, at, by}), and nothing until it is: the app no longer works them out. */
+function paySnacksPaid() { if (!S.paySnacksPaid || typeof S.paySnacksPaid !== 'object') S.paySnacksPaid = {}; return S.paySnacksPaid; }
+/* A pay week's snacks: {amount, entered, note}. */
+function paySnacksFor(weekStart) {
+  var r = paySnacksPaid()[weekStart];
+  return r && r.amount != null ? { amount: gstRound(Number(r.amount) || 0), entered: true, note: r.note || '' } : { amount: 0, entered: false, note: '' };
 }
-function paySnacks(from, to) {
-  var cfg = labourCfg(), out = { amount: 0, regular: 0, night: 0, days: {} };
-  for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
-    var rec = (S.attendance || {})[d];
-    if (!rec) continue;
-    var who = {};
-    var put = function(id, k) { if (k > (who[id] || 0)) who[id] = k; };
-    Object.keys(rec.marks || {}).forEach(function(id) {
-      var m = rec.marks[id], o = m ? Number(m.outMin) : NaN;
-      if (!m || (m.st !== 'P' && m.st !== 'H') || m.area === 'gate' || !(o > 0)) return;
-      if (o > 1440) put(id, 2); else if (o >= PAY_SNACK_OUT) put(id, 1);
-    });
-    (rec.extra || []).forEach(function(x) { var k = paySnackKind(x); if (k) x.crew.forEach(function(c) { put(String(c), k); }); });
-    var day = { regular: 0, night: 0, amount: 0 };
-    Object.keys(who).forEach(function(id) { if (who[id] === 2) day.night++; else day.regular++; });
-    if (!day.regular && !day.night) continue;
-    day.amount = gstRound(day.regular * cfg.snackOt + day.night * cfg.snackNight);
-    out.days[d] = day; out.regular += day.regular; out.night += day.night; out.amount += day.amount;
+/* Type the week's snacks as the supervisor's message gives them; blank takes the figure off. P1: money paid out. */
+async function paySnacksSet(weekStart) {
+  if (!weekStart || !grdGate('payments', 'enter the snacks paid', function() { paySnacksSet(weekStart); })) return;
+  var cur = paySnacksFor(weekStart);
+  var v = await uiPrompt({ title: 'Snacks paid, week ' + attPayWeekNumber(weekStart),
+    body: 'The nasta in the supervisor’s weekly message, as he paid it with the Saturday’s cash. Leave it blank to take it off.',
+    label: 'Snacks paid (₹)', value: cur.entered ? String(cur.amount) : '', placeholder: 'e.g. 120', okLabel: 'Save' });
+  if (v == null) return;
+  v = String(v).replace(/[,₹\s]/g, '');
+  var map = paySnacksPaid();
+  if (v === '') { if (!cur.entered) return; delete map[weekStart]; }
+  else {
+    var n = parseFloat(v);
+    if (!(n >= 0)) { showToast('Type an amount in rupees', 'error'); return; }
+    map[weekStart] = { amount: gstRound(n), at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null };
   }
-  out.amount = gstRound(out.amount);
-  return out;
+  saveState();
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast(v === '' ? 'Snacks taken off week ' + attPayWeekNumber(weekStart) : 'Snacks for week ' + attPayWeekNumber(weekStart) + ': ' + formatCurrency(map[weekStart].amount));
 }
 /* A hand named on an overtime block whose own times do not reach it: on the evening or night block with an out at or before its
    start, or on the 6 AM block with an in at or after its end, or marked absent. Their pay reads their own times, so the block's
@@ -273,7 +264,7 @@ function payCrewGaps(from, to) {
       if (!x || x.kind !== 'block' || !Array.isArray(x.crew)) return;
       var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
       if (a == null || b == null) return;
-      // A block from midnight to 4 AM is the night's (attBlockSlot, paySnackKind): its crew's outs are read, never their ins.
+      // A block from midnight to 4 AM is the night's (attBlockSlot): its crew's outs are read, never their ins.
       var morning = a >= 240 && a < RELAY_GENERAL;
       x.crew.forEach(function(c) {
         var id = String(c), m = (rec.marks || {})[id], w = staffById(id), why = '';
@@ -297,14 +288,14 @@ function payGapText(gp) {
 /* ---------- The payout's cut-off: Saturday at 5 PM ----------
    Owner, 31 Oct 2026: the 24th's night shift (three hands from Saturday evening to Sunday morning) was in neither payout, "so it
    seems payout cutoff time is Sat 17-00 and everything later than that goes to the next week's payout". The weekly hands are paid
-   on Saturday for the work done to 5 PM that day; what they work after it, the EXTRA booked to a block that starts after it, and
-   that evening's snacks are the next week's. Worked out from the Saturday's own marks, never stored: a mark stays on its day. */
+   on Saturday for the work done to 5 PM that day; what they work after it, and the EXTRA booked to a block that starts after it
+   are the next week's. Worked out from the Saturday's own marks, never stored: a mark stays on its day. */
 var PAY_CUTOFF = 1020;   // 5 PM on the Saturday
-/* What a Saturday's work after 5 PM comes to: {byWorker: {id: amount}, hours: {id: h}, extra, extraHours, snacks}. The weekly
+/* What a Saturday's work after 5 PM comes to: {byWorker: {id: amount}, hours: {id: h}, extra, extraHours}. The weekly
    tiers only (the monthly hands are paid by the month): an hourly hand's whole hours after 5 PM at their rate, a daily hand's
    overtime after it. A block of the evening or the night (from 5 PM, or after midnight) is its EXTRA. */
 function payLate(sat) {
-  var out = { byWorker: {}, hours: {}, extra: 0, extraHours: 0, snacks: 0 };
+  var out = { byWorker: {}, hours: {}, extra: 0, extraHours: 0 };
   var rec = (S.attendance || {})[sat];
   if (!rec || attParseIso(sat).getDay() !== 6) return out;
   var day = labourForRange(sat, sat), cfg = labourCfg();
@@ -324,7 +315,6 @@ function payLate(sat) {
     if (h > 0 && a != null && (a >= PAY_CUTOFF || a < 240)) { out.extraHours += h; out.extra += h * cfg.extraRate; }
   });
   out.extra = gstRound(out.extra);
-  out.snacks = paySnacks(sat, sat).amount;
   return out;
 }
 /* A pay week's labour as the Saturday's cash pays it: labourForRange over Sunday to Saturday, less the Saturday's work after 5 PM,
@@ -361,9 +351,8 @@ function payWeek(weekStart) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
     if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
-  // The snacks of the Saturday before's evening are this payout's, this Saturday's evening the next one's (the cut-off, payLate).
-  var snacks = paySnacks(weekStart, sat);
-  snacks.amount = gstRound(snacks.amount - lab.cutoff.after.snacks + lab.cutoff.before.snacks);
+  // The snacks are what the supervisor paid for the week, typed from his message (paySnacksFor; owner, 7 Nov 2026).
+  var snacks = paySnacksFor(weekStart);
   // The supervisor's cash spent for the plant, paid back with the payout (cashout.js; owner, 31 Oct 2026: "Payout total").
   var cash = typeof cashWeekTotal === 'function' ? cashWeekTotal(weekStart) : 0;
   return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks, cashOut: cash,
@@ -385,19 +374,20 @@ function payForecast(weekStart) {
   var out = { week: wk, median: median, medianWeeks: past.length, open: open, predicted: wk.total, basis: 'recorded' };
   if (open) {
     // The Sunday and a paid holiday are not working days: what they paid does not repeat, so it is out of the pace, and
-    // the days left to predict are the week's working days (five in a holiday week) less those recorded. Their snacks too:
-    // the week's total carries them.
+    // the days left to predict are the week's working days (five in a holiday week) less those recorded.
     var sunPay = 0;
     attWeekDays(weekStart).forEach(function(d) {
       if (attParseIso(d).getDay() !== 0 && !labourIsHoliday(d)) return;
       var one = labourForRange(d, d);
       Object.keys(one.byWorker).forEach(function(id) { if (one.byWorker[id].comp !== 'monthly') sunPay += one.byWorker[id].total; });
-      sunPay += one.extra + paySnacks(d, d).amount;
+      sunPay += one.extra;
     });
+    // The snacks are one figure for the week, typed once: they do not repeat by the day.
+    sunPay += wk.snacks.amount;
     // The Saturday before's evening (the cut-off, payLate) is this payout's but no day of this week: it does not repeat either.
     var bf = wk.lab.cutoff.before;
     Object.keys(bf.byWorker).forEach(function(id) { sunPay += bf.byWorker[id]; });
-    sunPay += bf.extra + bf.snacks;
+    sunPay += bf.extra;
     // Cash paid out is a sum the supervisor sends, not a day's work: it does not repeat either.
     sunPay += wk.cashOut || 0;
     var missing = Math.max(0, wk.workingDays - wk.recordedDays);
@@ -509,8 +499,9 @@ function _payVerdictHtml(ws, f, gaps) {
       { label: 'Against its usual', fig: f.swing == null ? '' : '<span id="paySwing">' + paySigned(f.swing) + '</span>', tone: f.swing == null ? null : tone, sub: pct ? pct + ' on the median' : 'no week to compare', attrs: ' data-tile="swing"' }],
     body: '<div class="inv-hero-sheet">' + uiFactRowHtml({ label: 'Hourly and daily tiers', value: formatCurrency(wk.workers), sub: 'their pay, OT and rest credit' }) +
       uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) +
-      uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
-        sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
+      uiFactRowHtml({ label: 'Snacks', value: wk.snacks.entered ? formatCurrency(wk.snacks.amount) : '', attrs: ' data-pay-snacks',
+        sub: wk.snacks.entered ? 'as the supervisor paid them' : 'not entered: type the nasta from his message',
+        actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPaySnacks" data-week="' + escHtml(ws) + '">' + (wk.snacks.entered ? 'Change' : 'Enter') + '</button>' }) +
       (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
       _payGapsHtml(gaps) + '</div>' + _payWeeksChartHtml(ws, wk),
     attrs: ' id="payForecast"' });

@@ -18,7 +18,7 @@
    back), Production's efficiency (the night judged against its plating time less the break; the barrel's whole running
    day), the register reader (a night page's times read on the night's clock), Power (a cut in the night is in working
    hours), Stats' capacity and the planner. Pay needs nothing of it: 6 PM to 6 AM is 12 hours by the roll's own rule, a
-   monthly hand's 4 of them overtime, an hourly hand's all at the hour's rate, the night snack for a night past midnight. */
+   monthly hand's 4 of them overtime, an hourly hand's all at the hour's rate (the snacks are what the supervisor paid, payroll.js). */
 
 var SHIFT_NIGHT_IN = 960;   // 4 PM: a hand in from here came for the night, not the general shift
 var SHIFT_LINES = [['vat-a1', 'VAT A1'], ['vat-a2', 'VAT A2'], ['barrel', 'Barrel']];

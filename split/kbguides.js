@@ -444,13 +444,14 @@ var KB_APP_GUIDES = [
     '- **Pay slips** prints the slips of a selected month for all monthly hands.\n' +
     '- If a payment is wrong, void it with a reason. The app never deletes a payment.\n' +
     '- **Monthly payroll as paid** (**More** → **Import**) holds the slips of a closed month. For a month before this month, the slips are the earnings of the hands they name. If no payment for the month is on record, the app takes the slip as paid.\n' +
-    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash drawn above that payout is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
+    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash paid that week to a monthly hand and recorded on Pay (for example, the night guard’s wage in cash) is wages too, for the month it pays. Cash drawn above both is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
     // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
     // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
-    // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method").
+    // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method"), and cash paid
+    // to a monthly hand on Pay is wages in the bank's split (the same day).
     { roles: ['owner'], version: 9 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +

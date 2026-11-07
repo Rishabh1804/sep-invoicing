@@ -40,3 +40,23 @@ test('a booking the rule does not reach is accepted with an explanation on the d
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
   await expect(page.locator('[data-card="extra"] [data-flag="ack"]')).toContainText('Accepted');
 });
+
+// Owner, 7 Nov 2026: the night guard's ₹4,000 is paid in cash beside the Saturday's payout. Typed on Pay as a payment to that
+// monthly hand, the bank's cash split reads it as wages for the month it pays, never the owner's drawings.
+test('cash paid to a monthly hand, typed on Pay, is wages in the bank’s cash split, not drawings', async ({ page }) => {
+  const s: any = { ...emptyState(), incomingMaterial: noSeedIM(),
+    staff: [{ id: 30, name: 'Gate Night', comp: 'monthly', monthWage: 4000, area: 'gate', onFloor: false, active: true }],
+    staffPayments: [{ id: 'P-1', staffId: 30, date: '2026-09-12', amount: 4000, kind: 'payment', at: 1 }] };
+  await loadAppWithState(page, s);
+  const out: any = await ev(page, `(function(){
+    var pw = { recordedDays: 6, workingDays: 6, total: 2000, cashOut: 0, lab: { hourlessMarks: 0 } };
+    var orig = payWeek; payWeek = function() { return pw; };
+    try {
+      var cls = [{ cat: 'wages', cash: true, row: { date: '2026-09-12', dr: 7000 }, auto: false }];
+      var bm = bankCostByMonth(cls), c = bm.cashWeeks['2026-09-06'];
+      return { wages: c.wages, hand: c.handCash, drawings: c.drawings, aug: Math.round(bm.months['2026-08'].labour.amount), augHand: bm.months['2026-08'].labour.handCash };
+    } finally { payWeek = orig; }
+  })()`);
+  // The payout's ₹2,000 is the week's wages; the ₹4,000 typed on Pay pays August (dated by the 20th); ₹1,000 is left as drawings.
+  expect(out).toEqual({ wages: 2000, hand: 4000, drawings: 1000, aug: 4000, augHand: 4000 });
+});

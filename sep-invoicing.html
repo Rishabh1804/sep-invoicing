@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="a2ab2db2">
+<meta name="app-build" content="6ce5b6a6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -33423,11 +33423,11 @@ function liveCost(from, to, kg) {
     var bl = bk.labour, blMissing = Math.max(0, 1 - bl.known);
     // Paid: the salary transfers to named hands against the cash drawn for the weekly pool.
     var blNamed = 0, blCash = 0;
-    bl.months.forEach(function(mo) { blNamed += mo.named * mo.share; blCash += mo.cash * mo.share; });
+    bl.months.forEach(function(mo) { blNamed += (mo.named + (mo.handCash || 0)) * mo.share; blCash += mo.cash * mo.share; });
     if (blNamed + blCash > 0) labFixed = { share: blNamed / (blNamed + blCash), from: 'bank' };
     var blDetail = bl.months.map(function(mo) {
       return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
-        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.openCounted >= 1 ? formatCurrency(mo.openCounted) + ' cash in weeks whose payout is not recorded, counted as wages: an upper bound' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.handCash >= 1 ? formatCurrency(mo.handCash) + ' cash to monthly hands, typed on Pay' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.openCounted >= 1 ? formatCurrency(mo.openCounted) + ' cash in weeks whose payout is not recorded, counted as wages: an upper bound' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
     });
     if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),
@@ -35982,6 +35982,21 @@ function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d
 function bankCashWeekKnown(pw) {
   return !!(pw && pw.recordedDays > 0 && pw.recordedDays >= Math.ceil((pw.workingDays || 6) * 0.9) && !(pw.lab && pw.lab.hourlessMarks > 0));
 }
+/* The cash payments typed on Pay to monthly hands in a pay week (Sunday to Saturday), less any the statement holds as a
+   transfer to the hand (payPaymentsOf's own matching): [{amount, month}], the month the payment pays (payMonthPaidFor). */
+function bankMonthlyCashIn(ws) {
+  if (typeof payPaymentsOf !== 'function') return [];
+  var sat = isoAddDays(ws, 6), out = [];
+  (S.staff || []).forEach(function(w) {
+    if (!w || w.comp !== 'monthly') return;
+    payPaymentsOf(w.id).forEach(function(p) {
+      if (p.how !== 'hand' || p.date < ws || p.date > sat || !(p.amount > 0)) return;
+      var m = payMonthPaidFor(p);
+      if (m) out.push({ amount: p.amount, month: m });
+    });
+  });
+  return out;
+}
 function bankCostByMonth(cls) {
   cls = cls || bankClassify();
   var cover = bankCover(), out = {};
@@ -36022,7 +36037,17 @@ function bankCostByMonth(cls) {
     // wages, and past both it is drawings.
     var known = bankCashWeekKnown(pw), cashOut = known ? (pw.cashOut || 0) : 0;
     var wages = known ? Math.min(c.amount, Math.max(0, pw.total - cashOut)) : 0, misc = known ? Math.min(c.amount - wages, cashOut) : 0;
-    c.wages = wages; c.misc = misc; c.drawings = known ? c.amount - wages - misc : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
+    // Cash paid that week to a monthly hand, typed on Pay and on no bank leg (owner, 7 Nov 2026: the night guard's wage paid in
+    // cash beside the Saturday's payout), is wages too, for the month it pays (payMonthPaidFor), never the owner's drawings.
+    var hands = known ? bankMonthlyCashIn(ws) : [], left = known ? c.amount - wages - misc : 0, handCash = 0;
+    hands.forEach(function(h) {
+      var part = Math.min(h.amount, Math.max(0, left - handCash));
+      if (part <= 0) return;
+      handCash += part;
+      var H = at(h.month.slice(0, 7)).labour;
+      H.amount += part; H.handCash = (H.handCash || 0) + part;
+    });
+    c.wages = wages; c.misc = misc; c.handCash = handCash; c.drawings = known ? c.amount - wages - misc - handCash : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
     var seen = {};
     for (var k = 0; k < 7; k++) {
       var d = attParseIso(ws); d.setDate(d.getDate() + k);
@@ -36087,7 +36112,7 @@ function bankCostForRange(from, to, byMonth) {
       if (why) { res[k].unknown.push({ month: ym, why: why }); return; }
       res[k].known += rangeShare;
       res[k].amount += (c ? c.amount : 0) * share;
-      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0,
+      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, handCash: c && c.handCash || 0,
         drawings: c && c.drawings || 0, openCounted: c && c.openCounted || 0, rows: c ? c.rows : [] });
     });
   }
@@ -76250,13 +76275,14 @@ var KB_APP_GUIDES = [
     '- **Pay slips** prints the slips of a selected month for all monthly hands.\n' +
     '- If a payment is wrong, void it with a reason. The app never deletes a payment.\n' +
     '- **Monthly payroll as paid** (**More** → **Import**) holds the slips of a closed month. For a month before this month, the slips are the earnings of the hands they name. If no payment for the month is on record, the app takes the slip as paid.\n' +
-    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash drawn above that payout is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
+    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash paid that week to a monthly hand and recorded on Pay (for example, the night guard’s wage in cash) is wages too, for the month it pays. Cash drawn above both is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
     // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
     // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
-    // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method").
+    // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method"), and cash paid
+    // to a monthly hand on Pay is wages in the bank's split (the same day).
     { roles: ['owner'], version: 9 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +

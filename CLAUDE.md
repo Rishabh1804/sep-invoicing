@@ -4601,7 +4601,9 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
   `payMonthPaidFor`, which `wageVsSlip` reads too), since
   salaries go out around the 14th for the month before. Cash pays the pay week it was drawn in, spread over that week's
   seven days, so a week that straddles two months is split. **Cash is wages only up to that week's payout** (`payWeek`:
-  the weekly tiers and the EXTRA); past it, it is the owner's drawings, never a cost (owner, 6 Oct 2026). A week whose
+  the weekly tiers and the EXTRA); past it, it is the owner's drawings, never a cost (owner, 6 Oct 2026). **Cash paid that week to a monthly hand, typed on
+  Pay** and on no bank leg (`bankMonthlyCashIn`; owner, 7 Nov 2026: the night guard's wage paid in cash beside the payout), is
+  wages too, for the month it pays (`payMonthPaidFor`), counted fixed; only the cash past both is drawings. A week whose
   payout is not fully recorded (no attendance, or hourly hands with no hours: the imported history) cannot be split,
   and its month's labour is not known from the bank (`labour.open`). Every SELF draw had been wages, and June–August read
   labour paid at ₹7.87L against ₹4.99L recorded. Electricity pays its bill month (`bankBillMonth`).

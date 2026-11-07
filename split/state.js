@@ -1067,7 +1067,8 @@ function uiPointerPlace(box) {
 function uiPointerClose() { document.querySelectorAll('.inv-pointer').forEach(function(b) { b.remove(); }); }
 window.addEventListener('resize', function() { uiPointerPlace(); });
 document.addEventListener('scroll', function() { if (document.querySelector('.inv-pointer')) uiPointerPlace(); else uiPointerSchedule(); }, true);
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.querySelector('.inv-pointer')) uiPointerClose(); }, true);
+// Escape shuts the pointer and nothing else: it had gone on to shut the dialog or the layer under it too (Vulcanus L-5).
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && document.querySelector('.inv-pointer')) { uiPointerClose(); e.preventDefault(); e.stopPropagation(); } }, true);
 
 /* ===== A GUIDED FLOW (docs/UI_PASS_3.md §11a, §26b; design §6.37) =====
    The owner, 15 Oct 2026: "The Enter by hand screen is primitive in design, and doesn't engage or leads the user, increases the
@@ -1868,6 +1869,8 @@ function _dialogMarkTyped(e) {
   if (!t || !t.closest || !t.matches || !t.matches('input, textarea, select')) return;
   if (t.closest('.inv-search, [data-nodirty], [data-ui-ask]')) return;
   var scrim = t.closest('.inv-scrim-dialog');
+  // A first-visit pointer shown before anything was typed goes the moment typing starts (Vulcanus L-5, the QA chain of 6 Nov 2026).
+  if (typeof uiPointerClose === 'function') uiPointerClose();
   if (scrim) { scrim.dataset.typed = '1'; return; }
   // A field typed on the page itself (not a toolbar's filter or a segmented choice) makes the page a form in
   // progress: a book loaded from another window then waits to be drawn (bookRedraw).

@@ -821,7 +821,11 @@ function renderLiveCostCard(period, tonnage) {
     h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +
       ' ' + costSrcBadge(r.source) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.note) + '</span></span>' +
       '<span class="inv-row-end">' + money(r) + '</span></summary>';
-    if (r.detail.length) {
+    // Labour's tiers are pay: drawn only to an ID that sees wages, the row's total to one that sees money (Iuno H-1, the QA chain
+    // of 6 Nov 2026: Stats hid the labour card and showed its tiers here).
+    if (r.key === 'labour' && r.detail.length && !grdSeesWages()) {
+      h += '<div class="inv-row-children"><div class="inv-row" data-cost-tiers-held><span class="inv-row-main"><span class="inv-row-meta">The tiers are shown to an ID that sees wages.</span></span></div></div>';
+    } else if (r.detail.length) {
       h += '<div class="inv-row-children">' + r.detail.map(function(d) {
         return '<div class="inv-row' + (d.sub ? ' inv-row-2' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(d.label) + '</span>' +
           (d.sub ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(d.sub) + '</span>' : '') + '</span>' +

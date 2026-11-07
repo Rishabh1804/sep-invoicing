@@ -432,6 +432,14 @@ function powerAnalysis() {
     e.cost += c.cost.total; e.upper += c.cost.upper; e.lost += c.cost.lost; e.contrib += c.cost.contrib; e.idle += c.cost.idle; e.idleAll += c.cost.idleAll;
     e.recOt += c.cost.recOt; e.restart += c.cost.restart; e.fixed += c.cost.fixed;
   });
+  // Every calendar month of the record, a month with no cut included (Vulcanus H-1, the QA chain of 6 Nov 2026): a month the floor
+  // recorded with no cut is a good month, and one inside a likely-unreported run must be seen to read low. It had listed only the
+  // months holding a cut, so the picture drew four bars for six months and hid the quiet ones.
+  if (first) {
+    for (var mk = first.slice(0, 7), endM = today.slice(0, 7); mk <= endM; mk = isoAddDays(mk + '-28', 7).slice(0, 7)) {
+      if (!months[mk]) months[mk] = { month: mk, cuts: 0, min: 0, open: 0, cost: 0, upper: 0, lost: 0, contrib: 0, idle: 0, idleAll: 0, recOt: 0, restart: 0, fixed: 0, cutsRec: 0, costRec: 0 };
+    }
+  }
   var monthList = Object.keys(months).sort().map(function(m) {
     var e = months[m], start = m + '-01', end = payMonthEnd(start);
     if (end > today) end = today;
@@ -464,7 +472,8 @@ function powerAnalysis() {
   var sum = function(f) { return recent.reduce(function(s, c) { return s + f(c); }, 0); };
   var perDay = function(v) { return rd90.recorded ? v / rd90.recorded * yearDays : null; };
   // A month holding a run of likely-unreported days is left out of the best and worst: it would read as the best.
-  var full = monthList.filter(function(e) { return e.recorded >= 10 && e.costPerDay != null && !e.quiet; });
+  // Only a month with a cut: the record lists the quiet months too (Vulcanus H-1), and one of them would put the low at ₹0 a year.
+  var full = monthList.filter(function(e) { return e.cuts > 0 && e.recorded >= 10 && e.costPerDay != null && !e.quiet; });
   var lowM = full.slice().sort(function(p, q) { return p.costPerDay - q.costPerDay; })[0] || null, highM = full.slice().sort(function(p, q) { return q.costPerDay - p.costPerDay; })[0] || null;
   var year = !rd90.recorded ? null : {
     base: gstRound(perDay(sum(function(c) { return c.cost.total; }))), upper: gstRound(perDay(sum(function(c) { return c.cost.upper; }))),
@@ -614,7 +623,9 @@ function powerCutsHtml(a) {
   if (!a.cuts.length) return h + '<div class="inv-panel">' + uiEmptyHtml('No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.') + '</div>';
   // A cut is one line (the day and why, the clock and how long, the damage and where it fell) that opens to what the damage is made
   // of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass).
-  a.months.slice().reverse().forEach(function(m, mi) {
+  // Only a month with a cut has a fold (the record lists every calendar month since the first cut, a quiet one included: Vulcanus
+  // H-1); the newest of them is open (Cipher, Edict V: an empty month had been the open one).
+  a.months.filter(function(m) { return m.cuts > 0; }).reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
     var rows = list.map(function(c) { return powerCutRowHtml(c, a.typical); });
     var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
@@ -625,7 +636,7 @@ function powerCutsHtml(a) {
   });
   // The two charts, folded after the cuts (they led the Overview).
   h += uiFoldCard('power-months', '<div class="inv-panel inv-panel-flush" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div><div class="inv-panel-body">' +
-    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record',
+    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts || x.recorded ? x.cuts : null, note: !x.cuts && !x.recorded ? 'no day recorded' : '' }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record',
       // The month running is drawn as to date (TM6b).
       toDate: chartToDateAt(a.months.map(function(x) { return x.month; }), localDateStr().slice(0, 7)) }) + '</div></div>', false);
   h += uiFoldCard('power-hours', '<div class="inv-panel inv-panel-flush" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div><div class="inv-panel-body">' +
@@ -742,17 +753,26 @@ function powerCasePictureHtml(a) {
     return '<div class="inv-pcp-tile" data-pcp-tile="' + key + '"><div class="inv-pcp-tile-l">' + label + '</div><div class="inv-pcp-tile-v">' + value + '</div>' +
       (sub ? '<div class="inv-pcp-tile-s">' + sub + '</div>' : '') + '</div>';
   };
-  var range = y ? (y.low != null && y.high != null && y.high > y.low ? escHtml(_pcL(y.low) + ' – ' + _pcL(y.high)) : escHtml(_pcL(y.base))) : '&mdash;';
+  // The complete months' range where there are two prices to it; one complete month its own figure; none, the 90 days' rate, each
+  // said as what it is (Vulcanus M-2, the QA chain of 6 Nov 2026: the 90 days' figure had been captioned as the range).
+  var yRange = y && y.low != null && y.high != null && y.high > y.low, yOne = y && y.low != null && !yRange;
+  var range = !y ? '&mdash;' : escHtml(yRange ? _pcL(y.low) + ' – ' + _pcL(y.high) : yOne ? _pcL(y.low) : _pcL(y.base));
+  var rangeSub = !y ? 'not enough record to read a year' : yRange ? 'the complete months’ range; ' + _pcL(y.base) + ' at the last 90 days’ rate'
+    : yOne ? 'at the complete month, ' + billsMonthLabel(y.lowMonth) + '; ' + _pcL(y.base) + ' at the last 90 days’ rate' : 'at the last 90 days’ rate; no complete month yet';
   h += '<div class="inv-pcp-tiles">' +
     tile('cuts', 'Cuts, last 12 months', escHtml(String(last12.length)), escHtml(a.first > from12 ? 'since ' + formatDate(a.first) : 'on the days on record')) +
     tile('dark', 'Dark in working hours', escHtml(formatNum(inside12 / 60, 0) + ' h'), escHtml(last12.length ? 'about ' + powerDur(inside12 / last12.length) + ' a cut' : '')) +
-    tile('year', 'A year of them costs', range, escHtml(y ? 'the complete months’ range; ' + _pcL(y.base) + ' at the last 90 days’ rate' : 'not enough record to read a year')) +
-    tile('payback', 'Soonest payback', escHtml(best ? _pcMonths(best.payLo) + (best.payHi !== best.payLo ? ' – ' + _pcMonths(best.payHi) : '') : '—'), escHtml(best ? best.label : 'no option pays back at this rate')) +
+    tile('year', 'A year of them costs', range, escHtml(rangeSub)) +
+    // With no year to read, the options are not read yet: said as the full case says it (Vulcanus L-4).
+    tile('payback', 'Soonest payback', escHtml(best ? _pcMonths(best.payLo) + (best.payHi !== best.payLo ? ' – ' + _pcMonths(best.payHi) : '') : '—'), escHtml(best ? best.label : !y ? 'read once there is a year to read against' : 'no option pays back at this rate')) +
     '</div>';
-  // Cuts by month, the last twelve months on record; a month holding a run of likely-unreported days hatched (it reads low).
-  var months = a.months.slice(-12);
+  // Cuts by month, the last twelve calendar months of the record: a month with no day recorded a gap, a month recorded with no cut a
+  // zero, a month holding a run of likely-unreported days hatched (it reads low). Twelve calendar months, so no name comes twice.
+  var m12 = today.slice(0, 7), mk12 = m12;
+  for (var mi = 0; mi < 11; mi++) mk12 = isoAddDays(mk12 + '-01', -1).slice(0, 7);
+  var months = a.months.filter(function(m) { return m.month >= mk12 && m.month <= m12; });
   h += '<div class="inv-pcp-pair"><div class="inv-pcp-sec" data-pcp-sec="months"><div class="inv-pcp-h">Cuts by month</div>' +
-    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.cuts, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : '' }; }),
+    chartBars(months.map(function(m) { return { label: billsMonthLabel(m.month).replace(/ \d{4}$/, ''), value: m.cuts || m.recorded ? m.cuts : null, hatch: m.quiet > 0, note: m.quiet ? m.quiet + ' days likely unreported' : !m.recorded && !m.cuts ? 'no day recorded' : '' }; }),
       { unit: 'count', paper: true, slot: 2, ariaLabel: 'Cuts by month', toDate: months.length && months[months.length - 1].month === today.slice(0, 7) ? months.length - 1 : null }) +
     (months.some(function(m) { return m.quiet > 0; }) ? '<div class="inv-pcp-note">Hatched: a month with days whose power was likely not reported. It reads low.</div>' : '') + '</div>';
   // When they start: the hour each cut began, 6 AM to 10 PM (the bands of the full case, hour by hour); the night's few are said.

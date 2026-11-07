@@ -63,10 +63,11 @@ test.describe('P73: Stats', () => {
     const head = page.locator('#statsVerdict');
     await expect(head.locator('.inv-tile')).toHaveCount(4);
     await expect(head.locator('[data-tile="tonnage"] .inv-tile-value')).toHaveText('4.00 t');
-    // ₹28,000 on 4 t = ₹7.00/kg, under the ₹8.56 model: the margin reads −₹ in the danger tone, badged below cost.
+    // ₹28,000 on 4 t = ₹7.00/kg, under the ₹8.56 model: the margin reads −₹ in the danger tone, and the price is badged below cost
+    // (on Realisation since the QA chain of 6 Nov 2026, Iuno H-2: the margin is toned by its own sign).
     await expect(head.locator('[data-tile="margin"]')).toHaveClass(/inv-tile-danger/);
     await expect(head.locator('[data-tile="margin"] .inv-tile-value')).toContainText('−₹');
-    await expect(head.locator('[data-tile="margin"] .inv-badge-danger')).toHaveText('below cost');
+    await expect(head.locator('[data-tile="realisation"] .inv-badge-danger')).toHaveText('below cost');
     await expect(head.locator('[data-callout="below-cost"]')).toContainText('below full cost');
     await expect(head).toHaveClass(/inv-hero-danger/);
     // The six months are the Tables' By month.

@@ -7,7 +7,20 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
-## 4 Nov 2026: Home passed, U3–U9 refreshed (read this first)
+## Built 4–6 Nov 2026: UI pass 3, U3–U9 (read this first)
+
+- **UI pass 3 is built**, one PR a step, each merged on the owner's word (*"Merge and continue"*): U3 Stats as a dashboard and its
+  Tables (#175), U4 every Enter by hand a guided flow (#176), U5 People leads (#177), U6 a picture first (#178), U7 across the app
+  (#179), U8 sign-in and the 4-digit PIN (#180), U9 the docs and the measures (this PR). What each built is in CLAUDE.md, *UI pass 3:
+  …*, and where each departs from the spec is `docs/UI_PASS_3.md` §26h–§26n.
+- **Every screen measured before and after** (`docs/UI_PASS_3.md` §26n): the long book on the phone, the build at the spec's commit
+  (`1a365a2`, 16 Oct) against main after U8. Home 3.51 → 2.44 phone screens, Reports 2.67 → 1.07, Power → Case 2.16 → 1.08, the Roster
+  2.28 → 1.93, Attendance → Week 1.68 → 1.48; the step rows put Day and Pay a fifth of a screen longer, within their budgets.
+- **The QA chain over U3–U9 is the owner's to call.** Nothing else is queued from the pass.
+- **Data flows**: two, both said in the table below. `sep-stock` carries a merged line's `mergedInto`, `mergedFrom` and `retiredAt`
+  (U4), and a user's secret carries `len: 4` (U8). The rest of the pass is on the device or draws what the book already holds.
+
+## 4 Nov 2026: Home passed, U3–U9 refreshed
 
 - **The owner looked at Home** after U2H: *"Home screen test - pass"*. The stop is cleared; **U3 (Stats as a dashboard) is next**.
 - **`docs/UI_PASS_3.md` §26** refreshes U3–U9 against the code at `4f5c578`: Stats' presets by role and the phone's seven cards,
@@ -795,3 +808,4 @@ in the PR**, so the compile session knows to re-check.
 | **Backup shape changed, 16 Oct 2026 (UI pass 3, U2: Home and its widgets)** | Two new top-level keys. `market: {tata: {YYYY-MM: {cvTotal: {now, ly}, cvDomestic, cvExport, hcv, released?, url?, note?, src, at, by}}, calendar: {YYYY-MM-DD: {state, why, src, url?, at, by}}, models: [..], weather: {YYYY-MM-DD: {tMax, tMin, rain, thunder, symbol, at}}}`: Tata Motors' months, the plant's calendar and the models followed are the owner's typed records (in the change log and the merge, under `market`); the weather days are a fetched copy, written quietly (never in the change log; the merge keeps this device's), and the compile may ignore them. `feedsCfg: {on, url, lat, lon, place}` is the feeds Worker's address and the plant's place. **Not in the book**: a Home layout (`sep_inv_layout`, per device and person) and the feeds' copies of the news and the weather (`sep_inv_feeds`). Nothing new crosses to soma-internal but the backup. |
 | **Backup shape changed, 21 Oct 2026 (Home leads)** | `flowCfg` gains `shutWhy: {YYYY-MM-DD or MM-DD: why}` beside `holidays`, the reason each day the plant is shut was marked (Home → More → Plant shut…, which writes full dates into `holidays`); filled key by key on an old backup; in the change log as days and reasons. **For the compile**: a day in `flowCfg.holidays` is a day this plant did not work (never Tata's: that is `market.calendar`); pay is not changed by it. **Not in the book**: the company's address placed on the map (`sep_inv_feeds.geo`) and whether the feeds Worker answered (`sep_inv_feeds.direct`). **New requests from a device**: OpenStreetMap's Nominatim (the address's words, once an address), GDELT (the news topics) and MET Norway (the place to two decimals), where the Worker cannot be reached; none carries the book. Nothing new crosses to soma-internal but the backup. |
 | **Backup shape changed, 4 Nov 2026 (two stock lines merged, UI pass 3 U4)** | A stock line merged into another keeps `mergedInto` (the kept line's id), `retiredAt` and `active: false`; the kept line gains `mergedFrom: [ids]` and the merged line's name and spellings in `aliases`; each moved entry's `itemId` is the kept line's and it keeps `mergedFrom` (the line it was entered on). Nothing is deleted. An entry or a price quoted that later names the retired line (a device not yet merged, a file) is moved to the kept line on the next load (`stockMergedRepoint`). The pairs the owner said are different chemicals are `stock.notTwins` (sorted id pairs). **The `sep-stock` export carries the items and entries**: the compile should read an entry under its `itemId` as now, and may name a merged line as its kept line. |
+| **Backup shape changed, 6 Nov 2026 (UI pass 3, U8: the 4-digit PIN)** | A user's `secret` made from four digits carries `len: 4` beside its salt and hash; a secret without it is a PIN from before, which the lock asks to become four digits (Later keeps it). The secret is still a salted PBKDF2-SHA256 hash, never the PIN, and the change log never compares it. **Not in the book**: when each ID last signed in on a device (`sep_inv_guard_seen`). Nothing new crosses to soma-internal but the backup, which carries the users as before. |

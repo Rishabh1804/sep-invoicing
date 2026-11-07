@@ -48,7 +48,7 @@ notes recorded through Record issued. The next build's order is still to be disc
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
-**UI pass 3 is being built — read `docs/UI_PASS_3.md`** (owner, 15–16 Oct 2026: *"We could really use another UI design pass"*, a
+**UI pass 3 is built — read `docs/UI_PASS_3.md`** (owner, 15–16 Oct 2026: *"We could really use another UI design pass"*, a
 *"modern looking dashboard"*, a Home page with the time, predictions and Tata Motors' news; the design confirmed on a canvas: *"B with
 wells, 4-digit PIN, widgets should be flexible so different layouts are possible without breaking the UI"*, then *"Yes to Home, all of
 1–11, news Worker now, no Hindi"*). Cards that lift and wells for what is pressed or filled; icons v3; eight chart builders and a table
@@ -75,7 +75,9 @@ and a picture, the Roster as cards. **U6 is built** (5 Nov 2026; *UI pass 3: a p
 lead with one A4 page, the text under its toggle. **U7 is built** (5 Nov 2026; *UI pass 3: across the app* below): every hero takes
 the board's rule for its tone, lists stand in a card, dialogs, toasts, badges and search in the look, one set of blank states, and
 first-visit pointers. **U8 is built** (6 Nov 2026; *UI pass 3: sign-in* below): the sign-in on both layouts, the
-4-digit PIN and the keypad, a PIN from before asked to become four digits, the icons from the mark, SERVER.md §4 amended. **U9 is next.**
+4-digit PIN and the keypad, a PIN from before asked to become four digits, the icons from the mark, SERVER.md §4 amended. **U9 is built**
+(6 Nov 2026): the docs and every screen measured before and after the pass (`docs/UI_PASS_3.md` §26n). **UI pass 3 is built**, and
+its QA chain ran the same day (*The QA chain of 6 Nov 2026* below, `docs/UI_PASS_3.md` §26o).
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -147,116 +149,116 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 92 modules, ~75,000 lines total.
+Split-file PWA. 101 modules, ~85,800 lines total (the modules, the stylesheet and the two HTML parts, 6 Nov 2026).
 
 ```
 split/
 ├── build.sh           ← writes ../sep-invoicing.html, syncs ../index.html, stamps ../version.json
-├── head.html          ← DOCTYPE, meta, font links (17 lines)
-├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
-├── body.html          ← HTML body, tabs, print view (137 lines)
+├── head.html          ← DOCTYPE, meta, font links (~21 lines)
+├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (~4,090 lines)
+├── body.html          ← HTML body, tabs, print view (~170 lines)
 ├── data.js            ← ITEMS_MASTER and SEED_CLIENTS, both empty: the build holds no client's data (HR-10) (8 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More), the blank state (`uiBlankHtml`) and a screen's own empty words through it (`uiEmptyHtml`, U7); the first-visit pointers (`uiPointer`,
-`UI_POINTERS`, U7); a toast's and a badge's status icon (`toastIconHtml`, `uiStatusIconVars`); the guided flow (`uiFlowHtml`, `uiFlowDefine`, `uiFlowSync`, `uiKindTilesHtml`, `uiFlowReceiptHtml`: every Enter by hand, UI pass 3 §11a); money on a board (`inrCard`, `inrFigHtml`: ₹66,476 · ₹3.50 L · ₹1.24 Cr, the exact amount its title); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~2,840 lines)
+`UI_POINTERS`, U7); a toast's and a badge's status icon (`toastIconHtml`, `uiStatusIconVars`); the guided flow (`uiFlowHtml`, `uiFlowDefine`, `uiFlowSync`, `uiKindTilesHtml`, `uiFlowReceiptHtml`: every Enter by hand, UI pass 3 §11a); money on a board (`inrCard`, `inrFigHtml`: ₹66,476 · ₹3.50 L · ₹1.24 Cr, the exact amount its title); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~3,240 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters; who entered and who changed each stock entry, production entry, mark and EXTRA row (`tagIn`, `tagCh`, `tagWho`) (~860 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── guard.js           ← The gate: IDs and PINs (four digits, `grdPinProblem`; a PIN from before asked to become four), roles, the sign-in (the phone's keypad, the desktop's panel; the four wells, `grdWellsHtml`, `grdKeypadHtml`), the re-ask before a P1 change, what each role opens (~1,480 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
-├── tabs.js            ← switchTab (9-step protocol) + renderHome; the names (PAGE_TITLES) and each screen’s kind (SCREEN_KINDS, data-screen) (~600 lines)
+├── tabs.js            ← switchTab (9-step protocol) + renderHome; the names (PAGE_TITLES) and each screen’s kind (SCREEN_KINDS, data-screen) (~400 lines)
 ├── clients.js         ← Office → Clients: the Client Master, its verdict card, each client's worst flag as a dot and a word; CRUD + overlay (~930 lines)
 ├── items.js           ← Clients → Parts (the Items Master): its verdict card, CRUD, merge, weights (~1,290 lines)
-├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
-├── settings.js        ← Settings: six groups, folded sections, per-section save + import/export + storage diagnostics (~640 lines)
-├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
+├── create.js          ← Invoice creation form, 3 billing modes (~1,180 lines)
+├── settings.js        ← Settings: six groups, folded sections, per-section save + import/export + storage diagnostics (~970 lines)
+├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (~710 lines)
 ├── devices.js         ← Devices: registered with the owner present, the token locked to the device, removed with a reason (~720 lines)
-├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
-├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (340 lines)
-├── pipeline.js        ← Office → Pipeline: awaiting invoice → created → printed → dispatched → delivered → owed (~280 lines)
+├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (~1,240 lines)
+├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (~420 lines)
+├── pipeline.js        ← Office → Pipeline: awaiting invoice → created → printed → dispatched → delivered → owed (~350 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Office → Challans: Awaiting invoice and Invoiced, each led by its verdict; a challan's wait judged once (imWaitTone); the list and selection (~810 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room; what another ID needs to open a preview from the queue (`printNeed`); a closed preview leaves the page empty (~320 lines)
-├── remoteprint.js     ← The office printer: a preview sent as a job over GitHub sync, the print station that prints it (~290 lines)
-├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
+├── remoteprint.js     ← The office printer: a preview sent as a job over GitHub sync, the print station that prints it (~450 lines)
+├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (~430 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
 ├── quote.js           ← Quotations: Office → Sales → Quotations, a number at issue, revisions, the reprice moves, the printed quotation (~990 lines)
 ├── charts.js          ← Reusable SVG charts (charts v3): line, bar, pie, ranked bars, and the eight of UI pass 3 (diverging, histogram, dots, scatter with `chartFit`, heat, dumbbell, stack to 100%, ring); a card's sparkline, meter and day on one bar; a colour by its slot (`seriesSlot`), never its rank; a table behind every boxed chart; a card's chart bare (`opts.bare`, drawn at the card's own pixels), its small bars (`chartMiniBars`), the day in lanes (`chartDayLanes`) and a Ledger's bar (`chartLedgerBar`) (~1,390 lines)
 ├── staff.js           ← Floor → People: Attendance (Day · Week · Month), the Roster and its import, extra hours; each view led by its verdict (~2,630 lines)
-├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
+├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (~610 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
-├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout (the snacks included) + forecast, the hours to check, monthly payroll as paid, hours by area (~1,150 lines)
-├── stock.js           ← Floor → Stock, one screen led by its verdict: the WhatsApp message parser, event replay, a line's page, the reorder list, chemicals ₹/kg; Enter by hand as a guided flow (`stockManualModel`), Spend and prices' address (`v=spend`), two lines merged (`stockMergeOpen`, `stockTwins`) (~2,050 lines)
+├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout (the snacks included) + forecast, the hours to check, monthly payroll as paid, hours by area (~1,370 lines)
+├── stock.js           ← Floor → Stock, one screen led by its verdict: the WhatsApp message parser, event replay, a line's page, the reorder list, chemicals ₹/kg; Enter by hand as a guided flow (`stockManualModel`), Spend and prices' address (`v=spend`), two lines merged (`stockMergeOpen`, `stockTwins`) (~2,260 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Tables → Cost, the live cost with every source shown (~1,120 lines)
 ├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
 ├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,810 lines)
-├── suppliers.js       ← Suppliers: every spelling one supplier, its bills with GST, payments (a cheque cleared once), the balance from a day, lead times for the reorder list (~1,030 lines)
-├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
+├── suppliers.js       ← Suppliers: every spelling one supplier, its bills with GST, payments (a cheque cleared once), the balance from a day, lead times for the reorder list (~1,170 lines)
+├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~540 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from People → Pay's own rows, any month's, each with its days (a week's columns, a month's grid): two to an A4 page (~290 lines)
-├── cashout.js         ← Cash paid out: the supervisor's WhatsApp account of cash spent, read, checked, kept a line each with its kind, counted in the week's payout (~200 lines)
-├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
+├── cashout.js         ← Cash paid out: the supervisor's WhatsApp account of cash spent, read, checked, kept a line each with its kind, counted in the week's payout (~230 lines)
+├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (~1,250 lines)
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner; a day's marks hand by hand (`mrgDeep`) (~490 lines)
 ├── prospects.js       ← Office → Sales → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
-├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
-├── add.js             ← Add: one door for everything that comes in (paste, clipboard, file, by hand) (~400 lines)
+├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~1,670 lines)
+├── add.js             ← Add: one door for everything that comes in (paste, clipboard, file, by hand) (~570 lines)
 ├── msgstore.js        ← The messages (`S.messages`, `S.msgImports`): a message's key, the sorter (`msgSort`), `msgIngest`, `msgMarkSaved`, the kinds, the `invMsg…` actions routed (~160 lines)
 ├── msgprofile.js      ← How each sender sends messages (`S.msgProfile`): learnt from every message, how sure a kind is (`mpKindConf`), the sender's card (~300 lines)
-├── wazip.js           ← A WhatsApp export read in the app: the zip unpacked, the chat split, the new messages taken in from the last of each kind the book holds (~330 lines)
+├── wazip.js           ← A WhatsApp export read in the app: the zip unpacked, the chat split, the new messages taken in from the last of each kind the book holds (~360 lines)
 ├── msgview.js         ← Messages (a top-bar tool, the owner's): every message kept, read line by line, its text edited and read again, its kind set, the lessons (~670 lines)
 ├── msgconfirm.js      ← The confirmation screen (`mcOpen`): the new messages by day and kind, what each would write, the default ticks, marks typed by hand asked hand by hand, one save through each reader's core (~640 lines)
-├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
+├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~220 lines)
 ├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, by hand (~600 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
-├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
+├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,340 lines)
 ├── stats.js           ← Stats: the Dashboard (a board of widgets) and the Tables (By client · By part · By month · Cost, sorted by a head, exported to CSV and Excel), one verdict leading both; History, the audit trail in the top bar, led by its card (~1,750 lines)
 ├── intel.js           ← Stats' two views and where an old tab lands (`statsPlace`, `statsOpen`); the questions' stories and The period in figures for Home's widgets; contribution by client (~440 lines)
-├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
-├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
-├── finintel.js        ← Finance intelligence: thirteen bank To-do rules, days to pay, the cash forecast (~520 lines)
-├── shifts.js          ← Shifts by line: a line's night (or the barrel's running hours) from a start date, the roll's night heading, the night's crew against its schedule, two shifts back to back, Settings → Labour → Shifts by line (~300 lines)
+├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~190 lines)
+├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~380 lines)
+├── finintel.js        ← Finance intelligence: thirteen bank To-do rules, days to pay, the cash forecast (~590 lines)
+├── shifts.js          ← Shifts by line: a line's night (or the barrel's running hours) from a start date, the roll's night heading, the night's crew against its schedule, two shifts back to back, Settings → Labour → Shifts by line (~410 lines)
 ├── finlinks.js        ← Money linked into Today, Stats, Clients, Invoices, Pay, Stock (~270 lines)
-├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
+├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~970 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
-├── dash.js            ← The charts People and Stock explain with: attendance by week, labour ₹/kg, payroll vs bank (Pay); supplier spend, use, prices (Stock's Spend and prices) (~230 lines)
+├── dash.js            ← The charts People and Stock explain with: attendance by week, labour ₹/kg, payroll vs bank (Pay); supplier spend, use, prices (Stock's Spend and prices) (~360 lines)
 ├── dataview.js        ← The data layer (UI pass 3 §6): views shaped like the hub's typed tables, worked out by the screens' own functions, cached once a book; `dvRows`, `dvSum`, `dvCols` (~600 lines)
-├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; what a day and a line earned, a line's usual day and its week; a line's efficiency; in plant; rules; export (~1,820 lines)
-├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~450 lines)
+├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; what a day and a line earned, a line's usual day and its week; a line's efficiency; in plant; rules; export (~2,130 lines)
+├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~580 lines)
 ├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
 ├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
-├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
-├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
-├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste and hand sub-views; Set its weight (~1,320 lines)
-├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed; a day the plant does not work (`plantDayOff`) and Home's Plant shut… (~590 lines)
-├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
+├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~360 lines)
+├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~350 lines)
+├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste and hand sub-views; Set its weight (~2,030 lines)
+├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed; a day the plant does not work (`plantDayOff`) and Home's Plant shut… (~640 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~2,180 lines)
 ├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
-├── flow.js            ← The flow thread: turnaround targets and payment terms, a challan wanted by a day, the tasks they raise, the flow on Floor's Overview and a client's page (~360 lines)
+├── flow.js            ← The flow thread: turnaround targets and payment terms, a challan wanted by a day, the tasks they raise, the flow on Floor's Overview and a client's page (~410 lines)
 ├── today.js           ← Home: the masthead (`homeMastHtml`: the greeting, one lead, the first thing to do with its own button (`homeMastLead`), the clock on the minute, the general shift before, during and after it or the day the plant is shut; flat, never folded; the phone's board tools at its act row's end), the board's toolbar, Home left and arrived (the clock and the live widgets stopped and started); Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) (~720 lines)
 ├── widgets.js         ← The card family's framework (UI pass 3 §7, §24; design §6.33–§6.35): `wdgDefine` (a type required), one skeleton (`wdgCardHtml`: head, figure, verdict, body, Act, Source) and its states (`uiBlankHtml`), the five action rows (Open, Choose, More, Act, Source), the seven types' builders (`wdgLedgerHtml`, `wdgDocketRowHtml`, `wdgPlantRowHtml`, `wdgSeatsHtml`, `wdgMovesHtml`, `wdgWireHtml`, `wdgTrayHtml`, …), the fit (`wdgFit`: the parts it can do without, then each column's and the list's last rows, More or a Ledger's rest line), a bare chart drawn into the room left, the board (fixed rows packed dense; on the phone a card as tall as what it holds; `wdgPlace` and its slots while arranging), arranging (drag, keys, sizes, remove), the gallery, the presets by role (about seven cards on the phone), a board's period (`wdgPeriod`: Home's this month), a trend never edged (`trend`), the layout per person and layout (`sep_inv_layout`) (~1,580 lines)
-├── widgetcards.js     ← The widgets (`WIDGET_DEFS`), each of its type (UI pass 3 §24f): Money, Office, Floor, People, Market, Analysis and the questions, each reading the function its screen draws with and handing its figures to its type's builders; a question's story without its tiles and charts (`wcStoryBrief`) (~2,240 lines)
+├── widgetcards.js     ← The widgets (`WIDGET_DEFS`), each of its type (UI pass 3 §24f): Money, Office, Floor, People, Market, Analysis and the questions, each reading the function its screen draws with and handing its figures to its type's builders; a question's story without its tiles and charts (`wcStoryBrief`) (~2,530 lines)
 ├── prtlight.js        ← The print station's light: its check-in and the queue read every 2 minutes while Home shows, worked out (`prtLightState`, pure), one of the masthead's facts and, red with a job waiting, its lead; the station's dialog, the jobs printed here (each taken off the queue first, and only those the ID's own screens open: `prtJobOpens`; a run is the ID's that began it, and a job it cannot show goes back, `prtHereReturn`), Needs you's `prtStation` (~400 lines)
 ├── feeds.js           ← The world outside: the news and the weather from the owner's feeds Worker (`S.feedsCfg.url`), else straight from GDELT and MET Norway (`feedAskVia`), a copy on the device, never in the book; the weather's place typed, the Office QR's, or the company's address placed on OpenStreetMap once (`feedGeoEnsure`, on the device); Tata Motors' months and the models followed (`S.market`), Tata's plant's calendar; what the widgets read (`feedNews`, `feedWeather`, `mktTataLatest`…) (~1,550 lines)
-├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup, its picture page first (`powerCasePictureHtml`) (~660 lines)
+├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup, its picture page first (`powerCasePictureHtml`) (~1,170 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed, its picture page first (`rptPictureHtml`) (~780 lines)
-├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~610 lines)
-├── planview.js        ← The planner's screens: Play, Ledger, A day, Moves (Plant, Tech tree, Staff, Clients, Finance); its verdict; registers; the report (~990 lines)
-├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
+├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~830 lines)
+├── planview.js        ← The planner's screens: Play, Ledger, A day, Moves (Plant, Tech tree, Staff, Clients, Finance); its verdict; registers; the report (~1,220 lines)
+├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~780 lines)
 ├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,830 lines)
 ├── kbread.js          ← Reading an article (KB2-1): one parser, Quick reference · Reader · Guided, At a glance, the desk and its context, the Library's shelves, notes (~790 lines)
 ├── client-perf.js     ← Clients → Performance: the client's card, month on month, material cadence, Materials worked, By the hour, folded (~990 lines)
-├── im-form.js         ← IM add/edit/delete challan form (450 lines)
-├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
+├── im-form.js         ← IM add/edit/delete challan form (~680 lines)
+├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (~380 lines)
 ├── photoread.js      ← Photos read by Claude (owner, 3 Nov 2026): the key on the device (`sep_inv_claude_key`), one request a photo (`phRead`: shrunk to 1,568 px, a JSON schema, the browser header), what the photos have cost kept on the device; the register's and the challan's prompts and schemas (~190 lines)
-├── scanner.js        ← Challans → More → Scan a challan: the photo read into the challan form, the client one of the book's, every rate the client's own record (~150 lines)
-├── events.js          ← Event delegation + input handlers (774 lines)
+├── scanner.js        ← Challans → More → Scan a challan: the photo read into the challan form, the client one of the book's, every rate the client's own record (~130 lines)
+├── events.js          ← Event delegation + input handlers (~1,180 lines)
 ├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row (a view may cover several of a page's own: Clients, Sales), the red counts on the doors and Needs you's tab (~390 lines)
 ├── swipe.js           ← Swipe navigation: within the open workspace's views (38 lines)
 ├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail; the redirect table for places that moved (~490 lines)
-├── search.js          ← Search, keys and new windows: one index of records and screens, the palette, the shortcuts (~930 lines)
-└── init.js            ← Migrations + app bootstrap (567 lines)
+├── search.js          ← Search, keys and new windows: one index of records and screens, the palette, the shortcuts (~1,110 lines)
+└── init.js            ← Migrations + app bootstrap (~1,040 lines)
 ```
 
 **Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → cashout → todo → merge → prospects → relay → add → msgstore → msgprofile → wazip → msgview → msgconfirm → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → shifts → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → prtlight → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → photoread → scanner → events → workspace → swipe → nav → search → init.
@@ -289,7 +291,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 2,314 tests, both layouts (6 Nov 2026)
+pnpm exec playwright test          # 2,329 tests, both layouts (6 Nov 2026)
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1299,6 +1301,27 @@ fixture's `unlock` rewritten to the same facts (four digits where a spec sets a 
   `icon-512-maskable.png`, `favicon.svg`, `favicon-32.png`; the manifest's `background_color` `#e1e6eb`; the service worker `sep-inv-v32`.
 - **SERVER.md §4**: the sealing key is never wrapped by a PIN (the recovery code on the hub, a device key on each owner device).
 - The guide *Setting up: IDs, PINs and roles* is version 2. **A data flow**: `len: 4` on a user's secret, with the users.
+
+### The QA chain of 6 Nov 2026
+`docs/UI_PASS_3.md` §26o (owner: *"Run the QA chain"*, over U3, U6, U7, U8 and U9's docs; U4 and U5 had their own). Castor, Iuno and
+Vulcanus audited, each finding fixed with its test in P259 (failing on the build before), then Cipher. What it leaves as rules:
+- **The four-digit screen is never left open**: hidden or left, it closes, and after two minutes (`GRD_UPGRADE_MS`) Save and Later
+  redraw the lock (`grdUpgradeLive`). Enter on the lock does what Sign in does; fewer than four digits for an ID on four spend no try.
+  A PIN from before that is four good digits signs in and is saved `len: 4`.
+- **A PIN of four digits can be found from any copy of the book** (10,000 tries offline): Settings says so, and whether the owner's
+  ID may keep a longer one is the owner's to rule.
+- **Wages are wages wherever money is shown**: an ID that sees money and not wages sees no labour tier on the live cost, no labour or
+  payout on a report, and a report drawn with wages needs them to open from the queue (`printNeed({wages})`).
+- **What the period left is one figure** (`statsPeriodLeft`: the period's revenue less the full cost), toned by the one judge
+  (`statsLeftTone`), on Stats' verdict, the money question (its sentence too) and the report. At the live cost it is exact; at the
+  typed cost with lines unweighed it is a bound (`≤`, *N% weighed*, a figure at or over zero not judged). Top parts judges a price as By part does; a part
+  billed nothing has no price; a month under 90% weighed has no chip (*N% weighed*).
+- **A gap is a gap on paper too**: a stretch with no invoice, a line with nothing weighed, a month with neither a cut nor a day
+  recorded. The power record lists every calendar month from the first cut; Cuts folds only months with cuts. The picture's foot
+  names the credit notes it cannot take off.
+- **Half a line down is danger on Equipment as on Floor** (`pltCapTone`), a line's own units only; supporting equipment is danger
+  with nothing working. A first-visit pointer goes when typing starts, and its
+  Escape shuts it alone.
 
 ## Business Domain
 

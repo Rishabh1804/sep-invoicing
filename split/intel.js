@@ -226,12 +226,16 @@ function statsStoryCards(a, ctx) {
   var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
+  var left = contrib != null ? statsPeriodLeft(sumTaxable(filtered), cost, kg) : null, leftCov = periodCost.label === 'live cost ' ? null : tonnage.coverage, leftPart = statsLeftPart(leftCov);
+  // The period's figure in the card's words, the same as its tile's: the most it can have left where lines have no weight.
+  var leftWords = left == null ? '' : left < 0 ? (leftPart ? 'at least ' : '') + formatCurrency(-left) + ' lost on the period'
+    : (leftPart ? 'at most ' : '') + formatCurrency(left) + ' left on the period';
   // What a kilo left is the price against the cost, judged as the price is (In one line, Stats' tiles): a loss within 5% of the
   // cost is a warning, as the realisation beside it says.
   var moneyTone = contrib == null ? null : figToneAgainst(real, cost, 5);
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
       real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
-    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
+    statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(left != null ? statsLeftSign(leftCov) + statsSigned(left) + ' ' + escHtml(ADV_PERIOD_WORDS[period] || 'in the period') + ', after the full cost' : ''),
       moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
@@ -239,8 +243,8 @@ function statsStoryCards(a, ctx) {
     { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }), slot: 1 },
     { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), slot: 'other' }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
   body += contrib == null ? say(c1, 'neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
-    : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
-    : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
+    : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + leftWords + '.')
+    : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at; ' + leftWords + '.');
   c1.html = body;
   // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): the figure that answers it, its words, the six months as a line.
   // `ans`: the answer as one sentence of 40 characters at most, its figure in its tone (U2R §24f: a question's Small).

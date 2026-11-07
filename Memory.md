@@ -1,7 +1,7 @@
 # Memory.md
 **Scope:** Persistent institutional knowledge across all repos
 **Owner:** The Consul (cross-repo overseer)
-**Updated:** 18 August 2026
+**Updated:** 7 November 2026
 
 ---
 
@@ -72,12 +72,16 @@ CA by background. Business Manager at Soma Electro Products (zinc electroplating
   (4/4/3/2/3, sixteen at full house) and the extra turned from a mystery into a prediction —
   `(norm − heads) × 8` per unit per day, checked against what was booked, with pro-rata
   absorption ranked per worker. Reproduces the 11 Jun ruling's own worked example to the rupee
-- 33 modules, ~15,950 lines. 234 e2e tests gate every PR
+- **Sep–Nov 2026:** the app grew from invoicing into the plant's whole book: production, stock, power, people and pay, the bank,
+  the knowledge base, the entry faces, the planner, WhatsApp messages read in the app, and UI pass 3 (Home and Stats as boards of
+  widgets, guided entry, a 4-digit PIN), merged 7 Nov 2026 with its QA chain (#181). `docs/NEXT_SESSION.md` is the running record
+- 101 modules, ~85,800 lines. 2,329 e2e tests on both layouts gate every PR, run on CI in two halves
+- The repository is public and holds no client's data (HR-10, 22 Oct 2026)
 - Development moved off Termux to Claude Code (clones fresh; `.claude/hooks/session-start.sh`
   arms the pre-commit hook and installs test deps)
 - **Open with the owner:**
-  - does contract labour scale with volume? It decides the SSS Mehta response and nothing
-    about that account should move before it is answered
+  - ~~does contract labour scale with volume?~~ **Ruled fixed, 13 Oct 2026**
+  - the 4-digit PIN against a copy of the book: deferred by the owner until the planned updates are in (7 Nov 2026)
   - do the four certificates rendered 15 Apr 2026 need reissuing to SSS Mehta? They carry
     the superseded GSTIN (below). Left in place as the record of what was sent
   - piece-billed lines print Net Wt. blank. Filling them means weighing the parts into

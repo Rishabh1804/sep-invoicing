@@ -7,6 +7,44 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Session close, 7 Nov 2026: UI pass 3 merged, its QA chain run (read this first)
+
+- **What shipped this session, every PR merged on the owner's word**: U3 Stats as a dashboard (#175), U4 every Enter by hand a guided
+  flow (#176), U5 People leads (#177), U6 a picture first (#178), U7 across the app (#179), U8 sign-in and the 4-digit PIN (#180), and
+  U9 the docs and the measures with **the QA chain over U3–U9** (#181, merged `5824c94`). **UI pass 3 is built.**
+- **The QA chain** (`docs/UI_PASS_3.md` §26o; CLAUDE.md, *The QA chain of 6 Nov 2026*): Castor (the sign-in), Iuno (money and controls),
+  Vulcanus (production, plant, power), then Cipher's Edict V (*amended*: three of the first fixes were half done and four tests could
+  not fail; all folded). Every fix has its test in P259 (15 tests), each failing on the build before. P73, P211 and P247 were
+  rewritten to the same facts. The suite is 2,329 tests, green on both halves at `94cfa18`.
+- **Open, the owner's**:
+  - **The PIN** (Castor H-2): four digits can be found offline from any copy of the book (a backup, the GitHub sync file). Settings
+    says so. Whether the owner's own ID keeps a longer PIN or a password is **deferred by the owner until the planned updates are in
+    place** (7 Nov 2026: *"We'll circle back on the PIN issue later"*). SERVER.md §4 already keeps the sealing key off the PIN.
+  - **The next build's order** is the owner's to set (the rulings of 13 Oct, item 10). Specified and not built: the server
+    (`docs/SERVER.md`, S0–S5), the knowledge base's KB2-2 to KB2-4 (on the server), and the plant picture's PP2, PP4 and PP5
+    (`docs/PLANT_PICTURE.md`, their order the owner's).
+- **Left low**: the lock draws over a screen without clearing its figures from the page (Iuno L-4: not visible, not reachable before
+  sign-in).
+- **Housekeeping**: PR #27 (a draft from August, not this session's) is still open; the owner's to close or keep.
+- **Data flows**: none new from the QA chain. The pass's two (`sep-stock`'s merged-line fields, U4; a secret's `len: 4`, U8) are in the
+  table below for the compile session.
+
+**Opening prompt for the next session** (copy as it is):
+
+```
+SEP Invoicing, session B. UI pass 3 (U1–U9) is built and merged, with its QA chain (#181, 7 Nov 2026).
+Goal: ask the owner which planned update comes next (the server S0–S5, KB2-2 onward, or the plant
+picture's PP2/PP4/PP5) and build it, one PR a step, the QA chain before the final merge.
+Read first:
+- /home/user/sep-invoicing/docs/NEXT_SESSION.md (this entry, then the interface table)
+- /home/user/sep-invoicing/CLAUDE.md (the hard rules HR-1 to HR-10; The QA chain of 6 Nov 2026)
+- /home/user/sep-invoicing/docs/UI_PASS_3.md §26n–§26o
+- the spec of whichever update the owner picks (docs/SERVER.md, docs/KNOWLEDGE_BASE_2.md, docs/PLANT_PICTURE.md)
+At start: HR-10, the repo is public, every example made up; PW_CHROMIUM_PATH=/opt/pw-browsers/chromium
+before Playwright; never raise a P195 budget; merge only on the owner's word.
+Held for later, the owner's: the 4-digit PIN question (Castor H-2), after the planned updates.
+```
+
 ## Built 4–6 Nov 2026: UI pass 3, U3–U9 (read this first)
 
 - **UI pass 3 is built**, one PR a step, each merged on the owner's word (*"Merge and continue"*): U3 Stats as a dashboard and its
@@ -16,7 +54,7 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 - **Every screen measured before and after** (`docs/UI_PASS_3.md` §26n): the long book on the phone, the build at the spec's commit
   (`1a365a2`, 16 Oct) against main after U8. Home 3.51 → 2.44 phone screens, Reports 2.67 → 1.07, Power → Case 2.16 → 1.08, the Roster
   2.28 → 1.93, Attendance → Week 1.68 → 1.48; the step rows put Day and Pay a fifth of a screen longer, within their budgets.
-- **The QA chain over U3–U9 is the owner's to call.** Nothing else is queued from the pass.
+- **The QA chain over U3–U9** ran on 6 Nov 2026, the owner's call (the entry above).
 - **Data flows**: two, both said in the table below. `sep-stock` carries a merged line's `mergedInto`, `mergedFrom` and `retiredAt`
   (U4), and a user's secret carries `len: 4` (U8). The rest of the pass is on the device or draws what the book already holds.
 

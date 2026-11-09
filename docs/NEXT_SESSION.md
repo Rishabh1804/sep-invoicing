@@ -7,7 +7,46 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
-## Session close, 7 Nov 2026: UI pass 3 merged, its QA chain run (read this first)
+## Session close, 9 Nov 2026: the owner's rulings on the week to 7 Nov, the supervisor's cash, Pay all due (read this first)
+
+- **What shipped this session, every PR merged on the owner's word**:
+  - **#183** (merged `ba2d117`): snacks are what the supervisor paid, typed for the pay week on Pay's payout card (`S.paySnacksPaid`; the
+    per-head rule retired, owner: *"Use Shyam's method"*); **Accept with explanation** on an EXTRA disagreement, offered on Areas and on
+    People → Attendance → Day's Extra hours card (P260); a monthly hand's wage paid in cash on Pay counts as wages in the bank's cash
+    split, never drawings (`bankMonthlyCashIn`).
+  - **#184** (merged `ddc5f48`): **cash with the supervisor**, a running balance (`scLedger`, cashout.js; P261). What was handed over
+    the payout on Saturday (`S.payHanded`), less the payout, goes to him; spends, returns, cash given and a balance set are lines of
+    `S.supCash`, voided with a reason. Pay → *Cash with the supervisor* (folded) and the bank's cash split counts his float as the
+    shop's cash, never drawings. The owner's week to 7 Nov reads **₹237.50 with him** (290 held + 347.50 over the payout − 400 for the
+    ACI HCl trip), and the 59 hours were settled by his own count (Saturday's night shift in Saturday's payout). Also: a Stats table's
+    first eight rows on the phone (`STATS_TBL_PHONE_ROWS`), and P259's report check reads last week.
+  - **#185** (merged `70df324`): **Pay all due** on Pay's weekly group where two or more weekly hands are owed: one dialog, each ticked
+    at what is due, its amount editable, one date, one save behind the payments permission (P262; owner: *"I have to individually go
+    and mark paid for every worker"*). Monthly hands are still paid one at a time.
+- **The pay guide is version 11.** No QA chain ran this session (the owner merged each PR on green CI); the Governor-shaped content
+  (payroll, cash) is the compile session's to read against the codex.
+- **Open, the owner's**:
+  - **Enter the ledger's starting balance** (Pay → Cash with the supervisor → *Set the balance*) and the week's handed figure, so the
+    ₹237.50 is on the book and not only in this note.
+  - The 4-digit PIN question (Castor H-2) and the next build's order, both carried from 7 Nov.
+- **Data flows** (the table below): `S.paySnacksPaid`, `S.payHanded` and `S.supCash`, all with the book.
+
+**Opening prompt for the next session** (copy as it is):
+
+```
+SEP Invoicing, session B. 9 Nov 2026 merged #183 (snacks as typed, Accept with explanation), #184 (cash with
+the supervisor, a ledger) and #185 (Pay all due for the weekly hands).
+Goal: ask the owner what comes next: his next ask, or the planned updates (the server S0–S5, KB2-2 onward,
+the plant picture's PP2/PP4/PP5), one PR a step, the QA chain before the final merge where he asks for it.
+Read first:
+- /home/user/sep-invoicing/docs/NEXT_SESSION.md (the 9 Nov entry, then the interface table)
+- /home/user/sep-invoicing/CLAUDE.md (the hard rules HR-1 to HR-10; Pay; Cash with the supervisor)
+At start: HR-10, the repo is public, every example made up; set PW_CHROMIUM_PATH before Playwright; never
+raise a P195 budget; merge only on the owner's word.
+Held for the owner: the supervisor's starting balance on the book; the 4-digit PIN (Castor H-2).
+```
+
+## Session close, 7 Nov 2026: UI pass 3 merged, its QA chain run
 
 - **What shipped this session, every PR merged on the owner's word**: U3 Stats as a dashboard (#175), U4 every Enter by hand a guided
   flow (#176), U5 People leads (#177), U6 a picture first (#178), U7 across the app (#179), U8 sign-in and the 4-digit PIN (#180), and
@@ -847,3 +886,4 @@ in the PR**, so the compile session knows to re-check.
 | **Backup shape changed, 21 Oct 2026 (Home leads)** | `flowCfg` gains `shutWhy: {YYYY-MM-DD or MM-DD: why}` beside `holidays`, the reason each day the plant is shut was marked (Home → More → Plant shut…, which writes full dates into `holidays`); filled key by key on an old backup; in the change log as days and reasons. **For the compile**: a day in `flowCfg.holidays` is a day this plant did not work (never Tata's: that is `market.calendar`); pay is not changed by it. **Not in the book**: the company's address placed on the map (`sep_inv_feeds.geo`) and whether the feeds Worker answered (`sep_inv_feeds.direct`). **New requests from a device**: OpenStreetMap's Nominatim (the address's words, once an address), GDELT (the news topics) and MET Norway (the place to two decimals), where the Worker cannot be reached; none carries the book. Nothing new crosses to soma-internal but the backup. |
 | **Backup shape changed, 4 Nov 2026 (two stock lines merged, UI pass 3 U4)** | A stock line merged into another keeps `mergedInto` (the kept line's id), `retiredAt` and `active: false`; the kept line gains `mergedFrom: [ids]` and the merged line's name and spellings in `aliases`; each moved entry's `itemId` is the kept line's and it keeps `mergedFrom` (the line it was entered on). Nothing is deleted. An entry or a price quoted that later names the retired line (a device not yet merged, a file) is moved to the kept line on the next load (`stockMergedRepoint`). The pairs the owner said are different chemicals are `stock.notTwins` (sorted id pairs). **The `sep-stock` export carries the items and entries**: the compile should read an entry under its `itemId` as now, and may name a merged line as its kept line. |
 | **Backup shape changed, 6 Nov 2026 (UI pass 3, U8: the 4-digit PIN)** | A user's `secret` made from four digits carries `len: 4` beside its salt and hash; a secret without it is a PIN from before, which the lock asks to become four digits (Later keeps it). The secret is still a salted PBKDF2-SHA256 hash, never the PIN, and the change log never compares it. **Not in the book**: when each ID last signed in on a device (`sep_inv_guard_seen`). Nothing new crosses to soma-internal but the backup, which carries the users as before. |
+| **Backup shape changed, 9 Nov 2026 (snacks, the supervisor's cash)** | Three new top-level keys. `paySnacksPaid: {<pay week's Sunday>: {amount, note, at, by}}`, the snacks the supervisor paid for that week, typed on Pay (the per-head rule is retired); `payHanded: {<pay week's Sunday>: {amount, at, by}}`, what was handed him for the Saturday payout; `supCash: [{id, kind: spent/returned/given/set, date, amount, note, at, by, voidedAt?, voidReason?}]`, the cash he holds for the shop, a balance set resetting what came before. Accept with explanation writes the `extraExceptions` record it always did (its reason required). The bank's cash split now reads a monthly hand's cash wage on Pay as wages and the supervisor's float as the shop's cash: the codex's drawings for a week with a float read lower than before. All three travel with the book (backups, GitHub, the merge, the change log). |

@@ -467,6 +467,7 @@ function _attPayView() {
   html += payLabourPanelsHtml();
   html += _payDueCard(ws, due);
   if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
+  if (typeof scCardHtml === 'function') html += scCardHtml();
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
@@ -502,11 +503,20 @@ function _payVerdictHtml(ws, f, gaps) {
       uiFactRowHtml({ label: 'Snacks', value: wk.snacks.entered ? formatCurrency(wk.snacks.amount) : '', attrs: ' data-pay-snacks',
         sub: wk.snacks.entered ? 'as the supervisor paid them' : 'not entered: type the nasta from his message',
         actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPaySnacks" data-week="' + escHtml(ws) + '">' + (wk.snacks.entered ? 'Change' : 'Enter') + '</button>' }) +
+      _payHandedRowHtml(ws, wk) +
       (wk.cashOut ? uiFactRowHtml({ label: 'Cash paid out', value: formatCurrency(wk.cashOut), sub: 'spent by the supervisor, paid back with it', attrs: ' data-pay-cashout' }) : '') +
       _payGapsHtml(gaps) + '</div>' + _payWeeksChartHtml(ws, wk),
     attrs: ' id="payForecast"' });
 }
 
+/* What was handed to the supervisor for the payout, and what of it he keeps (cashout.js, the supervisor's cash). */
+function _payHandedRowHtml(ws, wk) {
+  var h = payHandedFor(ws), over = h.entered ? gstRound(h.amount - wk.total) : null;
+  return uiFactRowHtml({ label: 'Handed for it', value: h.entered ? formatCurrency(h.amount) : '', attrs: ' data-pay-handed',
+    sub: !h.entered ? 'not entered: the cash given to the supervisor on Saturday' : Math.abs(over) < 0.005 ? 'the payout exactly'
+      : over > 0 ? formatCurrency(over) + ' over, kept by the supervisor' : formatCurrency(-over) + ' short, paid from what he holds',
+    actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayHanded" data-week="' + escHtml(ws) + '">' + (h.entered ? 'Change' : 'Enter') + '</button>' });
+}
 /* Pay's picture (UI pass 3 §12, §26c): the week shown and the eleven before it, a bar a pay week, the cash the supervisor paid out
    its own part of the bar (cashPayCardHtml lists it under), each bar reading its payout whole (opts.total). A week nobody typed is a
    gap, not a ₹0 week: chartStack draws no bar for it, and a week holding only cash paid out has its cash and no wages part (Iuno

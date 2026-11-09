@@ -435,6 +435,8 @@ var KB_APP_GUIDES = [
     '- The shop pays the weekly hands by the week. It pays the monthly hands by the calendar month that contains the week’s Sunday.\n' +
     '- The EXTRA pool is not in the due of any hand. It is 1 line on the slip, and the supervisor pays it out.\n' +
     '- **Snacks** are a line of the payout: the nasta that the supervisor paid for the week, as his weekly message gives it. The app does not calculate them. On the payout card, tap **Enter** on Snacks and type the amount. Until you do, the payout has no snacks.\n' +
+    '- **Handed for it**, on the payout card, is the cash given to the supervisor on Saturday for the payout. Tap **Enter** and type it. What is over the payout stays with him. A monthly hand’s wage handed at the same time is a payment on Pay, not part of it.\n' +
+    '- **Cash with the supervisor** shows what he holds for the shop, and each line that changed it, with the balance after it. To start, tap **Set the balance** and type what you and he agree he holds at the end of a day. The lines after that day count on it. Each Saturday, the cash handed less the payout adds to it. Tap **Spent from it** for what he paid from it outside a payout (for example, an acid trip), and say what it was for. Tap **Given back** for cash he returns, and **Given to him** for cash given apart from a payout. Below zero, the shop owes him. If a line is wrong, void it with a reason.\n' +
     '- **Hours to check**, in the card, lists a hand named on an overtime block whose own in or out time does not reach the block. Pay uses the own times of each hand. Thus, the block’s hours are in the pay of no hand until you correct the day. To go to the day, tap **Open the day**.\n' +
     '- **Paid** is the bank’s salaries and the payments typed here. The app records a salary on the statement as wages to the hand that its name matches. If the app only guesses the name, it says so. Set the payee on the statement once. If the statement also holds a payment typed here, the app counts it once.\n' +
     '- A balance carries to the next period until it is paid, recovered by work, or cleared with a reason. **Brought forward** shows each balance and names each month in it.\n' +
@@ -444,15 +446,16 @@ var KB_APP_GUIDES = [
     '- **Pay slips** prints the slips of a selected month for all monthly hands.\n' +
     '- If a payment is wrong, void it with a reason. The app never deletes a payment.\n' +
     '- **Monthly payroll as paid** (**More** → **Import**) holds the slips of a closed month. For a month before this month, the slips are the earnings of the hands they name. If no payment for the month is on record, the app takes the slip as paid.\n' +
-    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash paid that week to a monthly hand and recorded on Pay (for example, the night guard’s wage in cash) is wages too, for the month it pays. Cash drawn above both is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
+    '- In **Wages paid, from the bank**, a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. For each pay week, the cash is wages up to the payout recorded for that week. Cash paid that week to a monthly hand and recorded on Pay (for example, the night guard’s wage in cash) is wages too, for the month it pays. Cash handed for the payout above it that the supervisor keeps is his float, not drawings; what he spends from it is a cost in its month. Cash drawn above all of these is drawings, and it is never a cost. If a week has no attendance recorded, the app cannot split its cash. The app compares a transfer to a hand on the roster with the payroll as paid for the month before.',
     // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
     // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
     // history and any month's slip (the same day).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026). Version 7: the next steps and the payouts' chart (UI
     // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
     // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method"), and cash paid
-    // to a monthly hand on Pay is wages in the bank's split (the same day).
-    { roles: ['owner'], version: 9 }),
+    // to a monthly hand on Pay is wages in the bank's split (the same day). Version 10: the cash handed for the payout and the cash
+    // with the supervisor (owner, 9 Nov 2026: "Build the ledger").
+    { roles: ['owner'], version: 10 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +

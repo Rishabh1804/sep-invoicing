@@ -1044,7 +1044,11 @@ function bankCostByMonth(cls) {
       var H = at(h.month.slice(0, 7)).labour;
       H.amount += part; H.handCash = (H.handCash || 0) + part;
     });
-    c.wages = wages; c.misc = misc; c.handCash = handCash; c.drawings = known ? c.amount - wages - misc - handCash : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
+    // What was handed for the payout past it stays with the supervisor (cashout.js, scLedger; owner, 7 Nov 2026): his float, not
+    // the owner's drawings, up to what is left; it is a cost only once he spends it.
+    var kept = known && typeof scWeekKept === 'function' ? scWeekKept(ws, pw.total) : null;
+    var float = kept > 0 ? Math.min(kept, Math.max(0, c.amount - wages - misc - handCash)) : 0;
+    c.wages = wages; c.misc = misc; c.handCash = handCash; c.float = float; c.drawings = known ? c.amount - wages - misc - handCash - float : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
     var seen = {};
     for (var k = 0; k < 7; k++) {
       var d = attParseIso(ws); d.setDate(d.getDate() + k);
@@ -1053,6 +1057,12 @@ function bankCostByMonth(cls) {
       if (misc) at(ym).other.amount += misc / 7;
       if (!seen[ym]) { seen[ym] = 1; c.rows.forEach(function(v) { C.rows.push(v); }); }
     }
+  });
+  // What the supervisor spent from the cash he holds, outside a payout, is the plant's other cost in its month (scLedger).
+  if (typeof scEntries === 'function') scEntries().forEach(function(e) {
+    if (!e || e.voidedAt || e.kind !== 'spent' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || !cover || e.date < cover.from || e.date > cover.to) return;
+    var O = at(e.date.slice(0, 7)).other;
+    O.amount += Number(e.amount) || 0; O.supCash = (O.supCash || 0) + (Number(e.amount) || 0);
   });
   // A month whose open cash is under a quarter of its labour counts it as wages (bankMonthUnknown), said on the row.
   Object.keys(out).forEach(function(ym) {

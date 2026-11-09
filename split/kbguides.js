@@ -432,6 +432,7 @@ var KB_APP_GUIDES = [
     '- On the card, a chart shows the payout of each of the 12 weeks. The cash that the supervisor paid out is a separate part of each bar.\n' +
     '- While the week is open, the app predicts the payout at the week’s own pace. It uses the recorded days as they are. For the other days, it uses the week’s average for a working day. The app does not use the Sunday in that average, because the Sunday is overtime.\n' +
     '- **Due by worker** has 1 line for each hand. The line shows what is due. Tap the line to see the calculation: days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward. To record a payment or an advance, tap **Pay**.\n' +
+    '- To pay all the weekly hands at once, tap **Pay all due** over the weekly group. Each hand is ticked at what is due. Untick a hand to leave them out, or change an amount to what was paid. Then tap **Record**.\n' +
     '- The shop pays the weekly hands by the week. It pays the monthly hands by the calendar month that contains the week’s Sunday.\n' +
     '- The EXTRA pool is not in the due of any hand. It is 1 line on the slip, and the supervisor pays it out.\n' +
     '- **Snacks** are a line of the payout: the nasta that the supervisor paid for the week, as his weekly message gives it. The app does not calculate them. On the payout card, tap **Enter** on Snacks and type the amount. Until you do, the payout has no snacks.\n' +
@@ -454,8 +455,8 @@ var KB_APP_GUIDES = [
     // pass 3, U5). Version 8: Weekly payments, and the Payout's tick only on a week closed and recorded (the QA chain of 5 Nov 2026).
     // Version 9: snacks are what the supervisor paid, typed for the week (owner, 7 Nov 2026: "Use Shyam's method"), and cash paid
     // to a monthly hand on Pay is wages in the bank's split (the same day). Version 10: the cash handed for the payout and the cash
-    // with the supervisor (owner, 9 Nov 2026: "Build the ledger").
-    { roles: ['owner'], version: 10 }),
+    // with the supervisor (owner, 9 Nov 2026: "Build the ledger"). Version 11: Pay all due (the same day).
+    { roles: ['owner'], version: 11 }),
   _kbg('bank', 'Using the app: the bank statement', 'Import it, place each receipt, and record cheques in hand', ['pageFinance'],
     '- To import a statement, go to Money → Bank and tap **More** → **Import a statement**. Use the bank’s own .xls file, or the same file saved as .xlsx. The app skips rows that it already has. Thus, a statement that overlaps the last one adds only the new rows.\n' +
     '- **Receivables start** on the later of 2 days: the statement’s first day and the day of the book’s first invoice. A receipt before that day paid an invoice that the app does not have.\n' +

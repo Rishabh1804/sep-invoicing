@@ -607,18 +607,18 @@ function _payDueCard(ws, d) {
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   // How earned, paid and a balance carried are worked out is the guide's (Using the app: pay); a hand opens to its own arithmetic.
   var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
-  var group = function(title, rows) {
+  var group = function(title, rows, weekly) {
     if (!rows.length) return '';
     // What is due and what was advanced are two figures: netting one hand's advance against another's due read low.
     var tot = rows.reduce(function(s, r) { return s + (r.due > 0 ? r.due : 0); }, 0);
     var adv = rows.reduce(function(s, r) { return s + (r.due < 0 ? -r.due : 0); }, 0);
-    var g = '<div class="inv-row-group">' + title + '</div>' + rows.map(_payDueRowHtml).join('');
+    var g = '<div class="inv-row-group">' + title + '</div>' + (weekly ? _payAllRowHtml(rows) : '') + rows.map(_payDueRowHtml).join('');
     g += _payRow('Total due', '', '<span class="inv-num" data-pay-total="due">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
     if (adv > 0) g += _payRow('Advanced, not yet worked off', 'not taken off the total due',
       '<span class="inv-row-stack"><span class="inv-num" data-pay-total="advanced">' + payMoney(gstRound(adv)) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>');
     return g;
   };
-  h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
+  h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }), true);
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
   h += _payCarriedHtml(d);
   h += _payFormHtml(d);
@@ -665,6 +665,73 @@ function _payDueRowHtml(r) {
     '<div class="inv-row-actions" data-row-more><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayPick" data-id="' + escHtml(id) + '" data-due="' + r.due + '">' +
     (r.due > 0 ? 'Pay ' + payMoney(r.due) : 'Record a payment') + '</button>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayHistory" data-id="' + escHtml(id) + '">History</button></div></div></details>';
+}
+/* The weekly hands paid at once (owner, 9 Nov 2026: "For weekly payout, I have to individually go and mark paid for every worker. We
+   should have an option to mark multiple at once"): one row over the weekly group opening a list of every weekly hand with something
+   due, each ticked at what is due, its amount editable; Save records a payment a hand ticked, as Pay records one (staffPayments). */
+function _payAllRowHtml(rows) {
+  var due = rows.filter(function(r) { return r.due > 0.005; });
+  if (due.length < 2) return '';
+  var tot = gstRound(due.reduce(function(a, r) { return a + r.due; }, 0));
+  return '<div class="inv-row" data-pay-all-row><span class="inv-row-main"><span class="inv-row-title">' + todoPlural(due.length, 'weekly hand') + ' due</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayAllOpen">Pay all due · ' + payMoney(tot) + '</button></span></div>';
+}
+var _payAllWs = null;
+function payAllOpen() {
+  if (!grdGate('payments', 'record payments', payAllOpen)) return;
+  var ws = _attWeekStart, d = payDue(ws);
+  var rows = d.rows.filter(function(r) { return r.weekly && r.due > 0.005; });
+  if (!rows.length) { showToast('No weekly hand has anything due', 'error'); return; }
+  _payAllWs = ws;
+  var today = localDateStr(), date = today >= d.weekStart && today <= d.sat ? today : d.sat;
+  var list = rows.map(function(r) {
+    var id = escHtml(String(r.w.id));
+    return '<div class="inv-row inv-row-2" data-pay-all="' + id + '"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-pay-all-tick="' + id + '" checked aria-label="Pay ' + escHtml(r.w.name) + '"></label>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span><span class="inv-row-meta">due ' + payMoney(r.due) + '</span></span>' +
+      '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" data-pay-all-amt="' + id + '" value="' + r.due + '" aria-label="Amount paid to ' + escHtml(r.w.name) + '"></span></div>';
+  }).join('');
+  var scrim = dialogOpen('<div class="inv-dialog" data-pay-all-dialog>' + dialogHeadHtml('Pay the weekly hands, week ' + attPayWeekNumber(ws)) +
+    '<div class="inv-dialog-body"><div class="inv-note">Each hand is ticked at what is due. Untick a hand to leave them out, or change an amount to what was paid.</div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="payAllDate">Paid on</label><input class="inv-input inv-id" id="payAllDate" type="date" value="' + date + '"></div>' +
+    '<div class="inv-panel inv-panel-flush">' + list + '</div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invPayAllSave" data-pay-all-save>' + payAllLabel(rows.map(function(r) { return { amount: r.due }; })) + '</button></div></div>', { dismiss: true });
+  var sync = function() { var b = document.querySelector('[data-pay-all-save]'); if (b) b.textContent = payAllLabel(); };
+  if (scrim) { scrim.addEventListener('input', sync); scrim.addEventListener('change', sync); }
+}
+/* What the dialog would record: the ticked hands with an amount over nothing. */
+function payAllPicked() {
+  var out = [];
+  document.querySelectorAll('[data-pay-all-tick]').forEach(function(cb) {
+    if (!cb.checked) return;
+    var id = cb.getAttribute('data-pay-all-tick'), el = document.querySelector('[data-pay-all-amt="' + id + '"]');
+    var amt = gstRound(parseFloat(el && el.value) || 0);
+    if (amt > 0) out.push({ id: id, amount: amt });
+  });
+  return out;
+}
+function payAllLabel(given) {
+  var p = given || payAllPicked(), t = gstRound(p.reduce(function(a, x) { return a + x.amount; }, 0));
+  return p.length ? 'Record ' + todoPlural(p.length, 'payment') + ' · ' + formatCurrency(t) : 'Nothing ticked';
+}
+function payAllSave() {
+  var picked = payAllPicked(), date = (document.getElementById('payAllDate') || {}).value;
+  if (!picked.length) { showToast('Tick a hand to pay', 'error'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) { showToast('Enter a date', 'error'); return; }
+  if (!grdGate('payments', 'record payments', payAllSave)) return;   // P1 (guard.js)
+  var at = Date.now(), total = 0;
+  picked.forEach(function(x, i) {
+    var w = staffById(x.id);
+    if (!w) return;
+    staffPayments().push({ id: 'PAY-' + at.toString(36) + i + Math.random().toString(36).slice(2, 5), staffId: w.id, date: date, amount: x.amount,
+      kind: 'payment', note: 'weekly payout, week ' + attPayWeekNumber(_payAllWs || _attWeekStart), at: at });
+    total = gstRound(total + x.amount);
+  });
+  _payLast = { date: date, kind: 'payment' };
+  saveState();
+  closeTopOverlay();
+  renderAttendance();
+  showToast('Recorded ' + todoPlural(picked.length, 'payment') + ', ' + formatCurrency(total));
 }
 /* One payment as a fact: the day, by bank or typed here, an advance said; a leg the bank's name only reads as this hand says so. */
 function payPaymentFact(w, p) {
@@ -1216,6 +1283,8 @@ function payAction(action, btn) {
   switch (action) {
     case 'invPayPick': payPick(btn.dataset.id, parseFloat(btn.dataset.due) || 0); return true;
     case 'invPaySave': paySave(); return true;
+    case 'invPayAllOpen': payAllOpen(); return true;
+    case 'invPayAllSave': payAllSave(); return true;
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
     case 'invPayClear': payClear(btn.dataset.id, btn.dataset.through, parseFloat(btn.dataset.amount) || 0); return true;
     case 'invPayClearVoid': payClearVoid(btn.dataset.id); return true;

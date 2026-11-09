@@ -219,7 +219,7 @@ function cashPayCardHtml(ws) {
       actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayCashVoid" data-id="' + escHtml(e.id) + '">Void</button>' });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-card="cashout"><div class="inv-panel-head"><span class="inv-panel-title">Cash paid out</span>' +
-    '<span class="inv-panel-meta">' + formatCurrency(total) + '</span></div>' +
+    '<span class="inv-panel-count">' + formatCurrency(total) + '</span></div>' +
     '<div class="inv-note">Spent by the supervisor and paid back with the payout. ' + escHtml(sub) + '.</div>' + rows + '</div>';
 }
 
@@ -227,6 +227,206 @@ function cashAction(action, btn) {
   switch (action) {
     case 'invPayCashSave': cashReviewSave(); return true;
     case 'invPayCashVoid': cashVoid(btn.dataset.id); return true;
+  }
+  return scAction(action, btn);
+}
+
+/* ===== Cash with the supervisor =====
+   Owner, 7 Nov 2026, on the week to 7 Nov: the payout came to ₹44,152.50, ₹44,500 was handed to Shyam for it, "347.5 goes to Shyam,
+   and he had 290 due already = 637 total due - 400 ACI HCl trip = 237 due now"; then "Build the ledger". The cash the supervisor
+   holds for the shop, a running balance:
+   - what was handed for a week's payout (`S.payHanded[weekStart]`, typed on Pay) less the payout as the app works it out (payWeek)
+     goes to him, or comes out of what he holds where less was handed;
+   - what he spent from it outside the payout (an acid trip), what he gave back, and cash given to him on its own (`S.supCash`,
+     a line each, voided with a reason, never deleted);
+   - the balance as he and the owner agree it at the end of a day (kind `set`), from which the lines after it count.
+   Positive is the shop's cash with him; below zero, the shop owes him. On the bank's side a week's cash past its payout that he keeps
+   is his float, never the owner's drawings, and what he spends from it is the plant's other costs in its month (bankCostByMonth). */
+var SC_KINDS = {
+  spent: { label: 'Spent from it', verb: 'spent', sign: -1, title: 'Spent from the cash he holds', help: 'Paid by him from what he holds, not with a payout: an acid trip, a repair.' },
+  returned: { label: 'Given back', verb: 'given back', sign: -1, title: 'Given back to the shop', help: 'Cash he handed back.' },
+  given: { label: 'Given to him', verb: 'given to him', sign: 1, title: 'Cash given to him', help: 'Cash handed to him apart from a Saturday payout.' },
+  set: { label: 'Set the balance', verb: 'balance set', sign: 0, title: 'What he holds at the end of a day', help: 'The figure you and he agree. The lines after that day count on it.' }
+};
+var SC_ORDER = { over: 0, given: 1, spent: 2, returned: 3, set: 9 };
+function scEntries() { if (!Array.isArray(S.supCash)) S.supCash = []; return S.supCash; }
+function payHanded() { if (!S.payHanded || typeof S.payHanded !== 'object') S.payHanded = {}; return S.payHanded; }
+function payHandedFor(ws) {
+  var r = payHanded()[ws];
+  return r && r.amount != null ? { amount: gstRound(Number(r.amount) || 0), entered: true } : { amount: 0, entered: false };
+}
+/* The ledger: every line in day order, each with what it moved and the balance after it. A line on or before the last balance set
+   is shown and moves nothing. {rows (oldest first), balance, set (the last set line or null), any}. */
+function scLedger() {
+  var ev = [];
+  scEntries().forEach(function(e) {
+    if (!e || e.voidedAt || !SC_KINDS[e.kind] || !/^\d{4}-\d{2}-\d{2}$/.test(e.date || '')) return;
+    ev.push({ id: e.id, date: e.date, kind: e.kind, amount: gstRound(Number(e.amount) || 0), note: e.note || '', e: e });
+  });
+  var map = payHanded();
+  Object.keys(map).forEach(function(ws) {
+    var h = payHandedFor(ws);
+    if (!h.entered) return;
+    var pw = null;
+    try { pw = payWeek(ws); } catch (x) { pw = null; }
+    if (!pw) return;
+    ev.push({ id: 'wk:' + ws, ws: ws, date: isoAddDays(ws, 6), kind: 'over', handed: h.amount, payout: gstRound(pw.total), amount: gstRound(h.amount - pw.total) });
+  });
+  ev.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (SC_ORDER[a.kind] - SC_ORDER[b.kind]) || String(a.id).localeCompare(String(b.id)); });
+  var lastSet = -1;
+  ev.forEach(function(r, i) { if (r.kind === 'set') lastSet = i; });
+  var bal = 0;
+  ev.forEach(function(r, i) {
+    if (r.kind === 'set') { r.delta = null; if (i === lastSet) bal = r.amount; r.before = i < lastSet; r.balance = r.amount; return; }
+    var d = r.kind === 'over' ? r.amount : SC_KINDS[r.kind].sign * r.amount;
+    r.before = lastSet >= 0 && i < lastSet;
+    r.delta = d;
+    if (!r.before) bal = gstRound(bal + d);
+    r.balance = r.before ? null : bal;
+  });
+  return { rows: ev, balance: bal, set: lastSet >= 0 ? ev[lastSet] : null, any: ev.length > 0 };
+}
+/* What the supervisor kept from a week's handed cash: its figure on the bank's side (null when nothing was typed for the week). */
+function scWeekKept(ws, payout) {
+  var h = payHandedFor(ws);
+  return h.entered ? gstRound(h.amount - payout) : null;
+}
+function scBalanceWords(b) {
+  return Math.abs(b) < 0.005 ? 'Holds nothing' : b > 0 ? 'Holds ' + formatCurrency(b) : 'Owed ' + formatCurrency(-b) + ' by the shop';
+}
+/* Type what was handed to the supervisor for a week's payout; blank takes it off. P1: money paid out. */
+async function payHandedSet(ws) {
+  if (!ws || !grdGate('payments', 'enter the cash handed for the payout', function() { payHandedSet(ws); })) return;
+  var cur = payHandedFor(ws), pw = payWeek(ws);
+  var v = await uiPrompt({ title: 'Handed for the payout, week ' + attPayWeekNumber(ws),
+    body: 'The cash given to the supervisor on Saturday for this payout (' + formatCurrency(pw.total) + '). What is over it stays with him; '
+      + 'a monthly hand’s wage handed at the same time is a payment on Pay, not part of this. Leave it blank to take it off.',
+    label: 'Handed (₹)', value: cur.entered ? String(cur.amount) : '', placeholder: 'e.g. 44500', okLabel: 'Save' });
+  if (v == null) return;
+  v = String(v).replace(/[,₹\s]/g, '');
+  var map = payHanded();
+  if (v === '') { if (!cur.entered) return; delete map[ws]; }
+  else {
+    var n = parseFloat(v);
+    if (!(n >= 0)) { showToast('Type an amount in rupees', 'error'); return; }
+    map[ws] = { amount: gstRound(n), at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null };
+  }
+  saveState();
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  if (v === '') { showToast('Handed cash taken off week ' + attPayWeekNumber(ws)); return; }
+  var over = gstRound(map[ws].amount - pw.total);
+  showToast('Handed ' + formatCurrency(map[ws].amount) + (Math.abs(over) < 0.005 ? ', the payout exactly' : over > 0 ? ': ' + formatCurrency(over) + ' stays with the supervisor' : ': ' + formatCurrency(-over) + ' short, from what he holds'));
+}
+
+/* The form: one kind at a time, as a guided flow (U4). */
+var _scKind = 'spent';
+function scFormVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+function scFormModel() {
+  var k = SC_KINDS[_scKind] || SC_KINDS.spent, today = localDateStr();
+  var amount = scFormVal('scAmount'), date = scFormVal('scDate'), note = scFormVal('scNote');
+  var a = parseFloat(amount), okAmt = amount !== '' && a >= 0 && (_scKind === 'set' || a > 0), okDay = /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today;
+  var needNote = _scKind === 'spent', checks = [], lines = [];
+  var L = scLedger();
+  if (okAmt && okDay) {
+    var after;
+    if (_scKind === 'set') after = gstRound(a);
+    else {
+      var setDay = L.set ? L.set.date : null;
+      after = setDay && date <= setDay ? L.balance : gstRound(L.balance + k.sign * a);
+      if (setDay && date <= setDay) checks.push({ tone: 'warning', text: 'On or before the balance set on ' + formatDate(setDay) + ': it moves nothing.' });
+    }
+    lines.push(scBalanceWords(L.balance) + ' now → ' + scBalanceWords(after).replace(/^Holds/, 'holds').replace(/^Owed/, 'owed'));
+  } else lines.push(scBalanceWords(L.balance) + ' now.');
+  if (date && date > today) checks.push({ tone: 'danger', text: 'The day cannot be after today.' });
+  return {
+    steps: [
+      { key: 'amount', title: _scKind === 'set' ? 'What does he hold?' : 'How much?', help: k.help, done: okAmt, says: okAmt ? formatCurrency(a) : '', body: '' },
+      { key: 'day', title: _scKind === 'set' ? 'At the end of which day?' : 'On which day?', done: okDay, says: okDay ? formatDate(date) : '', body: '' },
+      { key: 'note', title: needNote ? 'What was it for?' : 'A note?', optional: !needNote, done: !!note, says: note, body: '' }
+    ],
+    preview: { title: 'What he holds', lines: lines, checks: checks }
+  };
+}
+uiFlowDefine('scForm', scFormModel);
+function scFormOpen(kind) {
+  if (!SC_KINDS[kind]) return;
+  if (!grdGate('payments', 'record the supervisor’s cash', function() { scFormOpen(kind); })) return;
+  _scKind = kind;
+  var k = SC_KINDS[kind], today = localDateStr(), model = scFormModel();
+  var f = function(id, label, control, wide) { return '<label class="inv-field' + (wide ? ' inv-kv-wide' : '') + '"><span class="inv-field-label">' + label + '</span>' + control + '</label>'; };
+  var body = {
+    amount: f('scAmount', 'Amount (₹)', '<input class="inv-input inv-input-num" id="scAmount" type="number" step="0.01" min="0" inputmode="decimal">'),
+    day: f('scDate', kind === 'set' ? 'At the end of' : 'Day', '<input class="inv-input" id="scDate" type="date" max="' + today + '" value="' + today + '">'),
+    note: f('scNote', kind === 'spent' ? 'What it was for' : 'Note', '<input class="inv-input" id="scNote" autocomplete="off" placeholder="' + (kind === 'spent' ? 'e.g. HCl trip' : '') + '">', true)
+  };
+  model.steps.forEach(function(s) { s.body = body[s.key]; });
+  dialogOpen('<div class="inv-dialog" data-sc-form="' + escHtml(kind) + '">' + dialogHeadHtml(escHtml(k.title)) +
+    '<div data-sc-flow>' + uiFlowHtml('scForm', model) + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invPayScSave">Save</button></div></div>', { dismiss: true });
+}
+function scSave() {
+  if (!grdGate('payments', 'record the supervisor’s cash', scSave)) return;
+  var kind = _scKind, amount = parseFloat(scFormVal('scAmount')), date = scFormVal('scDate'), note = scFormVal('scNote');
+  if (!(amount >= 0) || (kind !== 'set' && !(amount > 0))) { showToast('Type the amount', 'error'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDateStr()) { showToast('Pick a day, today or before', 'error'); return; }
+  if (kind === 'spent' && !note) { showToast('Say what it was for', 'error'); return; }
+  scEntries().push({ id: 'SC-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: date, kind: kind, amount: gstRound(amount),
+    note: note, at: Date.now(), by: typeof grdUserId === 'function' ? grdUserId() : null });
+  saveState();
+  closeTopOverlay();
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast(SC_KINDS[kind].label + ': ' + formatCurrency(amount) + '. ' + scBalanceWords(scLedger().balance) + '.');
+}
+async function scVoid(id) {
+  var e = scEntries().find(function(x) { return x.id === id; });
+  if (!e || e.voidedAt) return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void a line of the supervisor’s cash'))) return;
+  var reason = await uiPrompt({ title: 'Void this line', body: 'It is kept on the record, not deleted.', label: 'Why is it void?',
+    okLabel: 'Void it', required: true, requiredText: 'A void needs a reason.' });
+  if (reason == null || e.voidedAt) return;
+  reason = reason.trim();
+  if (!reason) { showToast('A void needs a reason', 'error'); return; }
+  e.voidedAt = Date.now();
+  e.voidReason = reason;
+  saveState();
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast('Voided. ' + scBalanceWords(scLedger().balance) + '.');
+}
+/* Pay's card: what the supervisor holds now, and the lines that made it, the latest first. */
+var SC_ROWS_SHOWN = 12;
+function scCardHtml() {
+  var L = scLedger(), b = L.balance;
+  var tone = Math.abs(b) < 0.005 ? '' : b > 0 ? '' : ' inv-fig-warning';
+  var acts = '<div class="inv-row-actions">' + ['spent', 'returned', 'given', 'set'].map(function(k) {
+    return '<button class="inv-btn ' + (k === 'spent' ? 'inv-btn-secondary' : 'inv-btn-ghost') + ' inv-btn-sm" data-action="invPayScOpen" data-kind="' + k + '">' + SC_KINDS[k].label + '</button>';
+  }).join('') + '</div>';
+  var rows = L.rows.slice().reverse().slice(0, SC_ROWS_SHOWN).map(function(r) {
+    var sign = function(d) { return d == null ? '' : (d >= 0 ? '+' : '−') + formatCurrency(Math.abs(d)); };
+    if (r.kind === 'over') {
+      return uiFactRowHtml({ label: 'Week ' + attPayWeekNumber(r.ws) + ' payout', value: sign(r.delta),
+        sub: 'handed ' + formatCurrency(r.handed) + ' for ' + formatCurrency(r.payout) + ' · ' + stockShortDate(r.date) + (r.before ? ' · before the balance set' : ' · then ' + formatCurrency(r.balance)),
+        attrs: ' data-sc-row="' + escHtml(r.id) + '"' });
+    }
+    var k = SC_KINDS[r.kind];
+    return uiFactRowHtml({ label: r.kind === 'set' ? 'Balance set' : escHtml(r.note || k.label), value: r.kind === 'set' ? formatCurrency(r.amount) : sign(r.delta),
+      sub: (r.kind === 'set' ? (r.note ? escHtml(r.note) + ' · ' : '') + 'end of ' : k.verb + ' · ') + stockShortDate(r.date) +
+        (r.kind === 'set' ? (r.before ? ' · replaced by a later one' : '') : r.before ? ' · before the balance set' : ' · then ' + formatCurrency(r.balance)),
+      attrs: ' data-sc-row="' + escHtml(r.id) + '"',
+      actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayScVoid" data-id="' + escHtml(r.id) + '">Void</button>' });
+  }).join('');
+  var more = L.rows.length > SC_ROWS_SHOWN ? '<div class="inv-note">' + todoPlural(L.rows.length - SC_ROWS_SHOWN, 'older line') + ' not shown.</div>' : '';
+  return '<div class="inv-panel inv-panel-flush" data-card="supcash"><div class="inv-panel-head"><span class="inv-panel-title">Cash with the supervisor</span>' +
+    '<span class="inv-panel-count' + tone + '" data-sc-balance>' + scBalanceWords(b) + '</span></div>' +
+    (L.any ? '' : '<div class="inv-note">Nothing recorded. Set what he holds, then type what is handed for each payout on its card above.</div>') +
+    rows + more + acts + '</div>';
+}
+function scAction(action, btn) {
+  switch (action) {
+    case 'invPayHanded': payHandedSet(btn.dataset.week); return true;
+    case 'invPayScOpen': scFormOpen(btn.dataset.kind); return true;
+    case 'invPayScSave': scSave(); return true;
+    case 'invPayScVoid': scVoid(btn.dataset.id); return true;
   }
   return false;
 }

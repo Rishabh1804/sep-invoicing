@@ -97,7 +97,8 @@ test.describe('P259: money and controls (Iuno)', () => {
     await expect(labour.locator('[data-cost-tiers-held]')).toHaveCount(1);
     expect(await labour.innerText()).not.toMatch(/Hourly pool|Monthly crew|EXTRA pool/);
     // The weekly report: the heads and hours, never the payout or the pool.
-    await g(page, `rptSet('weekly', localDateStr())`);
+    // Last week: on the first day of a pay week the long book holds no attendance for it yet, and its staff section says only that.
+    await g(page, `rptSet('weekly', isoAddDays(localDateStr(), -7))`);
     await switchTab(page, 'pageReports');
     const doc = page.locator('.inv-rpt-doc');
     await expect(doc.locator('[data-rpt-p="wages-held"]')).toHaveCount(1);

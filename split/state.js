@@ -49,6 +49,8 @@ function getDefaultState() {
     areaTargets: {},
     shiftNeeds: {},
     paySnacksPaid: {},
+    payHanded: {},
+    supCash: [],
     // Attendance, keyed by ISO date. One entry per day the plant was recorded;
     // a day with no key is a day nobody typed, which is not the same fact as a
     // day nobody worked — labour coverage is stated on that distinction.
@@ -635,7 +637,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'paySnacksPaid', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'messages', 'msgImports', 'msgProfile', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'paySnacksPaid', 'payHanded', 'supCash', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'cashOut', 'cashPastes', 'messages', 'msgImports', 'msgProfile', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
   'devices', 'market'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so

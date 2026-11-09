@@ -1111,7 +1111,7 @@ rewritten to the same facts where they now live (§21), never weakened.
   challan by its rhythm; owed and days to pay under the name; the worst large account settled under the table, `#statsWorst`); **By
   part** (every part, one client's a row, `buildTopItems(…, Infinity)`); **By month** (six months, `statsMonthsData`, the widgets'
   rows too); **Cost** (the labour card and the live cost as Stats → Cost drew them). A head tapped sorts (`invStatsSort`, `aria-sort`,
-  ▲ ▼), again the other way; its default is the table's own order (By client worst priced first). The CSV is the table on show, the
+  ▲ ▼), again the other way; its default is the table's own order (By client worst priced first). On the phone a table shows its first eight rows, the rest one tap away (`STATS_TBL_PHONE_ROWS`; a month's parts grow with its days, and By part read 1.61 screens on the 9th). The CSV is the table on show, the
   workbook every table (`xlsxBuild`), each in the order on screen.
 - **Where an old place lands** (`NAV_REDIRECTS`, `STATS_TAB_OLD`): `clients` → Tables by client, `cost` → Tables' Cost, `trends` →
   the Dashboard, for an address, the device's remembered tab, a saved task's `{kind: 'stats', tab}` (`statsOpen`) and its label
@@ -5119,6 +5119,22 @@ works"*) is replaced; what the app does with a reading is the reader it always h
   offers them as one row (`data-mc-photos`, its senders and days), **Read them** handing them to Production's check with their sender and
   minute. The import's record gains `photos`, the count.
 - **A data flow changed**: the requests to `api.anthropic.com`, carrying the photo alone; `production.photos` gains `sentBy` and `usd`.
+
+### Cash with the supervisor (9 Nov 2026)
+Owner, 7 Nov 2026, on the week to 7 Nov (the payout ₹44,152.50, ₹44,500 handed for it): *"347.5 goes to Shyam, and he had 290 due
+already = 637 total due - 400 ACI HCl trip = 237 due now"*; then (9 Nov) *"Build the ledger"*. The cash the supervisor holds for the
+shop, a running balance (cashout.js, `scLedger`; P261):
+- **Handed for it** on Pay's payout card (`S.payHanded[weekStart]`, `payHandedSet`, behind the payments permission): what was given
+  him on Saturday for the payout; less the payout as the app works it out (`payWeek().total`) it goes to him, or, where less was
+  handed, comes out of what he holds. A monthly hand's wage handed at the same time is a payment on Pay, not part of it.
+- **Lines** (`S.supCash`: `set`, `spent`, `returned`, `given`, a day, an amount, a note; voided with a reason, never deleted): a
+  balance set is what he holds at the end of its day, and only the lines after the last one count; a spend needs what it was for.
+- **Pay → Cash with the supervisor** (`scCardHtml`, `[data-card="supcash"]`): *Holds ₹237.50* (or *Owed ₹X by the shop*), the latest
+  twelve lines with the balance after each, and the four doors.
+- **The bank's cash split**: a week's cash past its payout, its cash paid out and a monthly hand's wage, up to what was handed over
+  the payout, is his float (`c.float`), never the owner's drawings; what he spends from it is other cost in its month, within the
+  statement's cover (`other.supCash`).
+- **A data flow changed**: `S.payHanded` and `S.supCash` travel with the book (backups, GitHub, the merge; in the change log).
 
 ### Shifts by line: the night shift
 Owner, 29 Oct 2026: a night shift on VAT A1 from that day, *"Build it as a schedule per line with a start date, read by attendance,

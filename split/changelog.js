@@ -78,6 +78,8 @@ var CHG_TRACK = [
   // marked differently keeps both versions, each with its stamp, for the owner to pick (owner, 28 Oct 2026: "keep both versions").
   { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], deep: ['marks'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'paySnacksPaid', kind: 'map', noun: 'snacks paid', plural: 'weeks of snacks paid', label: function(r, k) { return chgJoin('week of ' + chgDay(k), chgMoney(r && r.amount)); } },
+  { path: 'payHanded', kind: 'map', noun: 'cash handed for a payout', plural: 'weeks of cash handed', label: function(r, k) { return chgJoin('week of ' + chgDay(k), chgMoney(r && r.amount)); } },
+  { path: 'supCash', kind: 'arr', noun: 'supervisor’s cash', label: function(r) { return chgJoin(r.kind === 'set' ? 'balance set' : r.kind, r.note, chgMoney(r.amount), r.date ? chgDay(r.date) : ''); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },

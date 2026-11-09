@@ -1111,7 +1111,7 @@ rewritten to the same facts where they now live (§21), never weakened.
   challan by its rhythm; owed and days to pay under the name; the worst large account settled under the table, `#statsWorst`); **By
   part** (every part, one client's a row, `buildTopItems(…, Infinity)`); **By month** (six months, `statsMonthsData`, the widgets'
   rows too); **Cost** (the labour card and the live cost as Stats → Cost drew them). A head tapped sorts (`invStatsSort`, `aria-sort`,
-  ▲ ▼), again the other way; its default is the table's own order (By client worst priced first). The CSV is the table on show, the
+  ▲ ▼), again the other way; its default is the table's own order (By client worst priced first). On the phone a table shows its first eight rows, the rest one tap away (`STATS_TBL_PHONE_ROWS`; a month's parts grow with its days, and By part read 1.61 screens on the 9th). The CSV is the table on show, the
   workbook every table (`xlsxBuild`), each in the order on screen.
 - **Where an old place lands** (`NAV_REDIRECTS`, `STATS_TAB_OLD`): `clients` → Tables by client, `cost` → Tables' Cost, `trends` →
   the Dashboard, for an address, the device's remembered tab, a saved task's `{kind: 'stats', tab}` (`statsOpen`) and its label

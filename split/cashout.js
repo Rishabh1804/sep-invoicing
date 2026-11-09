@@ -219,7 +219,7 @@ function cashPayCardHtml(ws) {
       actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayCashVoid" data-id="' + escHtml(e.id) + '">Void</button>' });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-card="cashout"><div class="inv-panel-head"><span class="inv-panel-title">Cash paid out</span>' +
-    '<span class="inv-panel-meta">' + formatCurrency(total) + '</span></div>' +
+    '<span class="inv-panel-count">' + formatCurrency(total) + '</span></div>' +
     '<div class="inv-note">Spent by the supervisor and paid back with the payout. ' + escHtml(sub) + '.</div>' + rows + '</div>';
 }
 
@@ -417,7 +417,7 @@ function scCardHtml() {
   }).join('');
   var more = L.rows.length > SC_ROWS_SHOWN ? '<div class="inv-note">' + todoPlural(L.rows.length - SC_ROWS_SHOWN, 'older line') + ' not shown.</div>' : '';
   return '<div class="inv-panel inv-panel-flush" data-card="supcash"><div class="inv-panel-head"><span class="inv-panel-title">Cash with the supervisor</span>' +
-    '<span class="inv-panel-meta' + tone + '" data-sc-balance>' + scBalanceWords(b) + '</span></div>' +
+    '<span class="inv-panel-count' + tone + '" data-sc-balance>' + scBalanceWords(b) + '</span></div>' +
     (L.any ? '' : '<div class="inv-note">Nothing recorded. Set what he holds, then type what is handed for each payout on its card above.</div>') +
     rows + more + acts + '</div>';
 }

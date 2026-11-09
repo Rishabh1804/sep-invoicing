@@ -467,7 +467,8 @@ function _attPayView() {
   html += payLabourPanelsHtml();
   html += _payDueCard(ws, due);
   if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
-  if (typeof scCardHtml === 'function') html += scCardHtml();
+  // Shut to its head, which says what he holds (P195's budget for Pay).
+  if (typeof scCardHtml === 'function') html += uiFoldCard('supcash', scCardHtml(), false);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees

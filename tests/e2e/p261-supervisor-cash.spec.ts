@@ -42,6 +42,7 @@ test('on Pay: the cash handed, a balance set, a spend and its void move what he 
   await ev(page, `_attView = 'pay'; _attWeekStart = '${ws}'; _attDate = '${TODAY}'; renderAttendance()`);
   const card = page.locator('[data-card="supcash"]');
   await expect(card.locator('[data-sc-balance]')).toHaveText('Holds nothing');
+  if (!(await card.evaluate(el => (el as HTMLDetailsElement).open))) await card.locator(':scope > summary').click();
   // A balance set at the end of yesterday.
   await card.locator('[data-action="invPayScOpen"][data-kind="set"]').click();
   let dlg = page.locator('[data-sc-form="set"]');

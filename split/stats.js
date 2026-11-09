@@ -750,8 +750,11 @@ function statsTableHtml(model) {
     }).join('') + '</tr>';
   });
   return '<div class="inv-scroll-x"><table class="inv-table" data-stats-tbl="' + escHtml(model.key) + '"><thead>' + head + '</thead><tbody>' +
-    uiMoreHtml('stats-tbl-' + model.key, rows, { n: UI_MORE_ROWS, noun: model.noun || 'rows', tr: cols.length }) + '</tbody></table></div>';
+    uiMoreHtml('stats-tbl-' + model.key, rows, { n: _isDesktop ? UI_MORE_ROWS : STATS_TBL_PHONE_ROWS, noun: model.noun || 'rows', tr: cols.length }) + '</tbody></table></div>';
 }
+/* A table's first rows on the phone, the rest one tap away: a part's row is two lines, and a month's parts grow with its days (By part
+   read 1.61 phone screens on the 9th of a month, over P195's 1.5, with 11 parts). */
+var STATS_TBL_PHONE_ROWS = 8;
 function statsTableViewHtml(t, pa) {
   if (t === 'cost') {
     /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them before U3. On All the labour card's

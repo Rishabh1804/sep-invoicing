@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="30af9193">
+<meta name="app-build" content="b366a15a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -29812,7 +29812,8 @@ function _attPayView() {
   html += payLabourPanelsHtml();
   html += _payDueCard(ws, due);
   if (typeof cashPayCardHtml === 'function') html += cashPayCardHtml(ws);
-  if (typeof scCardHtml === 'function') html += scCardHtml();
+  // Shut to its head, which says what he holds (P195's budget for Pay).
+  if (typeof scCardHtml === 'function') html += uiFoldCard('supcash', scCardHtml(), false);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
   // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
@@ -39422,7 +39423,7 @@ function cashPayCardHtml(ws) {
       actions: '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayCashVoid" data-id="' + escHtml(e.id) + '">Void</button>' });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-card="cashout"><div class="inv-panel-head"><span class="inv-panel-title">Cash paid out</span>' +
-    '<span class="inv-panel-meta">' + formatCurrency(total) + '</span></div>' +
+    '<span class="inv-panel-count">' + formatCurrency(total) + '</span></div>' +
     '<div class="inv-note">Spent by the supervisor and paid back with the payout. ' + escHtml(sub) + '.</div>' + rows + '</div>';
 }
 
@@ -39620,7 +39621,7 @@ function scCardHtml() {
   }).join('');
   var more = L.rows.length > SC_ROWS_SHOWN ? '<div class="inv-note">' + todoPlural(L.rows.length - SC_ROWS_SHOWN, 'older line') + ' not shown.</div>' : '';
   return '<div class="inv-panel inv-panel-flush" data-card="supcash"><div class="inv-panel-head"><span class="inv-panel-title">Cash with the supervisor</span>' +
-    '<span class="inv-panel-meta' + tone + '" data-sc-balance>' + scBalanceWords(b) + '</span></div>' +
+    '<span class="inv-panel-count' + tone + '" data-sc-balance>' + scBalanceWords(b) + '</span></div>' +
     (L.any ? '' : '<div class="inv-note">Nothing recorded. Set what he holds, then type what is handed for each payout on its card above.</div>') +
     rows + more + acts + '</div>';
 }
@@ -49140,8 +49141,11 @@ function statsTableHtml(model) {
     }).join('') + '</tr>';
   });
   return '<div class="inv-scroll-x"><table class="inv-table" data-stats-tbl="' + escHtml(model.key) + '"><thead>' + head + '</thead><tbody>' +
-    uiMoreHtml('stats-tbl-' + model.key, rows, { n: UI_MORE_ROWS, noun: model.noun || 'rows', tr: cols.length }) + '</tbody></table></div>';
+    uiMoreHtml('stats-tbl-' + model.key, rows, { n: _isDesktop ? UI_MORE_ROWS : STATS_TBL_PHONE_ROWS, noun: model.noun || 'rows', tr: cols.length }) + '</tbody></table></div>';
 }
+/* A table's first rows on the phone, the rest one tap away: a part's row is two lines, and a month's parts grow with its days (By part
+   read 1.61 phone screens on the 9th of a month, over P195's 1.5, with 11 parts). */
+var STATS_TBL_PHONE_ROWS = 8;
 function statsTableViewHtml(t, pa) {
   if (t === 'cost') {
     /* Labour, then the live cost: every component with its source (cost.js), as Stats → Cost drew them before U3. On All the labour card's

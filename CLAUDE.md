@@ -5270,6 +5270,10 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
   over, not paid, as the slip, not on the slip, no earnings recorded, to date); opened, where the earnings came from, each payment,
   a crossing, the balance after it, and **Print the slip** (`psOne`). Payments in these periods lists the bank's legs too, without a
   Void.
+- **Pay all due** (owner, 9 Nov 2026: *"For weekly payout, I have to individually go and mark paid for every worker. We should have
+  an option to mark multiple at once"*; `payAllOpen`, `payAllSave`, P262): over the weekly group where two or more weekly hands have
+  something due, one row opens a list of them, each ticked at what is due, its amount editable, one day for all; Save records a
+  payment a hand ticked (`note`: the week), behind the payments permission. The monthly crew is paid one at a time, on its month.
 - **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,
   kind: payment|advance, note, at, voidedAt?, voidReason?}]`). A wrong one is **voided with a
   reason, never deleted**. A negative due is an advance not yet worked off. Tapping a worker fills

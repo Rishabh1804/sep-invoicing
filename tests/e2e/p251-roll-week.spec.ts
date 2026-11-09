@@ -122,7 +122,7 @@ NIGHT HOLD 6 PM TO 6 AM
     expect([e.inMin, e.outMin, e.hours]).toEqual([510, 720, 3]);
   });
 
-  test('the payout\'s cut-off is Saturday at 5 PM: the Saturday night, its EXTRA and its snacks are the next week\'s', async ({ page }) => {
+  test('the payout\'s cut-off is Saturday at 5 PM: the Saturday night and its EXTRA are the next week\'s', async ({ page }) => {
     // The last Saturday before this week, and the pay week that ends on it.
     let sat = shift(todayIso(), -7); while (new Date(sat + 'T00:00:00').getDay() !== 6) sat = shift(sat, -1);
     const wk = shift(sat, -6), next = shift(sat, 1);
@@ -133,8 +133,8 @@ NIGHT HOLD 6 PM TO 6 AM
         { kind: 'coverage', area: 'pickling-vat', hours: 8, crew: [], src: 'relay' }] } } }));
     const r: any = await ev(page, `(function() {
       var cfg = labourCfg(), a = payWeek('${wk}'), b = payWeek('${next}');
-      return { rate: cfg.extraRate, aB: a.lab.byWorker[2].total, aC: a.lab.byWorker[3].total, aX: a.extra, aS: a.snacks.amount,
-        bB: b.lab.byWorker[2] ? b.lab.byWorker[2].total : 0, bX: b.extra, bS: b.snacks.amount, snack: cfg.snackNight };
+      return { rate: cfg.extraRate, aB: a.lab.byWorker[2].total, aC: a.lab.byWorker[3].total, aX: a.extra,
+        bB: b.lab.byWorker[2] ? b.lab.byWorker[2].total : 0, bX: b.extra };
     })()`);
     // 8:30 AM to 5 PM is the Saturday's own payout (8 h at ₹50); the 13 hours after 5 PM are the next week's.
     expect(r.aB).toBe(400);
@@ -143,8 +143,5 @@ NIGHT HOLD 6 PM TO 6 AM
     // The block from 5 PM is the next week's EXTRA; the general shift's coverage stays.
     expect(r.aX).toBe(8 * r.rate);
     expect(r.bX).toBe(13 * r.rate);
-    // The Saturday night's snack goes with it.
-    expect(r.aS).toBe(0);
-    expect(r.bS).toBe(r.snack);
   });
 });

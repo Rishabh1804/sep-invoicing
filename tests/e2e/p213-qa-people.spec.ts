@@ -13,7 +13,7 @@ import { PINS, unlock, withUsers } from './p140-guard.fixture';
 // - A card naming an area short is never green (A4-5); the floor over its number is info (A4-13); a week's worked holiday is not a
 //   day recorded past the working days (A4-12); the register's agreeing cell is ok in its dialog (A4-14).
 // - Every disagreement on the extra can be explained (A4-15), and only by a role that may make a floor entry (A4-16).
-// - A night block from midnight is read as the night's (A4-9); the hours to check are on Pay's card face (A4-10); a Sunday's snacks
+// - A night block from midnight is read as the night's (A4-9); the hours to check are on Pay's card face (A4-10); the week's snacks
 //   stay out of the week's pace (A4-11); the paste box goes back to People (A4-19); the dead helpers are gone (A4-18).
 // Names, wages and the statement are made up; dates are built from today.
 
@@ -355,14 +355,15 @@ test.describe('P213: the week’s payout', () => {
     await expect(card).toHaveClass(/inv-hero-warning/);
   });
 
-  test('A4-11: a Sunday’s snacks are the Sunday’s, never spread over the week’s pace', async ({ page }) => {
+  test('A4-11: the week’s snacks, as paid, are never spread over the week’s pace', async ({ page }) => {
     // Wednesday of last week: the week is open, Sunday, Monday and Tuesday recorded.
     await page.clock.install({ time: new Date(shift(WS, 3) + 'T10:00:00') });
     const s: any = book();
-    // The Sunday: eleven hours and an evening block (a snack at ₹20); Monday and Tuesday eight hours each, out at 5 PM.
+    // The Sunday: eleven hours and an evening block; Monday and Tuesday eight hours each, out at 5 PM. ₹20 of snacks typed for the week.
     s.attendance[WS] = { marks: { 5: { st: 'P', area: 'barrel', inMin: 510, outMin: 1200, hours: 11, ot: 0 } },
       extra: [{ kind: 'block', area: 'barrel', areas: ['barrel'], from: '17:00', to: '20:00', hours: 0, crew: [5] }], note: '' };
     [1, 2].forEach(i => { s.attendance[shift(WS, i)] = { marks: { 5: { st: 'P', area: 'barrel', inMin: 510, outMin: 1020, hours: 8, ot: 0 } }, extra: [], note: '' }; });
+    s.paySnacksPaid = { [WS]: { amount: 20 } };
     await loadAppWithState(page, s);
     const f: any = await ev(page, `(function(f) { return { open: f.open, basis: f.basis, pace: f.pace, snacks: f.week.snacks.amount }; })(payForecast('${WS}'))`);
     expect(f).toMatchObject({ open: true, basis: 'pace', snacks: 20 });

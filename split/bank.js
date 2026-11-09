@@ -979,6 +979,21 @@ function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d
 function bankCashWeekKnown(pw) {
   return !!(pw && pw.recordedDays > 0 && pw.recordedDays >= Math.ceil((pw.workingDays || 6) * 0.9) && !(pw.lab && pw.lab.hourlessMarks > 0));
 }
+/* The cash payments typed on Pay to monthly hands in a pay week (Sunday to Saturday), less any the statement holds as a
+   transfer to the hand (payPaymentsOf's own matching): [{amount, month}], the month the payment pays (payMonthPaidFor). */
+function bankMonthlyCashIn(ws) {
+  if (typeof payPaymentsOf !== 'function') return [];
+  var sat = isoAddDays(ws, 6), out = [];
+  (S.staff || []).forEach(function(w) {
+    if (!w || w.comp !== 'monthly') return;
+    payPaymentsOf(w.id).forEach(function(p) {
+      if (p.how !== 'hand' || p.date < ws || p.date > sat || !(p.amount > 0)) return;
+      var m = payMonthPaidFor(p);
+      if (m) out.push({ amount: p.amount, month: m });
+    });
+  });
+  return out;
+}
 function bankCostByMonth(cls) {
   cls = cls || bankClassify();
   var cover = bankCover(), out = {};
@@ -1019,7 +1034,17 @@ function bankCostByMonth(cls) {
     // wages, and past both it is drawings.
     var known = bankCashWeekKnown(pw), cashOut = known ? (pw.cashOut || 0) : 0;
     var wages = known ? Math.min(c.amount, Math.max(0, pw.total - cashOut)) : 0, misc = known ? Math.min(c.amount - wages, cashOut) : 0;
-    c.wages = wages; c.misc = misc; c.drawings = known ? c.amount - wages - misc : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
+    // Cash paid that week to a monthly hand, typed on Pay and on no bank leg (owner, 7 Nov 2026: the night guard's wage paid in
+    // cash beside the Saturday's payout), is wages too, for the month it pays (payMonthPaidFor), never the owner's drawings.
+    var hands = known ? bankMonthlyCashIn(ws) : [], left = known ? c.amount - wages - misc : 0, handCash = 0;
+    hands.forEach(function(h) {
+      var part = Math.min(h.amount, Math.max(0, left - handCash));
+      if (part <= 0) return;
+      handCash += part;
+      var H = at(h.month.slice(0, 7)).labour;
+      H.amount += part; H.handCash = (H.handCash || 0) + part;
+    });
+    c.wages = wages; c.misc = misc; c.handCash = handCash; c.drawings = known ? c.amount - wages - misc - handCash : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
     var seen = {};
     for (var k = 0; k < 7; k++) {
       var d = attParseIso(ws); d.setDate(d.getDate() + k);
@@ -1084,7 +1109,7 @@ function bankCostForRange(from, to, byMonth) {
       if (why) { res[k].unknown.push({ month: ym, why: why }); return; }
       res[k].known += rangeShare;
       res[k].amount += (c ? c.amount : 0) * share;
-      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0,
+      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, handCash: c && c.handCash || 0,
         drawings: c && c.drawings || 0, openCounted: c && c.openCounted || 0, rows: c ? c.rows : [] });
     });
   }

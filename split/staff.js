@@ -1079,6 +1079,8 @@ function _attExtraCard(iso, rec) {
     '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>';
   if (rows.length === 0) return html + uiEmptyHtml('None booked for this day') + '</div>';
+  // A booking the rule does not reach is said here, where it was booked, with Accept (with explanation) (owner, 7 Nov 2026).
+  if (typeof areaDayFlagsHtml === 'function') html += areaDayFlagsHtml(iso);
   // data-idx is the row's place in the day's rows, the made blocks included: the setters read it.
   all.forEach(function(x, i) {
     if (attSlotMade(x)) return;

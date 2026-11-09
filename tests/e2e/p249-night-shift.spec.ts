@@ -5,7 +5,7 @@ import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState
 // P249: a line's schedule with a start date (owner, 29 Oct 2026: a night shift on VAT A1, "Build it as a schedule per line with a
 // start date, read by attendance, pay, EXTRA, production, efficiency, power, capacity and the planner"). The night's heading starts
 // at the schedule's start; a hand on the night and on no other roll is in at it, 12 hours to 6 AM (a monthly hand's 4 of them OT,
-// with the night snack); a hand in from 4 PM is no head of the general shift; a night block's norm is the schedule's crew; the
+// a hand in from 4 PM is no head of the general shift; a night block's norm is the schedule's crew; the
 // To-do flags a short night and a hand on two shifts back to back; efficiency judges the night against its plating time less the
 // break; a night page's times run on past midnight; a cut in the night is in working hours; capacity counts the night. Made-up names.
 
@@ -73,7 +73,7 @@ test.describe('P249: the night shift on a line\'s schedule', () => {
     expect(sun[2]).toBeNull();
   });
 
-  test('the roll: the night heading starts at 6 PM; a hand on the night alone is in at it, 12 hours; the snack is the night\'s', async ({ page }) => {
+  test('the roll: the night heading starts at 6 PM; a hand on the night alone is in at it, 12 hours', async ({ page }) => {
     await loadAppWithState(page, book());
     await pasteAndSave(page, IN);
     await pasteAndSave(page, OUT);
@@ -87,8 +87,6 @@ test.describe('P249: the night shift on a line\'s schedule', () => {
     expect(day.marks[2]).toMatchObject({ st: 'P', inMin: 1080, outMin: 1800, hours: 12, ot: 0 });
     // The day hand who stayed on: 8:30 to 6 AM, said on the review as over 16 hours, and flagged back to back.
     expect(day.marks[1]).toMatchObject({ inMin: 510, outMin: 1800 });
-    const snacks = await ev(page, `paySnacks('${DAY}', '${DAY}').days['${DAY}']`);
-    expect(snacks.night).toBe(4);
     const twice = await ev(page, `shiftBackToBack('${DAY}').map(function(x) { return x.id + ':' + x.kind; })`);
     expect(twice).toEqual(['1:same']);
     // The roll's own heading names one area or two, never all the night's: the block is judged against the whole crew of 6

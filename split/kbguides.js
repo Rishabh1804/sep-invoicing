@@ -768,15 +768,21 @@ var KB_APP_GUIDES = [
     '- The place of the plant, to 2 decimals. This is approximately 1 km. To find the place, the parts of the address that have no number.\n- Nothing else from the book: no record, no figure and no name.\n' +
     '- The app keeps the headlines and the forecast on this device only. Each day’s forecast also goes into the book, to compare with the power cuts.\n' +
     '- The app asks only when Home opens or when you tap **Refresh**. It never asks while the device is offline, and never more than once a minute.\n\n' +
-    '# Tata Motors’ figures\n- Tata Motors gives its sales each month. From the 2nd of the month, the app adds a task to type the month before.\n' +
-    '- Tap the task, or **Tata Motors’ figures and the plant’s week** in Settings. Type each figure from the release: this year and the same month a year before.\n' +
+    '# Tata Motors’ figures\n- Tata Motors gives its sales each month, on or near the 1st of the next month.\n' +
+    '- If the Claude key is on the device (Settings → Connections → **Photo reading**), the app reads the release itself. It asks from the 1st, when Home opens, at most every 6 hours.\n' +
+    '- Claude reads only Tata Motors’ own release or its filing on BSE or NSE. It does not read the news.\n' +
+    '- The app saves the figures only when they add up: CVs in India and CV exports must make all CVs. Then the task does not come.\n' +
+    '- If the figures do not add up, or the month is already typed and the release is different, the app shows the release with **Use**. Nothing is saved until you tap **Save**.\n' +
+    '- To read a month again, open **Tata Motors’ figures and the plant’s week** and tap **Read the release**.\n' +
+    '- With no key, from the 2nd of the month the app adds a task to type the month before. Type each figure from the release: this year and the same month a year before.\n' +
     '- Leave a figure blank if the release does not give it.\n- A headline can give a figure. The app shows it with **Use**. Compare it with the release before you save.\n' +
     '- A headline can say that the plant is shut or works on a day. The app shows it with **Add**. The calendar changes only when you tap.\n\n' +
     '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The place: OpenStreetMap. The app shows the credits under its news and its weather.',
     // Version 2 (owner, 21 Oct 2026: "Ask the sources directly"): the sources straight where no Worker answers, and the place from the address.
     // Version 3 (21 Oct 2026, the Worker set up on Cloudflare): its name as wrangler.toml has it, ALLOWED_ORIGINS left to the repository
     // (a deploy writes it again), and Check ending the 6 hours.
-    { roles: [], version: 3 })
+    // Version 4 (owner, 10 Nov 2026: the figures "updated by reading the news and related release"): the release read by Claude.
+    { roles: [], version: 4 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of

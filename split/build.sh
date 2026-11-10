@@ -116,6 +116,7 @@ JS_SOURCES=(
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \
     "$DIR/photoread.js" \
+    "$DIR/tatarelease.js" \
     "$DIR/scanner.js" \
     "$DIR/events.js" \
     "$DIR/workspace.js" \

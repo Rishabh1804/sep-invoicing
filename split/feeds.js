@@ -19,8 +19,9 @@
      place to two decimals. No record, no figure, no cookie, no referrer (the address bar names the screen and the record open). A
      failed ask is never an error report: every ask is caught here.
    - TATA'S MONTHS (S.market.tata, by month), THE PLANT'S CALENDAR (S.market.calendar, by day) and THE MODELS (S.market.models): the
-     book's, typed by the owner in the Tata dialog (mktTataOpen), in the change log and the merge as records (CHG_TRACK under
-     `market`). A headline that carries a month's figure or names the plant shut or working on a day is OFFERED there, never applied.
+     book's, typed by the owner in the Tata dialog (mktTataOpen), or a month read from Tata Motors' own release by Claude and saved
+     where it adds up (tatarelease.js, src 'release'), in the change log and the merge as records (CHG_TRACK under `market`). A
+     headline that carries a month's figure or names the plant shut or working on a day is OFFERED there, never applied.
    - THE WEATHER DAYS (S.market.weather, by day, 400 kept): what each day was forecast, written when a weather answer lands. A fetched
      copy, so QUIET: the change log never compares it, and the merge keeps this device's, the other filling what it lacks, never held.
    - Settings → Connections → News and weather (FEED_SETTINGS_SEC), the To-do rule mktTata, the guide app-feeds (kbguides.js).
@@ -476,6 +477,8 @@ function feedEnsure() {
     var fresh = rec && rec.data && rec.key === feedKey(kind) && rec.at && now >= rec.at && now - rec.at < FEED_FRESH_MS;
     if (!fresh) asks.push(feedFetch(kind));
   });
+  // Tata Motors' release for the month before, read by Claude where the key is on this device (tatarelease.js).
+  if (typeof trEnsure === 'function') asks.push(trEnsure());
   return Promise.all(asks);
 }
 /* A widget's Refresh: the feed asked again now (both with no kind), within the same rules but the 30 minutes. */
@@ -1068,6 +1071,8 @@ TODO_RULE_FNS.mktTata = function() {
   var months = mktTypedMonths(), last = months.length ? months[months.length - 1] : '', off = mktOffers(due).figures;
   var facts = [['Month', mktMonthLabel(due)], ['Last typed', last ? mktMonthLabel(last) : 'none yet']];
   if (off.length) facts.push(['A headline says', off[0].said.replace(/^A headline says /, '')]);
+  var tr = typeof trStore === 'function' ? trStore(due) : {};
+  if (tr.code) facts.push(['Tata’s release', tr.why || tr.code]);
   return [{ key: 'mktTata:' + due, rule: 'mktTata', tone: 'info', month: due, title: 'Type ' + mktMonthName(due) + '’s Tata figures',
     sub: 'From Tata Motors’ release: all CVs, in India, exports, heavy trucks', why: 'Tata Motors · the month’s sales', facts: facts,
     clears: 'Clears itself when ' + mktMonthLabel(due) + '’s figures are saved.', go: { kind: 'mktTata', month: due }, goLabel: 'Type the figures', sig: due }];
@@ -1096,6 +1101,7 @@ function mktTataHtml() {
     dialogHeadHtml('<span id="mktTitle">Tata Motors, Jamshedpur</span>', 'invMktClose') +
     '<div class="inv-dialog-body">' +
       (can ? '' : '<div class="inv-callout inv-callout-info inv-mb-8">Only an ID that may change Settings types these. You can read them here.</div>') +
+      '<section data-mkt-part="release">' + (typeof trPartHtml === 'function' ? trPartHtml() : '') + '</section>' +
       '<section data-mkt-part="month">' + mktMonthPartHtml() + '</section>' +
       '<section data-mkt-part="months">' + mktMonthsPartHtml() + '</section>' +
       '<section data-mkt-part="calendar">' + mktCalPartHtml() + '</section>' +
@@ -1109,7 +1115,7 @@ function mktTataHtml() {
 function mktPartRedraw(part) {
   var el = document.querySelector('[data-mkt-tata] [data-mkt-part="' + part + '"]');
   if (!el) return;
-  var fn = { month: mktMonthPartHtml, months: mktMonthsPartHtml, calendar: mktCalPartHtml, models: mktModelsPartHtml, news: mktNewsPartHtml }[part];
+  var fn = { release: typeof trPartHtml === 'function' ? trPartHtml : function() { return ''; }, month: mktMonthPartHtml, months: mktMonthsPartHtml, calendar: mktCalPartHtml, models: mktModelsPartHtml, news: mktNewsPartHtml }[part];
   keepScroll(function() { el.innerHTML = fn(); });
 }
 function mktFigId(key, which) { return 'mktF_' + key + '_' + which; }
@@ -1276,7 +1282,7 @@ function mktSaveMonth() {
   t[m] = Object.assign({ released: '', url: '', note: '' }, read.rec, { at: Date.now(), by: mktBy() });
   saveState();
   showToast(mktMonthLabel(m) + '’s figures saved');
-  ['month', 'months', 'news'].forEach(mktPartRedraw);
+  ['release', 'month', 'months', 'news'].forEach(mktPartRedraw);
   mktSyncTyped();
   if (typeof tabRedrawActive === 'function') { try { tabRedrawActive(); } catch (e) { /* the page under the dialog redraws on its next visit */ } }
 }
@@ -1299,7 +1305,7 @@ async function mktSwitchMonth(m, sel) {
     return;
   }
   _mktDlg.month = m;
-  ['month', 'months', 'calendar'].forEach(mktPartRedraw);
+  ['release', 'month', 'months', 'calendar'].forEach(mktPartRedraw);
   var save = document.querySelector('[data-mkt-tata] [data-action="invMktSave"]');
   if (save) { save.dataset.month = m; save.textContent = 'Save ' + mktMonthName(m); }
   mktSyncTyped();
@@ -1481,7 +1487,8 @@ var FEED_SETTINGS_SEC = {
   why: 'The news comes from the GDELT Project and the weather from MET Norway, through the shop’s own feeds Worker on Cloudflare where it is set up, else asked of them straight from this device. ' +
     'The app asks only when Home is opened and its copy is over 30 minutes old, or when Refresh is tapped, and never offline. ' +
     'It sends the four news topics, the models followed and the plant’s place to two decimals: nothing of the book. With no place typed and none on the Office QR, the company’s address is placed once on OpenStreetMap. ' +
-    'The copy stays on this device. A headline that gives a month’s figure, or names the plant shut on a day, is offered in the Tata dialog, never applied.',
+    'The copy stays on this device. A headline that gives a month’s figure, or names the plant shut on a day, is offered in the Tata dialog, never applied. ' +
+    'Where the Claude key is set (Photo reading), each month’s figures are read from Tata Motors’ own release or its exchange filing, and saved only when they add up.',
   save: function() { return feedSaveCfg(); }
 };
 (function() {
@@ -1497,6 +1504,8 @@ function mktAction(action, btn) {
     case 'invMktOpen': mktTataOpen(btn.dataset.month); return true;
     case 'invMktClose': mktClose(); return true;
     case 'invMktSave': mktSaveMonth(); return true;
+    case 'invMktRead': if (typeof trHand === 'function') trHand(btn.dataset.month); return true;
+    case 'invMktUseRelease': if (typeof trUseOffer === 'function') trUseOffer(btn.dataset.month); return true;
     case 'invMktUse': mktUse(btn.dataset.field, btn.dataset.which, btn.dataset.value); return true;
     case 'invMktMonth': mktSwitchMonth(btn.dataset.month, document.getElementById('mktMonth')); return true;
     case 'invMktCalOffer': mktCalOffer(btn); return true;

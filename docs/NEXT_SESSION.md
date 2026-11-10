@@ -7,7 +7,42 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
-## Session close, 9 Nov 2026: the owner's rulings on the week to 7 Nov, the supervisor's cash, Pay all due (read this first)
+## Session close, 10 Nov 2026: Tata Motors' monthly release read by Claude (read this first)
+
+- **What shipped, merged on the owner's word**: **#187** (merged `f57b061`; owner: *"For Tata Motors I have to enter the figures by
+  hand, let's have it so that those are updated by reading the news and related release"*). `tatarelease.js`, P263 (8 tests):
+  - Claude, on the device's key, searches and fetches only tatamotors.com, bseindia.com and nseindia.com, and answers through one
+    strict tool (`record_release`). The news is not read for the figures: a retelling of October 2026's release printed a domestic
+    and an export figure that did not add up to its total.
+  - Checked in code (`trCheck`): the month, the link's site, whole numbers, CVs in India + exports = all CVs for both years, heavy
+    trucks within India, a release dated after the month. Passing, the month is saved (`src: 'release'`); a month typed by hand is
+    never written over (the release offered beside it); failing, offered with the reason. **Use** fills the dialog; Save saves.
+  - Asked with the feeds when Home opens, from the 1st, every 6 hours at most and 8 times a month a device; the dialog's **Read the
+    release** for any month. `phPost` (photoread.js) is now the one request the photos and the release make; Settings counts the
+    release reads apart from the photos.
+- **Not yet tried against the live API**: the web tools and the answer's shape are checked against faked replies only. October
+  2026's release (out on 1 Nov) is the first real read, on the owner's device with the Claude key, when Home opens.
+- **Open, the owner's**: the supervisor's starting balance on the book (9 Nov); the 4-digit PIN (Castor H-2); the next build's order.
+- **Data flow**: a month in `market.tata` read from the release carries `src: 'release'` and `read: {model, usd}` (the row in the
+  table below, added with #187).
+
+**Opening prompt for the next session** (copy as it is):
+
+```
+SEP Invoicing, session B. 10 Nov 2026 merged #187: Tata Motors' monthly CV figures read by Claude from
+Tata's own release or its BSE/NSE filing, saved only where they add up (tatarelease.js, P263).
+Goal: first ask the owner how October 2026's first real read went (saved, offered, or an error in the Tata
+dialog) and fix what it showed; then the owner's next ask, or the planned updates (the server S0–S5,
+KB2-2 onward, the plant picture's PP2/PP4/PP5), one PR a step.
+Read first:
+- /home/user/sep-invoicing/docs/NEXT_SESSION.md (the 10 Nov entry, then the interface table)
+- /home/user/sep-invoicing/CLAUDE.md (the hard rules HR-1 to HR-10; Tata Motors' release, read by Claude)
+At start: HR-10, the repo is public, every example made up; set PW_CHROMIUM_PATH before Playwright; never
+raise a P195 budget; merge only on the owner's word.
+Held for the owner: the supervisor's starting balance on the book; the 4-digit PIN (Castor H-2).
+```
+
+## Session close, 9 Nov 2026: the owner's rulings on the week to 7 Nov, the supervisor's cash, Pay all due
 
 - **What shipped this session, every PR merged on the owner's word**:
   - **#183** (merged `ba2d117`): snacks are what the supervisor paid, typed for the pay week on Pay's payout card (`S.paySnacksPaid`; the

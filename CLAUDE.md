@@ -149,7 +149,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 101 modules, ~85,800 lines total (the modules, the stylesheet and the two HTML parts, 6 Nov 2026).
+Split-file PWA. 102 modules, ~85,800 lines total (the modules, the stylesheet and the two HTML parts, 6 Nov 2026).
 
 ```
 split/
@@ -252,6 +252,7 @@ split/
 ├── im-form.js         ← IM add/edit/delete challan form (~680 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (~380 lines)
 ├── photoread.js      ← Photos read by Claude (owner, 3 Nov 2026): the key on the device (`sep_inv_claude_key`), one request a photo (`phRead`: shrunk to 1,568 px, a JSON schema, the browser header), what the photos have cost kept on the device; the register's and the challan's prompts and schemas (~190 lines)
+├── tatarelease.js    ← Tata Motors' monthly release read by Claude (owner, 10 Nov 2026): Tata's site and the exchanges only, the figures checked in code (they add up) before they are saved, a typed month only offered (~270 lines)
 ├── scanner.js        ← Challans → More → Scan a challan: the photo read into the challan form, the client one of the book's, every rate the client's own record (~130 lines)
 ├── events.js          ← Event delegation + input handlers (~1,180 lines)
 ├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row (a view may cover several of a page's own: Clients, Sales), the red counts on the doors and Needs you's tab (~390 lines)
@@ -261,7 +262,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (~1,040 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → cashout → todo → merge → prospects → relay → add → msgstore → msgprofile → wazip → msgview → msgconfirm → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → shifts → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → prtlight → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → photoread → scanner → events → workspace → swipe → nav → search → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → cashout → todo → merge → prospects → relay → add → msgstore → msgprofile → wazip → msgview → msgconfirm → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → shifts → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → widgets → widgetcards → feeds → prtlight → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → photoread → tatarelease → scanner → events → workspace → swipe → nav → search → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -5119,6 +5120,29 @@ works"*) is replaced; what the app does with a reading is the reader it always h
   offers them as one row (`data-mc-photos`, its senders and days), **Read them** handing them to Production's check with their sender and
   minute. The import's record gains `photos`, the count.
 - **A data flow changed**: the requests to `api.anthropic.com`, carrying the photo alone; `production.photos` gains `sentBy` and `usd`.
+
+### Tata Motors' release, read by Claude (10 Nov 2026)
+Owner, 10 Nov 2026: *"For Tata Motors I have to enter the figures by hand, let's have it so that those are updated by reading the news and
+related release from the Tata Motors plant. All of those information are released to the public and shareholders."* `tatarelease.js`,
+P263.
+- **Where the figures come from**: Tata Motors' own monthly CV sales release (tatamotors.com) or its filing with BSE or NSE, and nowhere
+  else. Claude (the device's key, `sep_inv_claude_key`, Opus 5.5) searches and fetches those three sites only (`web_search_20260209`,
+  `web_fetch_20260209`, each with `allowed_domains`) and answers through one strict tool, `record_release`. The news is not read for the
+  figures: one retelling of October 2026's release printed a domestic and an export figure that did not add up to its total.
+- **Checked in code before it is believed** (`trCheck`): the month asked; a link on one of the three sites; whole numbers; CVs in India +
+  CV exports = all CVs, for the month and the year before; heavy trucks within CVs in India; a release day after the month. Passing, the
+  month is saved (`src: 'release'`, the link, the day, `read: {model, usd}`) unless it was typed by hand: then the release is **offered**
+  beside it (*agrees* or *differs*), never written over it. Failing, it is offered with what failed. **Use** fills the dialog's fields;
+  nothing is saved until Save.
+- **When**: with the feeds when Home is drawn (`feedEnsure` → `trEnsure`), for the month before, from the 1st until it is saved, at most
+  every 6 hours and 8 times a month a device; never offline, hidden, under test (unless `window.__sepTataReadOn`), with nobody signed in,
+  for an ID that may not change Settings, or with no key. An offer waits for the owner. The Tata dialog's **Read the release** asks for
+  the month shown (`grdGate('settings')`). A paused server turn is sent back once or twice (`pause_turn`).
+- **On the device only** (`sep_inv_tata_read`, by month): tries, when, how the last ended, an offer. Its cost joins the photos' figure,
+  counted apart (`phSpentAdd(usd, 'tata')`; *1 Tata release read on this device*). `phPost` (photoread.js) is the one request both make.
+- The To-do's `mktTata` says how the last reading ended. The guide *Setting up: the news and weather* is version 4.
+- **A data flow changed**: a month in `S.market.tata` read from the release carries `src: 'release'` and `read: {model, usd}`; new
+  requests from an owner device to api.anthropic.com, carrying the prompt alone (the month), nothing of the book.
 
 ### Cash with the supervisor (9 Nov 2026)
 Owner, 7 Nov 2026, on the week to 7 Nov (the payout ₹44,152.50, ₹44,500 handed for it): *"347.5 goes to Shyam, and he had 290 due

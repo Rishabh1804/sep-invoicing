@@ -34,9 +34,10 @@ function phSpent() {
   try { var s = JSON.parse(localStorage.getItem(PH_SPENT_KEY) || 'null'); if (s && typeof s.usd === 'number') return s; } catch (e) { /* none */ }
   return { usd: 0, n: 0, since: null };
 }
-function phSpentAdd(usd) {
+/* A read's cost added to the device's figure: a photo counted as one (`n`), a Tata release (kind 'tata') counted apart. */
+function phSpentAdd(usd, kind) {
   var s = phSpent();
-  s.usd = Math.round((s.usd + usd) * 1e6) / 1e6; s.n++; if (!s.since) s.since = localDateStr();
+  s.usd = Math.round((s.usd + usd) * 1e6) / 1e6; if (kind === 'tata') s.tata = (s.tata || 0) + 1; else s.n++; if (!s.since) s.since = localDateStr();
   try { localStorage.setItem(PH_SPENT_KEY, JSON.stringify(s)); } catch (e) { /* the figure is a convenience */ }
 }
 function phUsd(usage) {
@@ -47,8 +48,8 @@ function phUsd(usage) {
 function phMoney(usd) { return usd < 0.995 ? Math.max(1, Math.round(usd * 100)) + '¢' : '$' + usd.toFixed(2); }
 /* The figure Settings and a batch say: "12 photos read · $0.61 of the credit". */
 function phSpentSay() {
-  var s = phSpent();
-  return s.n ? todoPlural(s.n, 'photo') + ' read on this device · ' + phMoney(s.usd) + (s.since ? ' since ' + formatDate(s.since) : '') : 'no photo read yet';
+  var s = phSpent(), what = [s.n ? todoPlural(s.n, 'photo') : '', s.tata ? todoPlural(s.tata, 'Tata release') : ''].filter(Boolean);
+  return what.length ? what.join(' and ') + ' read on this device · ' + phMoney(s.usd) + (s.since ? ' since ' + formatDate(s.since) : '') : 'no photo read yet';
 }
 
 /* A JSON-schema field that may be empty. */
@@ -74,6 +75,35 @@ async function phShrink(blob) {
   return { b64: data.slice(data.indexOf(',') + 1), w: cw, h: ch };
 }
 
+/* One request to Anthropic, the key's and the browser's: { res, data } or { fail: {ok: false, code, error} } where it never answered.
+   A safety decline is re-run on another model inside the same call (the server's fallbacks); an account the fallbacks are not open
+   to is asked once more without them, and the device remembers. `again` ends a timeout's words (what to do next). */
+async function phPost(key, body, again) {
+  var noFb = false;
+  try { noFb = localStorage.getItem(PH_NOFB_KEY) === '1'; } catch (e) { /* send it */ }
+  var send = async function(withFb) {
+    var b = Object.assign({}, body);
+    var headers = { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': PH_VERSION, 'anthropic-dangerous-direct-browser-access': 'true' };
+    if (withFb) { b.fallbacks = 'default'; headers['anthropic-beta'] = PH_FALLBACK_BETA; }
+    var ctl = typeof AbortController === 'function' ? new AbortController() : null, timer = ctl ? setTimeout(function() { ctl.abort(); }, PH_TIMEOUT_MS) : null;
+    try { return await fetch(PH_URL, { method: 'POST', headers: headers, body: JSON.stringify(b), signal: ctl ? ctl.signal : undefined, cache: 'no-store' }); }
+    finally { if (timer) clearTimeout(timer); }
+  };
+  var res, data;
+  try {
+    res = await send(!noFb);
+    data = await res.json().catch(function() { return null; });
+    if (!noFb && res.status === 400 && data && data.error && /fallback|beta/i.test(data.error.message || '')) {
+      try { localStorage.setItem(PH_NOFB_KEY, '1'); } catch (e) { /* asked again next time */ }
+      res = await send(false);
+      data = await res.json().catch(function() { return null; });
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return { fail: { ok: false, code: 'timeout', error: 'Claude did not answer in ' + Math.round(PH_TIMEOUT_MS / 60000) + ' minutes. ' + (again || 'Try again.') } };
+    return { fail: { ok: false, code: 'network', error: navigator.onLine === false ? 'The device is offline.' : 'Anthropic could not be reached (' + ((e && e.message) || 'network') + ').' } };
+  }
+  return { res: res, data: data };
+}
 /* One photo read: { ok: true, json, meta: {model, w, h, usage, usd} } or { ok: false, code, error }. The codes: key (none, or
    refused), billing (the credit is used up), quota (too many at once), busy (Anthropic overloaded), refused (a safety decline),
    truncated, json, network, timeout, api. */
@@ -82,33 +112,12 @@ async function phRead(blob, prompt, schema) {
   if (!key) return { ok: false, code: 'key', error: 'No Claude key is set on this device (Settings → Connections → Photo reading).' };
   var img;
   try { img = await phShrink(blob); } catch (e) { return { ok: false, code: 'image', error: (e && e.message) || 'the photo could not be opened' }; }
-  var noFb = false;
-  try { noFb = localStorage.getItem(PH_NOFB_KEY) === '1'; } catch (e) { /* send it */ }
-  var send = async function(withFb) {
-    var body = { model: PH_MODEL, max_tokens: 16000,
-      output_config: { effort: 'high', format: { type: 'json_schema', schema: schema } },
-      messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img.b64 } }, { type: 'text', text: prompt }] }] };
-    var headers = { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': PH_VERSION, 'anthropic-dangerous-direct-browser-access': 'true' };
-    // A safety decline is re-run on another model inside the same call (the server's fallbacks), rather than lost.
-    if (withFb) { body.fallbacks = 'default'; headers['anthropic-beta'] = PH_FALLBACK_BETA; }
-    var ctl = typeof AbortController === 'function' ? new AbortController() : null, timer = ctl ? setTimeout(function() { ctl.abort(); }, PH_TIMEOUT_MS) : null;
-    try { return await fetch(PH_URL, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined, cache: 'no-store' }); }
-    finally { if (timer) clearTimeout(timer); }
-  };
-  var res, data;
-  try {
-    res = await send(!noFb);
-    data = await res.json().catch(function() { return null; });
-    // An account the fallbacks are not open to is asked once more without them, and the device remembers.
-    if (!noFb && res.status === 400 && data && data.error && /fallback|beta/i.test(data.error.message || '')) {
-      try { localStorage.setItem(PH_NOFB_KEY, '1'); } catch (e) { /* asked again next time */ }
-      res = await send(false);
-      data = await res.json().catch(function() { return null; });
-    }
-  } catch (e) {
-    if (e && e.name === 'AbortError') return { ok: false, code: 'timeout', error: 'Claude did not answer in ' + Math.round(PH_TIMEOUT_MS / 60000) + ' minutes. Read the photo again.' };
-    return { ok: false, code: 'network', error: navigator.onLine === false ? 'The device is offline.' : 'Anthropic could not be reached (' + ((e && e.message) || 'network') + ').' };
-  }
+  var body = { model: PH_MODEL, max_tokens: 16000,
+    output_config: { effort: 'high', format: { type: 'json_schema', schema: schema } },
+    messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img.b64 } }, { type: 'text', text: prompt }] }] };
+  var r = await phPost(key, body, 'Read the photo again.');
+  if (r.fail) return r.fail;
+  var res = r.res, data = r.data;
   return phAnswer(res.status, data, img);
 }
 /* The answer read: the error said in the shop's words, else the JSON the schema asked for. */
@@ -134,7 +143,8 @@ function phSayFail(what, res) { uiNotice(what + ': ' + (res && res.error || 'the
 /* The key's section of Settings → Connections. */
 function phSettingsBody() {
   return _sfg('Claude API key', 'setClaudeKey', _sKey('setClaudeKey', phKey(), 'sk-ant-...', 'invToggleClaudeKey')) +
-    '<p class="inv-note inv-mt-8" data-ph-spent>' + escHtml(phSpentSay()) + '</p>';
+    '<p class="inv-note inv-mt-8" data-ph-spent>' + escHtml(phSpentSay()) + '</p>' +
+    '<p class="inv-note inv-mt-4">The same key reads Tata Motors’ monthly sales release (News and weather).</p>';
 }
 
 /* ---------- The VAT register and its power log ---------- */

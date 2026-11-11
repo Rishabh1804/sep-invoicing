@@ -22,6 +22,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Two commits, so on a pull request (checked out as its merge commit)
+          # the atlas check can compare with the base, HEAD^1.
+          fetch-depth: 2
 
       # AGENTS.md rule 1: never edit the built output directly, never bypass
       # build.sh. This job is what makes that rule enforceable — it runs the
@@ -35,6 +39,18 @@ jobs:
           if ! git diff --exit-code -- sep-invoicing.html index.html version.json; then
             echo "::error::Built output is stale. Run 'bash split/build.sh' and commit the result. Enabling the pre-commit hook (git config core.hooksPath .githooks) does this automatically."
             exit 1
+          fi
+
+      # The atlas (docs/atlas/README.md): CLAUDE.md stays a small core, every
+      # topic is indexed and under its budget, every module has an owning
+      # topic. On a pull request it also warns, without failing, when a module
+      # changed and no topic naming it did.
+      - name: Atlas structure and budgets
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node tools/atlas-check.mjs --base HEAD^1
+          else
+            node tools/atlas-check.mjs
           fi
 
   # The suite in two halves, each on its own runner (owner, 29 Oct 2026: "Let's

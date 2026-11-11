@@ -1,7 +1,7 @@
 ---
 subject: "Labour, Pay, pay slips, the payroll as paid"
 domain: people
-modules: [split/payroll.js, split/payslip.js]
+modules: [split/payroll.js, split/payslip.js, split/labour.js, split/staff.js]
 specs: []
 tests: [P174, P205, P207, P213, P250, P260, P262]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

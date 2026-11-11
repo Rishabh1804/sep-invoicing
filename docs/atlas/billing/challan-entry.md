@@ -1,7 +1,7 @@
 ---
 subject: "Challan entry: keyboard, filled from the record, invoiced in parts, billed at zero"
 domain: billing
-modules: [split/im-form.js, split/im.js]
+modules: [split/im-form.js, split/im.js, split/create.js]
 specs: []
 tests: [P77, P78, P141, P181]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

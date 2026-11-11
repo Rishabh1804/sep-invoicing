@@ -1,7 +1,7 @@
 ---
 subject: "UI pass 3: sign-in and the 4-digit PIN (U8)"
 domain: design
-modules: []
+modules: [split/guard.js]
 specs: [docs/UI_PASS_3.md]
 tests: [P140, P152, P234]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

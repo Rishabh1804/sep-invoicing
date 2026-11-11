@@ -3,10 +3,11 @@
 //   node tools/atlas-check.mjs            the hard checks; exit 1 on any failure
 //   node tools/atlas-check.mjs --base <ref>   also warn when a split/ module changed and no topic naming it did
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = join(dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ATLAS = join(ROOT, 'docs/atlas');
 const LIMIT = { core: 16 * 1024, topic: 28 * 1024, readme: 6 * 1024 };
 const fails = [];
@@ -20,7 +21,25 @@ const kb = (n) => (n / 1024).toFixed(1) + ' KB';
 const corePath = join(ROOT, 'CLAUDE.md');
 const core = read(corePath);
 if (size(corePath) > LIMIT.core) fail(`CLAUDE.md is ${kb(size(corePath))}, over its ${kb(LIMIT.core)} budget: move detail into a topic`);
-core.split('\n').forEach((l, i) => { if (/^@\S/.test(l)) fail(`CLAUDE.md:${i + 1} imports a file (${l.trim()}): link to it instead`); });
+// An import is '@path' at a line's start or after a space; Claude Code loads it at launch, past the budget unseen.
+core.split('\n').forEach((l, i) => {
+  const m = /(^|\s)@([\w./~-]+\.(md|txt|json|ya?ml))\b/.exec(l);
+  if (m || /^@\S/.test(l)) fail(`CLAUDE.md:${i + 1} imports a file (${(m ? '@' + m[2] : l.trim())}): link to it instead`);
+});
+
+// A path in backticks in a file agents load: it must exist. Placeholders (<x>, *, …, NNN) are skipped.
+function checkTicks(file) {
+  const rel = file.slice(ROOT.length + 1);
+  const re = /`((?:docs|tools|split|tests|\.claude|\.github|\.githooks|server)\/[^`\s]+|[A-Za-z_]+\.md)`/g;
+  let m;
+  const text = read(file);
+  while ((m = re.exec(text))) {
+    const p = m[1].replace(/[.,;:]+$/, '');
+    if (/[<>*…]|NNN|YYYY/.test(p)) continue;
+    // A bare file name is looked for beside the file that names it, then at the root.
+    if (!existsSync(join(ROOT, p)) && !existsSync(join(dirname(file), p))) fail(`${rel} names \`${p}\`, which does not exist`);
+  }
+}
 
 // Links in a markdown file, relative to it.
 function links(file) {
@@ -54,8 +73,14 @@ function header(file) {
 const indexPath = join(ATLAS, 'INDEX.md');
 if (!existsSync(indexPath)) fail('docs/atlas/INDEX.md is missing');
 const index = existsSync(indexPath) ? read(indexPath) : '';
-for (const f of ['INDEX.md', 'MODULES.md', 'HEADINGS.md', 'README.md']) if (existsSync(join(ATLAS, f))) checkLinks(join(ATLAS, f));
+for (const f of ['INDEX.md', 'MODULES.md', 'HEADINGS.md', 'README.md']) {
+  if (existsSync(join(ATLAS, f))) checkLinks(join(ATLAS, f));
+  else fail(`docs/atlas/${f} is missing`);
+}
 checkLinks(corePath);
+checkTicks(corePath);
+if (existsSync(join(ATLAS, 'README.md'))) checkTicks(join(ATLAS, 'README.md'));
+if (existsSync(join(ROOT, 'docs/NEXT_SESSION.md'))) checkTicks(join(ROOT, 'docs/NEXT_SESSION.md'));
 
 // L2 and L3.
 const domains = readdirSync(ATLAS).filter((d) => statSync(join(ATLAS, d)).isDirectory()).sort();
@@ -105,11 +130,33 @@ for (const m of mods) {
   else if (!(named.get(`split/${m}`) || []).includes(owner)) fail(`${owner} owns split/${m} in MODULES.md but does not name it in its header`);
 }
 
+// The path rules: every module in exactly one rule's paths, and every topic a rule names exists.
+const rulesDir = join(ROOT, '.claude/rules');
+const ruled = new Map();
+for (const f of existsSync(rulesDir) ? readdirSync(rulesDir).filter((x) => x.endsWith('.md')).sort() : []) {
+  const file = join(rulesDir, f);
+  const L = read(file).split('\n');
+  const end = L[0] === '---' ? L.indexOf('---', 1) : -1;
+  if (end < 0) { fail(`.claude/rules/${f} has no paths header`); continue; }
+  for (const l of L.slice(1, end)) {
+    const m = /^\s+-\s+"([^"]+)"/.exec(l);
+    if (!m) continue;
+    if (!ruled.has(m[1])) ruled.set(m[1], []);
+    ruled.get(m[1]).push(f);
+    if (!/[*]/.test(m[1]) && !existsSync(join(ROOT, m[1]))) fail(`.claude/rules/${f}: paths names ${m[1]}, which does not exist`);
+  }
+  checkTicks(file);
+}
+for (const m of mods) {
+  const r = ruled.get(`split/${m}`) || [];
+  if (r.length !== 1) fail(`split/${m} is in ${r.length} path rules (${r.join(', ') || 'none'}): it belongs in exactly one, its owner's domain`);
+}
+
 // On a pull request: a module changed, and no topic naming it did.
 const baseAt = process.argv.indexOf('--base');
 if (baseAt > -1 && process.argv[baseAt + 1]) {
   try {
-    const changed = execSync(`git diff --name-only ${process.argv[baseAt + 1]}...HEAD`, { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+    const changed = execFileSync('git', ['diff', '--name-only', `${process.argv[baseAt + 1]}...HEAD`], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
     const touched = new Set(changed);
     for (const c of changed.filter((x) => /^split\/[^/]+\.js$/.test(x))) {
       const ts = named.get(c) || [];
@@ -123,7 +170,7 @@ if (baseAt > -1 && process.argv[baseAt + 1]) {
 biggest.sort((a, b) => b[0] - a[0]);
 console.log(`atlas: CLAUDE.md ${kb(size(corePath))} of ${kb(LIMIT.core)} · ${domains.length} domains · ${topics} topics, ${kb(topicBytes)} · ${mods.length} modules owned`);
 console.log(`largest topics: ${biggest.slice(0, 3).map(([n, p]) => `${p.replace('docs/atlas/', '')} ${kb(n)}`).join(' · ')}`);
-for (const w of warns) console.log(`warning: ${w}`);
+for (const w of warns) console.log(`${process.env.GITHUB_ACTIONS ? '::warning::' : 'warning: '}${w}`);
 if (fails.length) {
   for (const f of fails) console.error(`FAIL: ${f}`);
   process.exit(1);

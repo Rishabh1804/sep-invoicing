@@ -1,7 +1,7 @@
 ---
 subject: "Invoice numbers, voids and reissues"
 domain: billing
-modules: [split/invoice-ops.js, split/number-audit.js]
+modules: [split/invoice-ops.js, split/number-audit.js, split/exports.js]
 specs: []
 tests: []
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

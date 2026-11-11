@@ -1,7 +1,7 @@
 ---
 subject: "History is the audit trail"
 domain: insight
-modules: []
+modules: [split/stats.js, split/changelog.js]
 specs: []
 tests: []
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

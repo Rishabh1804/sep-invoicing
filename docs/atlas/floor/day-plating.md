@@ -1,7 +1,7 @@
 ---
 subject: "A day's plating whole, and what a line earned"
 domain: floor
-modules: []
+modules: [split/production.js, split/prodview.js, split/floor.js]
 specs: [docs/PLANT_PICTURE.md]
 tests: [P190, P191, P198, P206, P214]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

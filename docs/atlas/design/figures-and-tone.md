@@ -1,7 +1,7 @@
 ---
 subject: "A figure says whether it is good"
 domain: design
-modules: []
+modules: [split/state.js]
 specs: []
 tests: [P102, P178, P180]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

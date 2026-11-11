@@ -1,7 +1,7 @@
 ---
 subject: "Design system: the migration to v2.0 and the polish passes"
 domain: design
-modules: [split/appearance.js, split/state.js]
+modules: [split/appearance.js, split/state.js, split/styles.css]
 specs: [docs/SEP_INVOICING_DESIGN_PRINCIPLES.md]
 tests: [P54, P55, P67, P68, P69, P70, P71, P72, P73, P74, P75, P76, P80, P94, P104]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

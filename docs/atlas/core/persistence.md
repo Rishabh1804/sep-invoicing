@@ -1,7 +1,7 @@
 ---
 subject: "Persistence"
 domain: core
-modules: [split/github-sync.js, split/init.js]
+modules: [split/github-sync.js, split/init.js, split/state.js]
 specs: []
 tests: [P93]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

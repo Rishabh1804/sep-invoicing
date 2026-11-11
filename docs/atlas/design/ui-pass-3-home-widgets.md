@@ -1,7 +1,7 @@
 ---
 subject: "UI pass 3: Home and its widgets (U2)"
 domain: design
-modules: [split/feeds.js, split/widgetcards.js, split/widgets.js]
+modules: [split/feeds.js, split/widgetcards.js, split/widgets.js, server/feeds]
 specs: [docs/SERVER.md, docs/UI_PASS_3.md]
 tests: [P76, P197, P223, P224, P225]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

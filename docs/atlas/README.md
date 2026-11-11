@@ -23,7 +23,7 @@ topic to read first.
 ---
 subject: "Pay"
 domain: people
-modules: [split/payroll.js, split/payslip.js]   # the modules this topic owns, then others it leans on
+modules: [split/payroll.js, split/payslip.js]   # the modules it owns, then others it holds rules for
 specs: [docs/…]                                  # where one exists
 tests: [P205, P207, P260, P262]
 updated: 2026-11-09 (#185)
@@ -31,7 +31,8 @@ updated: 2026-11-09 (#185)
 ```
 
 The body is the record: what was built, the owner's words that ruled it, the reasons, the measurements, what is open.
-A topic owns a module when it says the most about it; `MODULES.md` lists every module's owner.
+A topic owns a module when it is the first place to send someone editing it; `MODULES.md` lists every module's owner.
+A module with rules in several topics is named in each one's header, and its path rule lists them all, the owner first.
 
 ## The protocol
 
@@ -60,8 +61,8 @@ a topic.
 - **Re-file what is misfiled.** The first cut (11 Nov 2026) moved `CLAUDE.md`'s sections word for word, in the order they
   had grown. Where a topic bundles two subjects, split it when you next work in it.
 - **Stale is a defect.** A topic that contradicts the code is fixed where it is found, in that PR.
-- **Sessions.** `docs/NEXT_SESSION.md` holds the latest close, the queue and the data flows. At a close, the new entry
-  replaces the old, which moves to `docs/sessions/<YYYY-MM>.md`.
+- **Sessions.** `docs/NEXT_SESSION.md` holds the latest close. The data flows are in `docs/DATA_FLOWS.md`. At a close, the
+  new entry replaces the old, which moves to `docs/sessions/<YYYY-MM>.md`.
 
 ## The checker
 
@@ -69,7 +70,8 @@ a topic.
 - `CLAUDE.md` over 16 KB, or carrying an `@` import line;
 - a topic with no header, over 28 KB, or missing from its domain's README; a domain missing from `INDEX.md`;
 - a link in an index that does not resolve; a `modules:` entry that is not a file;
-- a `split/*.js` module that no topic owns in `MODULES.md`.
+- a `split/*.js` module that no topic owns in `MODULES.md`, or that is not in exactly one path rule;
+- a path in backticks in `CLAUDE.md`, `docs/NEXT_SESSION.md`, this file or a path rule that does not exist.
 
 It prints each level's size on every run, so growth is seen. On a pull request it warns, without failing, when a module
 changed and no topic naming it did.

@@ -1,7 +1,7 @@
 ---
 subject: "UI pass 3: the card family (U2R)"
 domain: design
-modules: []
+modules: [split/widgets.js, split/widgetcards.js]
 specs: [docs/UI_PASS_3.md]
 tests: [P195, P235, P236, P237, P238, P239, P240]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

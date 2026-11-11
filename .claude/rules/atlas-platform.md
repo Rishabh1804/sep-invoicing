@@ -21,10 +21,23 @@ paths:
 
 # Atlas route: platform
 
-Before changing one of these files, read its topic under `docs/atlas/platform/` (index: `docs/atlas/platform/README.md`).
-If your change alters behaviour a topic describes, update that topic and its `updated` line in the same PR. If you had to search for something the atlas should have routed, add the pointer.
+Before changing one of these files, read its topics: the owner first, then the others that hold rules for it.
+If your change alters behaviour a topic describes, update that topic and its `updated` line in the same PR. If you had to search for something the atlas should have routed, add the pointer (`docs/atlas/README.md`).
 
-- `docs/atlas/platform/guard.md`: changelog.js, devices.js, guard.js, merge.js
-- `docs/atlas/platform/knowledge-base.md`: kbguides.js, kbread.js, knowledge.js
-- `docs/atlas/platform/messages-and-photos.md`: msgconfirm.js, msgprofile.js, msgstore.js, msgview.js, photoread.js, scanner.js, tatarelease.js, wazip.js
-- `docs/atlas/platform/office-printing.md`: prtlight.js, remoteprint.js
+- `split/changelog.js`: `docs/atlas/platform/guard.md`; also `docs/atlas/insight/history.md`
+- `split/devices.js`: `docs/atlas/platform/guard.md`
+- `split/guard.js`: `docs/atlas/platform/guard.md`; also `docs/atlas/design/ui-pass-3-sign-in.md`
+- `split/kbguides.js`: `docs/atlas/platform/knowledge-base.md`
+- `split/kbread.js`: `docs/atlas/platform/knowledge-base.md`
+- `split/knowledge.js`: `docs/atlas/platform/knowledge-base.md`
+- `split/merge.js`: `docs/atlas/platform/guard.md`
+- `split/msgconfirm.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/msgprofile.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/msgstore.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/msgview.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/photoread.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/prtlight.js`: `docs/atlas/platform/office-printing.md`
+- `split/remoteprint.js`: `docs/atlas/platform/office-printing.md`
+- `split/scanner.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/tatarelease.js`: `docs/atlas/platform/messages-and-photos.md`
+- `split/wazip.js`: `docs/atlas/platform/messages-and-photos.md`

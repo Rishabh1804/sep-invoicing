@@ -1,7 +1,7 @@
 ---
 subject: "Workers and the plant"
 domain: floor
-modules: [split/checkin.js, split/idcard.js, split/people.js, split/plant.js, split/qr.js]
+modules: [split/checkin.js, split/idcard.js, split/people.js, split/plant.js, split/qr.js, checkin.html]
 specs: [docs/WORKERS_AND_PLANT.md]
 tests: [P166, P168, P170, P171, P248]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

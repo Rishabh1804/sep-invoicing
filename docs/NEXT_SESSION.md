@@ -20,7 +20,7 @@ At a close, the new entry replaces the one below, which moves to the top of its 
   in `.claude/rules/` name the topic when a module is opened.
 - **The protocol** (`docs/atlas/README.md`): look up by the route; a miss is fixed in the same PR; a change updates its topic;
   over budget, split. `node tools/atlas-check.mjs` holds it in CI's build job.
-- **This file was cut too** (117 KB → 5 KB): older closes are in `docs/sessions/`, the data flows in `docs/DATA_FLOWS.md`.
+- **This file was cut too** (117 KB → 4 KB): older closes are in `docs/sessions/`, the data flows in `docs/DATA_FLOWS.md`.
 - **Carried from 10 Nov, the owner's**:
   - October 2026's Tata figures: the owner typed the total by hand, so the app does not read October itself; the release is
     read only from the Tata dialog's **Read the release**. Ask how it went.
@@ -29,6 +29,8 @@ At a close, the new entry replaces the one below, which moves to the top of its 
   - The supervisor's starting balance **is on the book** (the 9 and 10 Nov closes listed it as open).
   - A delivery relayed from the sibling supplier of free acids carries no price in the app, so the live cost reads its lines as
     unpriced, not ₹0. Setting those entries to ₹0 is the owner's call in Stock.
+- **For the compile session**: `soma-internal/CLAUDE.md` cites this repo's old `CLAUDE.md` by line (`:514`, `:703`). Those lines
+  are gone; the passages are in `docs/atlas/billing/credit-notes.md` and `docs/atlas/people/areas-and-extra.md`.
 - **Open on the atlas itself**: the first cut filed sections in the order they had grown. Re-file a topic that bundles two
   subjects when next working in it (`docs/atlas/README.md`, *Iterate*).
 

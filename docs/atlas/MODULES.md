@@ -1,6 +1,6 @@
 # Modules: where each one is explained
 
-Each `split/*.js` module and the topic that owns it. The owner is the topic that says most about the module; `core/architecture.md` has the one-line description of every module.
+Each `split/*.js` module and the topic that owns it. The owner is the topic that says most about the module; `core/architecture.md` has the one-line description of every module. Other topics that name a module are in the path rule that loads with it (`.claude/rules/`) and in each topic's header.
 
 | Module | Topic |
 |---|---|
@@ -51,7 +51,7 @@ Each `split/*.js` module and the topic that owns it. The owner is the topic that
 | `split/kbguides.js` | [platform/knowledge-base](platform/knowledge-base.md) |
 | `split/kbread.js` | [platform/knowledge-base](platform/knowledge-base.md) |
 | `split/knowledge.js` | [platform/knowledge-base](platform/knowledge-base.md) |
-| `split/labour.js` | [people/block-census-and-labour](people/block-census-and-labour.md) |
+| `split/labour.js` | [people/labour-and-pay](people/labour-and-pay.md) |
 | `split/learn.js` | [insight/stats-questions](insight/stats-questions.md) |
 | `split/merge.js` | [platform/guard](platform/guard.md) |
 | `split/msgconfirm.js` | [platform/messages-and-photos](platform/messages-and-photos.md) |

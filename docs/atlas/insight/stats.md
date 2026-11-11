@@ -1,7 +1,7 @@
 ---
 subject: "Stats: what the charts show and what Stats measures"
 domain: insight
-modules: [split/charts.js]
+modules: [split/charts.js, split/stats.js]
 specs: []
 tests: []
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

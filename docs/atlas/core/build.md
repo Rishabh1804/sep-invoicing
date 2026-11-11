@@ -1,7 +1,7 @@
 ---
 subject: "Build, the stamp and the pre-commit hook"
 domain: core
-modules: []
+modules: [split/build.sh]
 specs: []
 tests: []
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

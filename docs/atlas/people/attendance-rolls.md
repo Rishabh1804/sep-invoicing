@@ -1,7 +1,7 @@
 ---
 subject: "Attendance: rolls from WhatsApp, the register, paper, needed per shift"
 domain: people
-modules: [split/attreg.js, split/attsheet.js, split/relay.js]
+modules: [split/attreg.js, split/attsheet.js, split/relay.js, split/staff.js]
 specs: []
 tests: [P43, P96, P98, P161, P207, P221, P251]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

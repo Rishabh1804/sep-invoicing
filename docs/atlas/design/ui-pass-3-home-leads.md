@@ -1,7 +1,7 @@
 ---
 subject: "UI pass 3: Home leads"
 domain: design
-modules: [split/today.js]
+modules: [split/today.js, split/floor.js]
 specs: [docs/UI_PASS_3.md]
 tests: [P133, P134, P150, P182, P183, P195, P223, P224, P225, P235, P237, P239, P241]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

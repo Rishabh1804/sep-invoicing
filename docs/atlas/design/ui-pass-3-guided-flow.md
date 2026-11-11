@@ -1,7 +1,7 @@
 ---
 subject: "UI pass 3: every Enter by hand a guided flow (U4)"
 domain: design
-modules: []
+modules: [split/state.js, split/stock.js]
 specs: [docs/UI_PASS_3.md]
 tests: [P67, P230]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

@@ -1,7 +1,7 @@
 ---
 subject: "Offline"
 domain: core
-modules: []
+modules: [sw.js]
 specs: []
 tests: []
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

@@ -1,7 +1,7 @@
 ---
 subject: "Hard rules HR-1 to HR-10, their exceptions and the public repository"
 domain: core
-modules: [split/data.js]
+modules: [split/data.js, split/styles.css]
 specs: [docs/SERVER.md]
 tests: [P76, P180, P242]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

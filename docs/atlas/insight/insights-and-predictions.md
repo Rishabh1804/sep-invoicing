@@ -1,7 +1,7 @@
 ---
 subject: "Insights and predictions"
 domain: insight
-modules: [split/insights.js]
+modules: [split/insights.js, split/create.js]
 specs: []
 tests: [P81]
 updated: 2026-11-11 (moved verbatim from CLAUDE.md)

@@ -4,7 +4,7 @@ domain: people
 modules: [split/attreg.js, split/attsheet.js, split/relay.js, split/staff.js]
 specs: []
 tests: [P43, P96, P98, P161, P207, P221, P251]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-12 (an import fills a blank page started by hand)
 ---
 
 ### Attendance rolls from WhatsApp
@@ -86,7 +86,8 @@ supervisor's book, a page a month, a column a monthly hand, a row a day. P161.
 - **A corrected cell keeps what it said** (`edits`), on a page read from paper; a page started by hand is just being written. Mark
   checked stamps `verifiedAt`; any later change clears it.
 - **A column's worker**: picked once, learnt for that heading (`S.attRegister.names`), else the roster's name as a roll reads it.
-- **Two doors**: Import (`sep-att-register` v1, also through Add → File; a month on record is kept, never replaced) and **Start this
+- **Two doors**: Import (`sep-att-register` v1, also through Add → File; a month on record is kept, never replaced, unless it is a page
+  started by hand with nothing on it, which the import fills: `aregMonthBlank`, owner 12 Nov 2026) and **Start this
   month** (a column per active monthly hand, Sundays drawn), filled a cell at a time with *Next day*. **Read page photo** (Gemini) came
   out on 13 Oct 2026 with the rest of the photo reading; a month it read stays.
 - **Names never in the build**: the seven pages of March–September 2026 were transcribed from the owner's photos into a private

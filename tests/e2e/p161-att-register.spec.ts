@@ -172,4 +172,42 @@ test.describe('P161 the monthly register', () => {
     expect(await g(page, `aregMonthOf('2026-04').days[0].cells[0]`)).toEqual({ raw: 'P-8pm', unsure: true });
     expect(await g(page, `typeof aregPhoto + typeof aregPhotoRead + typeof geminiReadImage`)).toBe('undefinedundefinedundefined');
   });
+
+  test('an import fills a page started by hand and left blank; a page with anything written on it is kept', async ({ page }) => {
+    // Owner, 12 Nov 2026: Start this month had been pressed for a month and nothing written; the month's transcribed file then
+    // came back "already on record, kept", with no way to remove the blank page.
+    await loadAppWithState(page, book());
+    const r: any = await g(page, `(function () {
+      aregData().months['${M}'] = aregBlankMonth('${M}', 'hand');
+      var blank = aregMonthBlank(aregMonthOf('${M}'));
+      var res = aregImportData(${JSON.stringify(page1())});
+      var mo = aregMonthOf('${M}');
+      return { blank: blank, res: res, src: mo.src, cols: mo.columns.map(function (c) { return c.name; }), first: mo.days[1].cells[0].raw };
+    })()`);
+    expect(r.blank).toBe(true);
+    expect(r.res).toMatchObject({ added: 0, replaced: 1, kept: 0 });
+    expect([r.src, r.cols, r.first]).toEqual(['import', ['RAMU', 'BISHU'], '6am-5pm']);
+
+    // One cell written by hand: the page is somebody's work, and the file keeps off it.
+    const k: any = await g(page, `(function () {
+      var mo = aregBlankMonth('${M}', 'hand'); mo.days[2].cells[0].raw = 'P';
+      aregData().months['${M}'] = mo;
+      var res = aregImportData(${JSON.stringify(page1())});
+      return { blank: aregMonthBlank(mo), res: res, src: aregMonthOf('${M}').src, raw: aregMonthOf('${M}').days[2].cells[0].raw };
+    })()`);
+    expect(k).toMatchObject({ blank: false, res: { added: 0, replaced: 0, kept: 1 }, src: 'hand', raw: 'P' });
+
+    // A blank page that was marked checked, or carries a note, is kept too.
+    const v: any = await g(page, `(function () {
+      var a = aregBlankMonth('${M}', 'hand'); a.verifiedAt = 1;
+      var b = aregBlankMonth('${M}', 'hand'); b.notes = ['a note'];
+      var c = aregBlankMonth('${M}', 'hand'); c.days[0].cells[0].edits = [{ at: 1, by: '', from: 'P', to: '' }];
+      return [aregMonthBlank(a), aregMonthBlank(b), aregMonthBlank(c)];
+    })()`);
+    expect(v).toEqual([false, false, false]);
+
+    // Through the door the owner uses: the toast says the blank page was filled.
+    await g(page, `aregData().months['${M}'] = aregBlankMonth('${M}', 'hand'); aregImportText(${JSON.stringify(JSON.stringify(page1()))}, 'feb.json')`);
+    await expect(page.locator('.inv-toast').last()).toContainText('1 blank page filled');
+  });
 });

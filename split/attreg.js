@@ -467,7 +467,9 @@ function aregPickCol(ci, staffId) {
 /* ===== IMPORT (sep-att-register v1) =====
    {kind: 'sep-att-register', version: 1, months: [{month, title, columns: [names], days: [{date, written, kind, dateUnsure,
    cells: [{raw, unsure}], note}], totals: [{col, raw}], notes}]}: the transcription's own shape. A month already on record is
-   kept and counted, never replaced: a page somebody has worked through is not written over by a file. */
+   kept and counted, never replaced: a page somebody has worked through is not written over by a file. The one exception is a
+   page with nothing on it (`aregMonthBlank`): Start this month pressed and no cell written, no note, nothing checked. That page
+   holds nothing to lose, and keeping it would leave the month's import no way in (owner, 12 Nov 2026). */
 function aregCleanMonth(m, src) {
   if (!m || !/^\d{4}-\d{2}$/.test(m.month || '') || !Array.isArray(m.columns) || !Array.isArray(m.days)) return null;
   var columns = m.columns.map(function(c) { return { name: String((c && c.name) != null ? c.name : c || '').trim() }; });
@@ -490,15 +492,22 @@ function aregCleanMonth(m, src) {
   return { month: m.month, src: src, at: Date.now(), by: aregWho(), title: String(m.title || '').slice(0, 60), columns: columns, days: days,
     notes: (m.notes || []).map(function(n) { return String(n).slice(0, 500); }).slice(0, 30) };
 }
+function aregMonthBlank(mo) {
+  if (!mo || mo.verifiedAt || (mo.notes || []).length) return false;
+  return (mo.days || []).every(function(d) {
+    return !d.note && (d.cells || []).every(function(c) { return !String(c.raw || '').trim() && !(c.edits || []).length; });
+  });
+}
 function aregImportData(data) {
   if (!data || data.kind !== 'sep-att-register' || !Array.isArray(data.months)) return { error: 'Not a register file' };
-  var out = { added: 0, kept: 0, bad: 0, months: [] };
+  var out = { added: 0, replaced: 0, kept: 0, bad: 0, months: [] };
   data.months.forEach(function(m) {
     var mo = aregCleanMonth(m, 'import');
     if (!mo) { out.bad++; return; }
-    if (aregMonthOf(mo.month)) { out.kept++; return; }
+    var had = aregMonthOf(mo.month);
+    if (had && !aregMonthBlank(had)) { out.kept++; return; }
     aregData().months[mo.month] = mo;
-    out.added++;
+    if (had) out.replaced++; else out.added++;
     out.months.push(mo.month);
   });
   return out;
@@ -528,6 +537,7 @@ function aregImportText(text, name) {
   renderAttendance();
   var bits = [];
   if (res.added) bits.push(res.added + ' month' + (res.added === 1 ? '' : 's') + ' added');
+  if (res.replaced) bits.push(res.replaced + ' blank page' + (res.replaced === 1 ? '' : 's') + ' filled');
   if (res.kept) bits.push(res.kept + ' already on record, kept');
   if (res.bad) bits.push(res.bad + ' not read');
   showToast(bits.length ? bits.join(' · ') : 'Nothing in that file');

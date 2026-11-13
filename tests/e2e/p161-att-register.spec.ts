@@ -210,4 +210,51 @@ test.describe('P161 the monthly register', () => {
     await g(page, `aregData().months['${M}'] = aregBlankMonth('${M}', 'hand'); aregImportText(${JSON.stringify(JSON.stringify(page1()))}, 'feb.json')`);
     await expect(page.locator('.inv-toast').last()).toContainText('1 blank page filled');
   });
+
+  test('a cell shows the day’s WhatsApp roll lines that name the hand, and settling it keeps them', async ({ page }) => {
+    // Owner, 13 Nov 2026: "I don't see the relevant dated line of the whatsapp message to make an informed decision, that the app
+    // can record and store for future references and reads." 3 Feb: the day holds Ramu absent, the register P; the saved in-time
+    // roll names him on VAT A1. 2 Feb: no roll saved.
+    const ROLL = `03/02/26/ in time
+----8:30 AM---
+---VAT A 1----
+1) RAMU
+---berral---
+2) BISHU`;
+    await loadAppWithState(page, book({ relayPastes: [{ id: 'RP-9', at: 10, hash: 'x9', sentBy: 'Alfa Oraon', sentOn: '2026-02-03', sentAt: 520, kind: 'in', date: '2026-02-03', text: ROLL }] }));
+    await g(page, `aregImportData(${JSON.stringify(page1())}); _aregMonth = '${M}'; _attView = 'register'; saveState()`);
+    const got: any = await g(page, `aregRollLines('2026-02-03', 1)`);
+    expect(got.rolls.map((r: any) => [r.id, r.kind, r.sentBy, r.head, r.lines.map((l: any) => l.raw)])).toEqual([['RP-9', 'in', 'Alfa Oraon', '03/02/26/ in time', ['1) RAMU']]]);
+    expect(got.reading.st).toBe('P');
+    expect(await g(page, `aregRollLines('2026-02-02', 1).rolls.length`)).toBe(0);
+
+    await switchTab(page, 'pageStaff');
+    // The list of differences says what the roll reads beside the register and the day.
+    const diff = page.locator('[data-card="areg-diff"]');
+    await expect(diff.locator('[data-d="2"][data-c="0"]')).toContainText('the roll Present');
+    await expect(diff.locator('[data-d="1"][data-c="1"]')).toContainText('no roll saved');
+
+    // The cell: the roll's head, who sent it, and Ramu's line as written and as read; Bishu's line is not his.
+    await page.locator('#aregGrid [data-d="2"][data-c="0"]').click();
+    const rolls = page.locator('[data-areg-cell] [data-areg-rolls]');
+    await expect(rolls.locator('[data-areg-roll]')).toContainText('In-time roll · Alfa Oraon');
+    await expect(rolls.locator('[data-areg-roll]')).toContainText('“1) RAMU”');
+    await expect(rolls.locator('[data-areg-roll]')).not.toContainText('BISHU');
+    await expect(rolls).toContainText('The rolls alone read');
+
+    // Settled: the day takes the register's, and the cell keeps what it was settled on, as it stood before the change.
+    await page.locator('[data-areg-cell] [data-action="invAregToDay"]').click();
+    await expect(page.locator('[data-areg-cell] [data-areg-settled]')).toContainText('the day took the register’s');
+    await expect(page.locator('[data-areg-cell] [data-areg-settled]')).toContainText('“1) RAMU”');
+    const st = await readStoredState(page);
+    const cell = (st as any).attRegister.months[M].days[2].cells[0];
+    expect(cell.settled).toHaveLength(1);
+    expect(cell.settled[0]).toMatchObject({ way: 'day', register: 'P', day: 'Absent', rolls: [{ id: 'RP-9', kind: 'in', sentBy: 'Alfa Oraon', lines: ['1) RAMU'] }] });
+    expect((st as any).attendance['2026-02-03'].marks[1]).toMatchObject({ st: 'P', src: 'register' });
+
+    // A day with no roll saved says so in the cell.
+    await page.locator('[data-areg-cell] [data-action="invAregCellClose"]').click();
+    await page.locator('#aregGrid [data-d="1"][data-c="1"]').click();
+    await expect(page.locator('[data-areg-cell] [data-areg-rolls]')).toContainText('No roll is saved for');
+  });
 });

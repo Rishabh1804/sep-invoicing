@@ -463,7 +463,8 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   function slotAt() { return st.slot && st.slot.tag ? st.slot.tag : relaySlotTag(st.mode, st.slot); }
 
   lines.slice(1).forEach(function(raw, i) {
-    var ln = { n: i + 2, raw: raw, role: '', read: '' };
+    // The day the line sits under (a roll can carry a second day's block): the register's cell shows a hand's lines for one day.
+    var ln = { n: i + 2, raw: raw, role: '', read: '', iso: st.iso };
     var line = raw.trim();
     var bare = line.replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
     if (!bare || st.stop) return;

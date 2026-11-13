@@ -4,7 +4,7 @@ domain: people
 modules: [split/attreg.js, split/attsheet.js, split/relay.js, split/staff.js]
 specs: []
 tests: [P43, P96, P98, P161, P207, P221, P251]
-updated: 2026-11-12 (an import fills a blank page started by hand)
+updated: 2026-11-13 (the WhatsApp rolls beside a register cell; a settled cell keeps them)
 ---
 
 ### Attendance rolls from WhatsApp
@@ -83,6 +83,13 @@ supervisor's book, a page a month, a column a monthly hand, a row a day. P161.
   register, or the day has a present mark the register left blank. Settled one cell at a time, either way: *Day takes the register's*
   (the mark with its times, `src: 'register'`) or *Register takes the day's*. **Fill** puts every cell only on the register onto its day,
   asked first; an unsure or unread cell is left out, and a mark already on a day is never touched.
+- **The WhatsApp rolls beside the cell** (owner, 13 Nov 2026: *"I don't see the relevant dated line of the whatsapp message to make an
+  informed decision, that the app can record and store for future references and reads"*): a cell shows each roll saved for its day
+  (`relayRollsFor`), its head and sender, and the lines the reader put to that hand under that day, as written and as read
+  (`aregRollLines`; a roll line now carries its day, `iso`), then what the rolls alone read (`relayRollsReading`). The list of
+  differences says the roll's mark beside the register's and the day's, or *no roll saved*. **A cell settled keeps what it was settled
+  on** (`settled`: when, who, which way, the register's words and the day's mark as they stood before, and the rolls' lines), added to,
+  never replaced. P161.
 - **A corrected cell keeps what it said** (`edits`), on a page read from paper; a page started by hand is just being written. Mark
   checked stamps `verifiedAt`; any later change clears it.
 - **A column's worker**: picked once, learnt for that heading (`S.attRegister.names`), else the roster's name as a roll reads it.

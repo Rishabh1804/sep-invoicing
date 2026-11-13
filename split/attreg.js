@@ -252,7 +252,8 @@ function aregDiffHtml(mo, cmp) {
       rows.push('<button class="inv-row inv-row-2" data-action="invAregCell" data-d="' + di + '" data-c="' + ci + '" data-areg-diff="' + x.k + '">' +
         '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.w.name) + ' · ' + escHtml(formatDate(day.date)) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">Register &ldquo;' + escHtml(cell.raw || 'blank') + '&rdquo;' + (x.c && x.c.st === 'P' ? ', OT ' + x.h.ot + ' h' : '') +
-        ' · the day ' + escHtml(x.m ? ATT_STATE_LABELS[x.m.st] || x.m.st : 'no mark') + (x.m && x.m.st === 'P' ? ', OT ' + formatNum(Number(x.m.ot) || 0, 1) + ' h' : '') + '</span></span>' +
+        ' · the day ' + escHtml(x.m ? ATT_STATE_LABELS[x.m.st] || x.m.st : 'no mark') + (x.m && x.m.st === 'P' ? ', OT ' + formatNum(Number(x.m.ot) || 0, 1) + ' h' : '') +
+        aregRollSay(day.date, x.w) + ((cell.settled || []).length ? ' · settled' : '') + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-dot inv-dot-' + AREG_TONE[x.k] + '">' + AREG_SAY[x.k].replace(' from the day', '') + '</span></span></button>');
     });
   });
@@ -260,6 +261,13 @@ function aregDiffHtml(mo, cmp) {
     '<span class="inv-num">' + rows.length + '</span></div>';
   if (!rows.length) return h + _labNote(cmp.n.agree ? 'Every cell the day also holds agrees with it.' : 'The app holds no day of this month for these hands yet.') + '</div>';
   return h + uiMoreHtml('areg-diff-' + mo.month, rows, { n: 10, noun: 'cells' }) + '</div>';
+}
+/* The rolls' word on a cell, short, for the list: what the day's rolls alone read for the hand, or that none is saved. */
+function aregRollSay(iso, w) {
+  if (!iso || !w || typeof relayDayHasRolls !== 'function') return '';
+  if (!relayDayHasRolls(iso)) return ' · no roll saved';
+  var all = relayRollsReading(iso), m = all ? all[String(w.id)] : null;
+  return ' · the roll ' + escHtml(m && m.st ? (ATT_STATE_LABELS[m.st] || m.st) + (m.st === 'P' ? ', OT ' + formatNum(Number(m.ot) || 0, 1) + ' h' : '') : 'does not name them');
 }
 function aregTotalsHtml(mo, cmp) {
   var h = '<div class="inv-panel inv-panel-flush" data-card="areg-totals"><div class="inv-panel-head"><span class="inv-panel-title">OT by column</span></div>';
@@ -277,6 +285,67 @@ function aregTotalsHtml(mo, cmp) {
 }
 
 /* ===== THE CELL ===== */
+/* The WhatsApp rolls saved for a day, and the lines in them that name one hand (owner, 13 Nov 2026: "I don't see the relevant
+   dated line of the whatsapp message to make an informed decision, that the app can record and store"). Each roll is read
+   as the day's own reader reads it now (relayRollsFor, parseRelayRoll); a line is this hand's when the reader put it to
+   them, under this day. `reading` is the mark the rolls alone give (relayRollsReading), null where no roll is saved. */
+function aregRollLines(iso, wid) {
+  if (!iso || wid == null || typeof relayRollsFor !== 'function') return { rolls: [], reading: null };
+  var roster = relayRoster({}, iso), id = String(wid);
+  var rolls = relayRollsFor(iso).map(function(p) {
+    var r = parseRelayRoll(p.text, roster, p.sentOn || null, { exact: !!p.face, sentAt: p.sentAt });
+    var lines = r.lines.filter(function(ln) { return ln.person != null && String(ln.person) === id && (!ln.iso || ln.iso === iso); })
+      .map(function(ln) { return { raw: String(ln.raw || '').trim(), read: ln.read || '' }; });
+    return { id: p.id || null, kind: p.kind, sentBy: p.sentBy || '', sentOn: p.sentOn || null,
+      head: (String(p.text || '').split('\n').find(function(l) { return l.trim(); }) || '').trim(), lines: lines };
+  });
+  var all = typeof relayRollsReading === 'function' ? relayRollsReading(iso) : null;
+  return { rolls: rolls, reading: all ? all[id] || null : null };
+}
+function aregMarkText(m) {
+  if (!m || !m.st) return 'no mark';
+  return (ATT_STATE_LABELS[m.st] || m.st) + (m.st === 'P' ? ', ' + formatNum(Number(m.hours) || 0, 1) + ' h, OT ' + formatNum(Number(m.ot) || 0, 1) + ' h' : '') +
+    (typeof attTimesText === 'function' && attTimesText(m) ? ' · ' + attTimesText(m) : '');
+}
+/* The rolls, drawn in the cell: each roll's head and who sent it, then this hand's lines as written and as read. */
+function aregRollsHtml(iso, w) {
+  if (!w || !iso) return '';
+  var got = aregRollLines(iso, w.id), h = '';
+  if (!got.rolls.length) return '<div class="inv-rows" data-areg-rolls>' + _payRow('The WhatsApp rolls', 'No roll is saved for ' + escHtml(formatDate(iso)) + '.', '') + '</div>';
+  got.rolls.forEach(function(r) {
+    var who = (r.kind === 'out' ? 'Out-time' : 'In-time') + ' roll' + (r.sentBy ? ' · ' + r.sentBy : '') + (r.sentOn ? ' · sent ' + formatDate(r.sentOn) : '');
+    var said = r.lines.length ? r.lines.map(function(l) { return '&ldquo;' + escHtml(l.raw) + '&rdquo;' + (l.read ? ' → ' + escHtml(l.read) : ''); }).join('<br>')
+      : 'Does not name ' + escHtml(w.name) + '.';
+    h += _payRow(escHtml(who), '&ldquo;' + escHtml(r.head) + '&rdquo;<br>' + said, '', ' data-areg-roll');
+  });
+  h += _payRow('The rolls alone read', escHtml(got.reading ? aregMarkText(got.reading) : 'no mark for ' + w.name), '');
+  return '<div class="inv-rows" data-areg-rolls>' + h + '</div>';
+}
+/* A cell settled, either way, keeps what it was settled on: the register's words, the day's mark and the rolls' lines as they
+   stood, who and when. A later change does not erase it; the next settling is added. */
+function aregSettleNote(mo, di, ci, w, way) {
+  var day = mo.days[di], cell = day && day.cells[ci];
+  if (!cell || !w || !day.date) return null;
+  var got = aregRollLines(day.date, w.id);
+  return { at: Date.now(), by: aregWho(), way: way, register: cell.raw || '',
+    day: aregMarkText(attMark(day.date, w.id)), rolls: got.rolls.map(function(r) { return { id: r.id, kind: r.kind, sentBy: r.sentBy, sentOn: r.sentOn, head: r.head, lines: r.lines.map(function(l) { return l.raw; }) }; }),
+    rollsRead: got.reading ? aregMarkText(got.reading) : '' };
+}
+/* Taken before the change (the register's words and the day's mark as they stood), kept once the change is made. */
+function aregSettleKeep(mo, di, ci, note) {
+  var cell = note && mo.days[di] ? mo.days[di].cells[ci] : null;
+  if (cell) (cell.settled = cell.settled || []).push(note);
+}
+function aregSettledHtml(cell) {
+  if (!(cell.settled || []).length) return '';
+  return '<div class="inv-rows" data-areg-settled>' + cell.settled.map(function(x) {
+    var lines = [];
+    (x.rolls || []).forEach(function(r) { (r.lines || []).forEach(function(l) { lines.push('&ldquo;' + escHtml(l) + '&rdquo;'); }); });
+    return _payRow('Settled: ' + (x.way === 'day' ? 'the day took the register&rsquo;s' : 'the register took the day&rsquo;s'),
+      escHtml(formatDate(isoOf(new Date(x.at))) + (x.by ? ' by ' + x.by : '')) + ' · register &ldquo;' + escHtml(x.register || 'blank') + '&rdquo;, day ' + escHtml(x.day) +
+      ((x.rolls || []).length ? ' · the rolls: ' + (lines.length ? lines.join(' ') : 'no line names them') : ' · no roll was saved'), '');
+  }).join('') + '</div>';
+}
 function aregCellHtml() {
   var mo = aregMonthOf(aregMonthShown()), at = _aregCellAt;
   var day = mo && at ? mo.days[at.d] : null, cell = day ? day.cells[at.c] : null, col = mo && at ? mo.columns[at.c] : null;
@@ -307,6 +376,7 @@ function aregCellHtml() {
     _payRow('The day holds', escHtml(dayTxt), x ? '<span class="inv-dot inv-dot-' + (x.k === 'agree' ? 'ok' : AREG_TONE[x.k] || 'info') + '">' + AREG_SAY[x.k] + '</span>' : '') +
     ((cell.edits || []).length ? _payRow('Corrected', cell.edits.map(function(e) { return '&ldquo;' + escHtml(e.from || 'blank') + '&rdquo; → &ldquo;' + escHtml(e.to || 'blank') + '&rdquo; ' + escHtml(formatDate(isoOf(new Date(e.at)))); }).join(' · '), '') : '') +
     '</div>' +
+    aregRollsHtml(day.date, w) + aregSettledHtml(cell) +
     (day.note ? '<div class="inv-note">' + escHtml(day.note) + '</div>' : '') + '</div>' +
     '<div class="inv-dialog-foot">' +
     (canCopy ? '<button class="inv-btn" data-action="invAregFromDay">Register takes the day&rsquo;s</button>' : '') +
@@ -570,13 +640,16 @@ function aregAction(action, btn) {
     }
     case 'invAregToDay': {
       var mo2 = aregMonthOf(aregMonthShown()), at2 = _aregCellAt;
-      if (mo2 && at2 && attFloorOk() && aregPutOnDay(mo2, at2.d, at2.c, aregColWorker(mo2, at2.c))) { saveState(); aregCellRedraw(); showToast('The day takes the register’s'); }
+      var w2 = mo2 && at2 ? aregColWorker(mo2, at2.c) : null;
+      var n2 = mo2 && at2 ? aregSettleNote(mo2, at2.d, at2.c, w2, 'day') : null;
+      if (mo2 && at2 && attFloorOk() && aregPutOnDay(mo2, at2.d, at2.c, w2)) { aregSettleKeep(mo2, at2.d, at2.c, n2); saveState(); aregCellRedraw(); showToast('The day takes the register’s'); }
       return true;
     }
     case 'invAregFromDay': {
       var mo3 = aregMonthOf(aregMonthShown()), at3 = _aregCellAt, w3 = mo3 && at3 ? aregColWorker(mo3, at3.c) : null;
       var m3 = w3 ? attMark(mo3.days[at3.d].date, w3.id) : null;
-      if (m3 && aregSetRaw(aregRawOf(m3))) { aregCellRedraw(); showToast('The register takes the day’s'); }
+      var n3 = m3 ? aregSettleNote(mo3, at3.d, at3.c, w3, 'register') : null;
+      if (m3 && aregSetRaw(aregRawOf(m3))) { aregSettleKeep(mo3, at3.d, at3.c, n3); saveState(); aregCellRedraw(); showToast('The register takes the day’s'); }
       return true;
     }
     case 'invAregNext': {

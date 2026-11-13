@@ -10,43 +10,38 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 11 Nov 2026: CLAUDE.md cut to a core, and the atlas (read this first)
+## Session close, 13 Nov 2026: a month's register into the app, and the rolls beside each cell (read this first)
 
-- **What changed**: `CLAUDE.md` was 620 KB, loaded whole into every session and every subagent (about 155,000 tokens). It is now
-  an 8 KB core: the route, the protocol, the hard rules, build and tests. Its 110 sections moved **word for word** into
-  `docs/atlas/` (8 domains, 71 topics), checked line by line: none lost, none duplicated.
-- **The route**: `CLAUDE.md` → `docs/atlas/INDEX.md` → a domain's `README.md` → a topic → the code, spec and tests it names.
-  `docs/atlas/MODULES.md` gives a module's topic; `docs/atlas/HEADINGS.md` resolves an old *CLAUDE.md § …* citation. Path rules
-  in `.claude/rules/` name the topic when a module is opened.
-- **The protocol** (`docs/atlas/README.md`): look up by the route; a miss is fixed in the same PR; a change updates its topic;
-  over budget, split. `node tools/atlas-check.mjs` holds it in CI's build job.
-- **This file was cut too** (117 KB → 4 KB): older closes are in `docs/sessions/`, the data flows in `docs/DATA_FLOWS.md`.
-- **Carried from 10 Nov, the owner's**:
-  - October 2026's Tata figures: the owner typed the total by hand, so the app does not read October itself; the release is
-    read only from the Tata dialog's **Read the release**. Ask how it went.
-  - The 4-digit PIN (Castor H-2), deferred by the owner; the next build's order (the server S0–S5, KB2-2 onward, PP2/PP4/PP5).
-- **From the codex's read of 4–10 Nov** (`soma-internal/decisions/2026-11-11.md`):
-  - The supervisor's starting balance **is on the book** (the 9 and 10 Nov closes listed it as open).
-  - A delivery relayed from the sibling supplier of free acids carries no price in the app, so the live cost reads its lines as
-    unpriced, not ₹0. Setting those entries to ₹0 is the owner's call in Stock.
-- **For the compile session**: `soma-internal/CLAUDE.md` cites this repo's old `CLAUDE.md` by line (`:514`, `:703`). Those lines
-  are gone; the passages are in `docs/atlas/billing/credit-notes.md` and `docs/atlas/people/areas-and-extra.md`.
-- **Open on the atlas itself**: the first cut filed sections in the order they had grown. Re-file a topic that bundles two
-  subjects when next working in it (`docs/atlas/README.md`, *Iterate*).
+- **What shipped, merged on the owner's word**:
+  - **#190** (`5fdf706`): an import fills a register page started by hand and left blank (`aregMonthBlank`). A month had been
+    started with *Start this month* and nothing written, and its transcribed file came back *already on record, kept*. P161.
+  - **#191** (`618bbe7`; owner: *"I don't see the relevant dated line of the whatsapp message to make an informed decision, that
+    the app can record and store for future references and reads"*): a register cell shows each roll saved for its day and the
+    lines naming that hand, as written and as read, then what the rolls alone read; the list of differences says the roll's mark.
+    **A settled cell keeps what it was settled on** (`settled[]`; a row in `docs/DATA_FLOWS.md`). A roll line carries its day (`iso`).
+  - **#192** (`8f25cce`; owner, live: *"It doesn't show the time at all"*): each line under the slot heading and section above it,
+    an in-time roll's own "OUT TIME …" read as a slot. Merged before CI on the owner's word; the PR's run and `main`'s passed.
+- **Off the build**: a month's register page was transcribed by Claude from the owner's photos into a private `sep-att-register`
+  file (its unsure cells settled by the owner), handed over and imported (*"1 blank page filled"*). Not committed (HR-10).
+- **Open, the owner's**: settling that month's differences in the app with the roll lines beside each cell; the 4-digit PIN
+  (Castor H-2), deferred; ₹0 prices on the free-acid supplier's entries, his call in Stock.
+- **From 11 Nov, still open**: re-file a topic that bundles two subjects when next working in it (`docs/atlas/README.md`, *Iterate*);
+  the codex's `CLAUDE.md` citations of this repo's old `CLAUDE.md` lines (the compile session's).
 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. 11 Nov 2026: CLAUDE.md is now a small core and everything else is in docs/atlas/
-(the route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests).
-Goal: ask the owner how October 2026's Tata release read went (Tata dialog → Read the release) and fix what it
-showed; then the owner's next ask, or the planned updates (the server S0–S5, KB2-2 onward, the plant
-picture's PP2/PP4/PP5), one PR a step.
+SEP Invoicing, session B. 13 Nov 2026: a register cell now shows the day's WhatsApp roll lines under their time
+headings, and a settled cell keeps them (docs/atlas/people/attendance-rolls.md). The route: CLAUDE.md →
+docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests.
+Goal: ask the owner how settling the month's register went and fix what it showed; then the owner's next ask, or
+the planned updates (the server S0–S5, KB2-2 onward, the plant picture's PP2/PP4/PP5), one PR a step.
 Read first:
 - /home/user/sep-invoicing/docs/NEXT_SESSION.md (this entry)
 - /home/user/sep-invoicing/docs/atlas/README.md (the protocol), then the topic for the subject in hand
-At start: HR-10, the repo is public, every example made up; set PW_CHROMIUM_PATH before Playwright; never
-raise a P195 budget; merge only on the owner's word; a change updates its atlas topic in the same PR.
+At start: HR-10, the repo is public, every example made up; run `pnpm install` if node_modules is missing and set
+PW_CHROMIUM_PATH=/opt/pw-browsers/chromium before Playwright; never raise a P195 budget; merge only on the owner's
+word; a change updates its atlas topic in the same PR.
 Held for the owner: the 4-digit PIN (Castor H-2).
 ```
 

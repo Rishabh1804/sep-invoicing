@@ -85,7 +85,9 @@ supervisor's book, a page a month, a column a monthly hand, a row a day. P161.
   asked first; an unsure or unread cell is left out, and a mark already on a day is never touched.
 - **The WhatsApp rolls beside the cell** (owner, 13 Nov 2026: *"I don't see the relevant dated line of the whatsapp message to make an
   informed decision, that the app can record and store for future references and reads"*): a cell shows each roll saved for its day
-  (`relayRollsFor`), its head and sender, and the lines the reader put to that hand under that day, as written and as read
+  (`relayRollsFor`), its head and sender, and the lines the reader put to that hand under that day, as written and as read, each
+  under the slot heading that carries its time and the section under it ("------8:30 AM-----" › "---VAT A 1----" › "1) …"; owner, 13 Nov:
+  *"It doesn't show the time at all"*; an in-time roll's own "OUT TIME 8:00 PM" is a slot, its time read off the heading)
   (`aregRollLines`; a roll line now carries its day, `iso`), then what the rolls alone read (`relayRollsReading`). The list of
   differences says the roll's mark beside the register's and the day's, or *no roll saved*. **A cell settled keeps what it was settled
   on** (`settled`: when, who, which way, the register's words and the day's mark as they stood before, and the rolls' lines), added to,

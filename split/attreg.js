@@ -294,8 +294,23 @@ function aregRollLines(iso, wid) {
   var roster = relayRoster({}, iso), id = String(wid);
   var rolls = relayRollsFor(iso).map(function(p) {
     var r = parseRelayRoll(p.text, roster, p.sentOn || null, { exact: !!p.face, sentAt: p.sentAt });
-    var lines = r.lines.filter(function(ln) { return ln.person != null && String(ln.person) === id && (!ln.iso || ln.iso === iso); })
-      .map(function(ln) { return { raw: String(ln.raw || '').trim(), read: ln.read || '' }; });
+    // A name line says nothing of time: the time is the heading it sits under (owner, 13 Nov 2026: "It doesn't show the time at
+    // all"). Each line carries the slot heading above it ("------8:30 AM-----", "---OUT TIME 8:00 PM---") and the section under
+    // that slot ("---VAT A 1----"), as written and as read.
+    var slot = null, sec = null, lines = [];
+    r.lines.forEach(function(ln) {
+      if (ln.role === 'head') {
+        var h = { raw: String(ln.raw || '').trim(), read: ln.read || '' };
+        // An in-time roll's own out-times ("--OUT TIME 8:00 PM---") are a slot too; the reader says only "Out-times from here",
+        // so the time is read off the heading here (relay's reading is Production's as well, and is left as it is).
+        var outHere = ln.read === 'Out-times from here';
+        if (outHere) { var ot = relayTimes(h.raw); h.read = ot.length ? 'Out at ' + relayClockLabel(relayOutMin(ot[0])) : 'Out-times'; }
+        if (outHere || ln.slotFrom !== undefined || ln.slotTo !== undefined) { slot = h; sec = null; } else sec = h;
+        return;
+      }
+      if (ln.person == null || String(ln.person) !== id || (ln.iso && ln.iso !== iso)) return;
+      lines.push({ raw: String(ln.raw || '').trim(), read: ln.read || '', heads: [slot, sec].filter(Boolean) });
+    });
     return { id: p.id || null, kind: p.kind, sentBy: p.sentBy || '', sentOn: p.sentOn || null,
       head: (String(p.text || '').split('\n').find(function(l) { return l.trim(); }) || '').trim(), lines: lines };
   });
@@ -314,7 +329,11 @@ function aregRollsHtml(iso, w) {
   if (!got.rolls.length) return '<div class="inv-rows" data-areg-rolls>' + _payRow('The WhatsApp rolls', 'No roll is saved for ' + escHtml(formatDate(iso)) + '.', '') + '</div>';
   got.rolls.forEach(function(r) {
     var who = (r.kind === 'out' ? 'Out-time' : 'In-time') + ' roll' + (r.sentBy ? ' · ' + r.sentBy : '') + (r.sentOn ? ' · sent ' + formatDate(r.sentOn) : '');
-    var said = r.lines.length ? r.lines.map(function(l) { return '&ldquo;' + escHtml(l.raw) + '&rdquo;' + (l.read ? ' → ' + escHtml(l.read) : ''); }).join('<br>')
+    var said = r.lines.length ? r.lines.map(function(l) {
+      var under = (l.heads || []).map(function(h) { return '&ldquo;' + escHtml(h.raw) + '&rdquo;'; }).join(' › ');
+      var reads = (l.heads || []).map(function(h) { return h.read; }).filter(Boolean).concat(l.read ? [l.read] : []);
+      return (under ? under + ' › ' : '') + '&ldquo;' + escHtml(l.raw) + '&rdquo;' + (reads.length ? ' → ' + escHtml(reads.join(' · ')) : '');
+    }).join('<br>')
       : 'Does not name ' + escHtml(w.name) + '.';
     h += _payRow(escHtml(who), '&ldquo;' + escHtml(r.head) + '&rdquo;<br>' + said, '', ' data-areg-roll');
   });
@@ -328,7 +347,7 @@ function aregSettleNote(mo, di, ci, w, way) {
   if (!cell || !w || !day.date) return null;
   var got = aregRollLines(day.date, w.id);
   return { at: Date.now(), by: aregWho(), way: way, register: cell.raw || '',
-    day: aregMarkText(attMark(day.date, w.id)), rolls: got.rolls.map(function(r) { return { id: r.id, kind: r.kind, sentBy: r.sentBy, sentOn: r.sentOn, head: r.head, lines: r.lines.map(function(l) { return l.raw; }) }; }),
+    day: aregMarkText(attMark(day.date, w.id)), rolls: got.rolls.map(function(r) { return { id: r.id, kind: r.kind, sentBy: r.sentBy, sentOn: r.sentOn, head: r.head, lines: r.lines.map(function(l) { return (l.heads || []).map(function(h) { return h.raw; }).concat([l.raw]).join(' › '); }) }; }),
     rollsRead: got.reading ? aregMarkText(got.reading) : '' };
 }
 /* Taken before the change (the register's words and the day's mark as they stood), kept once the change is made. */

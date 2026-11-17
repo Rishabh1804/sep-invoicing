@@ -10,9 +10,10 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 17 Nov 2026: the cache warmer's pointer; the paper record reads an auto margin as auto (read this first)
+## Session close, 17 Nov 2026: the unattended close's pointer; the paper record reads an auto margin as auto (read this first)
 
-- **What shipped, merged on the owner's word**: **#194** (`1cfd394`).
+- **What shipped, merged on the owner's word**: **#194** (`1cfd394`), and **#196** (`fd6e4b6`), which replaced the pointer's
+  pings with the one check below.
   - **The cache warmer's pointer** (owner: *"add the pointer line to sep-invoicing too"*): one bullet in `CLAUDE.md` beside
     *Sessions*, and the same in `docs/atlas/README.md`. A session arms a ping to itself every 50 minutes; any message the owner
     types resets the count; the tenth in a row ends the chain. The rule is the codex's
@@ -27,6 +28,8 @@ At a close, the new entry replaces the one below, which moves to the top of its 
 - **The warmer is retired, the close kept** (the owner, 17 Nov, after this close was first written): on its first night the
   session limit was hit and a ping arrived ten hours late. One check eight hours after his last message now runs the
   close; nothing keeps the cache warm (the codex's `decisions/2026-11-17.md`).
+- **The next session, named by the owner at the close**: *"sep invoicing bug fix and patch session"*. He has not yet listed
+  the bugs; the session starts by asking for them.
 - **Open, the owner's, unchanged from 13 Nov**: settling the month's register differences in the app with the roll lines
   beside each cell; the 4-digit PIN (Castor H-2), deferred; ₹0 prices on the free-acid supplier's entries, his call in Stock.
 - **From 11 Nov, still open**: re-file a topic that bundles two subjects when next working in it (`docs/atlas/README.md`, *Iterate*);
@@ -35,11 +38,12 @@ At a close, the new entry replaces the one below, which moves to the top of its 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. 17 Nov 2026: the cache warmer's pointer is in CLAUDE.md, and the paper record (P228) reads an
-auto margin as auto (docs/atlas/core/tests.md). The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic →
-code, spec, tests.
-Goal: ask the owner how settling the month's register went and fix what it showed; then the owner's next ask, or
-the planned updates (the server S0–S5, KB2-2 onward, the plant picture's PP2/PP4/PP5), one PR a step.
+SEP Invoicing, session B: a bug fix and patch session, named by the owner on 17 Nov 2026. Last close: the unattended
+close's pointer is in CLAUDE.md, and the paper record (P228) reads an auto margin as auto (docs/atlas/core/tests.md). The
+route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests.
+Goal: ask the owner for the bugs he has met in use, and how settling the month's register went. Fix each in its own PR:
+find the cause, write the test that fails on the build before the fix, fix it, update the atlas topic. No new features
+unless he asks.
 Read first:
 - /home/user/sep-invoicing/docs/NEXT_SESSION.md (this entry)
 - /home/user/sep-invoicing/docs/atlas/README.md (the protocol), then the topic for the subject in hand

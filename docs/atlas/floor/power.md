@@ -3,8 +3,8 @@ subject: "Power"
 domain: floor
 modules: [split/power.js, split/powercause.js]
 specs: []
-tests: [P177, P196, P243]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P177, P196, P243, P278]
+updated: 2026-11-17 (Case is not a Supervisor's, P278)
 ---
 
 ### Power
@@ -97,6 +97,11 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
 - **Power's figures are the owner's settings** (owner, 28 Oct 2026: *"Power - yes, ask for PIN"*; P243): the options' figures, the
   load and a bill's details save behind `grdGate('settings')`, the PIN asked over the dialog once the re-ask window has passed; a
   role without Settings is told so and nothing is saved.
+- **Case is the owner's and a role that sees money and wages** (owner, 17 Nov 2026: *"Remove the option for the supervisor to
+  view the power-case"*; `powerCaseSees`, P278). It draws revenue, realisation, margins and wages, so a role without both has no
+  Case tab (`powerTabs`), an address or a stored tab naming it opens Cuts, `powerPrint` draws nothing, search does not list it
+  (`srchSees`) and the To-do's power moves lead to Cuts, Load & bills or Causes instead (`advPowerMoves`, `powerLoad`,
+  `powerCause`). A cut's cost stays every role's (QA4-4).
 - **The case is a document drawn from the data every time it is shown or printed** (owner: *"The case report should
   always be printable, and it should be dynamic - updates data as soon as the data feeding it is updated"*;
   `powerCaseHtml`). Case shows it on the page; Print the case sends the same document to the print view, and a save in

@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="1d386d38">
+<meta name="app-build" content="13526652">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -53283,14 +53283,17 @@ function advPowerMoves(ctx) {
   // The case's recommendation (§8: the TSUISL switch first), else the option that pays back soonest.
   var opts = (a.options || []).filter(function(o) { return o.payLo != null && o.gain > 0; });
   var rec = opts.find(function(o) { return o.key === 'ts'; }) || opts.slice().sort(function(p, q) { return p.payLo - q.payLo; })[0] || null;
+  // The case is not every role's (power.js powerCaseSees): without it, the move is the month's cuts and their cost alone.
+  var caseSees = typeof powerCaseSees !== 'function' || powerCaseSees();
+  if (!caseSees) rec = null;
   return [{ key: 'power:' + m, tone: 'amber', soon: 1, cat: 2, what: todoPlural(mm.cuts, 'power cut') + ' this month',
     row: { title: todoPlural(mm.cuts, 'power cut') + ' this month', meta: mm.min ? powerDur(mm.min) + ' dark' + (mm.open ? ', ' + mm.open + ' with no time back' : '') : 'No time back recorded',
       amt: mm.cost > 0 ? gstRound(mm.cost) : null },
-    say: (rec ? 'Take up ' + (ADV_OPTION_NAME[rec.key] || rec.label) : 'Read the power case') + ': ' + todoPlural(mm.cuts, 'cut') + ' this month cost ' + advRs(mm.cost),
+    say: (rec ? 'Take up ' + (ADV_OPTION_NAME[rec.key] || rec.label) : caseSees ? 'Read the power case' : 'See the cuts') + ': ' + todoPlural(mm.cuts, 'cut') + ' this month cost ' + advRs(mm.cost),
     worth: rec ? { amount: rec.gain, sign: 1, per: 'year', label: 'a year, the case’s gain' } : (mm.cost > 0 ? { amount: mm.cost, sign: -1, label: 'this month, in damage' } : null),
     basis: (rec ? 'pays back in ' + _pcMonths(rec.payLo) + ' to ' + _pcMonths(rec.payHi) + ' · ' : '') +
       (a.year ? 'a year at the last 90 days’ rate costs ' + advRs(a.year.base) : 'not a year of record to read against yet'),
-    go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Act on the power case' }];
+    go: caseSees ? { kind: 'powerCase' } : { kind: 'power', tab: 'cuts' }, goLabel: caseSees ? 'Power case' : 'Cuts', task: caseSees ? 'Act on the power case' : 'Read the power cuts' }];
 }
 function advStaffMoves(ctx) {
   if (!(S.staff || []).length) return [];
@@ -53774,6 +53777,7 @@ var ADV_TASK_MOVES = {
     return [{ key: 'carry', tone: t.tone, say: 'Settle the balances brought forward', worth: null, basis: t.sub, go: { kind: 'payWeek' }, goLabel: 'Pay', task: 'Settle the balances brought forward' }];
   },
   powerLoad: function(t) {
+    if (typeof powerCaseSees === 'function' && !powerCaseSees()) return [{ key: 'powerLoad', tone: 'info', say: 'Get the approved load onto the bill', worth: null, basis: t.sub, go: { kind: 'power', tab: 'load' }, goLabel: 'Load & bills', task: 'Get the approved load onto the bill' }];
     return [{ key: 'powerCase', tone: 'info', say: 'Read the power case: the approved load comes first', worth: null, basis: t.sub, go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Get the approved load onto the bill' }];
   },
   // A cut to complete (powercause.js): each one opens on its own dialog, the oldest with no time back first.
@@ -53793,8 +53797,9 @@ var ADV_TASK_MOVES = {
   powerCause: function(t) {
     var name = pcsName(t.reasonId) || 'the cause', u = t.unitId && typeof pltUnitById === 'function' ? pltUnitById(t.unitId) : null;
     var worth = t.amount > 0 ? { amount: t.amount, sign: -1, label: 'in damage over 30 days' } : null;
-    if (t.scope === 'grid') return [{ key: 'pcsGrid:' + t.reasonId, tone: 'amber', say: 'Take “' + name + '” up with the supplier, and read the power case', worth: worth, basis: t.sub,
-      go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Take “' + name + '” up with the supplier' }];
+    var caseSees = typeof powerCaseSees !== 'function' || powerCaseSees();
+    if (t.scope === 'grid') return [{ key: 'pcsGrid:' + t.reasonId, tone: 'amber', say: 'Take “' + name + '” up with the supplier' + (caseSees ? ', and read the power case' : ''), worth: worth, basis: t.sub,
+      go: caseSees ? { kind: 'powerCase' } : { kind: 'power', tab: 'causes' }, goLabel: caseSees ? 'Power case' : 'Causes', task: 'Take “' + name + '” up with the supplier' }];
     return [{ key: 'pcsCheck:' + t.reasonId, tone: t.tone, say: 'Get “' + name + '” checked' + (u ? ' on ' + u.name : ''), worth: worth, basis: t.sub,
       go: u ? { kind: 'plantUnit', id: u.id } : { kind: 'power', tab: 'causes' }, goLabel: u ? 'The unit' : 'Causes', task: 'Get “' + name + '” checked' },
       { key: 'pcsCauses', tone: 'info', say: 'See what causes the cuts and what brings the power back', worth: null, basis: 'Power → Causes', go: { kind: 'power', tab: 'causes' }, goLabel: 'Causes',
@@ -72008,8 +72013,15 @@ function powerCfg() {
   Object.keys(POWER_CFG_DEFAULTS).forEach(function(k) { out[k] = Number(c[k]) > 0 ? Number(c[k]) : POWER_CFG_DEFAULTS[k]; });
   return out;
 }
+/* The case is revenue, realisation, margins and wages: a role that does not see money and wages has no Case (owner, 17 Nov 2026:
+   "Remove the option for the supervisor to view the power-case"; guard.js grdSeesMoney, grdSeesWages). A cut's cost stays
+   every role's (QA4-4). */
+function powerCaseSees() {
+  return (typeof grdSeesMoney !== 'function' || grdSeesMoney()) && (typeof grdSeesWages !== 'function' || grdSeesWages());
+}
+function powerTabs() { return POWER_TABS.filter(function(t) { return t[0] !== 'case' || powerCaseSees(); }); }
 function powerSetTab(t) {
-  if (!POWER_TABS.some(function(x) { return x[0] === t; })) t = 'cuts';
+  if (!powerTabs().some(function(x) { return x[0] === t; })) t = 'cuts';
   if (t !== _powerTab) _powerTabMoved = true;
   _powerTab = t;
   try { localStorage.setItem('sep_inv_power_tab', t); } catch (e) { /* a per-device convenience only */ }
@@ -72496,9 +72508,9 @@ function renderPower() {
   var el = document.getElementById('powerContent');
   if (!el) return;
   powerData();
-  if (!POWER_TABS.some(function(t) { return t[0] === _powerTab; })) _powerTab = 'cuts';
+  if (!powerTabs().some(function(t) { return t[0] === _powerTab; })) _powerTab = 'cuts';
   var a = powerAnalysis();
-  var h = '<div class="inv-viewtabs" role="tablist" aria-label="Power">' + POWER_TABS.map(function(t) {
+  var h = '<div class="inv-viewtabs" role="tablist" aria-label="Power">' + powerTabs().map(function(t) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_powerTab === t[0]) + '" data-action="invPowerTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
   if (_powerTab === 'causes') h += pcsCausesHtml(a);
@@ -72512,7 +72524,7 @@ function renderPower() {
   if (_powerTabMoved) { _powerTabMoved = false; viewTop(); }
   // A case open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-picture]')) {
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-picture]') && powerCaseSees()) {
     body.innerHTML = powerCasePictureHtml(a) + (body.querySelector('[data-power-case]') ? powerCaseHtml(a) : ''); printFit();
   }
 }
@@ -72904,7 +72916,7 @@ function _powerLongestGap(gaps) {
 /* Print the picture (one page) or the full case: the picture, then the text. */
 function powerPrint(pictureOnly) {
   var body = document.getElementById('invPrintBody');
-  if (!body) return;
+  if (!body || !powerCaseSees()) return;
   var a = powerAnalysis();
   body.innerHTML = powerCasePictureHtml(a) + (pictureOnly ? '' : powerCaseHtml(a));
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
@@ -85761,6 +85773,8 @@ function srchSees(e) {
     if (!page) return grdIsOwner();
     if (!grdSees(page)) return false;
     // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
+    // Power's Case is revenue and wages: listed only to a role that sees both (power.js powerCaseSees).
+    if (page === 'pagePower' && go.kind === 'place' && go.loc.v === 'case' && typeof powerCaseSees === 'function' && !powerCaseSees()) return false;
     return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
   if (e.kind === 'kb') return typeof kbCanRead === 'function' && kbCanRead(kbFind(e.id));   // each article says who reads it

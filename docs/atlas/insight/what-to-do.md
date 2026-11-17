@@ -3,8 +3,8 @@ subject: "What to do: every answer ends in its moves"
 domain: insight
 modules: [split/advice.js]
 specs: [docs/DIRECTION_B.md]
-tests: [P133]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P133, P278]
+updated: 2026-11-17 (a role without the power case is led to the cuts, P278)
 ---
 
 ### What to do: every answer ends in its moves
@@ -21,7 +21,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
   *What you can do* — three moves shown, ranked by worth then tone, the rest behind *Show N more moves*; where none can be
   worked out, one line says what would make one appear:
   1. **Is the plant running smoothly?** (new) A stock line out or red, with the reorder list's cost; this month's cuts, with
-     the power case's option and its payback; an area short on 3 of the last 6 working days, with its EXTRA; a staffed line
+     the power case's option and its payback (to a role without the case, `powerCaseSees`, the cuts alone, P278); an area short on 3 of the last 6 working days, with its EXTRA; a staffed line
      with no record after 11 AM; the payout due within two days of Saturday; no backup for a week.
   2. **Are we making money?** Reprice the large accounts under the cost; bill what is waiting; the cost line furthest above
      its model; the spare capacity.

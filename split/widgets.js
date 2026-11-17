@@ -496,6 +496,13 @@ function wdgVizDraw(card) {
     // A chart with its keys under it: drawn again shorter by what the keys took, so the two fit the room together.
     var over = Math.ceil(slot.scrollHeight - slot.clientHeight);
     if (over > 0) { if (h - over >= 20) draw(h - over); else slot.innerHTML = ''; }
+    // A chart drawn in rows (a dumbbell's) keeps each row's height at any room: past it, its keys let go, then its last rows, each
+    // whole, never one cut halfway with the keys under it (P274: the phone's Who fills the plant at 360px).
+    var rows = slot.querySelectorAll('.inv-chart-rows > .inv-chart-row');
+    if (rows.length && slot.scrollHeight > slot.clientHeight + 1) {
+      Array.prototype.forEach.call(slot.querySelectorAll('.inv-chart-keys'), function(k) { k.setAttribute('data-wdg-cut', ''); });
+      for (var i = rows.length - 1; i > 0 && slot.scrollHeight > slot.clientHeight + 1; i--) rows[i].setAttribute('data-wdg-cut', '');
+    }
   } catch (e) { wdgErr(def, e); slot.innerHTML = ''; }
 }
 /* A card is exactly its size's height (§24h), so what it shows fits it or lets go: first the parts it can do without, all together

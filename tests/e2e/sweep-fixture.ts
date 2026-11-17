@@ -230,7 +230,12 @@ export const WHITE_CEIL = 0.97;
 export const PAPER = '.inv-print-body, .inv-rpt-doc, .inv-pcp-doc, .inv-sr-doc, .inv-qt-doc, .inv-ps-sheet, .inv-idc-sheet, .inv-ck-sheet, .inv-as-page, .inv-qc-page, .inv-cn-doc, .inv-print-invoice, .inv-qr';
 
 /* Everything checked at one stop, read from the rendered DOM (the page and whatever dialog is open). */
+/* A check a spec adds at every stop of the walks (P274's text fit), run after the stop is swept. */
+let stopHook: ((page: Page, where: string) => Promise<void>) | null = null;
+export function setStopHook(fn: ((page: Page, where: string) => Promise<void>) | null) { stopHook = fn; }
+
 export async function sweep(page: Page, where: string): Promise<Stop> {
+  if (stopHook) await stopHook(page, where);
   const r = await page.evaluate(([prefix, exact, hooks]) => {
     const styled = new Set<string>();
     const walk = (rules: CSSRuleList) => {

@@ -623,7 +623,9 @@ current view**, not navigation: period (MTD/QTD/YTD/All), span
 (1/4/12 weeks), metric (₹ / Tonnes / ₹/kg), density. `inv-seg-btn` (`aria-pressed`). A segment that records a status
 (Staff → Day's P / H / A) carries its tone, `inv-seg-btn-ok|warning|danger`, and its pill is the tone's bg in its colour, in
 both themes and on both layouts. `inv-seg-fit` keeps a segmented control the width of its
-buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the trend's series, step and chart). Replaces `inv-stk-seg`,
+buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the trend's series, step and chart). A label too long
+for its segment takes a second line at a space before an ellipsis cuts it, and five segments or more keep a `--sp-4` inset on the
+phone (P274: a 1–5 scale read "1 · Lo…" to "5 · D…" at 360px). Replaces `inv-stk-seg`,
 `inv-stats-chips` as period pickers, `inv-pred-chip`.
 
 ### 6.6 Filter tokens and chips — `inv-token`, `inv-chip`
@@ -829,6 +831,9 @@ pane's `scrollTop` are put back after the swap, the pane's only while the host's
   across, then qty · unit · pcs, then rate · `inv-line-amt`; figures are `inv-input-num`. On the desktop the same
   fields sit on one row under `inv-lines-head` (column widths `--line-fig-w`, `--line-unit-w`), so the lines read as a
   table; it is a grid rather than a `<table>` because one DOM serves both layouts and every control keeps its `data-k`.
+  The row needs about 42rem for its fixed columns, so `inv-lines` is a size container and under 48rem (Create at 1024px, beside
+  What Save records) the desktop's lines take the phone's grid, labelled, with no column head; in the row a field keeps an
+  `--sp-8` inset and the amount's column is `--sp-16` wider, so a crore with its paise shows whole (P274).
   Below the fields, `inv-line-notes`: the rate/weight **verdict** as `inv-verdict` (`inv-dot` + word, then the
   working in mono), with `data-verdict` on the note and on the Rate field (a Check fills the field `--danger-bg`; a rate
   on record in another unit, *Another unit*, borders it `--warning` and stops nothing);

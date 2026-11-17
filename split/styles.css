@@ -229,8 +229,13 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-14);
 }
 .inv-topbar-btn svg { width: 20px; height: 20px; }
 .inv-topbar-btn:hover { background: var(--surface-2); color: var(--text-1); }
+/* On the phone the tools sit edge to edge (each 44px target already holds its icon 12px in) and the title takes the gaps: at 360px
+   eight gaps left it 24px, one letter and an ellipsis (P274). */
+body:not(.inv-desktop) .inv-topbar { gap: 0; }
+body:not(.inv-desktop) .inv-topbar-title { margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16); }
-body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
+/* On the desktop the page's own name never gives way: the trail and the context give theirs first (P274: "Ho…" at 1024px). */
+body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); flex-shrink: 0; }
 body.inv-desktop .inv-topbar-ctx::before { content: '›'; color: var(--text-3); margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar-btn { display: none; }
 /* A row held back by uiMoreHtml (state.js) until "Show n more": hidden whatever display its class sets. */
@@ -243,6 +248,8 @@ body.inv-desktop .inv-topbar-back:not([hidden]) { display: flex; width: var(--ct
 body.inv-desktop .inv-topbar-trail { display: flex; align-items: center; gap: var(--sp-6); min-width: 0; color: var(--text-3); font-size: var(--fs-13); }
 body.inv-desktop .inv-topbar-trail:empty { display: none; }
 .inv-topbar-trail .inv-btn-link { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 400; }
+/* A step gives way to its first letters and an ellipsis, never to the ellipsis alone ("…" for Start at 1024px, P274). */
+body.inv-desktop .inv-topbar-trail .inv-btn-link { min-width: calc(var(--sp-32) + var(--sp-8)); }
 
 /* The phone bar (§6.1): five doors on a floating card (owner, 8 Oct 2026: "The bottom bar still doesn't look right … Move insights
    into office tab, that way we have 5 icons again, which can be arranged in a better way"). Every door is one geometry, its mark (the
@@ -324,6 +331,10 @@ body:not(.inv-desktop)::after {
 .inv-seg-btn:focus-visible { box-shadow: none; }
 .inv-seg-btn:focus-visible::after { box-shadow: inset 0 0 0 var(--rule) var(--accent); }
 .inv-seg-btn[aria-pressed="true"]:focus-visible::after { box-shadow: var(--lift-1), inset 0 0 0 var(--rule) var(--accent); }
+/* A label too long for its segment takes a second line at a space before an ellipsis cuts it, and five segments or more on the
+   phone keep a 4px inset, not 10px (P274: a check-in's 1–5 scale read "1 · Lo…" to "5 · D…" at 360px). One line wherever it fits. */
+.inv-seg-btn { white-space: normal; overflow-wrap: normal; line-height: 1.2; }
+body:not(.inv-desktop) .inv-seg:has(> .inv-seg-btn:nth-child(5)) > .inv-seg-btn { padding-inline: var(--sp-4); }
 body.inv-desktop .inv-seg { width: auto; display: inline-flex; }
 body.inv-desktop .inv-seg-btn { flex: 0 1 auto; padding: 0 var(--sp-16); }
 /* A segment that records a status (Staff → Day's P / H / A) is pressed in its tone, which switches with the theme. */
@@ -1573,7 +1584,8 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 /* A grid of launch buttons: three across, each label under its icon. In a dialog (Add's By hand) five across on the desktop; in a
    widget (the quick actions) it follows the card, not the window: six across from 40rem (below, with the widgets). */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
-.inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
+/* 4px at the sides: a third of a 360px dialog leaves a one-word label ("Attendance") no room in 8px (P274). */
+.inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8) var(--sp-4); text-align: center; }
 .inv-btn-grid > .inv-btn svg { width: 20px; height: 20px; }
 .inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -1796,8 +1808,12 @@ body:not(.inv-desktop) button.inv-row-main { min-height: var(--touch); }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }
-/* A dot's word wraps where its box is narrow: a row marked to wrap, and a tile's line (a tile is a fixed share of its strip). */
-.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot { white-space: normal; }
+/* A dot's word wraps where its box is narrow: a row marked to wrap, a tile's line (a tile is a fixed share of its strip), and a dot
+   that says a sentence in a note, a callout or a field's hint, or names a band in a meter's key, a quarter of its card (P274: the
+   check-in review's notes ran 55px past their panel at 360px; "Over 90 days" ran into the owed card's padding).
+   Wrapped, the dot stays on the first line, centred on it. */
+.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot, :is(.inv-note, .inv-callout, .inv-field-hint, .inv-meter-key-item) .inv-dot { white-space: normal; align-items: flex-start; }
+:is(.inv-row-wrap, .inv-tile-sub, .inv-note, .inv-callout, .inv-field-hint, .inv-meter-key-item) .inv-dot::before { margin-top: calc((1lh - var(--dot)) / 2); }
 /* On the phone and tablet a meta line may take two lines before it is cut (the polish pass's open items, 27 Sep 2026):
    one ellipsised line hid the date after a long client name ("GAMMA PRESS WORKS · 25…"). The title keeps one line, and
    whatever is still cut carries a title with its full text (uiOverflowCues, state.js). A meta line of names wraps whole
@@ -2052,6 +2068,8 @@ body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd)
 .inv-field { margin-bottom: var(--sp-12); }
 .inv-field-label { display: block; font-size: var(--fs-12); font-weight: 500; line-height: 1.35; color: var(--text-2); margin-bottom: var(--sp-4); }
 .inv-field-hint { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
+/* A hint set in the identifier face (a P.O. number's example) still wraps: it can say a sentence (P274). */
+.inv-field-hint.inv-id { white-space: normal; overflow-wrap: anywhere; }
 .inv-field-error { font-size: var(--fs-12); color: var(--danger); margin-top: var(--sp-4); }
 .inv-input, .inv-select, .inv-textarea { width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12); }
 /* A picker or figure that sits in a row's end, beside the value it acts on. */
@@ -2112,7 +2130,7 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-line-notes > :empty { display: none; }
 .inv-line-notes:not(:has(> :not(:empty))) { display: none; }
 body.inv-desktop :is(.inv-lines-head, .inv-line) {
-  grid-template-columns: var(--sp-24) minmax(0, 1fr) var(--line-fig-w) var(--line-unit-w) var(--line-fig-w) var(--line-fig-w) var(--line-fig-w) var(--ctl-h);
+  grid-template-columns: var(--sp-24) minmax(0, 1fr) var(--line-fig-w) var(--line-unit-w) var(--line-fig-w) var(--line-fig-w) calc(var(--line-fig-w) + var(--sp-16)) var(--ctl-h);
   gap: var(--sp-8); align-items: center;
 }
 body.inv-desktop .inv-lines-head {
@@ -2125,6 +2143,23 @@ body.inv-desktop .inv-line-num { font-family: var(--ff-num); }
 body.inv-desktop .inv-line-num::before { content: none; }
 body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
 body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--hair); height: var(--hair); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* A row's fields keep an 8px inset and the amount's column is 16px wider, so a crore with its paise shows whole: 104416797.10 read
+   "104416797.1" in its 7rem box (P274), a different figure. */
+body.inv-desktop .inv-line :is(.inv-input, .inv-select) { padding-inline: var(--sp-8); }
+/* The row needs room: its figures' columns are fixed (about 42rem with the gaps), so in a card narrower than 48rem (Create at 1024px,
+   beside What Save records) the part field had no width at all and the amount ran out of the card. There the desktop's lines take
+   the phone's grid, labelled, under no column head (P274). */
+.inv-lines { container: lines / inline-size; }
+@container lines (width < 48rem) {
+  body.inv-desktop .inv-lines-head { display: none; }
+  body.inv-desktop .inv-line { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; padding-top: var(--sp-12); padding-bottom: var(--sp-12); }
+  body.inv-desktop .inv-line-num { grid-column: 1 / 3; align-self: center; }
+  body.inv-desktop .inv-line-num::before { content: 'Line '; }
+  body.inv-desktop .inv-line-rm { grid-row: 1; grid-column: 3; }
+  body.inv-desktop :is(.inv-line-part, .inv-line-notes) { grid-column: 1 / -1; }
+  body.inv-desktop .inv-line-amt { grid-column: span 2; }
+  body.inv-desktop .inv-line .inv-field-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+}
 /* §6.29 A register page entered on Mine (faces.js, F4): a round a row (its time, its figure, remove), or on a batch page a batch
    a row (when it began and ended, remove, then its figure); the client and the part only where a run begins, as the paper's
    ditto carries them down; a row's reading or question under it. One grid on both layouts: the page is a person's own phone. */
@@ -3109,7 +3144,10 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-cut { fill: var(--danger); opacity: 0.18; background: var(--danger); }
 .inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
 .inv-pl-day-pick { fill: var(--series-other); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
-.inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
+/* A month's head is a 24th of the board: its cell keeps a 2px inset, not a cell's 12px, and its year stays whole, over the phone's
+   two-line meta (P274: "’26" broke after its first figure, and the month's name touched the next). */
+.inv-pl-board thead th:not(:first-child) { padding-inline: var(--sp-2); text-align: center; }
+.inv-pl-board thead th .inv-row-meta:not(.inv-row-wrap) { display: block; white-space: nowrap; overflow-wrap: normal; }
 
 /* The plant register (plant.js, owner 7 Oct 2026): a line's units are deck cards in their status's tone (§6.22; the tab map,
    TM4c), a pip per unit where the line is one row, a bar for what is available and what is used of it. The bar is an SVG, so its

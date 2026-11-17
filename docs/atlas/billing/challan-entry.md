@@ -30,7 +30,8 @@ the keyboard goes next says so (`_createFocusNext`): a client picked goes on to 
 line, else **Add line**; a part picked to its quantity; a line added to its part; a line removed to the one that slid up,
 else Add line; Change client to the search. `Alt+N` adds a line and `Ctrl+Enter` saves; **Add line** and **Create
 invoice** are `data-kbd-ring` (a disabled button is stepped over); a remove × is not. A save refused for an error puts the
-cursor on the field it names (`createFocusError`). P268.
+cursor on the field it names (`createFocusError`). A client search left closes its own list a moment later, as a part
+field does. P268.
 
 ### A challan line filled from the record
 Owner, 26 Sep 2026: *"When I select C-Clamp 66x42(30x6) as we know all its value and std weight and rate, fill that

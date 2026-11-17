@@ -157,6 +157,19 @@ test.describe('Create invoice: keyboard entry', () => {
     expect(await page.evaluate(() => (0, eval)('S.invoices.length'))).toBe(0);
   });
 
+  test('the client list closes when the search is left by Tab, and a tap on a client still lands', async ({ page }) => {
+    await openCreate(page);
+    await page.locator('#invClientSearch').fill('DELTA');
+    await expect(page.locator('#invClientResults')).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(page.locator('#invClientResults')).toBeHidden();
+    await expect(page.locator('#invClientSearch')).toHaveAttribute('aria-expanded', 'false');
+    // Opened again: a tap on the client is picked before the list closes.
+    await page.locator('#invClientSearch').fill('DELT');
+    await page.locator('[data-action="invSelectClient"]').first().click();
+    await expect(page.locator('#pageCreate [data-chosen-client]')).toContainText(CLIENT);
+  });
+
   test('Escape closes the part list and leaves the typed text alone', async ({ page }) => {
     await openCreate(page);
     await pickClient(page);

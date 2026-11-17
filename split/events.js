@@ -1179,7 +1179,9 @@ document.addEventListener('keydown', function(e) {
    closing every list hid a client search opened inside the moment on another screen, under the cursor (P181). */
 document.addEventListener('focusout', function(e) {
   var t = e.target;
-  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart'))) return;
+  // A client search too (P268): left by Tab, its list stayed open over the form under it.
+  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart' ||
+    t.id === 'invClientSearch' || t.id === 'imChallanClientSearch'))) return;
   var combo = t.closest('.inv-combo');
   setTimeout(function() {
     if (!combo || !combo.isConnected || combo.contains(document.activeElement)) return;

@@ -1147,6 +1147,12 @@ document.addEventListener('keydown', function(e) {
     todoQuickAdd();
     return;
   }
+  // A register cell typed by hand: Enter keeps it and goes on to the column's next day (attreg.js aregCellEnter).
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.hasAttribute && e.target.hasAttribute('data-areg-raw')) {
+    e.preventDefault();
+    aregCellEnter(e.target);
+    return;
+  }
   // A typed stock line name is committed by Enter (the phone keyboard's Go),
   // not only on blur: it is the last field on its screen, so the step to the
   // next field below would go nowhere and nothing would happen.

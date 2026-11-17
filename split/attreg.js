@@ -408,7 +408,25 @@ function aregNextCell(mo, at) {
   for (var d = at.d + 1; d < mo.days.length; d++) if (mo.days[d].kind === 'work' && mo.days[d].cells[at.c]) return { d: d, c: at.c };
   return null;
 }
-function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); }
+function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); aregCellFocus(); }
+/* A page entered by hand is typed cell after cell: the cursor waits in As written (it opened on the dialog's ×), and Enter there keeps
+   what was typed and goes on to the column's next working day, or closes on the last (it kept the cell and stayed on it: the Next day
+   button was three Tabs away). Never on a touch screen, where a focused field raises the keyboard over the dialog. */
+function aregCellFocus() {
+  var f = document.querySelector('.inv-scrim-dialog [data-areg-cell] [data-areg-raw]');
+  if (f && !touchScreen()) { try { f.focus(); f.select(); } catch (e) { /* a convenience */ } }
+}
+function aregCellEnter(el) {
+  // Left first, so the change it fires keeps what was typed on this cell (aregOnChange): moving on with the field still in the
+  // dialog, the redraw took it away, and its change landed on the next day's cell.
+  try { el.blur(); } catch (e) { /* already gone */ }
+  aregSetRaw(el.value);   // a no-op where the change kept it
+  var mo = aregMonthOf(aregMonthShown()), nx = mo && _aregCellAt ? aregNextCell(mo, _aregCellAt) : null;
+  if (!nx) { _aregCellAt = null; closeOverlay(); keepScroll(renderAttendance); return; }
+  _aregCellAt = nx;
+  aregCellRedraw();
+  aregCellFocus();
+}
 function aregCellRedraw() {
   var scrim = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
   scrim = scrim && scrim.closest('.inv-scrim-dialog');
@@ -673,7 +691,7 @@ function aregAction(action, btn) {
     }
     case 'invAregNext': {
       var mo4 = aregMonthOf(aregMonthShown()), nx = mo4 && _aregCellAt ? aregNextCell(mo4, _aregCellAt) : null;
-      if (nx) { _aregCellAt = nx; aregCellRedraw(); var f = document.querySelector('[data-areg-raw]'); if (f && !touchScreen()) f.focus(); }
+      if (nx) { _aregCellAt = nx; aregCellRedraw(); aregCellFocus(); }
       return true;
     }
   }

@@ -69,3 +69,6 @@ a reload and a link did not know them:
   (`fphNavSub`, `fphNavApply`, floorphotos.js). Opening either was no step: Back left Production for the screen before Photos and
   the photo stayed open behind it. Their ways back (`invFphClose`, `invFphList`) are sub-view back buttons in `NAV_LEAVE_ACTIONS`,
   so typed work asks first; a photo opened, closed or the areas saved start clean (`_pageTyped`).
+- **Production → Lines**: the line on screen is its view (a tap on it opens at its top, as a view tab does), so it is in the address:
+  `v=lines/pickling`, `lines/vat-a2`, `lines/barrel`; the first line is plain `v=lines`, as before. A reload on Pickling had come back
+  on VAT A1, and Back did not walk the lines.

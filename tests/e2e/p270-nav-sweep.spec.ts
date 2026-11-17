@@ -66,4 +66,25 @@ test.describe('P270: navigation sweep', () => {
     expect(where(page)).toEqual(['pageProduction', 'photos', '']);
   });
 
+  test('Production → Lines: the line on screen is in the address; a reload stays on Pickling, Back walks the lines', async ({ page }) => {
+    await open(page);
+    await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
+    await expect.poll(() => where(page)).toEqual(['pageProduction', 'lines', '']);
+    await page.locator('[data-action="invProdLine"][data-line="pickling"]').click();
+    await expect.poll(() => where(page)).toEqual(['pageProduction', 'lines/pickling', '']);
+    await page.reload();
+    await waitForBoot(page);
+    await expect(page.locator('[data-action="invProdLine"][data-line="pickling"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('[data-action="invProdLine"][data-line="barrel"]').click();
+    await expect.poll(() => where(page)[1]).toBe('lines/barrel');
+    await page.goBack();
+    await expect(page.locator('[data-action="invProdLine"][data-line="pickling"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.goBack();
+    await expect(page.locator('[data-action="invProdLine"][data-line="vat-a1"]')).toHaveAttribute('aria-pressed', 'true');
+    // A link names the line; the top bar's trail names it too (desktop) and the address of the first line is the plain one.
+    await page.goto('/?tab=pageProduction&v=lines/vat-a2');
+    await waitForBoot(page);
+    await expect(page.locator('[data-action="invProdLine"][data-line="vat-a2"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(await g(page, `navLabel({ tab: 'pageProduction', v: 'lines/pickling' }).sub`)).toBe('Lines · Pickling');
+  });
 });

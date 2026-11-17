@@ -58,6 +58,9 @@ function navLoc() {
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
       // Photos: the photo being tagged and the Areas form are places (P270); Back from either had left Production.
       if (_prodTab === 'photos' && _prodView === 'main') { if (_fphOpen) id = _fphOpen; else if (fphNavSub()) v += '/' + fphNavSub(); }
+      // Lines: the line on screen is its view (a tap on it opens at its top, as a view tab does), so a reload, Back and a link keep it
+      // (P270: a reload on Pickling came back on VAT A1). The first line is the plain address, as before.
+      if (_prodTab === 'lines' && _prodView === 'main' && _prodLine !== PROD_LINES[0] && navProdLineOk(_prodLine)) v += '/' + _prodLine;
       break;
     case 'pagePower': v = _powerTab; break;
     case 'pageStaff': v = _attView === 'register' ? 'register/' + aregMonthShown() : _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
@@ -76,6 +79,8 @@ function navLoc() {
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
+/* A line Lines can show: the plating lines and pickling. */
+function navProdLineOk(l) { return l === 'pickling' || PROD_LINES.indexOf(l) >= 0; }
 function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') + (loc.d ? '|' + loc.d : '') : ''; }
 function navUrl(loc) {
   return window.location.pathname + '?tab=' + encodeURIComponent(loc.tab) +
@@ -170,6 +175,7 @@ function navLabel(loc) {
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
       sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
+      if (parts[0] === 'lines' && navProdLineOk(parts[1])) sub.push(parts[1] === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[parts[1]]);
       if (parts[0] === 'photos') {
         if (parts[1] === 'areas') sub.push('Areas');
         var fp = loc.id && fphData().photos.find(function(x) { return x.id === loc.id; });
@@ -257,6 +263,7 @@ function navApply(loc) {
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
         if (parts[0] === 'photos' && _prodView === 'main') fphNavApply(parts[1], id);
+        if (parts[0] === 'lines' && _prodView === 'main') _prodLine = navProdLineOk(parts[1]) ? parts[1] : PROD_LINES[0];
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':

@@ -10,30 +10,33 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 13 Nov 2026: a month's register into the app, and the rolls beside each cell (read this first)
+## Session close, 17 Nov 2026: the cache warmer's pointer; the paper record reads an auto margin as auto (read this first)
 
-- **What shipped, merged on the owner's word**:
-  - **#190** (`5fdf706`): an import fills a register page started by hand and left blank (`aregMonthBlank`). A month had been
-    started with *Start this month* and nothing written, and its transcribed file came back *already on record, kept*. P161.
-  - **#191** (`618bbe7`; owner: *"I don't see the relevant dated line of the whatsapp message to make an informed decision, that
-    the app can record and store for future references and reads"*): a register cell shows each roll saved for its day and the
-    lines naming that hand, as written and as read, then what the rolls alone read; the list of differences says the roll's mark.
-    **A settled cell keeps what it was settled on** (`settled[]`; a row in `docs/DATA_FLOWS.md`). A roll line carries its day (`iso`).
-  - **#192** (`8f25cce`; owner, live: *"It doesn't show the time at all"*): each line under the slot heading and section above it,
-    an in-time roll's own "OUT TIME …" read as a slot. Merged before CI on the owner's word; the PR's run and `main`'s passed.
-- **Off the build**: a month's register page was transcribed by Claude from the owner's photos into a private `sep-att-register`
-  file (its unsure cells settled by the owner), handed over and imported (*"1 blank page filled"*). Not committed (HR-10).
-- **Open, the owner's**: settling that month's differences in the app with the roll lines beside each cell; the 4-digit PIN
-  (Castor H-2), deferred; ₹0 prices on the free-acid supplier's entries, his call in Stock.
+- **What shipped, merged on the owner's word**: **#194** (`1cfd394`).
+  - **The cache warmer's pointer** (owner: *"add the pointer line to sep-invoicing too"*): one bullet in `CLAUDE.md` beside
+    *Sessions*, and the same in `docs/atlas/README.md`. A session arms a ping to itself every 50 minutes; any message the owner
+    types resets the count; the tenth in a row ends the chain. The rule is the codex's
+    (`soma-internal/docs/atlas/continuity/cache-warmer.md`). **Nothing is pushed to this repo unattended**; a session with this
+    repo alone says in the chat what is committed and what is not, and stops. The owner confirmed both, 17 Nov.
+  - **P228, the paper record**: it failed on that pull request's first commit, which changed two docs. The pay slip's
+    signature block sits at the foot of its slip by an auto margin, and the spec recorded the length layout gave it: 78px and
+    95px in the record, 104px and 95px on a Monday. A margin whose computed value is `auto` is now recorded as `auto`; three
+    record entries moved. No app code changed. `docs/atlas/core/tests.md`.
+- **Known, about the sandbox**: P228's first test does not pass here before or after that change (about 60 differences on
+  tables, this Chromium against CI's). CI is the instrument for the paper record.
+- **Known, about the warmer**: on its first night the session limit was hit and a ping arrived ten hours late; a ping spends
+  toward that limit. Whether the warmer stays as it is, is the owner's to say (the codex's `decisions/2026-11-17.md`).
+- **Open, the owner's, unchanged from 13 Nov**: settling the month's register differences in the app with the roll lines
+  beside each cell; the 4-digit PIN (Castor H-2), deferred; ₹0 prices on the free-acid supplier's entries, his call in Stock.
 - **From 11 Nov, still open**: re-file a topic that bundles two subjects when next working in it (`docs/atlas/README.md`, *Iterate*);
   the codex's `CLAUDE.md` citations of this repo's old `CLAUDE.md` lines (the compile session's).
 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. 13 Nov 2026: a register cell now shows the day's WhatsApp roll lines under their time
-headings, and a settled cell keeps them (docs/atlas/people/attendance-rolls.md). The route: CLAUDE.md →
-docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests.
+SEP Invoicing, session B. 17 Nov 2026: the cache warmer's pointer is in CLAUDE.md, and the paper record (P228) reads an
+auto margin as auto (docs/atlas/core/tests.md). The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic →
+code, spec, tests.
 Goal: ask the owner how settling the month's register went and fix what it showed; then the owner's next ask, or
 the planned updates (the server S0–S5, KB2-2 onward, the plant picture's PP2/PP4/PP5), one PR a step.
 Read first:
@@ -41,7 +44,7 @@ Read first:
 - /home/user/sep-invoicing/docs/atlas/README.md (the protocol), then the topic for the subject in hand
 At start: HR-10, the repo is public, every example made up; run `pnpm install` if node_modules is missing and set
 PW_CHROMIUM_PATH=/opt/pw-browsers/chromium before Playwright; never raise a P195 budget; merge only on the owner's
-word; a change updates its atlas topic in the same PR.
+word; a change updates its atlas topic in the same PR. After orientation, arm the cache warmer (CLAUDE.md).
 Held for the owner: the 4-digit PIN (Castor H-2).
 ```
 

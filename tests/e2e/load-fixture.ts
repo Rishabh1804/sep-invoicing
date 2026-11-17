@@ -415,7 +415,7 @@ export const ONE_LOOK: string[] = [
   'Floor › Overview',
   'Floor › People › Attendance', 'Floor › People › Attendance › Week', 'Floor › People › Attendance › Month',
   'Floor › People › Pay', 'Floor › People › Areas', 'Floor › People › Roster',
-  'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
+  'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Photos', 'Floor › Production › Equipment',
   'Floor › Stock',
   'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills', 'Floor › Power › Case',
   // TM5: Office's Pipeline, Challans' Awaiting invoice (Invoiced is TM6f's), Invoices, Clients' three and Sales' two.

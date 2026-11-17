@@ -80,6 +80,8 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Floor › Production › Lines': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › In plant': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › Entries': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Floor photos (P267): the log's verdict, its toolbar and its list; measured 1 screen on the long book.
+  'Floor › Production › Photos': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › Equipment': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Stock': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -122,7 +124,7 @@ const VERDICT: string[] = [
   // TM4: Floor's (the Overview's People card carries its verdict; the case is a document, with none).
   'Floor › Overview', 'Floor › People › Attendance', 'Floor › People › Attendance › Week', 'Floor › People › Attendance › Month',
   'Floor › People › Pay', 'Floor › People › Areas', 'Floor › People › Roster',
-  'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
+  'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Photos', 'Floor › Production › Equipment',
   'Floor › Stock', 'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills',
   // TM5: Office's.
   'Office › Pipeline', 'Office › Challans › Awaiting invoice', 'Office › Invoices', 'Office › Clients › Clients',

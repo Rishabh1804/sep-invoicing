@@ -10,46 +10,44 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 17 Nov 2026: the unattended close's pointer; the paper record reads an auto margin as auto (read this first)
+## Session close, 17 Nov 2026 (the second): text entered by hand and learnt; the pickling line; holidays in two kinds; floor photos (read this first)
 
-- **What shipped, merged on the owner's word**: **#194** (`1cfd394`), and **#196** (`fd6e4b6`), which replaced the pointer's
-  pings with the one check below.
-  - **The cache warmer's pointer** (owner: *"add the pointer line to sep-invoicing too"*): one bullet in `CLAUDE.md` beside
-    *Sessions*, and the same in `docs/atlas/README.md`. A session arms a ping to itself every 50 minutes; any message the owner
-    types resets the count; the tenth in a row ends the chain. The rule is the codex's
-    (`soma-internal/docs/atlas/continuity/cache-warmer.md`). **Nothing is pushed to this repo unattended**; a session with this
-    repo alone says in the chat what is committed and what is not, and stops. The owner confirmed both, 17 Nov.
-  - **P228, the paper record**: it failed on that pull request's first commit, which changed two docs. The pay slip's
-    signature block sits at the foot of its slip by an auto margin, and the spec recorded the length layout gave it: 78px and
-    95px in the record, 104px and 95px on a Monday. A margin whose computed value is `auto` is now recorded as `auto`; three
-    record entries moved. No app code changed. `docs/atlas/core/tests.md`.
-- **Known, about the sandbox**: P228's first test does not pass here before or after that change (about 60 differences on
-  tables, this Chromium against CI's). CI is the instrument for the paper record.
-- **The warmer is retired, the close kept** (the owner, 17 Nov, after this close was first written): on its first night the
-  session limit was hit and a ping arrived ten hours late. One check eight hours after his last message now runs the
-  close; nothing keeps the cache warm (the codex's `decisions/2026-11-17.md`).
-- **The next session, named by the owner at the close**: *"sep invoicing bug fix and patch session"*. He has not yet listed
-  the bugs; the session starts by asking for them.
-- **Open, the owner's, unchanged from 13 Nov**: settling the month's register differences in the app with the roll lines
-  beside each cell; the 4-digit PIN (Castor H-2), deferred; ₹0 prices on the free-acid supplier's entries, his call in Stock.
-- **From 11 Nov, still open**: re-file a topic that bundles two subjects when next working in it (`docs/atlas/README.md`, *Iterate*);
-  the codex's `CLAUDE.md` citations of this repo's old `CLAUDE.md` lines (the compile session's).
+- **What shipped, merged on the owner's word**:
+  - **#198** (`6ea6147`): a paste nothing could be read from opens **Enter it from the text** (a row a line with a figure, filled
+    from a loose reading); what is saved teaches each line's shape (`learn.lines`), and the next message written that way is read.
+    `docs/atlas/floor/production-readers.md`, P264.
+  - **#199** (`6b9a524`): the pickling hand says where a load is going (`dest`: on Mine, in his message, by hand), kept apart from
+    the line read off its plating and measured against it (Lines → Pickling, eight weeks; Entries' *Line not as said*). Which
+    manual step it may replace is the owner's, decided later. `docs/atlas/floor/production.md`, P265.
+  - **#200** (`4b24375`): paid holidays in two fields, every year (`MM-DD`) and dated (a full date, for a festival that moves);
+    one list on the book as before. `docs/atlas/people/labour-and-pay.md`, P266.
+  - **#201** (`cdb893c`): **Production → Photos**, a floor photo log: photos the owner adds (the picture stays on his device, the
+    log in the book, `S.floorPhotos`), tagged by area with the area's own questions, at upload, from a queue or with Claude's
+    suggestion confirmed; an area that watches a line shows the record within an hour. A read never writes (P141). CI's first run
+    failed on P195 (the new tab had no load budget); a budget beside its siblings was added, none raised. New topic
+    `docs/atlas/floor/floor-photos.md`, P267.
+- **Owner's, in the app**: move a festival entered as `MM-DD` into *Dated* (Settings → Rest days & attendance); type the photo
+  areas and their questions (Production → Photos → Areas), and the line each process area watches.
+- **Not done here**: a message left unread inside a paste where other messages were read still shows *Not production* on the
+  review, with no way to enter it from there (#198's note).
+- **The next session**: not named by the owner. Likely: the first photos tagged and the pickling line in use; their measures read.
 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B: a bug fix and patch session, named by the owner on 17 Nov 2026. Last close: the unattended
-close's pointer is in CLAUDE.md, and the paper record (P228) reads an auto margin as auto (docs/atlas/core/tests.md). The
-route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests.
-Goal: ask the owner for the bugs he has met in use, and how settling the month's register went. Fix each in its own PR:
-find the cause, write the test that fails on the build before the fix, fix it, update the atlas topic. No new features
-unless he asks.
+SEP Invoicing, session B. Last close (17 Nov 2026, the second): #198 a refused paste opens Enter it from the text and learns
+its lines; #199 the pickling hand's line for a load, measured against the plating; #200 paid holidays every year and dated;
+#201 Production → Photos, the floor photo log. The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic →
+code, spec, tests.
+Goal: ask the owner what he wants from this session. If he has tagged floor photos or the pickling hand has started giving
+lines, read what the app shows (Production → Photos; Lines → Pickling) and fix what he meets. One PR a step: the test that
+fails on the build before the fix, the fix, the atlas topic.
 Read first:
 - /home/user/sep-invoicing/docs/NEXT_SESSION.md (this entry)
 - /home/user/sep-invoicing/docs/atlas/README.md (the protocol), then the topic for the subject in hand
 At start: HR-10, the repo is public, every example made up; run `pnpm install` if node_modules is missing and set
-PW_CHROMIUM_PATH=/opt/pw-browsers/chromium before Playwright; never raise a P195 budget; merge only on the owner's
-word; a change updates its atlas topic in the same PR. After orientation, arm the unattended close (CLAUDE.md).
+PW_CHROMIUM_PATH=/opt/pw-browsers/chromium before Playwright; never raise a P195 budget (a new screen gets its own); merge
+only on the owner's word; a change updates its atlas topic in the same PR. After orientation, arm the unattended close.
 Held for the owner: the 4-digit PIN (Castor H-2).
 ```
 

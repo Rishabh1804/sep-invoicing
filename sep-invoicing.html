@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="4c73471c">
+<meta name="app-build" content="06e49ac9">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -32312,6 +32312,10 @@ function stockSaveManual() {
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');
   if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
+  // The cursor goes back to the first quantity for the next entry, as Production's hand form puts it on the part: the redraw had
+  // left it nowhere, so the next key typed went to the page. It does not move the page: the list just saved stays in sight.
+  var nextQty = !touchScreen() && document.querySelector('#stockContent [data-flow] [data-stock-qty]');
+  if (nextQty) try { nextQty.focus({ preventScroll: true }); } catch (x) { /* a convenience */ }
   // Saved as typed, and said at once when it does not fit (an entry checked before it is believed).
   var chk = stockChecksFor(ids);
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (chk.n ? ' · check ' + (chk.n === 1 ? 'it' : chk.n + ' of them') + ': ' + chk.first :
@@ -33070,7 +33074,7 @@ function stockAction(action, btn) {
       if (_stockView === 'review') { stockSetView('paste'); break; }
       // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
       if (_stockView === 'manual') _stockBill = null;
-      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
+      _stockReview = null; _stockManual = null; _stockReorder = null; navReturn(); stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockPaneClose': stockSetView('list'); break;
     case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;
@@ -46890,11 +46894,55 @@ function aregNextCell(mo, at) {
   for (var d = at.d + 1; d < mo.days.length; d++) if (mo.days[d].kind === 'work' && mo.days[d].cells[at.c]) return { d: d, c: at.c };
   return null;
 }
-function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); }
+function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); aregCellFocus(); }
+/* A page entered by hand is typed cell after cell: the cursor waits in As written (it opened on the dialog's ×), and Enter there keeps
+   what was typed and goes on to the column's next working day, or closes on the last (it kept the cell and stayed on it: the Next day
+   button was three Tabs away). Never on a touch screen, where a focused field raises the keyboard over the dialog. */
+function aregCellFocus() {
+  var f = document.querySelector('.inv-scrim-dialog [data-areg-cell] [data-areg-raw]');
+  if (f && !touchScreen()) { try { f.focus(); f.select(); } catch (e) { /* a convenience */ } }
+}
+function aregCellEnter(el) {
+  // Left first, so the change it fires keeps what was typed on this cell (aregOnChange): moving on with the field still in the
+  // dialog, the redraw took it away, and its change landed on the next day's cell.
+  try { el.blur(); } catch (e) { /* already gone */ }
+  aregSetRaw(el.value);   // a no-op where the change kept it
+  var mo = aregMonthOf(aregMonthShown()), nx = mo && _aregCellAt ? aregNextCell(mo, _aregCellAt) : null;
+  if (!nx) { _aregCellAt = null; closeOverlay(); keepScroll(renderAttendance); return; }
+  _aregCellAt = nx;
+  aregCellRedraw();
+  aregCellFocus();
+}
+/* The cell's dialog drawn again where it stands. A button its foot draws alike stays where it is, never taken out of the page: a cell
+   typed and then Next day pressed redraws on the field's change, which fires as the press starts, and a button replaced (or only moved)
+   under the pointer takes no click (Next day had to be pressed twice). */
 function aregCellRedraw() {
-  var scrim = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
-  scrim = scrim && scrim.closest('.inv-scrim-dialog');
-  if (scrim) scrim.innerHTML = aregCellHtml();
+  var dlg = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
+  var scrim = dlg && dlg.closest('.inv-scrim-dialog');
+  if (scrim) {
+    var html = aregCellHtml(), tpl = document.createElement('div');
+    tpl.innerHTML = html;
+    var nd = tpl.firstElementChild, oldFoot = dlg.querySelector(':scope > .inv-dialog-foot'), newFoot = nd && nd.querySelector(':scope > .inv-dialog-foot');
+    if (nd && oldFoot && newFoot) {
+      // All but the foot drawn new, in front of it.
+      Array.prototype.slice.call(dlg.children).forEach(function(c) { if (c !== oldFoot) c.remove(); });
+      Array.prototype.slice.call(nd.children).forEach(function(c) { if (c !== newFoot) dlg.insertBefore(c, oldFoot); });
+      // The foot: a button drawn alike is kept in place; the rest go, and the new ones are put in order around those kept.
+      var olds = Array.prototype.slice.call(oldFoot.children), used = [];
+      var want = Array.prototype.slice.call(newFoot.children).map(function(b) {
+        var same = olds.find(function(o) { return used.indexOf(o) < 0 && o.outerHTML === b.outerHTML; });
+        if (same) { used.push(same); return same; }
+        return b;
+      });
+      olds.forEach(function(o) { if (used.indexOf(o) < 0) o.remove(); });
+      var at = null;
+      want.forEach(function(el) {
+        if (used.indexOf(el) >= 0) { at = el; return; }
+        oldFoot.insertBefore(el, at ? at.nextSibling : oldFoot.firstChild);
+        at = el;
+      });
+    } else scrim.innerHTML = html;
+  }
   renderAttendance();
 }
 /* A cell typed or corrected: what it said before is kept on it. A cell read from paper and changed is a correction; a cell
@@ -47155,7 +47203,7 @@ function aregAction(action, btn) {
     }
     case 'invAregNext': {
       var mo4 = aregMonthOf(aregMonthShown()), nx = mo4 && _aregCellAt ? aregNextCell(mo4, _aregCellAt) : null;
-      if (nx) { _aregCellAt = nx; aregCellRedraw(); var f = document.querySelector('[data-areg-raw]'); if (f && !touchScreen()) f.focus(); }
+      if (nx) { _aregCellAt = nx; aregCellRedraw(); aregCellFocus(); }
       return true;
     }
   }
@@ -60834,6 +60882,14 @@ function prodOpenHand(fromId, from, fromLines) {
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+  prodHandFocusStart();
+}
+/* On a keyboard the cursor starts where the entry starts, as it goes back there after a save (and as Stock's opens): the client, or a
+   power cut's time. The form opened on nothing, and the first key typed went to the page. A correction is left to be read first. */
+function prodHandFocusStart() {
+  if (!_prodHand || _prodHand.replaces || touchScreen()) return;
+  var first = document.getElementById(_prodHand.kind === 'downtime' ? 'prodHandTime' : 'prodHandClient');
+  if (first) focusSoon(first);
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {
@@ -61067,6 +61123,7 @@ function prodHandHtml() {
 function prodHandDone() {
   var from = _prodHand && _prodHand.from;
   _prodHand = null;
+  navReturn();   // the screen it was opened from, as a step back where that is the step before (nav.js)
   if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
   prodSetView('main');
 }
@@ -61132,7 +61189,7 @@ async function prodSaveHand() {
   prodTouch();
   saveState();
   if (src) {   // a correction is one entry: back to where it was opened from
-    var from = f.from; _prodHand = null;
+    var from = f.from; _prodHand = null; navReturn();
     if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
     else prodSetView('main');
     showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
@@ -61210,6 +61267,7 @@ function prodAction(action, btn) {
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       _prodReview = null; _prodHand = null; _prodTeach = null; prodPhotoDrop();
+      navReturn();   // back to the step before where it is that screen (nav.js)
       prodSetView('main');
       return true;
     }
@@ -72823,7 +72881,7 @@ function powerCfgSave() {
 function powerAddCut() {
   switchTab('pageProduction');
   prodOpenHand(null, 'power');
-  if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); }
+  if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); prodHandFocusStart(); }
 }
 /* The history from soma-internal, one file: its cuts as a `sep-production` file (merged by id into Production), and
    under `power` the electricity bills' details by month and the load. A detail fills a bill of that month only where the
@@ -84224,6 +84282,12 @@ document.addEventListener('keydown', function(e) {
     todoQuickAdd();
     return;
   }
+  // A register cell typed by hand: Enter keeps it and goes on to the column's next day (attreg.js aregCellEnter).
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.hasAttribute && e.target.hasAttribute('data-areg-raw')) {
+    e.preventDefault();
+    aregCellEnter(e.target);
+    return;
+  }
   // A typed stock line name is committed by Enter (the phone keyboard's Go),
   // not only on blur: it is the last field on its screen, so the step to the
   // next field below would go nowhere and nothing would happen.
@@ -85038,8 +85102,15 @@ function navOpen(loc) {
 
 /* Takes the step, if the app moved: a new place is pushed; a layer that opened gets its entry; a layer that shut
    without back marks its entry to be passed over. */
+/* A form's own way out (its Back, its Done, a correction saved) goes back to the screen it was opened from. Where that screen is the
+   step before, the move is taken as a step back, not a new one: pushed, the form stayed in the history under it, and the phone's back
+   (or Backspace, or the bar's arrow) opened it again, empty, and on Power's Enter a cut as Production's plain hand form. */
+var _navReturn = false;
+function navReturn() { _navReturn = true; }
 function navSync() {
   _navTimer = null;
+  var ret = _navReturn;
+  _navReturn = false;
   // A book another window saved while this one was busy (a dialog open, a form typed) is drawn as soon as it is not:
   // the toast promised it, and nothing drew it before the next screen (the QA sweep, 29 Sep 2026).
   if (_bookRedrawPending && !bookBusy()) { _bookRedrawPending = false; tabRedrawActive(); }
@@ -85048,7 +85119,20 @@ function navSync() {
   if (!st || !st.sep) { history.replaceState(navState(loc), '', navUrl(loc)); _navCur = history.state; navTrailPut(loc); navBarDraw(); return; }
   if (st.layer && !layer) history.replaceState(Object.assign({}, st, { layer: false, skip: true }), '', window.location.href);
   _navCur = history.state;
-  if (navKey(history.state.loc) !== navKey(loc)) navPush(loc);
+  if (navKey(history.state.loc) !== navKey(loc)) {
+    // The step before, over any layer shut on the way (the toolbar's More the form was opened from is one).
+    var j = _navIdx - 1;
+    while (j > 0 && _navTrail[j] === null) j--;
+    var prev = j >= 0 ? _navTrail[j] : null;
+    if (ret && !layer && prev && prev.loc && navKey(prev.loc) === navKey(loc)) {
+      // The browser goes back onto the step the app is already showing: the arrival is the app's own (popstate, _navIgnore).
+      _navIgnore++;
+      history.go(j - _navIdx);
+      setTimeout(function() { if (_navIgnore) { _navIgnore = 0; navSoon(); } }, 400);
+      return;
+    }
+    navPush(loc);
+  }
   if (layer && !history.state.layer) navPush(loc, { layer: true });
   _navCur = history.state;
   navBarDraw();

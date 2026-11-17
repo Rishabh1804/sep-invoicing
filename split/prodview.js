@@ -358,8 +358,11 @@ function prodLoadRowParts(e) {
   var lineTxt = L.line ? prodLineName(L.line) + (L.how === 'plating' ? ', from plating' : L.how === 'set' ? ', set by you' : '') : L.how === 'split' ? 'Split: ' + L.lines.map(prodLineName).join(' + ') : 'Line unknown';
   var qty = e.qty != null ? prodQtyText(e.qty, e.unit) : (m && m.qty != null ? '~' + prodQtyText(m.qty, e.unit) + ' from plating' : 'no quantity');
   var main = '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty) + '</span>';
+    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty + (e.dest ? ' · for ' + prodLineName(e.dest) : '')) + '</span>';
   var act = L.how === 'unknown' && L.hint ? prodUseLineBtnHtml(e, L.hint) : '';
+  // Pickling's word against the plating it became (prodLoadDest): a disagreement is said where the line is.
+  var D = prodLoadDest(e);
+  if (D && D.verdict === 'differ' && !act) return { main: main, end: '<span class="inv-row-end"><span class="inv-dot inv-dot-warning" data-prod-dest-differ>' + escHtml('For ' + prodLineName(D.dest) + ', plated ' + (D.plated ? prodLineName(D.plated) : D.lines.map(prodLineName).join(' + '))) + '</span></span>', act: '' };
   var end = act || '<span class="inv-dot inv-dot-' + (L.how === 'unknown' ? 'warning' : 'neutral') + '">' + escHtml(lineTxt) + '</span>';
   // `act`, the action at the end, is what the row's fold leaves out (prodEntryActionsHtml's `omit`).
   return { main: main, end: '<span class="inv-row-end">' + end + '</span>', act: act };
@@ -512,7 +515,8 @@ function prodLinesHtml() {
   if (line === 'pickling') {
     var loads = prodDayLoads(day);
     return h + '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
-      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : uiEmptyHtml('No pickling recorded this day.')) + '</div>';
+      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : uiEmptyHtml('No pickling recorded this day.')) + '</div>' +
+      prodDestCheckHtml();
   }
   var r = prodDayLine(day, line);
   var groups = { general: [], ot: [] };
@@ -579,6 +583,30 @@ function prodWeekEarnedRowHtml(days) {
       figHtml(escHtml((est ? '≈ ' : '') + finRs(amt)), t) + '</td>';
   });
   return any ? '<tr data-prod-week-earned><td>Earned</td>' + cells.join('') + '</tr>' : '';
+}
+/* Pickling's word against the plating, eight weeks (prodDestCheck): how often the line he names is the line the load was plated on,
+   week by week, so the owner can see it start to align before choosing a step to drop. Nothing given yet: one line saying where to
+   give it. */
+function prodDestCheckHtml() {
+  var c = prodDestCheck(56), pct = function(a, b) { return b ? Math.round(a * 100 / b) + '%' : '—'; };
+  var h = '<div class="inv-panel inv-panel-flush" id="prodDestCheck"><div class="inv-panel-head"><span class="inv-panel-title">Pickling’s line against the plating</span>' +
+    '<span class="inv-panel-count">8 weeks</span></div>';
+  if (!c.given) return h + '<div class="inv-panel-body inv-note">No load has its line given yet. The pickling hand gives it on Mine (Going to), in his message (a line of its own: VAT A1, VAT A2 or BARREL), or it is set on Enter by hand.</div></div>';
+  h += '<div class="inv-panel-body"><div class="inv-verdict-text" data-prod-dest-head>' + escHtml(c.agree + ' of ' + c.matched + ' agree (' + pct(c.agree, c.matched) + ')') + '</div>' +
+    '<div class="inv-note inv-mt-4">' + escHtml(c.given + ' of ' + c.loads + ' loads had a line given; ' + c.matched + ' of them were found on a plating' + (c.unmatched ? ', ' + c.unmatched + ' not yet (the barrel keeps no register)' : '') + (c.split ? '; ' + c.split + ' were plated across two lines' : '') + '.') + '</div></div>' +
+    '<table class="inv-table" data-prod-dest-weeks><thead><tr><th>Week of</th><th class="inv-num">Given</th><th class="inv-num">Found plated</th><th class="inv-num">Agree</th></tr></thead><tbody>' +
+    c.weeks.map(function(w) { return '<tr><td>' + escHtml(stockShortDate(w.mon)) + '</td><td class="inv-num">' + w.given + '</td><td class="inv-num">' + w.matched + '</td><td class="inv-num">' + escHtml(pct(w.agree, w.matched)) + '</td></tr>'; }).join('') +
+    '</tbody></table>' +
+    '<table class="inv-table" data-prod-dest-lines><thead><tr><th>He said</th><th class="inv-num">Given</th><th class="inv-num">Found plated</th><th class="inv-num">Agree</th></tr></thead><tbody>' +
+    PROD_LINES.map(function(l) { var b = c.byLine[l]; return b.given ? '<tr><td>' + escHtml(PROD_LINE_LABEL[l]) + '</td><td class="inv-num">' + b.given + '</td><td class="inv-num">' + b.matched + '</td><td class="inv-num">' + escHtml(pct(b.agree, b.matched)) + '</td></tr>' : ''; }).join('') +
+    '</tbody></table>';
+  if (c.differs.length) {
+    var idx = prodIndex();
+    h += '<div class="inv-row-group"><span>' + escHtml('Not agreeing · ' + c.differs.length) + '</span></div>' +
+      c.differs.slice(-5).reverse().map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') +
+      (c.differs.length > 5 ? '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdFilter" data-flag="destdiffer" data-set>All ' + c.differs.length + '</button></div>' : '');
+  }
+  return h + '</div>';
 }
 /* A line's verdict for the day (§3e): its efficiency as Floor's line card judges it (prodLineEfficiency, flrEffHead's words), what it
    plated, the pieces, the rounds and the cuts its factors; how the efficiency splits (flrEffRowHtml) under them. Pickling: its loads. */
@@ -689,7 +717,7 @@ function prodRunRowHtml(e, muted) {
 /* ---------- Entries ---------- */
 var PROD_ENTRY_KINDS = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
 var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed'],
-  ['check', 'To check'], ['twice', 'Saved twice'], ['approve', 'To approve']];
+  ['check', 'To check'], ['twice', 'Saved twice'], ['approve', 'To approve'], ['destdiffer', 'Line not as said']];
 /* Whether an entry carries a flag: the To-do counts every date, so a flag lists every date too (P127). */
 /* A run waiting for the owner's approval: a live run of the supervisor's message the register does not bear out (prodCountPlated). */
 function prodAwaits(e, idx) {
@@ -699,6 +727,8 @@ function prodAwaits(e, idx) {
 function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
   if (flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
+  // A load the pickling hand said was going to one line, plated on another (prodLoadDest).
+  if (flag === 'destdiffer') { var dd = !e.voidedAt && !(idx || prodIndex()).replaced[e.id] && prodLoadDest(e); return !!(dd && dd.verdict === 'differ'); }
   if (flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
   if (flag === 'gauge') return prodGaugeFlagged(e);
   if (flag === 'unweighed') return prodIsUnweighed(e, idx);
@@ -793,6 +823,8 @@ function prodEntryKv(e) {
   if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : e.slot === 'day' ? 'Whole day (barrel list)' : 'General']);
   if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
   else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
+  var dst = prodLoadDest(e);
+  if (dst) kv.push(['Going to', prodLineName(dst.dest) + ', by the pickling hand' + ({ agree: ' · the plating agrees', differ: ' · plated on ' + (dst.plated ? prodLineName(dst.plated) : (dst.lines || []).map(prodLineName).join(' + ')), split: ' · plated across ' + (dst.lines || []).map(prodLineName).join(' + '), unmatched: ' · no plating found yet' }[dst.verdict])]);
   if (e.kind !== 'downtime') {
     kv.push(['Client', e.clientId != null ? prodClientName(e.clientId) || e.client || '' : (e.client ? e.client + ', not in the book' : 'Not written')]);
     if (e.part || e.partNumber) kv.push(['Part', [e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '', e.gauge].filter(Boolean).join(' · ')]);
@@ -1275,7 +1307,7 @@ function prodReviewRowHtml(r, idx) {
   var reading = it.kind === 'downtime' ? 'Power cut ' + (it.time || '?') + ' to ' + (it.to || 'not back') :
     kindWord + (it.time ? ' ' + it.time : '') + ' · ' + (r.clientId != null ? prodClientName(r.clientId) : it.client ? it.client + ' (as written)' : 'no client') +
     (it.part ? ' · ' + it.part : '') + (it.gauge ? ' [' + it.gauge + ']' : '') + ' · ' + prodQtyText(it.qty, it.unit) + (it.qty2 != null ? ' + ' + prodQtyText(it.qty2, it.unit2) : '') +
-    (it.kind === 'plated' ? ' · ' + (r.line ? prodLineName(r.line) : it.line ? prodLineName(it.line) : 'line unknown') : '') + (it.rework ? ' · rework' : '');
+    (it.kind === 'plated' ? ' · ' + (r.line ? prodLineName(r.line) : it.line ? prodLineName(it.line) : 'line unknown') : '') + (it.kind === 'pickled' && it.dest ? ' · for ' + prodLineName(it.dest) : '') + (it.rework ? ' · rework' : '');
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
     '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
   r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
@@ -1319,6 +1351,7 @@ function prodSaveCore(rv, res, by) {
       basis: it.basis || (it.kind === 'pickled' ? 'pickling' : it.kind === 'arrived' ? 'floor-in' : 'relay'), src: 'paste', raw: it.raw, n: it.n,
       pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
     if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;
+    if (e.kind === 'pickled' && it.dest) e.dest = it.dest;
     // A client picked for a written name is remembered for the next message; a read-as left as read is kept too. Kept
     // as written learns nothing: it used to store the very guess the owner had just turned down, and a lesson it
     // turns down is forgotten. A name read by its place alone (the barrel list's first word, how 'unknown') or matched
@@ -1616,7 +1649,7 @@ function prodSavePhoto() {
 function prodOpenHand(fromId, from, fromLines) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
-    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
+    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id, dest: src.dest || '' }
     : prodHandBlank(fromLines);
   // The rounds a hand entry was saved with are the form's to show again; a register's rounds (a row each) are kept as they are
   // unless new ones are typed (prodHandRoundsOf).
@@ -1628,7 +1661,7 @@ function prodOpenHand(fromId, from, fromLines) {
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {
-  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', racks: '', rack: '', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
+  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', dest: '', clientId: '', part: '', qty: '', unit: 'NOS', racks: '', rack: '', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
   // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
   // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's. Said by the
   // door that opens it: Power's Enter a cut and Add's by hand open on today, though Lines' day and line outlive a visit to Lines.
@@ -1824,6 +1857,9 @@ function prodHandHtml() {
       PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>') +
     field('prodHandSlot', 'Shift', '<select id="prodHandSlot" class="inv-select" data-prod-hand="slot"><option value="general"' + (f.slot !== 'ot' && f.slot !== 'day' ? ' selected' : '') + '>General shift</option><option value="ot"' + (f.slot === 'ot' ? ' selected' : '') + '>Overtime</option>' +
       (f.slot === 'day' ? '<option value="day" selected>Whole day (barrel list)</option>' : '') + '</select>');
+  // A load: the line the pickling hand says it is going to (owner, 17 Nov 2026), set against the plating it becomes.
+  if (f.kind === 'pickled') when += field('prodHandDest', 'Going to', '<select id="prodHandDest" class="inv-select" data-prod-hand="dest"><option value=""' + (!f.dest ? ' selected' : '') + '>Not said</option>' +
+    PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.dest === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>');
   body.when = when + '</div>';
   if (f.kind !== 'downtime') {
     body.whose = '<div class="inv-fields">' + field('prodHandClient', 'Client', '<select id="prodHandClient" class="inv-select" data-prod-hand="clientId"><option value="">Pick the client</option>' +
@@ -1885,6 +1921,7 @@ async function prodSaveHand() {
     // The picker hands back text; the book's own id is kept, so a floor key and a challan key agree.
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
+    if (f.kind === 'pickled' && PROD_LINES.indexOf(f.dest) >= 0) e.dest = f.dest;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
     // A correction keeps what the form does not show (P127): the run's end, its rounds, the second figure written and a
     // load's line set by the owner. The part's own reading (its number, the gauges its round allows, a round no rule

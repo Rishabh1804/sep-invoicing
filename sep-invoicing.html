@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="58414bfd">
+<meta name="app-build" content="b04c10e6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -47441,14 +47441,27 @@ function prodIsTimeLine(s) { return /p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.test(s
 function prodIsIncomingLine(s) { return /in\s*c?o?m\w*\s*(ma\w*\s*)?(t\w*me|rime)|i+n?x?o?coming|incoming\s*time|evening\s*incoming/i.test(s) && !PROD_CHEM_IN_RE.test(s); }
 function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test(s) && /cut|cat|in\b|out|no\s*in|ph[ae]se/i.test(s); }
 
+/* The line a load is going to, as the pickling hand writes it (owner, 17 Nov 2026): on a line of its own ("FOR VAT A1", "VAT A2",
+   "A1 ke liye", the face's own "FOR BARREL"), for the loads of its block; or after a load's figure ("…-774 NOS VAT A2"). A bare "BARREL"
+   stays a barrel note, as it was read before: only "for" or "ke liye" makes the barrel a load's line. */
+var _prodDestRe = null;   // built on first use: PROD_LINE_TOKEN is declared further down this file
+function prodDestOfLine(line) {
+  if (!_prodDestRe) _prodDestRe = new RegExp('^[\\s\\-*]*(for|to|->|→)?\\s*(' + PROD_LINE_TOKEN + '|A\\s?[12])\\s*(ke\\s*liye|ka|me|mein|line)?[\\s.:*-]*$', 'i');
+  var m = String(line || '').match(_prodDestRe);
+  if (!m) return null;
+  var l = prodLineOfToken(m[2]);
+  // A bare BARREL, A1 or A2 is not enough on its own: only with "for" or "ke liye" is it where a load is going.
+  if ((l === 'barrel' || /^A\s?[12]$/i.test(m[2].trim())) && !m[1] && !m[3]) return null;
+  return l;
+}
 function parsePickling(msg, ctx) {
-  var lines = String(msg.text || '').split('\n'), items = [], notes = [];
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [], blockDest = null;
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
   var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, carriedGroup = false, pendingParts = [], family = null, arrivedAt = null, power = {};
   // A line that is only a figure and its unit ("1000 NOS"): the quantity of the load written above it, never a part.
   var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
   var flush = function(kind, t) {
-    pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } items.push(it); });
+    pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } if (kind === 'pickled' && !it.dest && blockDest) it.dest = blockDest; if (kind !== 'pickled') delete it.dest; items.push(it); });
     pendingParts = [];
   };
   // What is still listed when the message ends or a new incoming block begins: arrived at its own block's time, or
@@ -47499,9 +47512,12 @@ function parsePickling(msg, ctx) {
         if (!pendingParts.length) notes.push({ n: n, raw: raw, text: 'A pickling time with nothing listed above it' });
         flush('pickled', t);
       }
-      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false;
+      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false; blockDest = null;
       return;
     }
+    // "FOR VAT A1": where the loads of this block are going.
+    var dl = prodDestOfLine(line);
+    if (dl) { blockDest = dl; return; }
     if (!/[A-Za-z0-9]/.test(line)) return;
     // "RE-PICKLING" on a line of its own marks the loads of this group as rework, above it and below it.
     if (/^\s*re[-\s]*(work|pickl\w*|plat\w*)\s*$/i.test(line)) { pendingParts.forEach(function(x) { x.rework = true; }); reworkOn = true; return; }
@@ -47530,6 +47546,11 @@ function parsePickling(msg, ctx) {
     if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
     var rec = prodItemRecord(it, group, raw, n, date, noDate);
     if (reworkOn) rec.rework = true;
+    // "…-774 NOS VAT A2": the line written after the load's figure is where that load is going.
+    if (it.qty != null) {
+      var em = line.match(PROD_LINE_END_RE), el = em && /\d\s*(nos|no|pcs|pc|kgs?|k)\b/i.test(line.slice(0, em.index)) ? prodLineOfToken(em[1]) : null;
+      if (el) rec.dest = el;
+    }
     if (carriedGroup) rec.issues.push({ tone: 'amber', code: 'carried', text: 'No client written for this load: ' + (group.clientName || group.client) + ', from the load above.' });
     // "CLAMP" over "165×83(35×6)--420 NOS": the lines below are its sizes. Over a line with only its figure ("LINER / 1000
     // NOS") it is the load itself: taken for a family, the 1000 was saved with no part.
@@ -55964,6 +55985,45 @@ function prodLoadLine(e) {
   return { line: null, how: 'unknown', hint: u && u.kind === 'usual' ? u : null, family: !!(k && k.indexOf('F:') === 0) };
 }
 
+/* ---------- Where the pickling hand says a load is going, against where it was plated ----------
+   Owner, 17 Nov 2026: "[The pickling hand] gives us Pickling data, he should also be able to give us data whether the pickled material is going to
+   VAT A1, VAT A2 or one the barrels. That should feed into our data and we can cross check hand written production against it, if it
+   starts aligning we can skip one step and get reliable data." The load carries his word (`dest`, written on Mine, in his message or by
+   hand), kept apart from the line the owner sets (`line`) and from the line read off its plating (prodMatchAll), so the two can be
+   compared; nothing is inferred from it yet. Which step it may replace is the owner's to decide on the measure below (17 Nov 2026). */
+function prodLoadDest(e) {
+  if (!e || e.kind !== 'pickled' || !e.dest) return null;
+  var m = prodIndex().match[e.id];
+  if (m && m.line) return { dest: e.dest, plated: m.line, verdict: m.line === e.dest ? 'agree' : 'differ' };
+  if (m && m.split) return { dest: e.dest, plated: null, lines: m.lines, verdict: m.lines.indexOf(e.dest) >= 0 ? 'split' : 'differ' };
+  return { dest: e.dest, plated: null, verdict: 'unmatched' };
+}
+/* The measure: over `days` to today, the loads pickled, those he gave a line for, those a plating was found for, and how many agree;
+   by the line he named and by week (Monday). A load re-pickled counts as any other. A load with no plating found is neither agreement
+   nor disagreement: it is said apart, since the barrel keeps no register. */
+function prodDestCheck(days) {
+  var idx = prodIndex(), today = localDateStr(), from = isoAddDays(today, -((days || 56) - 1));
+  var out = { from: from, to: today, loads: 0, given: 0, matched: 0, agree: 0, differ: 0, split: 0, unmatched: 0, byLine: {}, weeks: {}, differs: [] };
+  PROD_LINES.forEach(function(l) { out.byLine[l] = { given: 0, matched: 0, agree: 0 }; });
+  idx.live.forEach(function(e) {
+    if (e.kind !== 'pickled' || idx.replaced[e.id] || e.date < from || e.date > today) return;
+    out.loads++;
+    var d = prodLoadDest(e);
+    if (!d || !out.byLine[d.dest]) return;
+    out.given++; out.byLine[d.dest].given++;
+    var wd = new Date(e.date + 'T00:00:00').getDay(), mon = isoAddDays(e.date, -((wd + 6) % 7));
+    var w = out.weeks[mon] = out.weeks[mon] || { mon: mon, given: 0, matched: 0, agree: 0 };
+    w.given++;
+    out[d.verdict]++;
+    if (d.verdict === 'unmatched') return;
+    out.matched++; out.byLine[d.dest].matched++; w.matched++;
+    if (d.verdict === 'agree') { out.byLine[d.dest].agree++; w.agree++; }
+    else if (d.verdict === 'differ') out.differs.push(e);
+  });
+  out.weeks = Object.keys(out.weeks).sort().map(function(k) { return out.weeks[k]; });
+  return out;
+}
+
 /* A day's power cuts, as one list. The pickling hand's messages and the register's power log report the same cut
    twice, a minute or two apart. A cut from one source is joined to a cut from ANOTHER source that overlaps it or began
    within ten minutes of it (the earliest cut, the latest return); two cuts in one source are two cuts, however close
@@ -59364,8 +59424,11 @@ function prodLoadRowParts(e) {
   var lineTxt = L.line ? prodLineName(L.line) + (L.how === 'plating' ? ', from plating' : L.how === 'set' ? ', set by you' : '') : L.how === 'split' ? 'Split: ' + L.lines.map(prodLineName).join(' + ') : 'Line unknown';
   var qty = e.qty != null ? prodQtyText(e.qty, e.unit) : (m && m.qty != null ? '~' + prodQtyText(m.qty, e.unit) + ' from plating' : 'no quantity');
   var main = '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty) + '</span>';
+    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty + (e.dest ? ' · for ' + prodLineName(e.dest) : '')) + '</span>';
   var act = L.how === 'unknown' && L.hint ? prodUseLineBtnHtml(e, L.hint) : '';
+  // Pickling's word against the plating it became (prodLoadDest): a disagreement is said where the line is.
+  var D = prodLoadDest(e);
+  if (D && D.verdict === 'differ' && !act) return { main: main, end: '<span class="inv-row-end"><span class="inv-dot inv-dot-warning" data-prod-dest-differ>' + escHtml('For ' + prodLineName(D.dest) + ', plated ' + (D.plated ? prodLineName(D.plated) : D.lines.map(prodLineName).join(' + '))) + '</span></span>', act: '' };
   var end = act || '<span class="inv-dot inv-dot-' + (L.how === 'unknown' ? 'warning' : 'neutral') + '">' + escHtml(lineTxt) + '</span>';
   // `act`, the action at the end, is what the row's fold leaves out (prodEntryActionsHtml's `omit`).
   return { main: main, end: '<span class="inv-row-end">' + end + '</span>', act: act };
@@ -59518,7 +59581,8 @@ function prodLinesHtml() {
   if (line === 'pickling') {
     var loads = prodDayLoads(day);
     return h + '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
-      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : uiEmptyHtml('No pickling recorded this day.')) + '</div>';
+      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : uiEmptyHtml('No pickling recorded this day.')) + '</div>' +
+      prodDestCheckHtml();
   }
   var r = prodDayLine(day, line);
   var groups = { general: [], ot: [] };
@@ -59585,6 +59649,30 @@ function prodWeekEarnedRowHtml(days) {
       figHtml(escHtml((est ? '≈ ' : '') + finRs(amt)), t) + '</td>';
   });
   return any ? '<tr data-prod-week-earned><td>Earned</td>' + cells.join('') + '</tr>' : '';
+}
+/* Pickling's word against the plating, eight weeks (prodDestCheck): how often the line he names is the line the load was plated on,
+   week by week, so the owner can see it start to align before choosing a step to drop. Nothing given yet: one line saying where to
+   give it. */
+function prodDestCheckHtml() {
+  var c = prodDestCheck(56), pct = function(a, b) { return b ? Math.round(a * 100 / b) + '%' : '—'; };
+  var h = '<div class="inv-panel inv-panel-flush" id="prodDestCheck"><div class="inv-panel-head"><span class="inv-panel-title">Pickling’s line against the plating</span>' +
+    '<span class="inv-panel-count">8 weeks</span></div>';
+  if (!c.given) return h + '<div class="inv-panel-body inv-note">No load has its line given yet. The pickling hand gives it on Mine (Going to), in his message (a line of its own: VAT A1, VAT A2 or BARREL), or it is set on Enter by hand.</div></div>';
+  h += '<div class="inv-panel-body"><div class="inv-verdict-text" data-prod-dest-head>' + escHtml(c.agree + ' of ' + c.matched + ' agree (' + pct(c.agree, c.matched) + ')') + '</div>' +
+    '<div class="inv-note inv-mt-4">' + escHtml(c.given + ' of ' + c.loads + ' loads had a line given; ' + c.matched + ' of them were found on a plating' + (c.unmatched ? ', ' + c.unmatched + ' not yet (the barrel keeps no register)' : '') + (c.split ? '; ' + c.split + ' were plated across two lines' : '') + '.') + '</div></div>' +
+    '<table class="inv-table" data-prod-dest-weeks><thead><tr><th>Week of</th><th class="inv-num">Given</th><th class="inv-num">Found plated</th><th class="inv-num">Agree</th></tr></thead><tbody>' +
+    c.weeks.map(function(w) { return '<tr><td>' + escHtml(stockShortDate(w.mon)) + '</td><td class="inv-num">' + w.given + '</td><td class="inv-num">' + w.matched + '</td><td class="inv-num">' + escHtml(pct(w.agree, w.matched)) + '</td></tr>'; }).join('') +
+    '</tbody></table>' +
+    '<table class="inv-table" data-prod-dest-lines><thead><tr><th>He said</th><th class="inv-num">Given</th><th class="inv-num">Found plated</th><th class="inv-num">Agree</th></tr></thead><tbody>' +
+    PROD_LINES.map(function(l) { var b = c.byLine[l]; return b.given ? '<tr><td>' + escHtml(PROD_LINE_LABEL[l]) + '</td><td class="inv-num">' + b.given + '</td><td class="inv-num">' + b.matched + '</td><td class="inv-num">' + escHtml(pct(b.agree, b.matched)) + '</td></tr>' : ''; }).join('') +
+    '</tbody></table>';
+  if (c.differs.length) {
+    var idx = prodIndex();
+    h += '<div class="inv-row-group"><span>' + escHtml('Not agreeing · ' + c.differs.length) + '</span></div>' +
+      c.differs.slice(-5).reverse().map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') +
+      (c.differs.length > 5 ? '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdFilter" data-flag="destdiffer" data-set>All ' + c.differs.length + '</button></div>' : '');
+  }
+  return h + '</div>';
 }
 /* A line's verdict for the day (§3e): its efficiency as Floor's line card judges it (prodLineEfficiency, flrEffHead's words), what it
    plated, the pieces, the rounds and the cuts its factors; how the efficiency splits (flrEffRowHtml) under them. Pickling: its loads. */
@@ -59695,7 +59783,7 @@ function prodRunRowHtml(e, muted) {
 /* ---------- Entries ---------- */
 var PROD_ENTRY_KINDS = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
 var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed'],
-  ['check', 'To check'], ['twice', 'Saved twice'], ['approve', 'To approve']];
+  ['check', 'To check'], ['twice', 'Saved twice'], ['approve', 'To approve'], ['destdiffer', 'Line not as said']];
 /* Whether an entry carries a flag: the To-do counts every date, so a flag lists every date too (P127). */
 /* A run waiting for the owner's approval: a live run of the supervisor's message the register does not bear out (prodCountPlated). */
 function prodAwaits(e, idx) {
@@ -59705,6 +59793,8 @@ function prodAwaits(e, idx) {
 function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
   if (flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
+  // A load the pickling hand said was going to one line, plated on another (prodLoadDest).
+  if (flag === 'destdiffer') { var dd = !e.voidedAt && !(idx || prodIndex()).replaced[e.id] && prodLoadDest(e); return !!(dd && dd.verdict === 'differ'); }
   if (flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
   if (flag === 'gauge') return prodGaugeFlagged(e);
   if (flag === 'unweighed') return prodIsUnweighed(e, idx);
@@ -59799,6 +59889,8 @@ function prodEntryKv(e) {
   if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : e.slot === 'day' ? 'Whole day (barrel list)' : 'General']);
   if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
   else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
+  var dst = prodLoadDest(e);
+  if (dst) kv.push(['Going to', prodLineName(dst.dest) + ', by the pickling hand' + ({ agree: ' · the plating agrees', differ: ' · plated on ' + (dst.plated ? prodLineName(dst.plated) : (dst.lines || []).map(prodLineName).join(' + ')), split: ' · plated across ' + (dst.lines || []).map(prodLineName).join(' + '), unmatched: ' · no plating found yet' }[dst.verdict])]);
   if (e.kind !== 'downtime') {
     kv.push(['Client', e.clientId != null ? prodClientName(e.clientId) || e.client || '' : (e.client ? e.client + ', not in the book' : 'Not written')]);
     if (e.part || e.partNumber) kv.push(['Part', [e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '', e.gauge].filter(Boolean).join(' · ')]);
@@ -60281,7 +60373,7 @@ function prodReviewRowHtml(r, idx) {
   var reading = it.kind === 'downtime' ? 'Power cut ' + (it.time || '?') + ' to ' + (it.to || 'not back') :
     kindWord + (it.time ? ' ' + it.time : '') + ' · ' + (r.clientId != null ? prodClientName(r.clientId) : it.client ? it.client + ' (as written)' : 'no client') +
     (it.part ? ' · ' + it.part : '') + (it.gauge ? ' [' + it.gauge + ']' : '') + ' · ' + prodQtyText(it.qty, it.unit) + (it.qty2 != null ? ' + ' + prodQtyText(it.qty2, it.unit2) : '') +
-    (it.kind === 'plated' ? ' · ' + (r.line ? prodLineName(r.line) : it.line ? prodLineName(it.line) : 'line unknown') : '') + (it.rework ? ' · rework' : '');
+    (it.kind === 'plated' ? ' · ' + (r.line ? prodLineName(r.line) : it.line ? prodLineName(it.line) : 'line unknown') : '') + (it.kind === 'pickled' && it.dest ? ' · for ' + prodLineName(it.dest) : '') + (it.rework ? ' · rework' : '');
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
     '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
   r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
@@ -60325,6 +60417,7 @@ function prodSaveCore(rv, res, by) {
       basis: it.basis || (it.kind === 'pickled' ? 'pickling' : it.kind === 'arrived' ? 'floor-in' : 'relay'), src: 'paste', raw: it.raw, n: it.n,
       pasteId: pasteIds[r.mi], msgHash: r.m.hash, sentBy: r.m.sentBy || '', by: by, at: at };
     if (e.kind === 'plated') e.lineSrc = e.line ? (it.line ? 'written' : 'set') : null;
+    if (e.kind === 'pickled' && it.dest) e.dest = it.dest;
     // A client picked for a written name is remembered for the next message; a read-as left as read is kept too. Kept
     // as written learns nothing: it used to store the very guess the owner had just turned down, and a lesson it
     // turns down is forgotten. A name read by its place alone (the barrel list's first word, how 'unknown') or matched
@@ -60622,7 +60715,7 @@ function prodSavePhoto() {
 function prodOpenHand(fromId, from, fromLines) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
-    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
+    qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id, dest: src.dest || '' }
     : prodHandBlank(fromLines);
   // The rounds a hand entry was saved with are the form's to show again; a register's rounds (a row each) are kept as they are
   // unless new ones are typed (prodHandRoundsOf).
@@ -60634,7 +60727,7 @@ function prodOpenHand(fromId, from, fromLines) {
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {
-  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', racks: '', rack: '', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
+  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', dest: '', clientId: '', part: '', qty: '', unit: 'NOS', racks: '', rack: '', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
   // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
   // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's. Said by the
   // door that opens it: Power's Enter a cut and Add's by hand open on today, though Lines' day and line outlive a visit to Lines.
@@ -60830,6 +60923,9 @@ function prodHandHtml() {
       PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>') +
     field('prodHandSlot', 'Shift', '<select id="prodHandSlot" class="inv-select" data-prod-hand="slot"><option value="general"' + (f.slot !== 'ot' && f.slot !== 'day' ? ' selected' : '') + '>General shift</option><option value="ot"' + (f.slot === 'ot' ? ' selected' : '') + '>Overtime</option>' +
       (f.slot === 'day' ? '<option value="day" selected>Whole day (barrel list)</option>' : '') + '</select>');
+  // A load: the line the pickling hand says it is going to (owner, 17 Nov 2026), set against the plating it becomes.
+  if (f.kind === 'pickled') when += field('prodHandDest', 'Going to', '<select id="prodHandDest" class="inv-select" data-prod-hand="dest"><option value=""' + (!f.dest ? ' selected' : '') + '>Not said</option>' +
+    PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.dest === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select>');
   body.when = when + '</div>';
   if (f.kind !== 'downtime') {
     body.whose = '<div class="inv-fields">' + field('prodHandClient', 'Client', '<select id="prodHandClient" class="inv-select" data-prod-hand="clientId"><option value="">Pick the client</option>' +
@@ -60891,6 +60987,7 @@ async function prodSaveHand() {
     // The picker hands back text; the book's own id is kept, so a floor key and a challan key agree.
     e.clientId = prodHeldId(f.clientId); e.client = prodClientName(e.clientId); e.part = f.part.trim(); e.gauge = prodGaugeOf(e.part, e.part);
     e.qty = isNaN(q) ? null : q; e.unit = f.unit; e.rework = !!f.rework;
+    if (f.kind === 'pickled' && PROD_LINES.indexOf(f.dest) >= 0) e.dest = f.dest;
     if (f.kind === 'plated') { e.line = f.line || null; e.lineSrc = f.line ? 'set' : null; e.slot = f.slot === 'ot' || f.slot === 'day' ? f.slot : 'general'; }
     // A correction keeps what the form does not show (P127): the run's end, its rounds, the second figure written and a
     // load's line set by the owner. The part's own reading (its number, the gauges its round allows, a round no rule
@@ -69022,7 +69119,7 @@ function faceFormMake(duty, fromId) {
   if (duty === 'roll-in' || duty === 'roll-out') return faceRollMake(duty, day);
   // A run of a page is put right on its page: the page of its day and line (the face's day moves to it, so the address says it).
   if (duty === 'vat') { var run = fromId ? prodIndex().byId[fromId] : null; if (run && run.date) faceSetDay(run.date); return faceVatMake(faceDayIso(), run && run.line); }
-  var f = { duty: duty, date: day, clientId: '', part: '', partText: '', qty: '', unit: 'NOS', time: day === localDateStr() ? faceNowHhmm() : '', rework: false, replaces: null, saved: [] };
+  var f = { duty: duty, date: day, clientId: '', part: '', partText: '', qty: '', unit: 'NOS', time: day === localDateStr() ? faceNowHhmm() : '', rework: false, dest: '', replaces: null, saved: [] };
   if (duty === 'incoming') { f.challan = ''; f.counts = {}; f.challanNo = ''; f.link = null; }
   if (duty === 'barrel') { f.barrel = ''; f.timeOut = ''; }
   var idx = prodIndex(), src = fromId ? idx.byId[fromId] : null;
@@ -69030,7 +69127,7 @@ function faceFormMake(duty, fromId) {
     f.replaces = src.id; f.date = src.date; f.clientId = src.clientId != null ? String(src.clientId) : '';
     var hit = faceClientParts(f.clientId).find(function(x) { return x.key === prodEntryKey(src); });
     if (hit) f.part = hit.key; else { f.part = FACE_TYPED; f.partText = src.part || ''; }
-    f.qty = src.qty != null ? String(src.qty) : ''; f.unit = src.unit || 'NOS'; f.time = src.time || ''; f.rework = !!src.rework;
+    f.qty = src.qty != null ? String(src.qty) : ''; f.unit = src.unit || 'NOS'; f.time = src.time || ''; f.rework = !!src.rework; f.dest = src.dest || '';
     if (duty === 'incoming') { f.challan = FACE_NOCHALLAN; f.challanNo = src.challanNo || ''; f.link = src.imItemId ? { imId: src.imId, imItemId: src.imItemId } : null; }
     if (duty === 'barrel') { f.barrel = src.unitId || src.barrel || ''; f.timeOut = src.to || ''; }
   }
@@ -69167,6 +69264,7 @@ function faceFlowQty(f) { var q = parseFloat(f.qty); return q > 0 ? q : null; }
 /* The entry as Save makes it, for the message: the client, the part as the challans name it (or as written), the figure, the time. */
 function faceFlowDraft(f, kind, x) {
   var cid = prodHeldId(f.clientId), e = { kind: kind, date: f.date, time: f.time, clientId: cid, client: prodClientName(cid), qty: faceFlowQty(f), unit: f.unit === 'KG' ? 'KG' : 'NOS', rework: !!f.rework };
+  if (kind === 'pickled' && PROD_LINES.indexOf(f.dest) >= 0) e.dest = f.dest;
   if (x) { e.part = x.part; if (x.partNumber) e.partNumber = x.partNumber; e.gauge = x.gauge || null; }
   else { e.part = String(f.partText || '').trim(); e.gauge = prodGaugeOf(e.part, e.part) || null; }
   return e;
@@ -69206,7 +69304,9 @@ function faceLoadModel() {
     { key: 'client', title: 'Whose material is it?', help: 'Clients with material open on a challan come first.', guide: g, done: !!f.clientId, says: faceFlowClientName(f) },
     { key: 'part', title: 'Which part?', help: 'As the challans name it. Not listed takes its name as written.', guide: g, done: partOk, says: faceFlowPartName(f, x) },
     { key: 'qty', title: 'How many went in?', help: 'Pieces, or kilograms where the part is weighed.', done: qty != null, says: qty != null ? prodQtyText(qty, u) : '' },
-    { key: 'time', title: 'When did it go into the tank?', help: 'Now, unless it went in earlier. Tick rework for a load pickled again.', done: tOk, says: faceFlowClock(f.time) + (f.rework ? ' · rework' : '') }
+    { key: 'time', title: 'When did it go into the tank?', help: 'Now, unless it went in earlier. Tick rework for a load pickled again.', done: tOk, says: faceFlowClock(f.time) + (f.rework ? ' · rework' : '') },
+    // Owner, 17 Nov 2026: the line the load is going to, set against the plating it becomes (prodDestCheck).
+    { key: 'dest', title: 'Where is it going?', help: 'The line it will be plated on, if you know it.', optional: true, done: PROD_LINES.indexOf(f.dest) >= 0, says: PROD_LINES.indexOf(f.dest) >= 0 ? PROD_LINE_LABEL[f.dest] : '' }
   ];
   var lines = [], checks = [faceFlowOverCheck(f, x, qty)];
   if (f.clientId && partOk && qty != null) {
@@ -69226,7 +69326,9 @@ function faceLoadHtml(f) {
     part: faceFieldsWrap(facePartFieldsHtml(f, parts)),
     qty: faceFieldsWrap(faceQtyFieldsHtml(f)),
     time: faceFieldsWrap(faceField('faceTime', 'Into the tank at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
-      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Re-pickling or rework (counted as work, never billed)</span></label>')
+      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Re-pickling or rework (counted as work, never billed)</span></label>'),
+    dest: faceFieldsWrap(faceField('faceDest', 'Going to', '<select id="faceDest" class="inv-select" data-face-f="dest"><option value=""' + (!f.dest ? ' selected' : '') + '>Not known</option>' +
+      PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.dest === l ? ' selected' : '') + '>' + escHtml(PROD_LINE_LABEL[l]) + '</option>'; }).join('') + '</select>'))
   };
   return '<div data-face-form="pickling">' + faceFlowRender('facePickling', faceLoadModel(), body, { before: before, receipt: faceFlowReceipt(f) }) + '</div>' +
     faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the load of' : 'Pickled on', f);
@@ -69360,7 +69462,7 @@ function faceMsgOf(list) {
   if (e0.kind === 'plated') { var t2 = relayParseHhmm(e0.to), out = t2 == null ? '' : ' - ' + faceClock(t2);
     return [head, 'BARREL ' + String(e0.barrel || '').toUpperCase().replace(/^BARREL\s*/, '') + ': ' + clock + out, client].concat(list.map(part)).join('\n'); }
   if (e0.kind === 'arrived') return [head, 'INCOMING MATERIAL TIME ' + clock, client].concat(list.map(part)).join('\n');
-  return [head, client].concat(list.map(part), e0.rework ? ['RE-PICKLING'] : [], ['PICKLING TIME ' + clock]).join('\n');
+  return [head, client].concat(list.map(part), e0.rework ? ['RE-PICKLING'] : [], e0.dest ? ['FOR ' + PROD_LINE_LABEL[e0.dest].toUpperCase()] : [], ['PICKLING TIME ' + clock]).join('\n');
 }
 /* The message an entry went out in: every entry of its save shares it (one challan counted is one message). */
 function faceMsgFor(e) {
@@ -69406,7 +69508,7 @@ async function faceSave() {
     var e = withPart(base(f.duty === 'incoming' ? 'arrived' : 'pickled'));
     e.qty = qty; e.unit = f.unit === 'KG' ? 'KG' : 'NOS';
     if (f.duty === 'incoming') { e.basis = 'floor-in'; if (String(f.challanNo || '').trim()) e.challanNo = String(f.challanNo).trim(); if (f.link) { e.imId = f.link.imId; e.imItemId = f.link.imItemId; } }
-    else { e.basis = 'pickling'; e.rework = !!f.rework; }
+    else { e.basis = 'pickling'; e.rework = !!f.rework; if (PROD_LINES.indexOf(f.dest) >= 0) e.dest = f.dest; }
     var src = f.replaces ? prodIndex().byId[f.replaces] : null;
     if (src) {
       e.replaces = src.id;
@@ -69449,7 +69551,7 @@ async function faceSave() {
   }
   // The form stays for the next: the client and the day carry over; the part, the figures and the time start again.
   list.forEach(function(e) { f.saved.push(e.id); });
-  f.part = ''; f.partText = ''; f.qty = ''; f.rework = false; f.counts = {}; f.challan = f.duty === 'incoming' ? '' : f.challan; f.challanNo = '';
+  f.part = ''; f.partText = ''; f.qty = ''; f.rework = false; f.dest = ''; f.counts = {}; f.challan = f.duty === 'incoming' ? '' : f.challan; f.challanNo = '';
   f.time = f.date === localDateStr() ? faceNowHhmm() : f.time;
   renderFace();
   showToast((list.length > 1 ? todoPlural(list.length, 'line') + ' saved' : 'Saved') + ' · send it to the group, or enter the next', 'success');

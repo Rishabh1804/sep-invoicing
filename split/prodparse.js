@@ -221,14 +221,27 @@ function prodIsTimeLine(s) { return /p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.test(s
 function prodIsIncomingLine(s) { return /in\s*c?o?m\w*\s*(ma\w*\s*)?(t\w*me|rime)|i+n?x?o?coming|incoming\s*time|evening\s*incoming/i.test(s) && !PROD_CHEM_IN_RE.test(s); }
 function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test(s) && /cut|cat|in\b|out|no\s*in|ph[ae]se/i.test(s); }
 
+/* The line a load is going to, as the pickling hand writes it (owner, 17 Nov 2026): on a line of its own ("FOR VAT A1", "VAT A2",
+   "A1 ke liye", the face's own "FOR BARREL"), for the loads of its block; or after a load's figure ("…-774 NOS VAT A2"). A bare "BARREL"
+   stays a barrel note, as it was read before: only "for" or "ke liye" makes the barrel a load's line. */
+var _prodDestRe = null;   // built on first use: PROD_LINE_TOKEN is declared further down this file
+function prodDestOfLine(line) {
+  if (!_prodDestRe) _prodDestRe = new RegExp('^[\\s\\-*]*(for|to|->|→)?\\s*(' + PROD_LINE_TOKEN + '|A\\s?[12])\\s*(ke\\s*liye|ka|me|mein|line)?[\\s.:*-]*$', 'i');
+  var m = String(line || '').match(_prodDestRe);
+  if (!m) return null;
+  var l = prodLineOfToken(m[2]);
+  // A bare BARREL, A1 or A2 is not enough on its own: only with "for" or "ke liye" is it where a load is going.
+  if ((l === 'barrel' || /^A\s?[12]$/i.test(m[2].trim())) && !m[1] && !m[3]) return null;
+  return l;
+}
 function parsePickling(msg, ctx) {
-  var lines = String(msg.text || '').split('\n'), items = [], notes = [];
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [], blockDest = null;
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
   var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, carriedGroup = false, pendingParts = [], family = null, arrivedAt = null, power = {};
   // A line that is only a figure and its unit ("1000 NOS"): the quantity of the load written above it, never a part.
   var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
   var flush = function(kind, t) {
-    pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } items.push(it); });
+    pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } if (kind === 'pickled' && !it.dest && blockDest) it.dest = blockDest; if (kind !== 'pickled') delete it.dest; items.push(it); });
     pendingParts = [];
   };
   // What is still listed when the message ends or a new incoming block begins: arrived at its own block's time, or
@@ -279,9 +292,12 @@ function parsePickling(msg, ctx) {
         if (!pendingParts.length) notes.push({ n: n, raw: raw, text: 'A pickling time with nothing listed above it' });
         flush('pickled', t);
       }
-      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false;
+      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false; blockDest = null;
       return;
     }
+    // "FOR VAT A1": where the loads of this block are going.
+    var dl = prodDestOfLine(line);
+    if (dl) { blockDest = dl; return; }
     if (!/[A-Za-z0-9]/.test(line)) return;
     // "RE-PICKLING" on a line of its own marks the loads of this group as rework, above it and below it.
     if (/^\s*re[-\s]*(work|pickl\w*|plat\w*)\s*$/i.test(line)) { pendingParts.forEach(function(x) { x.rework = true; }); reworkOn = true; return; }
@@ -310,6 +326,11 @@ function parsePickling(msg, ctx) {
     if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
     var rec = prodItemRecord(it, group, raw, n, date, noDate);
     if (reworkOn) rec.rework = true;
+    // "…-774 NOS VAT A2": the line written after the load's figure is where that load is going.
+    if (it.qty != null) {
+      var em = line.match(PROD_LINE_END_RE), el = em && /\d\s*(nos|no|pcs|pc|kgs?|k)\b/i.test(line.slice(0, em.index)) ? prodLineOfToken(em[1]) : null;
+      if (el) rec.dest = el;
+    }
     if (carriedGroup) rec.issues.push({ tone: 'amber', code: 'carried', text: 'No client written for this load: ' + (group.clientName || group.client) + ', from the load above.' });
     // "CLAMP" over "165×83(35×6)--420 NOS": the lines below are its sizes. Over a line with only its figure ("LINER / 1000
     // NOS") it is the load itself: taken for a family, the 1000 was saved with no part.

@@ -378,7 +378,7 @@ function faceFormMake(duty, fromId) {
   if (duty === 'roll-in' || duty === 'roll-out') return faceRollMake(duty, day);
   // A run of a page is put right on its page: the page of its day and line (the face's day moves to it, so the address says it).
   if (duty === 'vat') { var run = fromId ? prodIndex().byId[fromId] : null; if (run && run.date) faceSetDay(run.date); return faceVatMake(faceDayIso(), run && run.line); }
-  var f = { duty: duty, date: day, clientId: '', part: '', partText: '', qty: '', unit: 'NOS', time: day === localDateStr() ? faceNowHhmm() : '', rework: false, replaces: null, saved: [] };
+  var f = { duty: duty, date: day, clientId: '', part: '', partText: '', qty: '', unit: 'NOS', time: day === localDateStr() ? faceNowHhmm() : '', rework: false, dest: '', replaces: null, saved: [] };
   if (duty === 'incoming') { f.challan = ''; f.counts = {}; f.challanNo = ''; f.link = null; }
   if (duty === 'barrel') { f.barrel = ''; f.timeOut = ''; }
   var idx = prodIndex(), src = fromId ? idx.byId[fromId] : null;
@@ -386,7 +386,7 @@ function faceFormMake(duty, fromId) {
     f.replaces = src.id; f.date = src.date; f.clientId = src.clientId != null ? String(src.clientId) : '';
     var hit = faceClientParts(f.clientId).find(function(x) { return x.key === prodEntryKey(src); });
     if (hit) f.part = hit.key; else { f.part = FACE_TYPED; f.partText = src.part || ''; }
-    f.qty = src.qty != null ? String(src.qty) : ''; f.unit = src.unit || 'NOS'; f.time = src.time || ''; f.rework = !!src.rework;
+    f.qty = src.qty != null ? String(src.qty) : ''; f.unit = src.unit || 'NOS'; f.time = src.time || ''; f.rework = !!src.rework; f.dest = src.dest || '';
     if (duty === 'incoming') { f.challan = FACE_NOCHALLAN; f.challanNo = src.challanNo || ''; f.link = src.imItemId ? { imId: src.imId, imItemId: src.imItemId } : null; }
     if (duty === 'barrel') { f.barrel = src.unitId || src.barrel || ''; f.timeOut = src.to || ''; }
   }
@@ -523,6 +523,7 @@ function faceFlowQty(f) { var q = parseFloat(f.qty); return q > 0 ? q : null; }
 /* The entry as Save makes it, for the message: the client, the part as the challans name it (or as written), the figure, the time. */
 function faceFlowDraft(f, kind, x) {
   var cid = prodHeldId(f.clientId), e = { kind: kind, date: f.date, time: f.time, clientId: cid, client: prodClientName(cid), qty: faceFlowQty(f), unit: f.unit === 'KG' ? 'KG' : 'NOS', rework: !!f.rework };
+  if (kind === 'pickled' && PROD_LINES.indexOf(f.dest) >= 0) e.dest = f.dest;
   if (x) { e.part = x.part; if (x.partNumber) e.partNumber = x.partNumber; e.gauge = x.gauge || null; }
   else { e.part = String(f.partText || '').trim(); e.gauge = prodGaugeOf(e.part, e.part) || null; }
   return e;
@@ -562,7 +563,9 @@ function faceLoadModel() {
     { key: 'client', title: 'Whose material is it?', help: 'Clients with material open on a challan come first.', guide: g, done: !!f.clientId, says: faceFlowClientName(f) },
     { key: 'part', title: 'Which part?', help: 'As the challans name it. Not listed takes its name as written.', guide: g, done: partOk, says: faceFlowPartName(f, x) },
     { key: 'qty', title: 'How many went in?', help: 'Pieces, or kilograms where the part is weighed.', done: qty != null, says: qty != null ? prodQtyText(qty, u) : '' },
-    { key: 'time', title: 'When did it go into the tank?', help: 'Now, unless it went in earlier. Tick rework for a load pickled again.', done: tOk, says: faceFlowClock(f.time) + (f.rework ? ' · rework' : '') }
+    { key: 'time', title: 'When did it go into the tank?', help: 'Now, unless it went in earlier. Tick rework for a load pickled again.', done: tOk, says: faceFlowClock(f.time) + (f.rework ? ' · rework' : '') },
+    // Owner, 17 Nov 2026: the line the load is going to, set against the plating it becomes (prodDestCheck).
+    { key: 'dest', title: 'Where is it going?', help: 'The line it will be plated on, if you know it.', optional: true, done: PROD_LINES.indexOf(f.dest) >= 0, says: PROD_LINES.indexOf(f.dest) >= 0 ? PROD_LINE_LABEL[f.dest] : '' }
   ];
   var lines = [], checks = [faceFlowOverCheck(f, x, qty)];
   if (f.clientId && partOk && qty != null) {
@@ -582,7 +585,9 @@ function faceLoadHtml(f) {
     part: faceFieldsWrap(facePartFieldsHtml(f, parts)),
     qty: faceFieldsWrap(faceQtyFieldsHtml(f)),
     time: faceFieldsWrap(faceField('faceTime', 'Into the tank at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
-      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Re-pickling or rework (counted as work, never billed)</span></label>')
+      '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Re-pickling or rework (counted as work, never billed)</span></label>'),
+    dest: faceFieldsWrap(faceField('faceDest', 'Going to', '<select id="faceDest" class="inv-select" data-face-f="dest"><option value=""' + (!f.dest ? ' selected' : '') + '>Not known</option>' +
+      PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (f.dest === l ? ' selected' : '') + '>' + escHtml(PROD_LINE_LABEL[l]) + '</option>'; }).join('') + '</select>'))
   };
   return '<div data-face-form="pickling">' + faceFlowRender('facePickling', faceLoadModel(), body, { before: before, receipt: faceFlowReceipt(f) }) + '</div>' +
     faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the load of' : 'Pickled on', f);
@@ -716,7 +721,7 @@ function faceMsgOf(list) {
   if (e0.kind === 'plated') { var t2 = relayParseHhmm(e0.to), out = t2 == null ? '' : ' - ' + faceClock(t2);
     return [head, 'BARREL ' + String(e0.barrel || '').toUpperCase().replace(/^BARREL\s*/, '') + ': ' + clock + out, client].concat(list.map(part)).join('\n'); }
   if (e0.kind === 'arrived') return [head, 'INCOMING MATERIAL TIME ' + clock, client].concat(list.map(part)).join('\n');
-  return [head, client].concat(list.map(part), e0.rework ? ['RE-PICKLING'] : [], ['PICKLING TIME ' + clock]).join('\n');
+  return [head, client].concat(list.map(part), e0.rework ? ['RE-PICKLING'] : [], e0.dest ? ['FOR ' + PROD_LINE_LABEL[e0.dest].toUpperCase()] : [], ['PICKLING TIME ' + clock]).join('\n');
 }
 /* The message an entry went out in: every entry of its save shares it (one challan counted is one message). */
 function faceMsgFor(e) {
@@ -762,7 +767,7 @@ async function faceSave() {
     var e = withPart(base(f.duty === 'incoming' ? 'arrived' : 'pickled'));
     e.qty = qty; e.unit = f.unit === 'KG' ? 'KG' : 'NOS';
     if (f.duty === 'incoming') { e.basis = 'floor-in'; if (String(f.challanNo || '').trim()) e.challanNo = String(f.challanNo).trim(); if (f.link) { e.imId = f.link.imId; e.imItemId = f.link.imItemId; } }
-    else { e.basis = 'pickling'; e.rework = !!f.rework; }
+    else { e.basis = 'pickling'; e.rework = !!f.rework; if (PROD_LINES.indexOf(f.dest) >= 0) e.dest = f.dest; }
     var src = f.replaces ? prodIndex().byId[f.replaces] : null;
     if (src) {
       e.replaces = src.id;
@@ -805,7 +810,7 @@ async function faceSave() {
   }
   // The form stays for the next: the client and the day carry over; the part, the figures and the time start again.
   list.forEach(function(e) { f.saved.push(e.id); });
-  f.part = ''; f.partText = ''; f.qty = ''; f.rework = false; f.counts = {}; f.challan = f.duty === 'incoming' ? '' : f.challan; f.challanNo = '';
+  f.part = ''; f.partText = ''; f.qty = ''; f.rework = false; f.dest = ''; f.counts = {}; f.challan = f.duty === 'incoming' ? '' : f.challan; f.challanNo = '';
   f.time = f.date === localDateStr() ? faceNowHhmm() : f.time;
   renderFace();
   showToast((list.length > 1 ? todoPlural(list.length, 'line') + ' saved' : 'Saved') + ' · send it to the group, or enter the next', 'success');

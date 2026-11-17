@@ -3,8 +3,8 @@ subject: "Production"
 domain: floor
 modules: [split/production.js, split/prodview.js]
 specs: []
-tests: [P85, P90, P122, P198, P214, P258]
-updated: 2026-11-17 (the pickling hand's line for a load, measured against the plating)
+tests: [P85, P90, P122, P198, P214, P258, P265, P269, P272]
+updated: 2026-11-17 (the pickling hand's line for a load; Enter by hand: the cursor on opening, its way out a step back, P269, P272)
 ---
 
 ### Production
@@ -34,7 +34,9 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   the day tab but corrections and comparisons are missing"*). Floor → Overview's line card opens Production → Lines on its line and day,
   and there each run and pickling load opens to what it holds, its Correct and its Void (`prodEntryFoldRowHtml`, Entries' phone
   fold, on both layouts); a correction goes back to that day. Enter by hand from Lines starts on the day stepped to (a fresh Lines
-  shows the last recorded day, and a new entry there is today's) and on its line. Entries opens on a day (*A day* in its Filter;
+  shows the last recorded day, and a new entry there is today's) and on its line. On a keyboard it opens with the cursor on the client (a
+  power cut, from Power's *Enter a cut*, on its time: `prodHandFocusStart`), where a save puts it back; its Back and Done are a step
+  back in the history where the screen they go to is the step before (`navReturn`, design/navigation.md). P272, P269. Entries opens on a day (*A day* in its Filter;
   Lines' More, *Every entry of this day*): every entry of it, whatever its kind. P198.
 - **One figure per line and shift.** Per (day, line, general | overtime) the register counts, else the supervisor's
   relay, else an entry by hand; the others are shown **also reported**, never added — they count the same work a

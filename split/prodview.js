@@ -1660,6 +1660,14 @@ function prodOpenHand(fromId, from, fromLines) {
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+  prodHandFocusStart();
+}
+/* On a keyboard the cursor starts where the entry starts, as it goes back there after a save (and as Stock's opens): the client, or a
+   power cut's time. The form opened on nothing, and the first key typed went to the page. A correction is left to be read first. */
+function prodHandFocusStart() {
+  if (!_prodHand || _prodHand.replaces || touchScreen()) return;
+  var first = document.getElementById(_prodHand.kind === 'downtime' ? 'prodHandTime' : 'prodHandClient');
+  if (first) focusSoon(first);
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {

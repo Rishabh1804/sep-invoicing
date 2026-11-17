@@ -1,9 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { loadAppWithState, switchTab, readStoredState } from './fixtures';
+import { loadAppWithState, switchTab, toolbarMore } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P272: entering several at a sitting by the keyboard (owner: bugs "mostly based on navigation when entering data"). After a save,
 // or in a dialog filled cell after cell, the cursor is where the next entry is typed, and Enter goes on. Made-up book (HR-10).
+
+test('Production → Enter by hand opens with the cursor on the client; Power → Enter a cut on the time', async ({ page }) => {
+  await loadAppWithState(page, longBook());
+  await switchTab(page, 'pageProduction');
+  await toolbarMore(page, 'Enter by hand');
+  await expect(page.locator('#prodHandClient')).toBeFocused();
+  await switchTab(page, 'pagePower');
+  await page.locator('[data-action="invPowerAddCut"]').first().click();
+  await expect(page.locator('#prodHandTime')).toBeFocused();
+});
 
 test('Stock by hand: after Save the cursor is back on the first quantity, and the list just saved stays in sight', async ({ page }) => {
   await loadAppWithState(page, longBook());

@@ -1071,7 +1071,7 @@ function powerCfgSave() {
 function powerAddCut() {
   switchTab('pageProduction');
   prodOpenHand(null, 'power');
-  if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); }
+  if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); prodHandFocusStart(); }
 }
 /* The history from soma-internal, one file: its cuts as a `sep-production` file (merged by id into Production), and
    under `power` the electricity bills' details by month and the load. A detail fills a bill of that month only where the

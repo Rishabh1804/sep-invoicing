@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="d5e7f694">
+<meta name="app-build" content="b30ac92a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -44114,13 +44114,13 @@ document.addEventListener('change', function(e) {
   if (t && t.id === 'addPhotoInput') addPhotoFiles(t.files);
   else if (t && t.id === 'addFileInput') addFileGot(t.files && t.files[0]);
 });
-/* The key A opens Add on the desktop, never from a field and never over a layer (Backspace's guard, nav.js); Ctrl+Enter
-   in the sheet's box reads it. */
+/* The key A opens Add on the desktop, never from a field typed in and never over a layer (navTyping, nav.js: Backspace's
+   rule); Ctrl+Enter in the sheet's box reads it. */
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target && e.target.id === 'addPasteText') { e.preventDefault(); addRead(); return; }
   if ((e.key !== 'a' && e.key !== 'A') || e.altKey || e.ctrlKey || e.metaKey || e.repeat || e.isComposing || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (navTyping(t)) return;
   if (!_isDesktop || !S || !document.body.classList.contains('inv-booted') || navLayerOpen()) return;
   e.preventDefault();
   addOpen();
@@ -85352,21 +85352,41 @@ document.addEventListener('keyup', navSoon);
 // A dialog or sheet opened later (after a question was answered, a file read) is a layer too.
 new MutationObserver(navSoon).observe(document.body, { childList: true });
 
-/* Backspace goes back when no field has focus (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
+/* The user is typing: one rule for every key the app takes for itself (Backspace here; Ctrl K, /, N, C, G, J, K in search.js;
+   A in add.js). A text-like field (text, number, date, time, search, tel and the rest), a textarea, a select and anything
+   editable keep their keys; a checkbox, a radio, a button, a range, a colour or a file picker, and the page, type nothing
+   (P276: Backspace tested the tag, INPUT, so a focused checkbox or radio stopped it going back, while the shortcuts let
+   them through). A field in a dialog, or one with its suggestion list open, is a field like any other. */
+var NAV_UNTYPED = /^(checkbox|radio|button|submit|reset|range|color|file|image|hidden)$/i;
+function navTyping(t) {
+  if (!t || !t.tagName) return false;
+  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+  return t.tagName === 'INPUT' && !NAV_UNTYPED.test(t.type || 'text');
+}
+
+/* Backspace goes back when no field is typed in (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
    screen (switchTab's step 8: the search on the Register, History, Create) while it is still empty and nobody has typed in
    it or left it since: arriving there, Backspace did nothing (the QA audit of 30 Sep 2026). Once typed in, even emptied
    again, its Backspace is the field's. */
 var _navArrivalField = null;
 function navArrived() {
   var a = document.activeElement;
-  _navArrivalField = a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.value ? a : null;
+  _navArrivalField = a && navTyping(a) && !a.value ? a : null;
 }
+function navAtArrival(t) { return !!t && t === _navArrivalField && !t.value; }
 document.addEventListener('input', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
 document.addEventListener('focusout', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
+/* A held Backspace takes one step: its repeats are the field's (emptying it) or nothing, never a run of screens back (a
+   field emptied and then left, as a redraw leaves it, put the focus on the page and the repeats walked the trail). Nothing
+   during an IME composition. Over a layer it closes the top one, as Escape does (events.js): Back closes a layer, and this
+   way the screen behind never moves, whether or not the layer's step is written yet (P276). */
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Backspace' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) && !(t === _navArrivalField && !t.value)) return;
+  if (navTyping(t) && !navAtArrival(t)) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.repeat) { e.preventDefault(); return; }
+  if (navLayerOpen()) { e.preventDefault(); navCloseLayer().then(navSoon); return; }
   if (!navCanBack()) return;
   e.preventDefault();
   navBack();
@@ -85413,8 +85433,8 @@ function navBoot(launch) {
    Before anything is typed: Recent (the last eight opened from here, kept on the device), then Go to.
 
    KEYS: Ctrl K or / searches, N a new invoice, C a new challan, G then a letter jumps, J and K walk the rows of Invoices
-   and Challans (Enter opens one), Esc shuts the desktop's pane, ? lists them. None fires while a field has focus or a
-   layer is open (nav.js's rule for Backspace); Ctrl K, which types nothing, also works from the field the app focused
+   and Challans (Enter opens one), Esc shuts the desktop's pane, ? lists them. None fires while a field is typed in (navTyping,
+   nav.js: Backspace's rule too) or a layer is open; Ctrl K, which types nothing, also works from the field the app focused
    on arriving at a screen, while it is still empty.
 
    NEW WINDOWS (desktop): Ctrl+click or a middle click on a sidebar item, a view tab or a list row opens that place's
@@ -86294,12 +86314,6 @@ function srchAct(a) {
 /* ---------- Keys ---------- */
 var _srchG = 0;    // when G was pressed: a letter within SRCH_G_MS jumps
 
-/* A field being typed in: a text box, a select, an editable block. A tick box or a button is not. */
-function srchTyping(t) {
-  if (!t || !t.tagName) return false;
-  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
-  return t.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file|image)$/i.test(t.type || 'text');
-}
 /* G then a letter: the workspace's first screen this build holds, or Invoices (R) and Challans (C). */
 function srchGTarget(letter) {
   var sp = SRCH_SPACES.find(function(x) { return x[0] === letter; }), ids = sp ? sp[2] : SRCH_G_MORE[letter];
@@ -86345,12 +86359,12 @@ document.addEventListener('keydown', function(e) {
   // Ctrl K (Cmd K on a Mac): search, from anywhere but a field being typed in or another layer.
   if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (key === 'k' || key === 'K')) {
     if (t && t.closest && t.closest('[data-search]')) { e.preventDefault(); return; }
-    if (navLayerOpen() || (srchTyping(t) && !(t === _navArrivalField && !t.value))) return;
+    if (navLayerOpen() || (navTyping(t) && !navAtArrival(t))) return;
     e.preventDefault();
     searchOpen();
     return;
   }
-  if (e.ctrlKey || e.metaKey || e.altKey || navLayerOpen() || srchTyping(t)) { _srchG = 0; return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || navLayerOpen() || navTyping(t)) { _srchG = 0; return; }
   if (e.repeat) return;
   if (_srchG) {
     var g = Date.now() - _srchG < SRCH_G_MS ? srchGTarget(key.toLowerCase()) : null;

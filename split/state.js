@@ -823,12 +823,90 @@ function kbdRestoreFocus(area, target) {
   var el = area.querySelector('[data-k="' + (window.CSS && CSS.escape ? CSS.escape(target.k) : target.k) + '"]');
   if (!el) return false;
   try {
-    el.focus();
+    // The browser's own scroll on focus knows nothing of the bars over the page: the field is put clear of them instead (P275).
+    kbdFocus(el);
     // setSelectionRange throws on number inputs, so the caret restore is attempted apart from the focus that matters.
     if (target.sel != null && el.setSelectionRange) el.setSelectionRange(target.sel, target.sel);
     else if (el.select) el.select();
   } catch (e) {}
   return true;
+}
+/* ===== THE FIELD BEING TYPED IN IS KEPT IN SIGHT (P275) =====
+   Owner, 17 Nov 2026: "when 3 or more lines are entered without using a mouse, focus slips and the page does not orient." Focus
+   went to the right field, but the browser's scroll on focus only asks whether the field is inside the window, and the bars drawn
+   over the page (the top bar and the workspace tabs, the phone's bottom bar, a form's sticky action bar, a selection bar, a
+   dialog's foot) are inside it: from the second line on, the field typed into sat under the action bar or the bottom bar. One
+   reveal for every keyboard path: the field is scrolled, the least that will do, clear of the bars over it and of the on-screen
+   keyboard (the visual viewport), with the scroll margin a focused field carries (styles.css, a token). A bar counts while it
+   is stuck over the page (a sticky one at rest under the form covers nothing). */
+var KBD_TOP_BARS = '.inv-topbar, body > .inv-ws-tabs';
+var KBD_BOTTOM_BARS = '.inv-navbar, .inv-actionbar, .inv-selbar, #regSelBar, #imSelBar, .inv-kb-ctxbar, .inv-dialog-foot';
+var KBD_LAYER = '.inv-dialog, .inv-scrim-dialog';
+function _kbdScroller(el) {
+  for (var p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+    var oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p;
+  }
+  return null;
+}
+function _kbdBarStuck(b, br, atBottom) {
+  var cs = getComputedStyle(b);
+  if (cs.position === 'fixed') return true;
+  if (cs.position !== 'sticky') return false;
+  // A sticky bar is over the page only where it is held at its edge (of the window, or of the pane or dialog it scrolls in);
+  // at rest in the flow it takes its own room.
+  var sc = _kbdScroller(b), lo = 0, hi = window.innerHeight;
+  if (sc) { lo = sc.getBoundingClientRect().top + sc.clientTop; hi = lo + sc.clientHeight; }
+  if (atBottom) { var off = parseFloat(cs.bottom); return !isNaN(off) && Math.abs(hi - off - br.bottom) < 2; }
+  var t = parseFloat(cs.top); return !isNaN(t) && Math.abs(br.top - lo - t) < 2;
+}
+function kbdReveal(el) {
+  if (!el || !el.isConnected || !el.getBoundingClientRect) return;
+  var r = el.getBoundingClientRect();
+  if (!r.width && !r.height) return;
+  var layer = el.closest(KBD_LAYER), sc = _kbdScroller(el), vv = window.visualViewport;
+  var top = vv ? vv.offsetTop : 0, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+  if (sc) { var sr = sc.getBoundingClientRect(); top = Math.max(top, sr.top); bottom = Math.min(bottom, sr.bottom); }
+  var bars = function(sel) {
+    return Array.prototype.filter.call(document.querySelectorAll(sel), function(b) {
+      return !b.contains(el) && b.closest(KBD_LAYER) === layer && b.getClientRects().length;
+    });
+  };
+  bars(KBD_TOP_BARS).forEach(function(b) { var br = b.getBoundingClientRect(); if (br.height && _kbdBarStuck(b, br, false)) top = Math.max(top, br.bottom); });
+  bars(KBD_BOTTOM_BARS).forEach(function(b) { var br = b.getBoundingClientRect(); if (br.height && _kbdBarStuck(b, br, true)) bottom = Math.min(bottom, br.top); });
+  var cs = getComputedStyle(el), mt = parseFloat(cs.scrollMarginTop) || 0, mb = parseFloat(cs.scrollMarginBottom) || 0;
+  var dy = 0;
+  if (r.bottom + mb > bottom) dy = r.bottom + mb - bottom;
+  // A field taller than the room left shows its top.
+  if (r.top - dy - mt < top) dy = r.top - mt - top;
+  if (Math.abs(dy) < 1) return;
+  if (sc) sc.scrollTop += dy; else window.scrollBy(0, dy);
+}
+/* Focus put on a field by the app, clear of the bars: the browser's own scroll is held back and the reveal does it. */
+function kbdFocus(el) {
+  if (!el || typeof el.focus !== 'function') return;
+  try { el.focus({ preventScroll: true }); } catch (e) { return; }
+  kbdReveal(el);
+}
+/* Tab moves focus with the browser's own scroll, which does not know the bars either: a field Tab lands on is revealed too. Only Tab:
+   a key whose handler puts the focus somewhere on purpose without moving the page (Stock's save keeps the list just saved in
+   sight, preventScroll) is left as it chose; the Enter chain and a form redrawn under the keyboard reveal by their own call. */
+var _kbdTabAt = 0;
+document.addEventListener('keydown', function(e) { _kbdTabAt = e.key === 'Tab' ? Date.now() : 0; }, true);
+document.addEventListener('focusin', function(e) {
+  var t = e.target;
+  if (!_kbdTabAt || Date.now() - _kbdTabAt > 1000 || !t || !t.matches || !t.matches('input:not([type="hidden"]), select, textarea, button, [tabindex]')) return;
+  kbdReveal(t);
+});
+/* The on-screen keyboard rising over the field typed in is the visual viewport growing shorter. */
+if (window.visualViewport) {
+  var _kbdVvH = window.visualViewport.height;
+  window.visualViewport.addEventListener('resize', function() {
+    var h = window.visualViewport.height, shrank = h < _kbdVvH - 1;
+    _kbdVvH = h;
+    var a = document.activeElement;
+    if (shrank && a && a.matches && a.matches('input:not([type="hidden"]), textarea, select')) kbdReveal(a);
+  });
 }
 /* The keys a keyboard form keeps, said over it on the desk (hidden on the phone). */
 function kbdKeysHtml() {

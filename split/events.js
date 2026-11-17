@@ -1175,7 +1175,8 @@ document.addEventListener('keydown', function(e) {
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
       var next = focusable[curIdx + 1];
-      next.focus();
+      // Clear of the bars over the page, not merely inside the window (state.js kbdReveal, P275).
+      kbdFocus(next);
       if (next.type === 'number' || next.type === 'text') next.select();
     }
   }

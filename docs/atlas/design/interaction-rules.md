@@ -3,8 +3,8 @@ subject: "Interaction rules: pop-ups, forms, dialogs, selects, scroll"
 domain: design
 modules: [split/events.js, split/state.js]
 specs: []
-tests: [P76, P78, P79, P80, P92, P117, P270, P272]
-updated: 2026-11-17 (the cursor after a stock save by hand, P272; focus back to a redrawn opener, P270)
+tests: [P76, P78, P79, P80, P92, P117, P270, P272, P275]
+updated: 2026-11-17 (the field the keyboard goes to kept clear of the bars, P275; the cursor after a stock save by hand, P272; focus back to a redrawn opener, P270)
 ---
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
@@ -74,3 +74,17 @@ listener and has to do it too.
 control with the key that names it (`pushFocus`, keepScroll's `_keepKey`). A save redraws the screen under the dialog, mostly just after
 it shuts, so the opener was gone and focus fell to `<body>`: a keyboard started again from the page's top. `popFocus` now gives it to the
 redrawn twin, at once or once the redraw is done, unless something else took the focus or another dialog opened.
+
+**The field the keyboard goes to is put in sight, clear of the bars over the page** (P275, 17 Nov 2026; owner: *"in the new challan
+tab, when 3 or more lines are entered without using a mouse, focus slips and the page does not orient"*). Focus went to the right
+field; the browser's own scroll on focus asks only whether the field is inside the window, and the bars drawn over the page are inside
+it. From the second line on, the field typed into sat under the form's sticky action bar or the phone's bottom bar, on both layouts.
+`kbdReveal(el)` (state.js) scrolls the least that will do (the window, or the pane or dialog the field scrolls in) so the field clears
+every bar **stuck** over it (the top bar and the workspace tabs; the bottom bar, an action bar, a selection bar, the knowledge base's
+bar, a dialog's foot; a sticky bar at rest in the flow covers nothing) and the visual viewport (the on-screen keyboard), keeping the
+room a focused control's `scroll-margin-block` gives (`--sp-12`, styles.css). `kbdFocus(el)` focuses with the browser's scroll held
+back and reveals: `kbdRestoreFocus`, the Enter chain (events.js), a save refused on Create or the challan form, Production's next
+entry by hand and an entry face's new tank row use it. A field **Tab** lands on is revealed by a `focusin` listener, and the on-screen
+keyboard rising (the visual viewport shrinking) reveals the field typed in. Only Tab is caught globally: a handler that puts focus
+somewhere on purpose without moving the page (Stock's save by hand, P272) is left as it chose. Any new keyboard path focuses through
+`kbdFocus`, never a bare `focus()`.

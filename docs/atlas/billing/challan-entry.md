@@ -3,8 +3,8 @@ subject: "Challan entry: keyboard, filled from the record, invoiced in parts, bi
 domain: billing
 modules: [split/im-form.js, split/im.js, split/create.js, split/state.js, split/events.js]
 specs: []
-tests: [P12, P77, P78, P141, P181, P268]
-updated: 2026-11-17 (Keyboard entry on Create, P268)
+tests: [P12, P77, P78, P141, P181, P268, P275]
+updated: 2026-11-17 (A long form typed by keyboard keeps its field in sight, P275; Keyboard entry on Create, P268)
 ---
 
 ### Keyboard entry
@@ -32,6 +32,14 @@ else Add line; Change client to the search. `Alt+N` adds a line and `Ctrl+Enter`
 invoice** are `data-kbd-ring` (a disabled button is stepped over); a remove × is not. A save refused for an error puts the
 cursor on the field it names (`createFocusError`). A client search left closes its own list a moment later, as a part
 field does. P268.
+
+### A long form keeps its field in sight
+Owner, 17 Nov 2026: *"when 3 or more lines are entered without using a mouse, focus slips and the page does not orient."* The
+keys went to the right field, but from the second line on that field sat under the form's sticky action bar (phone and desk) or
+the phone's bottom bar: the browser's scroll on focus counts a field under a bar as in sight. Focus across a re-render, the Enter
+chain, Alt+N, Tab and a save refused now all put the field clear of the bars (`kbdFocus` / `kbdReveal`, state.js;
+`docs/atlas/design/interaction-rules.md`), for both forms. P275 types eight challan lines and six invoice lines by keyboard on
+both layouts and checks every field landed on is on screen and under no bar.
 
 ### A challan line filled from the record
 Owner, 26 Sep 2026: *"When I select C-Clamp 66x42(30x6) as we know all its value and std weight and rate, fill that

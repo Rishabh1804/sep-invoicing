@@ -1982,7 +1982,8 @@ async function prodSaveHand() {
   _pageTyped = false;
   renderProduction();
   var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
-  if (next && !('ontouchstart' in window)) try { next.focus(); } catch (x) { /* focus is a convenience */ }
+  // Clear of the form's action bar, where the part field sat after a few entries (state.js kbdFocus, P275).
+  if (next && !('ontouchstart' in window)) kbdFocus(next);
   showToast((f.kind === 'downtime' ? 'Power cut saved' : 'Saved') + ' · enter the next, or Done', 'success');
 }
 

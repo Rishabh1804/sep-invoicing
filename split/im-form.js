@@ -370,14 +370,15 @@ function saveChallan() {
   if (gap) {
     showToast(gap.msg, 'error');
     var gapEl = document.querySelector('#imAddForm [data-k="' + gap.k + '"]');
-    if (gapEl) gapEl.focus();
+    // Clear of the bars over the page (state.js kbdReveal, P275).
+    kbdFocus(gapEl);
     return;
   }
   // The day it is wanted by is never before the day it came in, as the Wanted by dialog holds it (flow.js).
   if (_challanForm.priority && _challanForm.challanDate && _challanForm.priority < _challanForm.challanDate) {
     showToast('Wanted by a day before the challan came in', 'error');
     var wbEl = document.getElementById('imWantedBy');
-    if (wbEl) wbEl.focus();
+    kbdFocus(wbEl);
     return;
   }
 

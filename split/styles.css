@@ -200,6 +200,8 @@
 
 /* Focus (§3.6): every interactive element. */
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* The room a focused field keeps from a bar or the window's edge when it is scrolled into sight (state.js kbdReveal, P275). */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus { scroll-margin-block: var(--sp-12); }
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

@@ -863,7 +863,8 @@ function createFocusError() {
   else if (e.key === 'lines') el = area.querySelector('[data-k="addline"]');
   else if (m && m[2]) el = area.querySelector('[data-k="' + m[2] + '-' + m[1] + '"]');
   else if (m) el = area.querySelector('#invZeroReason' + m[1] + ' [data-k], #invImShare' + m[1] + ' [data-k]') || area.querySelector('[data-k="part-' + m[1] + '"]');
-  if (el) el.focus();
+  // Clear of the bars over the page (state.js kbdReveal, P275): the field named sat under the action bar on a long invoice.
+  kbdFocus(el);
 }
 function createFieldLeft(key) { (invoiceForm._left = invoiceForm._left || {})[key] = true; }
 // A line removed: what was left on the lines under it moves up with them.

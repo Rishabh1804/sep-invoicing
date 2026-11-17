@@ -21,7 +21,7 @@ test.describe('P50: Settings', () => {
     expect(await page.locator('details[data-sec][open]').count()).toBe(0);
     await expect(page.locator('[data-sum="rateCheck"]')).toHaveText('10% · ₹100 · ±3%');
     await expect(page.locator('[data-sum="overtime"]')).toContainText('cap ₹68.20/h from 01 Sep 2026');
-    await expect(page.locator('[data-sum="rest"]')).toHaveText('full at 90% · half at 80% · 3 paid holidays');
+    await expect(page.locator('[data-sum="rest"]')).toHaveText('full at 90% · half at 80% · 3 every year · none dated');
     // Part weights are no longer here.
     await expect(page.locator('#setPWPart')).toHaveCount(0);
   });
@@ -81,14 +81,16 @@ test.describe('P50: Settings', () => {
     await openSettingsAt(page, 'rest');
     await page.locator('#setGateFull').fill('70');
     await page.locator('#setGateHalf').fill('95');
-    await page.locator('#setHolidays').fill('01-26, 08-15, 10-02, 2026-11-01, junk');
+    // Two kinds since 17 Nov 2026 (P266): every year (MM-DD) and dated (a full date); one list on the book.
+    await page.locator('#setHolidaysFixed').fill('01-26, 08-15, 10-02, junk');
+    await page.locator('#setHolidaysDated').fill('2026-11-01');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="rest"]').click();
     const l = (await readStoredState(page)).labour;
     // Half above full is swapped, junk dropped, the OT cap untouched.
     expect([l.gateFull, l.gateHalf]).toEqual([0.95, 0.7]);
     expect(l.holidays).toEqual(['01-26', '08-15', '10-02', '2026-11-01']);
     expect(l.otCap).toBe(68.2);
-    await expect(page.locator('[data-sum="rest"]')).toHaveText('full at 95% · half at 70% · 4 paid holidays');
+    await expect(page.locator('[data-sum="rest"]')).toHaveText('full at 95% · half at 70% · 3 every year · 1 dated');
   });
 
   test('part weights live in Items now', async ({ page }) => {

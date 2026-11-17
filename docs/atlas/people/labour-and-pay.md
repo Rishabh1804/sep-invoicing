@@ -4,7 +4,7 @@ domain: people
 modules: [split/payroll.js, split/payslip.js, split/labour.js, split/staff.js]
 specs: []
 tests: [P174, P205, P207, P213, P250, P260, P262]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (paid holidays in two kinds: every year and dated)
 ---
 
 ### Labour and attendance
@@ -140,6 +140,11 @@ to the rupee for 8 of 9 hands off the imported marks; the ninth, the gate hand, 
 - **Paid holidays are always paid** (BM: *"National holiday is always paid"*): `labour.holidays`, the three
   national holidays as `MM-DD`, or a full date for a one-off. A hand with no day recorded in the month is
   credited nothing — a month nobody typed is not a month of holidays.
+  **Two kinds on Settings → Rest days & attendance** (owner, 17 Nov 2026: *"so static and flexible holidays are treated differently"*;
+  P266): *every year* (`MM-DD`: the national holidays, a day fixed by the calendar) and *dated* (`YYYY-MM-DD`, one year: a festival whose
+  date moves, written again each year; the field says how many fall in the current year). One list on the book as before; a month and day
+  typed among the dated ones is this year's, a full date among the every-year ones is its own day. Deepawali saved as `11-09` would have
+  recurred on 9 Nov 2027.
 - **A worked Sunday keeps its gated credit and is paid one day on top** (BM, 10 Sep: *"keep the worked sunday
   credit"*), and its hours are that day, **never OT as well** — which would pay them twice (the July slip took
   a hand's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way:

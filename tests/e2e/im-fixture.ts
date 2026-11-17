@@ -6,7 +6,7 @@ const LONG = 'ORBIT PRESSINGS & AGROTOOLS PRIVATE LIMITED';
 
 function challan(id: string, clientId: number, clientName: string, invoiced: boolean, date = todayIso()) {
   return {
-    id, challanNo: id.replace('IM-', ''), challanDate: date, clientId, clientName, vehicleNo: 'JH 05AN 0878',
+    id, challanNo: id.replace('IM-', ''), challanDate: date, clientId, clientName, vehicleNo: 'JH 05ZZ 0101',
     items: [{ id: `${id}-0`, partNumber: 'P-' + id, desc: 'P-' + id, hsn: '998873', unit: 'KG',
       qty: 100, rate: 13, amount: 1300, nosQty: null, invoiced, invoiceId: invoiced ? 'INV-1' : null }],
     receivedDate: date, notes: '', createdAt: recentTs(),

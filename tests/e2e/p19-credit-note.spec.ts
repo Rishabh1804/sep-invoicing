@@ -403,7 +403,7 @@ test('P19: typing in the form does not tear out the control being used', async (
     });
   });
 
-  await page.locator('#cnVehicle').fill('JH05DR2505');
+  await page.locator('#cnVehicle').fill('JH05ZZ0202');
   await page.locator('#cnDate').fill(new Date().toISOString().slice(0, 10));
 
   expect(await page.evaluate(async () => document.getElementById('cnDate')?.dataset.probe)).toBe('live');
@@ -411,7 +411,7 @@ test('P19: typing in the form does not tear out the control being used', async (
   // The values still reach the saved note.
   await page.locator('[data-action="invCnSave"]').click();
   const s = await stored(page);
-  expect(s.creditNotes[0].vehicleNo).toBe('JH05DR2505');
+  expect(s.creditNotes[0].vehicleNo).toBe('JH05ZZ0202');
 });
 
 test('P19: the export is named for the notes it holds, not the register filter', async ({ page }) => {

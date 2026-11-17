@@ -27,7 +27,7 @@ export function inv(n: number, date: string, c: { id: number; name: string; rate
     items: [{ partNumber: 'BRKT-' + (n % 4), desc: 'Bracket ' + (n % 4), hsn: '998873', unit: 'KG', qty: kg, rate: c.rate, amount: taxable, nosQty: null }],
     taxableValue: taxable, cgstPer: 9, cgstAmt: tax, sgstPer: 9, sgstAmt: tax, igstPer: 0, igstAmt: 0,
     grandTotal: Math.round((taxable + 2 * tax) * 100) / 100, amountInWords: '',
-    challanNo: String(700 + n), challanDate: date, poNumber: 'PO/' + n, poDate: '', despatchDate: '', transport: 'JH 05AN 0878', remarks: '',
+    challanNo: String(700 + n), challanDate: date, poNumber: 'PO/' + n, poDate: '', despatchDate: '', transport: 'JH 05ZZ 0101', remarks: '',
     linkedIMIds: [], createdAt: new Date(date + 'T10:00:00').getTime(),
     ...(status === 'cancelled' ? { cancelledAt: recentTs() } : {}),
   };
@@ -35,7 +35,7 @@ export function inv(n: number, date: string, c: { id: number; name: string; rate
 
 export function challan(n: number, c: { id: number; name: string; rate: number }, date: string, invoiced: string | null) {
   return {
-    id: 'IM-' + n, challanNo: String(800 + n), challanDate: date, clientId: c.id, clientName: c.name, vehicleNo: 'JH 05AN 0878',
+    id: 'IM-' + n, challanNo: String(800 + n), challanDate: date, clientId: c.id, clientName: c.name, vehicleNo: 'JH 05ZZ 0101',
     items: [
       { id: `IM-${n}-0`, partNumber: 'BRKT-' + (n % 4), desc: 'Bracket ' + (n % 4), hsn: '998873', unit: 'KG', qty: 120 + n, rate: c.rate,
         amount: Math.round((120 + n) * c.rate * 100) / 100, nosQty: 400, invoiced: !!invoiced, invoiceId: invoiced },

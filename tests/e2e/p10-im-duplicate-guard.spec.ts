@@ -41,8 +41,8 @@ function stateWithChallan(overrides: Record<string, unknown> = {}): SepState {
     vehicleNo: '',
     items: [{
       id: 'IM-DUPE-ORIG-0',
-      partNumber: '5181-3302', desc: '5181-3302', hsn: '998873',
-      unit: 'KG', qty: 282.7, rate: 13, amount: 3675.1, nosQty: null,
+      partNumber: '9109-0001', desc: '9109-0001', hsn: '998873',
+      unit: 'KG', qty: 264.3, rate: 12, amount: 3171.6, nosQty: null,
       invoiced: false, invoiceId: null,
     }],
     receivedDate: CHALLAN_DATE,
@@ -73,10 +73,10 @@ test('P10: an aliased part number on identical weights still trips the guard', a
   await loadAppWithState(page, stateWithChallan());
   await switchTab(page, 'pageIM');
 
-  // Same client, same date, same 282.7 kg — different challan number, different
+  // Same client, same date, same 264.3 kg — different challan number, different
   // part string. An identifier key would wave this through; ch 47 is exactly
   // this shape and became the largest double-bill in the set.
-  await fillChallan(page, '47-A', '282.7', 'BRACKET 3302');
+  await fillChallan(page, '47-A', '264.3', 'BRACKET 3302');
   await page.locator('[data-action="invSaveChallan"]').click();
 
   const overlay = page.locator('.inv-scrim-dialog');
@@ -110,7 +110,7 @@ test('P10: Save Anyway writes the challan and stamps the acknowledgement', async
   await loadAppWithState(page, stateWithChallan());
   await switchTab(page, 'pageIM');
 
-  await fillChallan(page, '47-A', '282.7', 'BRACKET 3302');
+  await fillChallan(page, '47-A', '264.3', 'BRACKET 3302');
   await page.locator('[data-action="invSaveChallan"]').click();
   await expect(page.locator('.inv-scrim-dialog')).toBeVisible();
 
@@ -180,7 +180,7 @@ test('P10: two copies collapsed into one invoice are not reported as billed twic
   orig.items[0].invoiced = true;
   orig.items[0].invoiceId = 'INV-A';
   // The invoice carries the material once: that is what makes the pair collapsed rather than billed twice.
-  state.invoices = [{ ...invoiceStub('INV-A'), items: [{ partNumber: '5181-3302', desc: '5181-3302', unit: 'KG', qty: 282.7, rate: 13, amount: 3675.1 }] }];
+  state.invoices = [{ ...invoiceStub('INV-A'), items: [{ partNumber: '9109-0001', desc: '9109-0001', unit: 'KG', qty: 264.3, rate: 12, amount: 3171.6 }] }];
 
   await loadAppWithState(page, state);
   await switchTab(page, 'pageIM');

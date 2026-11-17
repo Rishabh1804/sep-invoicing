@@ -31,7 +31,7 @@ function book(): SepState {
     amountInWords: 'Rupees One Thousand Five Hundred Thirty Four Only', challanNo: '', challanDate: '', poNumber: '', poDate: '',
     despatchDate: '', transport: '', remarks: '', linkedIMIds: [], createdAt: recentTs(3600000), updatedAt: recentTs(3600000) }];
   s.invNextNum = 2;
-  s.incomingMaterial = [{ id: 'IM-1', challanNo: '301', challanDate: t, clientId: 1, clientName: CLIENT, vehicleNo: 'JH 05AN 0878',
+  s.incomingMaterial = [{ id: 'IM-1', challanNo: '301', challanDate: t, clientId: 1, clientName: CLIENT, vehicleNo: 'JH 05ZZ 0101',
     items: [{ id: 'IM-1-0', partNumber: 'P1', desc: 'Bracket', hsn: '998873', unit: 'KG', qty: 50, rate: 13, amount: 650, nosQty: 200, invoiced: false, invoiceId: null }],
     receivedDate: t, notes: '', createdAt: recentTs(7200000) }];
   s.staff = [{ id: 1, name: 'Ramu Kumar', comp: 'hourly', dayRate: 0, hourRate: 47.5, area: 'vat-a1', onFloor: true, active: true }];

@@ -4,7 +4,7 @@ domain: design
 modules: [split/floor.js]
 specs: [docs/TAB_MAP.md]
 tests: [P186, P187, P188, P195, P197]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (Production gains Photos)
 ---
 
 ### The tab map: Money (TM3)
@@ -57,8 +57,8 @@ lowered for every Floor screen, P197's `ONE_LOOK` takes them, and the walk visit
   Areas leads with the extra checked, its hours by area a table (`[data-area-hours]`); Roster's *To watch* is the To-do's `pplWatch`, and its card's *To watch* and *Check-ins due*
   show those hands alone (`invAttRosterFilter`; a check-in due is no badge on the row); the tier is the group, the area and the
   pay (the base rate with an overtime hour's) the row's two facts (`workerRateShort`), the hands who left under *Left*. A period in a toolbar row is `inv-tb-step`.
-- **Production is Lines · In plant · Entries · Equipment** (`PROD_TABS`, default Lines). Paste message is the primary on Lines and
-  Entries only; Equipment's is Add a unit; In plant has none. Entries shows thirty with only qualifying badges on the phone, its
+- **Production is Lines · In plant · Entries · Photos · Equipment** (`PROD_TABS`, default Lines). Paste message is the primary on Lines and
+  Entries only; Photos' is Add photos (`floor/floor-photos.md`, 17 Nov 2026); Equipment's is Add a unit; In plant has none. Entries shows thirty with only qualifying badges on the phone, its
   flags as the card's filter tiles; In plant folds each client; Equipment's units are deck cards, two across on the phone
   (`data-deck-sm`), the status changes folded (`plt-log`).
 - **Stock is one screen** (`_stockView` `list`; no view tabs): the verdict (out, low, the reorder's cash; the status tiles its

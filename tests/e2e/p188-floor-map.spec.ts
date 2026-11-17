@@ -98,7 +98,7 @@ test.describe('P188: Floor’s map', () => {
     expect(await tabs(page, 'pagePower').allInnerTexts()).toEqual(['Cuts', 'Causes', 'Load & bills', 'Case']);
     await expect(page.locator('#pagePower .inv-viewtab[aria-selected="true"]')).toHaveText('Cuts');
     await switchTab(page, 'pageProduction');
-    expect(await tabs(page, 'pageProduction').allInnerTexts()).toEqual(['Lines', 'In plant', 'Entries', 'Equipment']);
+    expect(await tabs(page, 'pageProduction').allInnerTexts()).toEqual(['Lines', 'In plant', 'Entries', 'Photos', 'Equipment']);   // Photos from 17 Nov 2026 (P267)
     await expect(page.locator('#pageProduction .inv-viewtab[aria-selected="true"]')).toHaveText('Lines');
     // A saved task naming the old views opens the first, and search names the screens where they are now.
     await g(page, `todoGo({ kind: 'power', tab: 'overview' })`);

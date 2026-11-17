@@ -27,6 +27,7 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   what was read before anything is saved (Stock's contract); the same message is refused, unless every entry it made was
   voided. A paste nothing could be read from opens **Enter it from the text**, and what is saved there teaches the reader
   (`production-readers.md`, P264).
+- **Photos** (17 Nov 2026): the floor photos the owner adds, logged and tagged by area: `floor/floor-photos.md`.
 - **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
   corrected by a new entry that names the old one (`replaces`), never edited; a wrong one is voided with a reason.
 - **A past day is corrected where it is checked** (owner, 10 Oct 2026: *"we can check, its just not in the production tab, it is in

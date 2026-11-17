@@ -7,7 +7,7 @@
  * back and end in the action bar, and draw no toolbar (DR-3).
  */
 var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
-var PROD_TABS = [['lines', 'Lines'], ['plant', 'In plant'], ['entries', 'Entries'], ['equipment', 'Equipment']];
+var PROD_TABS = [['lines', 'Lines'], ['plant', 'In plant'], ['entries', 'Entries'], ['photos', 'Photos'], ['equipment', 'Equipment']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'lines'; } catch (e) { return 'lines'; } })();
 var _prodTabMoved = false;
 var _prodView = 'main';          // main · paste · review · hand
@@ -78,13 +78,15 @@ function renderProduction() {
     var p = prodData();
     // Each view draws its own verdict card and toolbar (TM4c). The plant register (plant.js) needs no production record: a unit is
     // the shop's, before anything is plated on it; In plant reads the challans, which exist without one too.
-    if (_prodTab === 'equipment') h += pltEquipmentHtml();
+    if (_prodTab === 'photos') h += fphHtml();   // floor photos (floorphotos.js): needs no production record
+    else if (_prodTab === 'equipment') h += pltEquipmentHtml();
     else if (_prodTab === 'plant') h += prodPlantHtml();
     else if (!p.entries.length) h += prodEmptyHtml();
     else if (_prodTab === 'entries') h += prodEntriesHtml();
     else h += prodLinesHtml();
   }
   paneScrollKeep(function() { el.innerHTML = h; });
+  if (_prodView === 'main' && _prodTab === 'photos') kbFillImages(el);
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   if (_prodTabMoved) { _prodTabMoved = false; viewTop(); }
 }
@@ -2028,6 +2030,7 @@ function prodImportText(text, name) {
 
 /* ---------- Events ---------- */
 function prodAction(action, btn) {
+  if (/^invFph/.test(action)) return fphAction(action, btn);
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
@@ -2134,6 +2137,7 @@ function prodAction(action, btn) {
   return false;
 }
 function prodOnChange(t) {
+  if (fphOnChange(t)) return true;   // floor photos (floorphotos.js)
   if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
   if (_prodPhoto && t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }
   if (_prodPhoto && t.id === 'prodPhotoLine') { _prodPhoto.choices.line = t.value; renderProduction(); return true; }
@@ -2174,6 +2178,7 @@ function prodOnChange(t) {
 }
 function prodOnInput(t) {
   if (!t) return false;
+  if (fphOnInput(t)) return true;
   if (t.id === 'prodPasteText') { _prodPasteDraft = t.value; return true; }
   if (t.dataset && t.dataset.prodHand && t.type !== 'checkbox') { _prodHand[t.dataset.prodHand] = t.value; return true; }
   if (_prodTeach && t.dataset && t.dataset.prodTeach && t.type !== 'checkbox' && t.tagName !== 'SELECT') { var ik = t.dataset.prodTeach.split(':'); _prodTeach.msgs[+ik[0]].rows[+ik[1]][ik[2]] = t.value; return true; }

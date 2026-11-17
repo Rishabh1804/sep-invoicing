@@ -4,6 +4,7 @@ paths:
   - "split/cost.js"
   - "split/faces.js"
   - "split/facesheet.js"
+  - "split/floorphotos.js"
   - "split/flow.js"
   - "split/idcard.js"
   - "split/people.js"
@@ -31,6 +32,7 @@ If your change alters behaviour a topic describes, update that topic and its `up
 - `split/cost.js`: `docs/atlas/floor/stock.md`
 - `split/faces.js`: `docs/atlas/floor/entry-faces.md`
 - `split/facesheet.js`: `docs/atlas/floor/entry-faces.md`
+- `split/floorphotos.js`: `docs/atlas/floor/floor-photos.md`; also `docs/atlas/floor/production.md`
 - `split/flow.js`: `docs/atlas/floor/entry-faces.md`
 - `split/idcard.js`: `docs/atlas/floor/workers-and-plant.md`
 - `split/people.js`: `docs/atlas/floor/workers-and-plant.md`

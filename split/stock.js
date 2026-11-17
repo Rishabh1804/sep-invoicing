@@ -2182,7 +2182,7 @@ function stockAction(action, btn) {
       if (_stockView === 'review') { stockSetView('paste'); break; }
       // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
       if (_stockView === 'manual') _stockBill = null;
-      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
+      _stockReview = null; _stockManual = null; _stockReorder = null; navReturn(); stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockPaneClose': stockSetView('list'); break;
     case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;

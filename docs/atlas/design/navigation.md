@@ -3,8 +3,8 @@ subject: "Navigation: addresses, the trail, long lists, list and pane"
 domain: design
 modules: [split/nav.js]
 specs: [docs/UX_OVERHAUL_2.md]
-tests: [P55, P80, P100, P101, P103, P147, P153]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P55, P80, P100, P101, P103, P147, P153, P269]
+updated: 2026-11-17 (a form's own way out is a step back, P269)
 ---
 
 **Every screen has an address, and one trail goes back** (UX overhaul 2, step 1; owner, 28 Sep 2026: *"Backspace goes back
@@ -29,6 +29,11 @@ the app from anywhere. `nav.js`:
   sub-view's back button — and a swipe (owner, 29 Sep 2026: *"that's a real bug"*; only Back asked, and a tap dropped a
   half-typed challan). The tap is caught before `events.js` sees it (`NAV_LEAVE_ACTIONS`, a capture listener in nav.js)
   and runs again on Leave. **Create asks nothing**: its form stays as typed when the app leaves it. P103.
+- **A form's own way out is a step back** (`navReturn`, 17 Nov 2026): Stock's and Production's Back, the hand form's Done and a
+  correction saved go to the screen the form was opened from, and where that screen is the step before (over any layer shut on the
+  way, the toolbar's More among them) the browser is taken back to it rather than given a new step. Pushed, the form stayed under it
+  and the phone's back opened it again, empty; Power's *Enter a cut* came back as Production's plain hand form. A form opened from
+  anywhere else still pushes its way out. P269.
 - **IM's two lists are view tabs**: *Awaiting invoice* (the default, a part-invoiced challan included) and *Invoiced*,
   which goes back a month at a time by challan date (`imSetTab`, `imMonthShown`). A link to a challan opens the tab and
   month it is under (`imShowChallanTab`). **Swiping** follows the phone bar and then More in its order

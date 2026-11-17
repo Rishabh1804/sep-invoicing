@@ -330,8 +330,15 @@ function navOpen(loc) {
 
 /* Takes the step, if the app moved: a new place is pushed; a layer that opened gets its entry; a layer that shut
    without back marks its entry to be passed over. */
+/* A form's own way out (its Back, its Done, a correction saved) goes back to the screen it was opened from. Where that screen is the
+   step before, the move is taken as a step back, not a new one: pushed, the form stayed in the history under it, and the phone's back
+   (or Backspace, or the bar's arrow) opened it again, empty, and on Power's Enter a cut as Production's plain hand form. */
+var _navReturn = false;
+function navReturn() { _navReturn = true; }
 function navSync() {
   _navTimer = null;
+  var ret = _navReturn;
+  _navReturn = false;
   // A book another window saved while this one was busy (a dialog open, a form typed) is drawn as soon as it is not:
   // the toast promised it, and nothing drew it before the next screen (the QA sweep, 29 Sep 2026).
   if (_bookRedrawPending && !bookBusy()) { _bookRedrawPending = false; tabRedrawActive(); }
@@ -340,7 +347,20 @@ function navSync() {
   if (!st || !st.sep) { history.replaceState(navState(loc), '', navUrl(loc)); _navCur = history.state; navTrailPut(loc); navBarDraw(); return; }
   if (st.layer && !layer) history.replaceState(Object.assign({}, st, { layer: false, skip: true }), '', window.location.href);
   _navCur = history.state;
-  if (navKey(history.state.loc) !== navKey(loc)) navPush(loc);
+  if (navKey(history.state.loc) !== navKey(loc)) {
+    // The step before, over any layer shut on the way (the toolbar's More the form was opened from is one).
+    var j = _navIdx - 1;
+    while (j > 0 && _navTrail[j] === null) j--;
+    var prev = j >= 0 ? _navTrail[j] : null;
+    if (ret && !layer && prev && prev.loc && navKey(prev.loc) === navKey(loc)) {
+      // The browser goes back onto the step the app is already showing: the arrival is the app's own (popstate, _navIgnore).
+      _navIgnore++;
+      history.go(j - _navIdx);
+      setTimeout(function() { if (_navIgnore) { _navIgnore = 0; navSoon(); } }, 400);
+      return;
+    }
+    navPush(loc);
+  }
   if (layer && !history.state.layer) navPush(loc, { layer: true });
   _navCur = history.state;
   navBarDraw();

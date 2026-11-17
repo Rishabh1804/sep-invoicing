@@ -1893,6 +1893,7 @@ function prodHandHtml() {
 function prodHandDone() {
   var from = _prodHand && _prodHand.from;
   _prodHand = null;
+  navReturn();   // the screen it was opened from, as a step back where that is the step before (nav.js)
   if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
   prodSetView('main');
 }
@@ -1958,7 +1959,7 @@ async function prodSaveHand() {
   prodTouch();
   saveState();
   if (src) {   // a correction is one entry: back to where it was opened from
-    var from = f.from; _prodHand = null;
+    var from = f.from; _prodHand = null; navReturn();
     if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
     else prodSetView('main');
     showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
@@ -2036,6 +2037,7 @@ function prodAction(action, btn) {
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       _prodReview = null; _prodHand = null; _prodTeach = null; prodPhotoDrop();
+      navReturn();   // back to the step before where it is that screen (nav.js)
       prodSetView('main');
       return true;
     }

@@ -4,7 +4,7 @@ domain: people
 modules: [split/attreg.js, split/attsheet.js, split/relay.js, split/staff.js]
 specs: []
 tests: [P43, P96, P98, P161, P207, P221, P251, P272]
-updated: 2026-11-17 (the register's cell by the keyboard: Enter goes on to the next day, P272)
+updated: 2026-11-17 (the register's cell: Enter, or one press of Next day, goes on to the next day, P272)
 ---
 
 ### Attendance rolls from WhatsApp
@@ -99,7 +99,9 @@ supervisor's book, a page a month, a column a monthly hand, a row a day. P161.
   started by hand with nothing on it, which the import fills: `aregMonthBlank`, owner 12 Nov 2026) and **Start this
   month** (a column per active monthly hand, Sundays drawn), filled a cell at a time with *Next day*. On a keyboard a cell opens on its
   *As written* field, and **Enter keeps it and goes on to the column's next working day** (the last closes; `aregCellEnter`): it
-  kept the cell and stayed, *Next day* three Tabs away. P272. **Read page photo** (Gemini) came
+  kept the cell and stayed, *Next day* three Tabs away. **One press of *Next day* after typing moves on**: the
+  field's change redraws the dialog as the press starts, and its foot keeps a button drawn alike in place (`aregCellRedraw`); replaced
+  under the pointer, it took no click. P272. **Read page photo** (Gemini) came
   out on 13 Oct 2026 with the rest of the photo reading; a month it read stays.
 - **Names never in the build**: the seven pages of March–September 2026 were transcribed from the owner's photos into a private
   `sep-att-register` file, handed over to import and check. On that book, May–September agree on present / absent in all but 7 of about

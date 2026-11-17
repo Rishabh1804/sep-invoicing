@@ -427,10 +427,36 @@ function aregCellEnter(el) {
   aregCellRedraw();
   aregCellFocus();
 }
+/* The cell's dialog drawn again where it stands. A button its foot draws alike stays where it is, never taken out of the page: a cell
+   typed and then Next day pressed redraws on the field's change, which fires as the press starts, and a button replaced (or only moved)
+   under the pointer takes no click (Next day had to be pressed twice). */
 function aregCellRedraw() {
-  var scrim = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
-  scrim = scrim && scrim.closest('.inv-scrim-dialog');
-  if (scrim) scrim.innerHTML = aregCellHtml();
+  var dlg = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
+  var scrim = dlg && dlg.closest('.inv-scrim-dialog');
+  if (scrim) {
+    var html = aregCellHtml(), tpl = document.createElement('div');
+    tpl.innerHTML = html;
+    var nd = tpl.firstElementChild, oldFoot = dlg.querySelector(':scope > .inv-dialog-foot'), newFoot = nd && nd.querySelector(':scope > .inv-dialog-foot');
+    if (nd && oldFoot && newFoot) {
+      // All but the foot drawn new, in front of it.
+      Array.prototype.slice.call(dlg.children).forEach(function(c) { if (c !== oldFoot) c.remove(); });
+      Array.prototype.slice.call(nd.children).forEach(function(c) { if (c !== newFoot) dlg.insertBefore(c, oldFoot); });
+      // The foot: a button drawn alike is kept in place; the rest go, and the new ones are put in order around those kept.
+      var olds = Array.prototype.slice.call(oldFoot.children), used = [];
+      var want = Array.prototype.slice.call(newFoot.children).map(function(b) {
+        var same = olds.find(function(o) { return used.indexOf(o) < 0 && o.outerHTML === b.outerHTML; });
+        if (same) { used.push(same); return same; }
+        return b;
+      });
+      olds.forEach(function(o) { if (used.indexOf(o) < 0) o.remove(); });
+      var at = null;
+      want.forEach(function(el) {
+        if (used.indexOf(el) >= 0) { at = el; return; }
+        oldFoot.insertBefore(el, at ? at.nextSibling : oldFoot.firstChild);
+        at = el;
+      });
+    } else scrim.innerHTML = html;
+  }
   renderAttendance();
 }
 /* A cell typed or corrected: what it said before is kept on it. A cell read from paper and changed is a correction; a cell

@@ -21,7 +21,7 @@ test('Stock by hand: after Save the cursor is back on the first quantity, and th
   await expect(page.locator('#stockContent [data-flow] [data-stock-qty]').first()).toHaveValue('7');
 });
 
-test('People → Register by hand: a cell opens on As written, and Enter keeps it and goes on to the next day', async ({ page }) => {
+test('People → Register by hand: a cell opens on As written; Enter, or one press of Next day, keeps it and goes on', async ({ page }) => {
   await loadAppWithState(page, longBook());
   await switchTab(page, 'pageStaff');
   await page.evaluate(() => (0, eval)("attSetView('register'); aregStart();"));
@@ -40,6 +40,12 @@ test('People → Register by hand: a cell opens on As written, and Enter keeps i
     "(function(){ var mo = aregMonthOf(aregMonthShown()); return mo.days.filter(function(d){ return d.kind === 'work'; }).slice(0, 3).map(function(d){ return d.cells[0].raw || ''; }); })()"));
   expect(cells).toEqual(['P', 'A', '']);
   await expect(raw).toBeFocused();
+  // A cell typed and Next day pressed: one press moves on (the field's change redrew the dialog under the pointer, and the press was lost).
+  await page.keyboard.type('H');
+  await dlg.locator('[data-action="invAregNext"]').click();
+  const cells2 = await page.evaluate(() => (0, eval)(
+    "(function(){ var mo = aregMonthOf(aregMonthShown()); return [mo.days.filter(function(d){ return d.kind === 'work'; }).slice(0, 4).map(function(d){ return d.cells[0].raw || ''; }), mo.days.filter(function(d){ return d.kind === 'work'; }).indexOf(mo.days[_aregCellAt.d])]; })()"));
+  expect(cells2).toEqual([['P', 'A', 'H', ''], 3]);
   // Escape leaves the dialog as before.
   await page.keyboard.press('Escape');
   await expect(dlg).toHaveCount(0);

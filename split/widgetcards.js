@@ -745,7 +745,7 @@ wdgDefine({ id: 'quote', title: 'Quotations and prospects', short: 'Quotations',
 
 
 /* ---------- Floor (Plant: the panel by the rectifiers) ---------- */
-/* Power cuts this month (homePowerOpts' reading of powerCuts): how long the plant was dark and how many cuts; from Medium each cut a
+/* Power cuts this month (powerCuts' reading): how long the plant was dark and how many cuts; from Medium each cut a
    row, newest first, its lamp amber while it has no time back, each opening its completion. Complete the cut is the Act while one
    has no time back. */
 wdgDefine({ id: 'powercuts', title: 'Power cuts', short: 'Power cuts', q: 'How much power did we lose?', section: 'floor', type: 'plant', sizes: ['s', 'm'], trend: true,

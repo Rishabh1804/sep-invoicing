@@ -23,8 +23,8 @@
    Before anything is typed: Recent (the last eight opened from here, kept on the device), then Go to.
 
    KEYS: Ctrl K or / searches, N a new invoice, C a new challan, G then a letter jumps, J and K walk the rows of Invoices
-   and Challans (Enter opens one), Esc shuts the desktop's pane, ? lists them. None fires while a field has focus or a
-   layer is open (nav.js's rule for Backspace); Ctrl K, which types nothing, also works from the field the app focused
+   and Challans (Enter opens one), Esc shuts the desktop's pane, ? lists them. None fires while a field is typed in (navTyping,
+   nav.js: Backspace's rule too) or a layer is open; Ctrl K, which types nothing, also works from the field the app focused
    on arriving at a screen, while it is still empty.
 
    NEW WINDOWS (desktop): Ctrl+click or a middle click on a sidebar item, a view tab or a list row opens that place's
@@ -904,12 +904,6 @@ function srchAct(a) {
 /* ---------- Keys ---------- */
 var _srchG = 0;    // when G was pressed: a letter within SRCH_G_MS jumps
 
-/* A field being typed in: a text box, a select, an editable block. A tick box or a button is not. */
-function srchTyping(t) {
-  if (!t || !t.tagName) return false;
-  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
-  return t.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file|image)$/i.test(t.type || 'text');
-}
 /* G then a letter: the workspace's first screen this build holds, or Invoices (R) and Challans (C). */
 function srchGTarget(letter) {
   var sp = SRCH_SPACES.find(function(x) { return x[0] === letter; }), ids = sp ? sp[2] : SRCH_G_MORE[letter];
@@ -955,12 +949,12 @@ document.addEventListener('keydown', function(e) {
   // Ctrl K (Cmd K on a Mac): search, from anywhere but a field being typed in or another layer.
   if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (key === 'k' || key === 'K')) {
     if (t && t.closest && t.closest('[data-search]')) { e.preventDefault(); return; }
-    if (navLayerOpen() || (srchTyping(t) && !(t === _navArrivalField && !t.value))) return;
+    if (navLayerOpen() || (navTyping(t) && !navAtArrival(t))) return;
     e.preventDefault();
     searchOpen();
     return;
   }
-  if (e.ctrlKey || e.metaKey || e.altKey || navLayerOpen() || srchTyping(t)) { _srchG = 0; return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || navLayerOpen() || navTyping(t)) { _srchG = 0; return; }
   if (e.repeat) return;
   if (_srchG) {
     var g = Date.now() - _srchG < SRCH_G_MS ? srchGTarget(key.toLowerCase()) : null;

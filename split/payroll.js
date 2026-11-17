@@ -1288,7 +1288,6 @@ function payAction(action, btn) {
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
     case 'invPayClear': payClear(btn.dataset.id, btn.dataset.through, parseFloat(btn.dataset.amount) || 0); return true;
     case 'invPayClearVoid': payClearVoid(btn.dataset.id); return true;
-    case 'invPayOpenAtt': homeQuick('attendance'); return true;
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
     case 'invPayHistory': payHistoryOpen(btn.dataset.id); return true;

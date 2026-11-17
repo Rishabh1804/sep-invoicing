@@ -185,6 +185,8 @@ function selectPartForLine(idx, partId) {
 
   dismissAllAutocomplete();
   captureOptionalFields();
+  // The part is settled; the quantity is what gets typed next (the challan form's way, below).
+  _createFocusNext = { k: 'qty-' + idx, sel: null };
   renderCreateForm();
 }
 

@@ -79,8 +79,8 @@ test.describe('P7: Items Master redundant-row migration', () => {
   // remnants"), which would mask what this test is actually asserting.
   test('NEGATIVE: same part number, different unit — both rows survive', async ({ page }) => {
     await loadAppWithState(page, stateWithItems([
-      item(1, '5032 4030 3501', '5032 4030 3501', 'KG', 0),
-      item(2, '5032 4030 3501', 'HEX NUT - 1800053463', 'NOS', 12.5),
+      item(1, '9111 0000 0001', '9111 0000 0001', 'KG', 0),
+      item(2, '9111 0000 0001', 'HEX NUT - 9111000002', 'NOS', 12.5),
     ]));
     await switchTab(page, 'pageClients');
 

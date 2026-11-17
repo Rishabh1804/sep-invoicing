@@ -27,7 +27,7 @@ export function inv(n: number, date: string, c: { id: number; name: string; rate
     items: [{ partNumber: 'BRKT-' + (n % 4), desc: 'Bracket ' + (n % 4), hsn: '998873', unit: 'KG', qty: kg, rate: c.rate, amount: taxable, nosQty: null }],
     taxableValue: taxable, cgstPer: 9, cgstAmt: tax, sgstPer: 9, sgstAmt: tax, igstPer: 0, igstAmt: 0,
     grandTotal: Math.round((taxable + 2 * tax) * 100) / 100, amountInWords: '',
-    challanNo: String(700 + n), challanDate: date, poNumber: 'PO/' + n, poDate: '', despatchDate: '', transport: 'JH 05AN 0878', remarks: '',
+    challanNo: String(700 + n), challanDate: date, poNumber: 'PO/' + n, poDate: '', despatchDate: '', transport: 'JH 05ZZ 0101', remarks: '',
     linkedIMIds: [], createdAt: new Date(date + 'T10:00:00').getTime(),
     ...(status === 'cancelled' ? { cancelledAt: recentTs() } : {}),
   };
@@ -35,7 +35,7 @@ export function inv(n: number, date: string, c: { id: number; name: string; rate
 
 export function challan(n: number, c: { id: number; name: string; rate: number }, date: string, invoiced: string | null) {
   return {
-    id: 'IM-' + n, challanNo: String(800 + n), challanDate: date, clientId: c.id, clientName: c.name, vehicleNo: 'JH 05AN 0878',
+    id: 'IM-' + n, challanNo: String(800 + n), challanDate: date, clientId: c.id, clientName: c.name, vehicleNo: 'JH 05ZZ 0101',
     items: [
       { id: `IM-${n}-0`, partNumber: 'BRKT-' + (n % 4), desc: 'Bracket ' + (n % 4), hsn: '998873', unit: 'KG', qty: 120 + n, rate: c.rate,
         amount: Math.round((120 + n) * c.rate * 100) / 100, nosQty: 400, invoiced: !!invoiced, invoiceId: invoiced },
@@ -230,7 +230,12 @@ export const WHITE_CEIL = 0.97;
 export const PAPER = '.inv-print-body, .inv-rpt-doc, .inv-pcp-doc, .inv-sr-doc, .inv-qt-doc, .inv-ps-sheet, .inv-idc-sheet, .inv-ck-sheet, .inv-as-page, .inv-qc-page, .inv-cn-doc, .inv-print-invoice, .inv-qr';
 
 /* Everything checked at one stop, read from the rendered DOM (the page and whatever dialog is open). */
+/* A check a spec adds at every stop of the walks (P274's text fit), run after the stop is swept. */
+let stopHook: ((page: Page, where: string) => Promise<void>) | null = null;
+export function setStopHook(fn: ((page: Page, where: string) => Promise<void>) | null) { stopHook = fn; }
+
 export async function sweep(page: Page, where: string): Promise<Stop> {
+  if (stopHook) await stopHook(page, where);
   const r = await page.evaluate(([prefix, exact, hooks]) => {
     const styled = new Set<string>();
     const walk = (rules: CSSRuleList) => {

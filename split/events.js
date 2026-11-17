@@ -151,7 +151,7 @@ function onDocClick(e) {
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
-    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); createLeftDrop(parseInt(btn.dataset.idx)); renderCreateForm(); break;
+    case 'invRemoveLineItem': removeLineItem(parseInt(btn.dataset.idx)); break;
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
@@ -1121,6 +1121,21 @@ document.addEventListener('keydown', function(e) {
       return;
     }
   }
+  // The same two keys on Create (P268): Ctrl+Enter saves the invoice (saveInvoice validates, and a refusal puts the cursor
+  // on the field it names), Alt+N adds a line and focuses its part.
+  var createArea = document.getElementById('createFormArea');
+  if (invoiceForm && createArea && createArea.contains(e.target)) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      saveInvoice();
+      return;
+    }
+    if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      addLineItem();
+      return;
+    }
+  }
 
   // 3. Enter moves to the next field. Buttons carrying data-kbd-ring join the
   //    chain so the last field of a form steps onto its primary action rather
@@ -1130,6 +1145,12 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-todo-new')) {
     e.preventDefault();
     todoQuickAdd();
+    return;
+  }
+  // A register cell typed by hand: Enter keeps it and goes on to the column's next day (attreg.js aregCellEnter).
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.hasAttribute && e.target.hasAttribute('data-areg-raw')) {
+    e.preventDefault();
+    aregCellEnter(e.target);
     return;
   }
   // A typed stock line name is committed by Enter (the phone keyboard's Go),
@@ -1150,11 +1171,12 @@ document.addEventListener('keydown', function(e) {
     // so the chain steps over them rather than dead-ending on a field it cannot focus.
     var focusable = Array.from(container.querySelectorAll(
       'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
-    )).filter(function(el) { return !el.closest('details:not([open])'); });
+    )).filter(function(el) { return !el.disabled && !el.closest('details:not([open])'); });
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
       var next = focusable[curIdx + 1];
-      next.focus();
+      // Clear of the bars over the page, not merely inside the window (state.js kbdReveal, P275).
+      kbdFocus(next);
       if (next.type === 'number' || next.type === 'text') next.select();
     }
   }
@@ -1164,7 +1186,9 @@ document.addEventListener('keydown', function(e) {
    closing every list hid a client search opened inside the moment on another screen, under the cursor (P181). */
 document.addEventListener('focusout', function(e) {
   var t = e.target;
-  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart'))) return;
+  // A client search too (P268): left by Tab, its list stayed open over the form under it.
+  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart' ||
+    t.id === 'invClientSearch' || t.id === 'imChallanClientSearch'))) return;
   var combo = t.closest('.inv-combo');
   setTimeout(function() {
     if (!combo || !combo.isConnected || combo.contains(document.activeElement)) return;

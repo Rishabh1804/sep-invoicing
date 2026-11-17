@@ -1660,6 +1660,14 @@ function prodOpenHand(fromId, from, fromLines) {
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+  prodHandFocusStart();
+}
+/* On a keyboard the cursor starts where the entry starts, as it goes back there after a save (and as Stock's opens): the client, or a
+   power cut's time. The form opened on nothing, and the first key typed went to the page. A correction is left to be read first. */
+function prodHandFocusStart() {
+  if (!_prodHand || _prodHand.replaces || touchScreen()) return;
+  var first = document.getElementById(_prodHand.kind === 'downtime' ? 'prodHandTime' : 'prodHandClient');
+  if (first) focusSoon(first);
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {
@@ -1893,6 +1901,7 @@ function prodHandHtml() {
 function prodHandDone() {
   var from = _prodHand && _prodHand.from;
   _prodHand = null;
+  navReturn();   // the screen it was opened from, as a step back where that is the step before (nav.js)
   if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
   prodSetView('main');
 }
@@ -1958,7 +1967,7 @@ async function prodSaveHand() {
   prodTouch();
   saveState();
   if (src) {   // a correction is one entry: back to where it was opened from
-    var from = f.from; _prodHand = null;
+    var from = f.from; _prodHand = null; navReturn();
     if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
     else prodSetView('main');
     showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
@@ -1973,7 +1982,8 @@ async function prodSaveHand() {
   _pageTyped = false;
   renderProduction();
   var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
-  if (next && !('ontouchstart' in window)) try { next.focus(); } catch (x) { /* focus is a convenience */ }
+  // Clear of the form's action bar, where the part field sat after a few entries (state.js kbdFocus, P275).
+  if (next && !('ontouchstart' in window)) kbdFocus(next);
   showToast((f.kind === 'downtime' ? 'Power cut saved' : 'Saved') + ' · enter the next, or Done', 'success');
 }
 
@@ -2036,6 +2046,7 @@ function prodAction(action, btn) {
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       _prodReview = null; _prodHand = null; _prodTeach = null; prodPhotoDrop();
+      navReturn();   // back to the step before where it is that screen (nav.js)
       prodSetView('main');
       return true;
     }

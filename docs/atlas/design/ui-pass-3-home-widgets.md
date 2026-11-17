@@ -3,8 +3,8 @@ subject: "UI pass 3: Home and its widgets (U2)"
 domain: design
 modules: [split/feeds.js, split/widgetcards.js, split/widgets.js, server/feeds]
 specs: [docs/SERVER.md, docs/UI_PASS_3.md]
-tests: [P76, P197, P223, P224, P225]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P76, P197, P223, P224, P225, P274]
+updated: 2026-11-17 (a chart drawn in rows lets go of whole rows in its picture, P274)
 ---
 
 ### UI pass 3: Home and its widgets (U2)
@@ -42,6 +42,9 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
   size decides what is drawn, and what will not fit lets go (`wdgFit`): first the parts a widget can do without, all together
   (`WDG_FIT_OPT`: a tile's line of the months before and the words under its figure, a part marked `data-wdg-opt`, a chart's key), so a
   crore month never cuts Month to date; then a list's last rows, its More (*N more challans*) or a Ledger's rest line saying how many.
+  A bare chart is drawn at the room its picture has (`wdgVizDraw`), and again shorter by what its keys took; a chart drawn in rows
+  (a dumbbell's) keeps each row's height at any room, so past it its keys let go and then its last rows, each whole (P274: the
+  phone's *Who fills the plant* at 360px cut its third row through the middle, its keys under the card's foot).
   The board's columns come from its own width (12 from 60rem, 6 from 36rem, 2 under it): a Small spans 3 (one of two on the phone), a
   Medium 6, a Large the row; rows of `--wdg-row`, packed dense (*The card family* below).
 - **Who sees a widget** is its `needs` (`page` by `grdSees`, `money`, `wages`, `perm`, `owner`, `when`; `wdgSees`): a widget a role

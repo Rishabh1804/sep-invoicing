@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="1f86b75e">
+<meta name="app-build" content="1d386d38">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -223,6 +223,8 @@
 
 /* Focus (§3.6): every interactive element. */
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* The room a focused field keeps from a bar or the window's edge when it is scrolled into sight (state.js kbdReveal, P275). */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus { scroll-margin-block: var(--sp-12); }
 
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -250,8 +252,13 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-14);
 }
 .inv-topbar-btn svg { width: 20px; height: 20px; }
 .inv-topbar-btn:hover { background: var(--surface-2); color: var(--text-1); }
+/* On the phone the tools sit edge to edge (each 44px target already holds its icon 12px in) and the title takes the gaps: at 360px
+   eight gaps left it 24px, one letter and an ellipsis (P274). */
+body:not(.inv-desktop) .inv-topbar { gap: 0; }
+body:not(.inv-desktop) .inv-topbar-title { margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar { height: var(--bar-h-desk); padding: 0 var(--sp-16); }
-body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); }
+/* On the desktop the page's own name never gives way: the trail and the context give theirs first (P274: "Ho…" at 1024px). */
+body.inv-desktop .inv-topbar-title { font-size: var(--fs-14); flex-shrink: 0; }
 body.inv-desktop .inv-topbar-ctx::before { content: '›'; color: var(--text-3); margin-right: var(--sp-8); }
 body.inv-desktop .inv-topbar-btn { display: none; }
 /* A row held back by uiMoreHtml (state.js) until "Show n more": hidden whatever display its class sets. */
@@ -264,6 +271,8 @@ body.inv-desktop .inv-topbar-back:not([hidden]) { display: flex; width: var(--ct
 body.inv-desktop .inv-topbar-trail { display: flex; align-items: center; gap: var(--sp-6); min-width: 0; color: var(--text-3); font-size: var(--fs-13); }
 body.inv-desktop .inv-topbar-trail:empty { display: none; }
 .inv-topbar-trail .inv-btn-link { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 400; }
+/* A step gives way to its first letters and an ellipsis, never to the ellipsis alone ("…" for Start at 1024px, P274). */
+body.inv-desktop .inv-topbar-trail .inv-btn-link { min-width: calc(var(--sp-32) + var(--sp-8)); }
 
 /* The phone bar (§6.1): five doors on a floating card (owner, 8 Oct 2026: "The bottom bar still doesn't look right … Move insights
    into office tab, that way we have 5 icons again, which can be arranged in a better way"). Every door is one geometry, its mark (the
@@ -345,6 +354,10 @@ body:not(.inv-desktop)::after {
 .inv-seg-btn:focus-visible { box-shadow: none; }
 .inv-seg-btn:focus-visible::after { box-shadow: inset 0 0 0 var(--rule) var(--accent); }
 .inv-seg-btn[aria-pressed="true"]:focus-visible::after { box-shadow: var(--lift-1), inset 0 0 0 var(--rule) var(--accent); }
+/* A label too long for its segment takes a second line at a space before an ellipsis cuts it, and five segments or more on the
+   phone keep a 4px inset, not 10px (P274: a check-in's 1–5 scale read "1 · Lo…" to "5 · D…" at 360px). One line wherever it fits. */
+.inv-seg-btn { white-space: normal; overflow-wrap: normal; line-height: 1.2; }
+body:not(.inv-desktop) .inv-seg:has(> .inv-seg-btn:nth-child(5)) > .inv-seg-btn { padding-inline: var(--sp-4); }
 body.inv-desktop .inv-seg { width: auto; display: inline-flex; }
 body.inv-desktop .inv-seg-btn { flex: 0 1 auto; padding: 0 var(--sp-16); }
 /* A segment that records a status (Staff → Day's P / H / A) is pressed in its tone, which switches with the theme. */
@@ -1594,7 +1607,8 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 /* A grid of launch buttons: three across, each label under its icon. In a dialog (Add's By hand) five across on the desktop; in a
    widget (the quick actions) it follows the card, not the window: six across from 40rem (below, with the widgets). */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
-.inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
+/* 4px at the sides: a third of a 360px dialog leaves a one-word label ("Attendance") no room in 8px (P274). */
+.inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8) var(--sp-4); text-align: center; }
 .inv-btn-grid > .inv-btn svg { width: 20px; height: 20px; }
 .inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -1817,8 +1831,12 @@ body:not(.inv-desktop) button.inv-row-main { min-height: var(--touch); }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }
-/* A dot's word wraps where its box is narrow: a row marked to wrap, and a tile's line (a tile is a fixed share of its strip). */
-.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot { white-space: normal; }
+/* A dot's word wraps where its box is narrow: a row marked to wrap, a tile's line (a tile is a fixed share of its strip), and a dot
+   that says a sentence in a note, a callout or a field's hint, or names a band in a meter's key, a quarter of its card (P274: the
+   check-in review's notes ran 55px past their panel at 360px; "Over 90 days" ran into the owed card's padding).
+   Wrapped, the dot stays on the first line, centred on it. */
+.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot, :is(.inv-note, .inv-callout, .inv-field-hint, .inv-meter-key-item) .inv-dot { white-space: normal; align-items: flex-start; }
+:is(.inv-row-wrap, .inv-tile-sub, .inv-note, .inv-callout, .inv-field-hint, .inv-meter-key-item) .inv-dot::before { margin-top: calc((1lh - var(--dot)) / 2); }
 /* On the phone and tablet a meta line may take two lines before it is cut (the polish pass's open items, 27 Sep 2026):
    one ellipsised line hid the date after a long client name ("GAMMA PRESS WORKS · 25…"). The title keeps one line, and
    whatever is still cut carries a title with its full text (uiOverflowCues, state.js). A meta line of names wraps whole
@@ -2073,6 +2091,8 @@ body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd)
 .inv-field { margin-bottom: var(--sp-12); }
 .inv-field-label { display: block; font-size: var(--fs-12); font-weight: 500; line-height: 1.35; color: var(--text-2); margin-bottom: var(--sp-4); }
 .inv-field-hint { font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4); }
+/* A hint set in the identifier face (a P.O. number's example) still wraps: it can say a sentence (P274). */
+.inv-field-hint.inv-id { white-space: normal; overflow-wrap: anywhere; }
 .inv-field-error { font-size: var(--fs-12); color: var(--danger); margin-top: var(--sp-4); }
 .inv-input, .inv-select, .inv-textarea { width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12); }
 /* A picker or figure that sits in a row's end, beside the value it acts on. */
@@ -2133,7 +2153,7 @@ body.inv-desktop .inv-actionbar { bottom: 0; }
 .inv-line-notes > :empty { display: none; }
 .inv-line-notes:not(:has(> :not(:empty))) { display: none; }
 body.inv-desktop :is(.inv-lines-head, .inv-line) {
-  grid-template-columns: var(--sp-24) minmax(0, 1fr) var(--line-fig-w) var(--line-unit-w) var(--line-fig-w) var(--line-fig-w) var(--line-fig-w) var(--ctl-h);
+  grid-template-columns: var(--sp-24) minmax(0, 1fr) var(--line-fig-w) var(--line-unit-w) var(--line-fig-w) var(--line-fig-w) calc(var(--line-fig-w) + var(--sp-16)) var(--ctl-h);
   gap: var(--sp-8); align-items: center;
 }
 body.inv-desktop .inv-lines-head {
@@ -2146,6 +2166,23 @@ body.inv-desktop .inv-line-num { font-family: var(--ff-num); }
 body.inv-desktop .inv-line-num::before { content: none; }
 body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
 body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--hair); height: var(--hair); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* A row's fields keep an 8px inset and the amount's column is 16px wider, so a crore with its paise shows whole: 104416797.10 read
+   "104416797.1" in its 7rem box (P274), a different figure. */
+body.inv-desktop .inv-line :is(.inv-input, .inv-select) { padding-inline: var(--sp-8); }
+/* The row needs room: its figures' columns are fixed (about 42rem with the gaps), so in a card narrower than 48rem (Create at 1024px,
+   beside What Save records) the part field had no width at all and the amount ran out of the card. There the desktop's lines take
+   the phone's grid, labelled, under no column head (P274). */
+.inv-lines { container: lines / inline-size; }
+@container lines (width < 48rem) {
+  body.inv-desktop .inv-lines-head { display: none; }
+  body.inv-desktop .inv-line { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; padding-top: var(--sp-12); padding-bottom: var(--sp-12); }
+  body.inv-desktop .inv-line-num { grid-column: 1 / 3; align-self: center; }
+  body.inv-desktop .inv-line-num::before { content: 'Line '; }
+  body.inv-desktop .inv-line-rm { grid-row: 1; grid-column: 3; }
+  body.inv-desktop :is(.inv-line-part, .inv-line-notes) { grid-column: 1 / -1; }
+  body.inv-desktop .inv-line-amt { grid-column: span 2; }
+  body.inv-desktop .inv-line .inv-field-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+}
 /* §6.29 A register page entered on Mine (faces.js, F4): a round a row (its time, its figure, remove), or on a batch page a batch
    a row (when it began and ended, remove, then its figure); the client and the part only where a run begins, as the paper's
    ditto carries them down; a row's reading or question under it. One grid on both layouts: the page is a person's own phone. */
@@ -2942,7 +2979,6 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-kb-body li { margin-bottom: var(--sp-4); }
 .inv-kb-h { margin: var(--sp-12) 0 var(--sp-6); font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-kb-summary { margin: var(--sp-8) 0 0; font-size: var(--fs-14); color: var(--text-2); line-height: 1.45; }
-.inv-kb-badges { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .inv-kb-fig { margin: var(--sp-8) var(--pad-x) var(--sp-12); }
 .inv-kb-img { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); border: var(--hair) solid var(--border); background: var(--surface-2); }
 .inv-kb-actions { padding-top: var(--sp-12); }
@@ -3131,7 +3167,10 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-cut { fill: var(--danger); opacity: 0.18; background: var(--danger); }
 .inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
 .inv-pl-day-pick { fill: var(--series-other); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
-.inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
+/* A month's head is a 24th of the board: its cell keeps a 2px inset, not a cell's 12px, and its year stays whole, over the phone's
+   two-line meta (P274: "’26" broke after its first figure, and the month's name touched the next). */
+.inv-pl-board thead th:not(:first-child) { padding: var(--sp-2); text-align: center; }
+.inv-pl-board thead th .inv-row-meta:not(.inv-row-wrap) { display: block; white-space: nowrap; overflow-wrap: normal; }
 
 /* The plant register (plant.js, owner 7 Oct 2026): a line's units are deck cards in their status's tone (§6.22; the tab map,
    TM4c), a pip per unit where the line is one row, a bar for what is available and what is used of it. The bar is an SVG, so its
@@ -5045,13 +5084,30 @@ const METALS_KEY_KEY = 'sep_inv_metals_key';
 let _focusStack = [];
 
 function pushFocus() {
-  _focusStack.push(document.activeElement);
+  var el = document.activeElement;
+  // Kept with what names it (keepScroll's key), so a control drawn again while the dialog was open still takes the focus back (P270).
+  _focusStack.push({ el: el, key: _keepKey(el) });
 }
 
+/* Focus goes back to what opened the dialog. A save redraws the screen under it (a client edited, a row voided), mostly just after the
+   dialog shuts: that control is gone, and focus fell to <body>, so a keyboard started again from the page's top. Its redrawn twin, named
+   the same way, takes it, once the redraw is done and while nothing else has taken the focus or opened over the screen. */
+function _focusTwin(f) {
+  var twin = null;
+  try { twin = f.key ? document.querySelector(f.key) : null; } catch (e) { twin = null; }
+  if (twin) { try { twin.focus({ preventScroll: true }); } catch (e) {} }
+}
 function popFocus() {
   if (_focusStack.length === 0) return;
-  var el = _focusStack.pop();
-  try { if (el && typeof el.focus === 'function') el.focus(); } catch(e) {}
+  var f = _focusStack.pop(), el = f && f.el;
+  if (el && !el.isConnected) _focusTwin(f);
+  else { try { if (el && typeof el.focus === 'function') el.focus(); } catch(e) {} }
+  if (!el || !f.key) return;
+  setTimeout(function() {
+    var a = document.activeElement;
+    if (el.isConnected || (a && a !== document.body) || document.querySelector('.inv-scrim-dialog')) return;
+    _focusTwin(f);
+  }, 0);
 }
 
 function drainFocusStack() {
@@ -5079,6 +5135,118 @@ function focusSoon(el, ms) {
     if (pressed || !el || !el.isConnected || (a && a !== el && a.matches && a.matches('input, textarea, select'))) return;
     el.focus();
   }, ms == null ? 100 : ms);
+}
+/* ===== FOCUS ACROSS A RE-RENDER (keyboard entry: challan entry, Create) =====
+   A form that re-renders by replacing innerHTML drops focus to <body>, which ends the keyboard path mid-entry. Each
+   control carries a data-k key that survives the re-render (the elements do not): the key focused is captured before,
+   and the control holding it focused again after, its caret put back where a text field has one. One mechanism for
+   every form that redraws itself (docs/atlas/billing/challan-entry.md § Keyboard entry). */
+function kbdCaptureFocus(area) {
+  var el = document.activeElement;
+  if (!area || !el || !el.dataset || !el.dataset.k || !area.contains(el)) return null;
+  var sel = null;
+  // Only text-ish inputs expose a caret; number inputs report null here.
+  try { sel = el.selectionStart; } catch (e) { sel = null; }
+  return { k: el.dataset.k, sel: sel };
+}
+function kbdRestoreFocus(area, target) {
+  if (!area || !target) return false;
+  var el = area.querySelector('[data-k="' + (window.CSS && CSS.escape ? CSS.escape(target.k) : target.k) + '"]');
+  if (!el) return false;
+  try {
+    // The browser's own scroll on focus knows nothing of the bars over the page: the field is put clear of them instead (P275).
+    kbdFocus(el);
+    // setSelectionRange throws on number inputs, so the caret restore is attempted apart from the focus that matters.
+    if (target.sel != null && el.setSelectionRange) el.setSelectionRange(target.sel, target.sel);
+    else if (el.select) el.select();
+  } catch (e) {}
+  return true;
+}
+/* ===== THE FIELD BEING TYPED IN IS KEPT IN SIGHT (P275) =====
+   Owner, 17 Nov 2026: "when 3 or more lines are entered without using a mouse, focus slips and the page does not orient." Focus
+   went to the right field, but the browser's scroll on focus only asks whether the field is inside the window, and the bars drawn
+   over the page (the top bar and the workspace tabs, the phone's bottom bar, a form's sticky action bar, a selection bar, a
+   dialog's foot) are inside it: from the second line on, the field typed into sat under the action bar or the bottom bar. One
+   reveal for every keyboard path: the field is scrolled, the least that will do, clear of the bars over it and of the on-screen
+   keyboard (the visual viewport), with the scroll margin a focused field carries (styles.css, a token). A bar counts while it
+   is stuck over the page (a sticky one at rest under the form covers nothing). */
+var KBD_TOP_BARS = '.inv-topbar, body > .inv-ws-tabs';
+var KBD_BOTTOM_BARS = '.inv-navbar, .inv-actionbar, .inv-selbar, #regSelBar, #imSelBar, .inv-kb-ctxbar, .inv-dialog-foot';
+var KBD_LAYER = '.inv-dialog, .inv-scrim-dialog';
+function _kbdScroller(el) {
+  for (var p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+    var oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p;
+  }
+  return null;
+}
+function _kbdBarStuck(b, br, atBottom) {
+  var cs = getComputedStyle(b);
+  if (cs.position === 'fixed') return true;
+  if (cs.position !== 'sticky') return false;
+  // A sticky bar is over the page only where it is held at its edge (of the window, or of the pane or dialog it scrolls in);
+  // at rest in the flow it takes its own room.
+  var sc = _kbdScroller(b), lo = 0, hi = window.innerHeight;
+  if (sc) { lo = sc.getBoundingClientRect().top + sc.clientTop; hi = lo + sc.clientHeight; }
+  if (atBottom) { var off = parseFloat(cs.bottom); return !isNaN(off) && Math.abs(hi - off - br.bottom) < 2; }
+  var t = parseFloat(cs.top); return !isNaN(t) && Math.abs(br.top - lo - t) < 2;
+}
+function kbdReveal(el) {
+  if (!el || !el.isConnected || !el.getBoundingClientRect) return;
+  var r = el.getBoundingClientRect();
+  if (!r.width && !r.height) return;
+  var layer = el.closest(KBD_LAYER), sc = _kbdScroller(el), vv = window.visualViewport;
+  var top = vv ? vv.offsetTop : 0, bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+  if (sc) { var sr = sc.getBoundingClientRect(); top = Math.max(top, sr.top); bottom = Math.min(bottom, sr.bottom); }
+  var bars = function(sel) {
+    return Array.prototype.filter.call(document.querySelectorAll(sel), function(b) {
+      return !b.contains(el) && b.closest(KBD_LAYER) === layer && b.getClientRects().length;
+    });
+  };
+  bars(KBD_TOP_BARS).forEach(function(b) { var br = b.getBoundingClientRect(); if (br.height && _kbdBarStuck(b, br, false)) top = Math.max(top, br.bottom); });
+  bars(KBD_BOTTOM_BARS).forEach(function(b) { var br = b.getBoundingClientRect(); if (br.height && _kbdBarStuck(b, br, true)) bottom = Math.min(bottom, br.top); });
+  var cs = getComputedStyle(el), mt = parseFloat(cs.scrollMarginTop) || 0, mb = parseFloat(cs.scrollMarginBottom) || 0;
+  var dy = 0;
+  if (r.bottom + mb > bottom) dy = r.bottom + mb - bottom;
+  // A field taller than the room left shows its top.
+  if (r.top - dy - mt < top) dy = r.top - mt - top;
+  if (Math.abs(dy) < 1) return;
+  if (sc) sc.scrollTop += dy; else window.scrollBy(0, dy);
+}
+/* Focus put on a field by the app, clear of the bars: the browser's own scroll is held back and the reveal does it. */
+function kbdFocus(el) {
+  if (!el || typeof el.focus !== 'function') return;
+  try { el.focus({ preventScroll: true }); } catch (e) { return; }
+  kbdReveal(el);
+}
+/* Tab moves focus with the browser's own scroll, which does not know the bars either: a field Tab lands on is revealed too. Only Tab:
+   a key whose handler puts the focus somewhere on purpose without moving the page (Stock's save keeps the list just saved in
+   sight, preventScroll) is left as it chose; the Enter chain and a form redrawn under the keyboard reveal by their own call. */
+var _kbdTabAt = 0;
+document.addEventListener('keydown', function(e) { _kbdTabAt = e.key === 'Tab' ? Date.now() : 0; }, true);
+document.addEventListener('focusin', function(e) {
+  var t = e.target;
+  if (!_kbdTabAt || Date.now() - _kbdTabAt > 1000 || !t || !t.matches || !t.matches('input:not([type="hidden"]), select, textarea, button, [tabindex]')) return;
+  kbdReveal(t);
+});
+/* The on-screen keyboard rising over the field typed in is the visual viewport growing shorter. */
+if (window.visualViewport) {
+  var _kbdVvH = window.visualViewport.height;
+  window.visualViewport.addEventListener('resize', function() {
+    var h = window.visualViewport.height, shrank = h < _kbdVvH - 1;
+    _kbdVvH = h;
+    var a = document.activeElement;
+    if (shrank && a && a.matches && a.matches('input:not([type="hidden"]), textarea, select')) kbdReveal(a);
+  });
+}
+/* The keys a keyboard form keeps, said over it on the desk (hidden on the phone). */
+function kbdKeysHtml() {
+  return '<p class="inv-keys">' +
+    '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
+    '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
+    '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
+    '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
+    '</p>';
 }
 /* A touch screen, where focusing a field raises the keyboard over the screen. */
 function touchScreen() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
@@ -10922,20 +11090,6 @@ function homeLastPlatedDay() {
   prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && (!last || e.date > last)) last = e.date; });
   return last;
 }
-/* Power: this month's cuts and the last one. */
-function homePowerOpts() {
-  var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
-  var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
-  var openCuts = cuts.filter(function(c) { return c.open; }).length;
-  return { tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
-    title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
-    fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
-    attrs: ' data-card="power"', cuts: cuts.length, mins: mins,
-    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
-      '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
-      '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
-      '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>' };
-}
 /* ===== CLIENT MASTER ===== */
 var _clientsActiveId = null;
 
@@ -11118,7 +11272,7 @@ function _cardRowHtml(what, figure, date, removeAttrs) {
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + what + '</span>' +
     '<span class="inv-row-meta inv-id">' + (date ? 'from ' + escHtml(date) : '') + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-num">' + figure + '</span>' +
-    (removeAttrs ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm"' + removeAttrs + '>&times;</button>' : '') + '</span></div>';
+    (removeAttrs ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm"' + removeAttrs + '>' + iconSvg('close') + '</button>' : '') + '</span></div>';
 }
 
 function _showClientOverlay(client, isAdd, inPlace) {
@@ -11237,7 +11391,7 @@ function _clientRateRowsHtml(c, editable) {
     return '<div class="inv-row"><span class="inv-row-main inv-id">from ' + escHtml(r.effectiveFrom) + '</span>' +
       '<span class="inv-row-end">' + (cur ? '<span class="inv-dot inv-dot-ok">Current</span>' : '') +
       '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' +
-      (editable ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invRemoveRate" data-client="' + c.id + '" data-idx="' + r._i + '" aria-label="Remove rate">&times;</button>' : '') +
+      (editable ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invRemoveRate" data-client="' + c.id + '" data-idx="' + r._i + '" aria-label="Remove rate">' + iconSvg('close') + '</button>' : '') +
       '</span></div>';
   }).join('');
 }
@@ -13214,6 +13368,8 @@ async function createClearClient() {
   if (!f.transport || f.transport === auto.ve || f.transport === ticks.ve || typed.length) f.transport = '';
   f._auto = {}; f._pred = null; f._defaults = null;
   createSyncPoDate();
+  // The Change button is gone with the client: the keyboard goes back to the search it brings.
+  _createFocusNext = { k: 'client', sel: null };
   renderCreateForm();
 }
 
@@ -13330,9 +13486,16 @@ function createFlowModelOf() {
 }
 uiFlowDefine('createInvoice', createFlowModel);
 
+/* Where focus lands after the next render (the challan form's _challanFocusNext): the form re-renders by replacing
+   innerHTML, so a caller that knows where the keyboard goes next says so; otherwise the control focused before the
+   render is focused again by its data-k (state.js kbdCaptureFocus / kbdRestoreFocus). */
+var _createFocusNext = null;
+
 function renderCreateForm() {
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
   const area = document.getElementById('createFormArea');
+  const focusTarget = _createFocusNext || kbdCaptureFocus(area);
+  _createFocusNext = null;
   const editing = invoiceForm.editingId ? S.invoices.find(i => i.id === invoiceForm.editingId) : null;
   const number = createNumberShown();
   const unbilled = client && !invoiceForm.editingId && !invoiceForm.reissue ? createUnbilledHtml(client) : '';
@@ -13350,11 +13513,11 @@ function renderCreateForm() {
       '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div></div>';
   }
   html += '<div class="inv-panel inv-panel-flush">';
-  if (client) html += chosenClientHtml(client, (client.gstin || 'No GSTIN') + ' · ' + client.billingMode, 'invClearClient');
+  if (client) html += chosenClientHtml(client, (client.gstin || 'No GSTIN') + ' · ' + client.billingMode, 'invClearClient', 'clientchange');
   html += '<div class="inv-panel-body"><div class="inv-fields">' +
-    (client ? '' : clientSearchHtml('invClientSearch', 'invClientResults')) +
+    (client ? '' : clientSearchHtml('invClientSearch', 'invClientResults', 'client')) +
     '<div class="inv-field"><label class="inv-field-label" for="invDate">Invoice date</label>' +
-    '<input type="date" class="inv-input inv-id" id="invDate" value="' + escHtml(invoiceForm.date) + '"></div></div></div></div>';
+    '<input type="date" class="inv-input inv-id" id="invDate" data-k="date" value="' + escHtml(invoiceForm.date) + '"></div></div></div></div>';
 
   body.client = html + unbilled;
 
@@ -13372,21 +13535,21 @@ function renderCreateForm() {
     // correction. The description, when it says more than the number, is said under the line.
     html += '<div class="inv-line"><span class="inv-line-num">' + (idx + 1) + '</span>' +
       lineField('Part', '<div class="inv-combo">' +
-        '<input class="inv-input" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        '<input class="inv-input" data-k="part-' + idx + '" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div>', null, 'inv-line-part') +
-      lineField('Qty', '<input type="number" class="inv-input inv-input-num" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
-      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-change="invUpdateLine">' +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" data-k="qty-' + idx + '" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
+      lineField('Unit', '<select class="inv-select" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-change="invUpdateLine">' +
         '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
         '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select>') +
       (item.unit === 'KG'
-        ? lineField('Pcs', '<input type="number" class="inv-input inv-input-num" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces">')
+        ? lineField('Pcs', '<input type="number" class="inv-input inv-input-num" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces">')
         : '<div class="inv-field" aria-hidden="true"></div>') +
-      lineField('Rate', '<input type="number" class="inv-input inv-input-num" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      lineField('Rate', '<input type="number" class="inv-input inv-input-num" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
         rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '>') +
-      lineField('Amount', '<input type="number" class="inv-input inv-input-num" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      lineField('Amount', '<input type="number" class="inv-input inv-input-num" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
         (isPieceNOS ? '' : ' readonly') + '>', null, 'inv-line-amt') +
-      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-action="invRemoveLineItem" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-k="remove-' + idx + '" data-action="invRemoveLineItem" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
       '<div class="inv-line-notes"><div id="invDesc' + idx + '">' + challanDescNote(item) + '</div>' +
       (item._override ? '<div><span class="inv-badge inv-badge-info">' + escHtml(item._label || 'Override') + '</span></div>' : '') +
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
@@ -13395,7 +13558,7 @@ function renderCreateForm() {
       '<div id="invImShare' + idx + '">' + imShareNoteHtml(idx, shareIdx) + '</div>' +
       '</div></div>';
   });
-  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
+  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddLineItem">Add line</button></div></div>';
   body.lines = html;
   html = '';
 
@@ -13410,17 +13573,17 @@ function renderCreateForm() {
     '<summary class="inv-panel-head"><span class="inv-panel-title">Optional details</span>' +
     '<span class="inv-panel-count">' + escHtml(optSummary) + '</span></summary>' +
     '<div class="inv-panel-body"><div class="inv-fields">' +
-    '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" data-k="challanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" data-k="challanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" data-k="po" value="' + escHtml(invoiceForm.poNumber) + '">' +
       '<div id="invPoHint">' + createFieldHintHtml('po') + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" data-k="poDate" value="' + escHtml(invoiceForm.poDate) + '">' +
       '<div id="invPoDateHint">' + createPoDateHintHtml() + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" data-k="vehicle" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
     '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' +
       '<div id="invVeHint">' + createFieldHintHtml('ve') + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
-    '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
+    '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" data-k="despatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
+    '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" data-k="remarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
 
   body.details = html;
 
@@ -13432,12 +13595,12 @@ function renderCreateForm() {
   const model = createFlowModelOf();
   model.steps.forEach(s => { if (body[s.key] != null) s.body = body[s.key]; });
   // The form's own keys stay its own (data-flow-ownkeys): Enter walks its fields, as it always did.
-  html = '<div data-form="invoice">' + uiFlowHtml('createInvoice', model, { before: head }).replace('data-flow="createInvoice"', 'data-flow="createInvoice" data-flow-ownkeys');
+  html = '<div data-form="invoice">' + uiFlowHtml('createInvoice', model, { before: head + kbdKeysHtml() }).replace('data-flow="createInvoice"', 'data-flow="createInvoice" data-flow-ownkeys');
   // The action bar: the grand total, Clear, and the page's one primary.
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Grand total</div>' +
     '<div class="inv-actionbar-value" id="invGrandTotal">' + formatCurrency(createTotals(client).grand) + '</div></div>' +
-    '<button type="button" class="inv-btn inv-btn-secondary" data-action="invResetForm">Clear</button>' +
-    '<button type="button" class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
+    '<button type="button" class="inv-btn inv-btn-secondary" data-k="clear" data-action="invResetForm">Clear</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" id="invSaveBtn" data-k="save" data-kbd-ring data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
     (invoiceForm.editingId ? 'Update invoice' : invoiceForm.reissue ? 'Reissue ' + escHtml(invoiceForm.reissue.invoiceNumber) : 'Create invoice') + '</button></div></div>';
 
   area.innerHTML = html;
@@ -13464,9 +13627,10 @@ function renderCreateForm() {
       res.innerHTML = clientMenuHtml(matches, 'invSelectClient', 'invClientOpt');
       cs.setAttribute('aria-expanded', 'true');
     });
-    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap went elsewhere first.
-    focusSoon(cs);
   }
+  // Focus last, so nothing above can steal it back: where it was (or where the caller sent it), else, a moment after Create
+  // opens, the client search, unless a click or a tap went elsewhere first.
+  if (!kbdRestoreFocus(area, focusTarget) && cs) focusSoon(cs);
 }
 
 /* ===== THE CLIENT'S OWN VEHICLE AND PO =====
@@ -13606,7 +13770,7 @@ function createUnbilledHtml(client) {
     const parts = lines.filter(imLineBilled);
     const name = 'Challan ' + (im.challanNo || '(no number)');
     html += '<div class="inv-row inv-row-2' + (on ? ' inv-row-selected' : '') + '">' +
-      '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCreatePickChallan" data-id="' + escHtml(im.id) + '"' +
+      '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-k="pick-' + escHtml(im.id) + '" data-action="invCreatePickChallan" data-id="' + escHtml(im.id) + '"' +
       (on ? ' checked' : '') + ' aria-label="' + escHtml(name) + '"></label>' +
       '<div class="inv-row-main"><div class="inv-row-title inv-id">' + escHtml(name) + '</div>' +
       '<div class="inv-row-meta">' + escHtml(formatDate(im.challanDate)) + ' · ' + lines.length + ' line' + (lines.length === 1 ? '' : 's') +
@@ -13678,7 +13842,7 @@ function zeroReasonHtml(item, idx) {
   ZERO_REASONS.forEach(function(r) {
     var on = item.zeroReason === r.id;
     html += '<button type="button" class="inv-chip' + (on ? ' inv-chip-on' : '') + '" role="radio" aria-checked="' + on + '"' +
-      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '">' + escHtml(r.label) + '</button>';
+      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '" data-k="zeror-' + idx + '-' + r.id + '">' + escHtml(r.label) + '</button>';
   });
   html += '</div>' +
     '<input class="inv-input" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
@@ -13962,6 +14126,21 @@ function validateInvoiceKeyed() {
   return errors;
 }
 function validateInvoice() { return validateInvoiceKeyed().map(e => e.text); }
+/* A save refused: the cursor goes to the field the first error names, as the challan form's does, so a keyboard save
+   (Ctrl+Enter) is not left pointing nowhere. A line's reason goes to the first chip it asks for. */
+function createFocusError() {
+  const e = validateInvoiceKeyed()[0], area = document.getElementById('createFormArea');
+  if (!e || !area) return;
+  const m = /^line:(\d+)(?::(\w+))?$/.exec(e.key || '');
+  let el = null;
+  if (e.key === 'client') el = area.querySelector('[data-k="client"], [data-k="clientchange"]');
+  else if (e.key === 'date') el = area.querySelector('[data-k="date"]');
+  else if (e.key === 'lines') el = area.querySelector('[data-k="addline"]');
+  else if (m && m[2]) el = area.querySelector('[data-k="' + m[2] + '-' + m[1] + '"]');
+  else if (m) el = area.querySelector('#invZeroReason' + m[1] + ' [data-k], #invImShare' + m[1] + ' [data-k]') || area.querySelector('[data-k="part-' + m[1] + '"]');
+  // Clear of the bars over the page (state.js kbdReveal, P275): the field named sat under the action bar on a long invoice.
+  kbdFocus(el);
+}
 function createFieldLeft(key) { (invoiceForm._left = invoiceForm._left || {})[key] = true; }
 // A line removed: what was left on the lines under it moves up with them.
 function createLeftDrop(idx) {
@@ -14025,6 +14204,11 @@ function selectClient(id) {
       recalcLineItem(item, client);
     });
   }
+  // The client is chosen; the keyboard goes on to the first challan waiting for an invoice, else the first line, else Add line.
+  const firstIm = client && !invoiceForm.editingId && !invoiceForm.reissue ? (S.incomingMaterial || [])
+    .filter(im => im.clientId === client.id && (im.items || []).some(it => !it.invoiced))
+    .sort((a, b) => String(a.challanDate || '').localeCompare(String(b.challanDate || '')))[0] : null;
+  _createFocusNext = { k: firstIm ? 'pick-' + firstIm.id : invoiceForm.items.length ? 'part-0' : 'addline', sel: null };
   renderCreateForm();
 }
 
@@ -14037,6 +14221,17 @@ function addLineItem() {
     item.rate = rateInfo.ratePerKg || 0;
   }
   invoiceForm.items.push(item);
+  _createFocusNext = { k: 'part-' + (invoiceForm.items.length - 1), sel: null };
+  renderCreateForm();
+}
+
+/* A line removed: focus lands on the line that slid into its place, or the one above when it was the last; with none
+   left, on Add line. */
+function removeLineItem(idx) {
+  captureOptionalFields();
+  invoiceForm.items.splice(idx, 1);
+  createLeftDrop(idx);
+  _createFocusNext = { k: invoiceForm.items.length ? 'part-' + Math.min(idx, invoiceForm.items.length - 1) : 'addline', sel: null };
   renderCreateForm();
 }
 
@@ -14056,7 +14251,7 @@ function createFyAsk() {
 async function saveInvoice() {
   const errors = validateInvoice();
   // A save tried: every error shows now, and the first is said.
-  if (errors.length > 0) { invoiceForm._tried = true; createErrorsRefresh(); showToast(errors[0], 'error'); return; }
+  if (errors.length > 0) { invoiceForm._tried = true; createErrorsRefresh(); showToast(errors[0], 'error'); createFocusError(); return; }
   // P1 (guard.js): issuing or editing an invoice.
   if (!grdOk('billing') && !(await guardAsk('billing', invoiceForm.editingId ? 'save an edited invoice' : 'save an invoice'))) return;
 
@@ -20048,6 +20243,8 @@ function selectPartForLine(idx, partId) {
 
   dismissAllAutocomplete();
   captureOptionalFields();
+  // The part is settled; the quantity is what gets typed next (the challan form's way, below).
+  _createFocusNext = { k: 'qty-' + idx, sel: null };
   renderCreateForm();
 }
 
@@ -30665,7 +30862,6 @@ function payAction(action, btn) {
     case 'invPayVoid': payVoid(btn.dataset.id); return true;
     case 'invPayClear': payClear(btn.dataset.id, btn.dataset.through, parseFloat(btn.dataset.amount) || 0); return true;
     case 'invPayClearVoid': payClearVoid(btn.dataset.id); return true;
-    case 'invPayOpenAtt': homeQuick('attendance'); return true;
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
     case 'invPayHistory': payHistoryOpen(btn.dataset.id); return true;
@@ -32236,6 +32432,10 @@ function stockSaveManual() {
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');
   if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
+  // The cursor goes back to the first quantity for the next entry, as Production's hand form puts it on the part: the redraw had
+  // left it nowhere, so the next key typed went to the page. It does not move the page: the list just saved stays in sight.
+  var nextQty = !touchScreen() && document.querySelector('#stockContent [data-flow] [data-stock-qty]');
+  if (nextQty) try { nextQty.focus({ preventScroll: true }); } catch (x) { /* a convenience */ }
   // Saved as typed, and said at once when it does not fit (an entry checked before it is believed).
   var chk = stockChecksFor(ids);
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (chk.n ? ' · check ' + (chk.n === 1 ? 'it' : chk.n + ' of them') + ': ' + chk.first :
@@ -32994,7 +33194,7 @@ function stockAction(action, btn) {
       if (_stockView === 'review') { stockSetView('paste'); break; }
       // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
       if (_stockView === 'manual') _stockBill = null;
-      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
+      _stockReview = null; _stockManual = null; _stockReorder = null; navReturn(); stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockPaneClose': stockSetView('list'); break;
     case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;
@@ -44017,13 +44217,13 @@ document.addEventListener('change', function(e) {
   if (t && t.id === 'addPhotoInput') addPhotoFiles(t.files);
   else if (t && t.id === 'addFileInput') addFileGot(t.files && t.files[0]);
 });
-/* The key A opens Add on the desktop, never from a field and never over a layer (Backspace's guard, nav.js); Ctrl+Enter
-   in the sheet's box reads it. */
+/* The key A opens Add on the desktop, never from a field typed in and never over a layer (navTyping, nav.js: Backspace's
+   rule); Ctrl+Enter in the sheet's box reads it. */
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target && e.target.id === 'addPasteText') { e.preventDefault(); addRead(); return; }
   if ((e.key !== 'a' && e.key !== 'A') || e.altKey || e.ctrlKey || e.metaKey || e.repeat || e.isComposing || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (navTyping(t)) return;
   if (!_isDesktop || !S || !document.body.classList.contains('inv-booted') || navLayerOpen()) return;
   e.preventDefault();
   addOpen();
@@ -46814,11 +47014,55 @@ function aregNextCell(mo, at) {
   for (var d = at.d + 1; d < mo.days.length; d++) if (mo.days[d].kind === 'work' && mo.days[d].cells[at.c]) return { d: d, c: at.c };
   return null;
 }
-function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); }
+function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); aregCellFocus(); }
+/* A page entered by hand is typed cell after cell: the cursor waits in As written (it opened on the dialog's ×), and Enter there keeps
+   what was typed and goes on to the column's next working day, or closes on the last (it kept the cell and stayed on it: the Next day
+   button was three Tabs away). Never on a touch screen, where a focused field raises the keyboard over the dialog. */
+function aregCellFocus() {
+  var f = document.querySelector('.inv-scrim-dialog [data-areg-cell] [data-areg-raw]');
+  if (f && !touchScreen()) { try { f.focus(); f.select(); } catch (e) { /* a convenience */ } }
+}
+function aregCellEnter(el) {
+  // Left first, so the change it fires keeps what was typed on this cell (aregOnChange): moving on with the field still in the
+  // dialog, the redraw took it away, and its change landed on the next day's cell.
+  try { el.blur(); } catch (e) { /* already gone */ }
+  aregSetRaw(el.value);   // a no-op where the change kept it
+  var mo = aregMonthOf(aregMonthShown()), nx = mo && _aregCellAt ? aregNextCell(mo, _aregCellAt) : null;
+  if (!nx) { _aregCellAt = null; closeOverlay(); keepScroll(renderAttendance); return; }
+  _aregCellAt = nx;
+  aregCellRedraw();
+  aregCellFocus();
+}
+/* The cell's dialog drawn again where it stands. A button its foot draws alike stays where it is, never taken out of the page: a cell
+   typed and then Next day pressed redraws on the field's change, which fires as the press starts, and a button replaced (or only moved)
+   under the pointer takes no click (Next day had to be pressed twice). */
 function aregCellRedraw() {
-  var scrim = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
-  scrim = scrim && scrim.closest('.inv-scrim-dialog');
-  if (scrim) scrim.innerHTML = aregCellHtml();
+  var dlg = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
+  var scrim = dlg && dlg.closest('.inv-scrim-dialog');
+  if (scrim) {
+    var html = aregCellHtml(), tpl = document.createElement('div');
+    tpl.innerHTML = html;
+    var nd = tpl.firstElementChild, oldFoot = dlg.querySelector(':scope > .inv-dialog-foot'), newFoot = nd && nd.querySelector(':scope > .inv-dialog-foot');
+    if (nd && oldFoot && newFoot) {
+      // All but the foot drawn new, in front of it.
+      Array.prototype.slice.call(dlg.children).forEach(function(c) { if (c !== oldFoot) c.remove(); });
+      Array.prototype.slice.call(nd.children).forEach(function(c) { if (c !== newFoot) dlg.insertBefore(c, oldFoot); });
+      // The foot: a button drawn alike is kept in place; the rest go, and the new ones are put in order around those kept.
+      var olds = Array.prototype.slice.call(oldFoot.children), used = [];
+      var want = Array.prototype.slice.call(newFoot.children).map(function(b) {
+        var same = olds.find(function(o) { return used.indexOf(o) < 0 && o.outerHTML === b.outerHTML; });
+        if (same) { used.push(same); return same; }
+        return b;
+      });
+      olds.forEach(function(o) { if (used.indexOf(o) < 0) o.remove(); });
+      var at = null;
+      want.forEach(function(el) {
+        if (used.indexOf(el) >= 0) { at = el; return; }
+        oldFoot.insertBefore(el, at ? at.nextSibling : oldFoot.firstChild);
+        at = el;
+      });
+    } else scrim.innerHTML = html;
+  }
   renderAttendance();
 }
 /* A cell typed or corrected: what it said before is kept on it. A cell read from paper and changed is a correction; a cell
@@ -47079,7 +47323,7 @@ function aregAction(action, btn) {
     }
     case 'invAregNext': {
       var mo4 = aregMonthOf(aregMonthShown()), nx = mo4 && _aregCellAt ? aregNextCell(mo4, _aregCellAt) : null;
-      if (nx) { _aregCellAt = nx; aregCellRedraw(); var f = document.querySelector('[data-areg-raw]'); if (f && !touchScreen()) f.focus(); }
+      if (nx) { _aregCellAt = nx; aregCellRedraw(); aregCellFocus(); }
       return true;
     }
   }
@@ -48192,7 +48436,7 @@ function prodTaughtRead(msg, ctx) {
     if (it.kind !== 'plated') { it.line = null; delete it.lineHint; }
     else if (!it.lineHint || it.lineHint === t.line) { it.line = it.lineHint || t.line || null; delete it.lineHint; }
     else it.issues.push({ tone: 'amber', code: 'linehint', text: 'Entered by hand on ' + (PROD_LINE_LABEL[t.line] || 'no line') + ' before; the header above says ' + PROD_LINE_LABEL[it.lineHint] + '. Pick the line.' });
-    it.issues.push({ tone: 'amber', code: 'taught', text: 'Read as this line was entered by hand' + (t.at ? ' on ' + new Date(t.at).toISOString().slice(0, 10) : '') + ': ' + (c ? c.name : 'no client') + (t.part ? ' · ' + t.part : '') + '.' });
+    it.issues.push({ tone: 'amber', code: 'taught', text: 'Read as this line was entered by hand' + (t.at ? ' on ' + formatDate(isoOf(new Date(t.at))) : '') + ': ' + (c ? c.name : 'no client') + (t.part ? ' · ' + t.part : '') + '.' });
   });
   if (!hit) return { items: [], notes: [], date: r.date, noDate: r.noDate };
   r.taught = hit;
@@ -60758,6 +61002,14 @@ function prodOpenHand(fromId, from, fromLines) {
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+  prodHandFocusStart();
+}
+/* On a keyboard the cursor starts where the entry starts, as it goes back there after a save (and as Stock's opens): the client, or a
+   power cut's time. The form opened on nothing, and the first key typed went to the page. A correction is left to be read first. */
+function prodHandFocusStart() {
+  if (!_prodHand || _prodHand.replaces || touchScreen()) return;
+  var first = document.getElementById(_prodHand.kind === 'downtime' ? 'prodHandTime' : 'prodHandClient');
+  if (first) focusSoon(first);
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank(fromLines) {
@@ -60991,6 +61243,7 @@ function prodHandHtml() {
 function prodHandDone() {
   var from = _prodHand && _prodHand.from;
   _prodHand = null;
+  navReturn();   // the screen it was opened from, as a step back where that is the step before (nav.js)
   if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); return; }
   prodSetView('main');
 }
@@ -61056,7 +61309,7 @@ async function prodSaveHand() {
   prodTouch();
   saveState();
   if (src) {   // a correction is one entry: back to where it was opened from
-    var from = f.from; _prodHand = null;
+    var from = f.from; _prodHand = null; navReturn();
     if (from === 'power') { _prodView = 'main'; switchTab('pagePower'); }
     else prodSetView('main');
     showToast('Correction saved; the entry it corrects is kept, marked corrected', 'success');
@@ -61071,7 +61324,8 @@ async function prodSaveHand() {
   _pageTyped = false;
   renderProduction();
   var next = document.getElementById(f.kind === 'downtime' ? 'prodHandTime' : 'prodHandPart');
-  if (next && !('ontouchstart' in window)) try { next.focus(); } catch (x) { /* focus is a convenience */ }
+  // Clear of the form's action bar, where the part field sat after a few entries (state.js kbdFocus, P275).
+  if (next && !('ontouchstart' in window)) kbdFocus(next);
   showToast((f.kind === 'downtime' ? 'Power cut saved' : 'Saved') + ' · enter the next, or Done', 'success');
 }
 
@@ -61134,6 +61388,7 @@ function prodAction(action, btn) {
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       _prodReview = null; _prodHand = null; _prodTeach = null; prodPhotoDrop();
+      navReturn();   // back to the step before where it is that screen (nav.js)
       prodSetView('main');
       return true;
     }
@@ -62529,7 +62784,6 @@ function homeMastPrtLead(f, facts, red, tone) {
     html: '<button type="button" class="inv-mast-lead" data-action="invPrtLight" data-home-lead="station" title="Open the print station">' + escHtml(f.text) + '</button>',
     act: f.jobs ? '<button type="button" class="inv-btn inv-btn-tint" data-action="invPrtLight" data-home-lead="station">' + escHtml(f.jobs === 1 ? 'See the job' : 'See the ' + f.jobs + ' jobs') + '</button>' : '' };
 }
-var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
 function homeMastHtml() {
   var now = new Date(), lead = homeMastLead(), wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
   // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span). The print station
@@ -63059,8 +63313,6 @@ function wdgShortMoneyHtml(html) {
   wdgShortMoneyIn(t.content);
   return t.innerHTML;
 }
-/* Whole rupees with the sign a figure takes (U+2212, design §5.4): a Ledger's statement line. */
-function wdgRs(v) { var n = gstRound(Number(v) || 0, 0); return (n < 0 ? '\u2212' : '') + finRs(Math.abs(n)); }
 /* A Ledger's amount: whole rupees, or a rate to the paisa with its unit; `signed`, a rise carries its + (a bridge's causes). */
 function wdgLedgerFmt(v, rate, unit, signed) {
   var n = gstRound(Number(v) || 0, rate ? 2 : 0), sg = n < 0 ? '\u2212' : signed && n > 0 ? '+' : '';
@@ -63181,6 +63433,13 @@ function wdgVizDraw(card) {
     // A chart with its keys under it: drawn again shorter by what the keys took, so the two fit the room together.
     var over = Math.ceil(slot.scrollHeight - slot.clientHeight);
     if (over > 0) { if (h - over >= 20) draw(h - over); else slot.innerHTML = ''; }
+    // A chart drawn in rows (a dumbbell's) keeps each row's height at any room: past it, its keys let go, then its last rows, each
+    // whole, never one cut halfway with the keys under it (P274: the phone's Who fills the plant at 360px).
+    var rows = slot.querySelectorAll('.inv-chart-rows > .inv-chart-row');
+    if (rows.length && slot.scrollHeight > slot.clientHeight + 1) {
+      Array.prototype.forEach.call(slot.querySelectorAll('.inv-chart-keys'), function(k) { k.setAttribute('data-wdg-cut', ''); });
+      for (var i = rows.length - 1; i > 0 && slot.scrollHeight > slot.clientHeight + 1; i--) rows[i].setAttribute('data-wdg-cut', '');
+    }
   } catch (e) { wdgErr(def, e); slot.innerHTML = ''; }
 }
 /* A card is exactly its size's height (§24h), so what it shows fits it or lets go: first the parts it can do without, all together
@@ -63347,7 +63606,7 @@ function wdgAfter(root) {
 /* ---------- The type builders (§24d, §24g): presentation only. A widget reads its screen's functions for its figures (I8) and
    hands them here; no widget writes a row's markup of its own. ---------- */
 
-/* Ledger: amounts on dotted leaders, right-aligned, in whole rupees (wdgRs) so they add up; a total ruled once above and twice
+/* Ledger: amounts on dotted leaders, right-aligned, in whole rupees (wdgLedgerFmt) so they add up; a total ruled once above and twice
    below, drawn only where the lines above it add up to it (to half a rupee a line, each rounded from its exact amount); a cut list
    ends in one line for the rest and their sum (wdgFit). lines: [{label, meta, amt, text, tone, title, go: {action | jump, attrs},
    attrs}]: `text` a value said in words (a range, a rate), never summed; total: {label, amt, tone}. o: noun (a line's, for the rest
@@ -63515,8 +63774,6 @@ function wdgMoveWorthHtml(mv) {
   return figHtml('<span class="inv-nowrap" data-adv-worth title="' + escHtml((w.sign < 0 ? '−' : '+') + formatCurrency(w.amount)) + '">' + (w.sign < 0 ? '−' : '+') + escHtml(c.text) + '</span>', w.sign < 0 ? 'danger' : 'ok') +
     (typeof advWorthLabel === 'function' && advWorthLabel(w) ? ' ' + escHtml(advWorthLabel(w)) : '');
 }
-/* A sentence shortened on a board keeps its whole words as its title. */
-function wdgMoveTitle(s) { return s && wdgShortMoney(s) !== String(s) ? ' title="' + escHtml(s) + '"' : ''; }
 /* A move on the owner's list says so wherever it is drawn (What to do): On your list, in its meta line. */
 function wdgMoveListedHtml(mv) { return typeof advListedKeys === 'function' && advListedKeys()[mv.key] ? ADV_LISTED_HTML : ''; }
 /* A move's sentence on a board (the canvas's Do first): what to do, where its sentence leads with a whole instruction before its
@@ -65021,7 +65278,7 @@ wdgDefine({ id: 'quote', title: 'Quotations and prospects', short: 'Quotations',
 
 
 /* ---------- Floor (Plant: the panel by the rectifiers) ---------- */
-/* Power cuts this month (homePowerOpts' reading of powerCuts): how long the plant was dark and how many cuts; from Medium each cut a
+/* Power cuts this month (powerCuts' reading): how long the plant was dark and how many cuts; from Medium each cut a
    row, newest first, its lamp amber while it has no time back, each opening its completion. Complete the cut is the Act while one
    has no time back. */
 wdgDefine({ id: 'powercuts', title: 'Power cuts', short: 'Power cuts', q: 'How much power did we lose?', section: 'floor', type: 'plant', sizes: ['s', 'm'], trend: true,
@@ -70833,7 +71090,8 @@ function faceVatAction(action, btn) {
     case 'invFaceVatAdd':
       f.rows.push(faceVatRowBlank(f.rows[f.rows.length - 1])); faceVatKeep(f); keepScroll(renderFace);
       var tm = document.querySelector('[data-face-vat="' + (f.rows.length - 1) + '"][data-k="time"]');
-      if (tm && !touchScreen()) try { tm.focus(); } catch (x) { /* a convenience */ }
+      // The new row's time, clear of the action bar (state.js kbdFocus, P275).
+      if (tm && !touchScreen()) kbdFocus(tm);
       return true;
     case 'invFaceVatDel':
       if (!f.rows[k]) return true;
@@ -72747,7 +73005,7 @@ function powerCfgSave() {
 function powerAddCut() {
   switchTab('pageProduction');
   prodOpenHand(null, 'power');
-  if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); }
+  if (_prodHand) { _prodHand.kind = 'downtime'; renderProduction(); prodHandFocusStart(); }
 }
 /* The history from soma-internal, one file: its cuts as a `sep-production` file (merged by id into Production), and
    under `power` the electricity bills' details by month and the load. A detail fills a bill of that month only where the
@@ -81022,32 +81280,8 @@ var _challanForm = null;
    data-k key that survives the re-render, since the elements themselves do not. */
 var _challanFocusNext = null;
 
-function _challanCaptureFocus() {
-  var el = document.activeElement;
-  if (!el || !el.dataset || !el.dataset.k) return null;
-  var area = document.getElementById('imAddForm');
-  if (!area || !area.contains(el)) return null;
-  var sel = null;
-  // Only text-ish inputs expose a caret; number inputs report null here.
-  try { sel = el.selectionStart; } catch (e) { sel = null; }
-  return { k: el.dataset.k, sel: sel };
-}
-
-function _challanRestoreFocus(target) {
-  if (!target) return false;
-  var area = document.getElementById('imAddForm');
-  if (!area) return false;
-  var el = area.querySelector('[data-k="' + target.k + '"]');
-  if (!el) return false;
-  try {
-    el.focus();
-    // setSelectionRange throws on number inputs, so the caret restore is
-    // attempted separately from the focus that matters.
-    if (target.sel != null && el.setSelectionRange) el.setSelectionRange(target.sel, target.sel);
-    else if (el.select) el.select();
-  } catch (e) {}
-  return true;
-}
+function _challanCaptureFocus() { return kbdCaptureFocus(document.getElementById('imAddForm')); }
+function _challanRestoreFocus(target) { return kbdRestoreFocus(document.getElementById('imAddForm'), target); }
 
 function showAddChallanForm() {
   _challanForm = {
@@ -81139,12 +81373,7 @@ function renderAddChallanForm() {
   var date = _challanForm.challanDate || localDateStr();
   var total = gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0));
   var html;
-  var keys = '<p class="inv-keys">' +
-      '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
-      '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
-      '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
-      '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
-    '</p>';
+  var keys = kbdKeysHtml();
 
   // Step 1, whose challan: client, number, date, vehicle, wanted by.
   var who = '<div class="inv-panel inv-panel-flush">';
@@ -81412,14 +81641,15 @@ function saveChallan() {
   if (gap) {
     showToast(gap.msg, 'error');
     var gapEl = document.querySelector('#imAddForm [data-k="' + gap.k + '"]');
-    if (gapEl) gapEl.focus();
+    // Clear of the bars over the page (state.js kbdReveal, P275).
+    kbdFocus(gapEl);
     return;
   }
   // The day it is wanted by is never before the day it came in, as the Wanted by dialog holds it (flow.js).
   if (_challanForm.priority && _challanForm.challanDate && _challanForm.priority < _challanForm.challanDate) {
     showToast('Wanted by a day before the challan came in', 'error');
     var wbEl = document.getElementById('imWantedBy');
-    if (wbEl) wbEl.focus();
+    kbdFocus(wbEl);
     return;
   }
 
@@ -82378,18 +82608,29 @@ async function fphAddFiles(files) {
 }
 
 /* ---------- Tagging ---------- */
+function fphDraftOf(p) { return { date: p.date, time: p.time, area: p.area, sentBy: p.sentBy, note: p.note || '', tags: Object.assign({}, p.tags || {}), from: {}, claude: null }; }
 function fphOpen(id) {
   var p = fphData().photos.find(function(x) { return x.id === id; });
   if (!p) return;
   _fphOpen = id;
-  _fphDraft = { date: p.date, time: p.time, area: p.area, sentBy: p.sentBy, note: p.note || '', tags: Object.assign({}, p.tags || {}), from: {}, claude: null };
+  _fphDraft = fphDraftOf(p);
   _fphView = 'list';
+  _pageTyped = false;   // a photo opened is a form not yet typed in (Save and next had carried the last one's mark)
   if (_prodTab !== 'photos') prodSetTab('photos');
   _prodView = 'main';
   renderProduction();
   viewTop();
 }
-function fphClose() { _fphOpen = null; _fphDraft = null; keepScroll(renderProduction); }
+function fphClose() { _fphOpen = null; _fphDraft = null; _pageTyped = false; keepScroll(renderProduction); }
+/* Where Photos is, for the address (nav.js): the photo open (`id`) and Areas (`photos/areas`) are places, so Back from either comes
+   back to the log, and a reload or a link opens them. A photo not in the log opens the log. */
+function fphNavSub() { return !_fphOpen && _fphView === 'areas' ? 'areas' : ''; }
+function fphNavApply(sub, id) {
+  var p = id ? fphData().photos.find(function(x) { return x.id === id; }) : null;
+  if (p) { if (_fphOpen !== id || !_fphDraft) { _fphOpen = id; _fphDraft = fphDraftOf(p); } _fphView = 'list'; return; }
+  _fphOpen = null; _fphDraft = null;
+  _fphView = sub === 'areas' ? 'areas' : 'list';
+}
 /* The next photo still to tag after the one open (the queue, oldest first), or none. */
 function fphNextTodo(afterId) {
   var todo = fphTodo().sort(function(a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
@@ -82489,6 +82730,7 @@ function fphAreasSave() {
     d.areas.push({ id: stockUid('FA'), name: n, line: '', questions: [], at: Date.now() });
   });
   saveState();
+  _pageTyped = false;   // what is on screen is what is saved: its way back asks nothing now (nav.js, P270)
   showToast('Areas saved' + (names.length ? ' · ' + todoPlural(names.length, 'area') + ' added' : ''), 'success');
   keepScroll(renderProduction);
 }
@@ -83181,7 +83423,7 @@ function onDocClick(e) {
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
-    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); createLeftDrop(parseInt(btn.dataset.idx)); renderCreateForm(); break;
+    case 'invRemoveLineItem': removeLineItem(parseInt(btn.dataset.idx)); break;
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
@@ -84151,6 +84393,21 @@ document.addEventListener('keydown', function(e) {
       return;
     }
   }
+  // The same two keys on Create (P268): Ctrl+Enter saves the invoice (saveInvoice validates, and a refusal puts the cursor
+  // on the field it names), Alt+N adds a line and focuses its part.
+  var createArea = document.getElementById('createFormArea');
+  if (invoiceForm && createArea && createArea.contains(e.target)) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      saveInvoice();
+      return;
+    }
+    if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      addLineItem();
+      return;
+    }
+  }
 
   // 3. Enter moves to the next field. Buttons carrying data-kbd-ring join the
   //    chain so the last field of a form steps onto its primary action rather
@@ -84160,6 +84417,12 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-todo-new')) {
     e.preventDefault();
     todoQuickAdd();
+    return;
+  }
+  // A register cell typed by hand: Enter keeps it and goes on to the column's next day (attreg.js aregCellEnter).
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.target.hasAttribute && e.target.hasAttribute('data-areg-raw')) {
+    e.preventDefault();
+    aregCellEnter(e.target);
     return;
   }
   // A typed stock line name is committed by Enter (the phone keyboard's Go),
@@ -84180,11 +84443,12 @@ document.addEventListener('keydown', function(e) {
     // so the chain steps over them rather than dead-ending on a field it cannot focus.
     var focusable = Array.from(container.querySelectorAll(
       'input:not([readonly]):not([type="hidden"]):not(.inv-hidden), select:not(.inv-hidden), textarea:not(.inv-hidden), [data-kbd-ring]'
-    )).filter(function(el) { return !el.closest('details:not([open])'); });
+    )).filter(function(el) { return !el.disabled && !el.closest('details:not([open])'); });
     var curIdx = focusable.indexOf(e.target);
     if (curIdx >= 0 && curIdx < focusable.length - 1) {
       var next = focusable[curIdx + 1];
-      next.focus();
+      // Clear of the bars over the page, not merely inside the window (state.js kbdReveal, P275).
+      kbdFocus(next);
       if (next.type === 'number' || next.type === 'text') next.select();
     }
   }
@@ -84194,7 +84458,9 @@ document.addEventListener('keydown', function(e) {
    closing every list hid a client search opened inside the moment on another screen, under the cursor (P181). */
 document.addEventListener('focusout', function(e) {
   var t = e.target;
-  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart'))) return;
+  // A client search too (P268): left by Tab, its list stayed open over the form under it.
+  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart' ||
+    t.id === 'invClientSearch' || t.id === 'imChallanClientSearch'))) return;
   var combo = t.closest('.inv-combo');
   setTimeout(function() {
     if (!combo || !combo.isConnected || combo.contains(document.activeElement)) return;
@@ -84698,8 +84964,14 @@ function navLoc() {
     case 'pageStats': v = statsTab() === 'tables' ? 'tables/' + statsTable() : 'board'; break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
-      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
+      // The register photo's check is a place too, its reading included (P270): Back from it had left Production.
+      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : /^(photo|reading)$/.test(_prodView) ? '/photo' : '');
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
+      // Photos: the photo being tagged and the Areas form are places (P270); Back from either had left Production.
+      if (_prodTab === 'photos' && _prodView === 'main') { if (_fphOpen) id = _fphOpen; else if (fphNavSub()) v += '/' + fphNavSub(); }
+      // Lines: the line on screen is its view (a tap on it opens at its top, as a view tab does), so a reload, Back and a link keep it
+      // (P270: a reload on Pickling came back on VAT A1). The first line is the plain address, as before.
+      if (_prodTab === 'lines' && _prodView === 'main' && _prodLine !== PROD_LINES[0] && navProdLineOk(_prodLine)) v += '/' + _prodLine;
       break;
     case 'pagePower': v = _powerTab; break;
     case 'pageStaff': v = _attView === 'register' ? 'register/' + aregMonthShown() : _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
@@ -84718,6 +84990,8 @@ function navLoc() {
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
+/* A line Lines can show: the plating lines and pickling. */
+function navProdLineOk(l) { return l === 'pickling' || PROD_LINES.indexOf(l) >= 0; }
 function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') + (loc.d ? '|' + loc.d : '') : ''; }
 function navUrl(loc) {
   return window.location.pathname + '?tab=' + encodeURIComponent(loc.tab) +
@@ -84811,7 +85085,14 @@ function navLabel(loc) {
       break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
-      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
+      if (parts[0] === 'lines' && navProdLineOk(parts[1])) sub.push(parts[1] === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[parts[1]]);
+      if (parts[0] === 'photos') {
+        if (parts[1] === 'areas') sub.push('Areas');
+        var fp = loc.id && fphData().photos.find(function(x) { return x.id === loc.id; });
+        if (fp) { var fa = fphArea(fp.area); rec = (fa ? fa.name : 'Floor photo') + ', ' + fp.time; }
+        break;
+      }
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
@@ -84888,10 +85169,17 @@ function navApply(loc) {
       case 'pageStats': statsPlace(parts[0] || 'board', parts[1]); break;
       case 'pageProduction':
         // An address of the register photo's check (it came out on 13 Oct 2026) opens the view under it.
+        // The photo's check stays where a photo is being read or checked; left (Back), the photo goes with it, as its own way back
+        // drops it (a photo left behind made the next one picked wait unread). A reload has none to show: the view under it opens.
+        var prodWas = _prodView;
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main';
+        if (parts[1] === 'photo' && /^(photo|reading)$/.test(prodWas) && (_prodPhoto || _prodPhotoBusy)) _prodView = prodWas;
+        else if (prodWas === 'photo') prodPhotoDrop();
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
+        if (parts[0] === 'photos' && _prodView === 'main') fphNavApply(parts[1], id);
+        if (parts[0] === 'lines' && _prodView === 'main') _prodLine = navProdLineOk(parts[1]) ? parts[1] : PROD_LINES[0];
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
@@ -84959,8 +85247,17 @@ function navTrailPut(loc) {
   _navTrail[_navIdx] = loc ? Object.assign({ loc: loc }, navLabel(loc)) : null;
   try { sessionStorage.setItem(NAV_TRAIL_KEY, JSON.stringify(_navTrail)); } catch (e) { /* a convenience only */ }
 }
+/* Where the screen was scrolled when it was left, so Back (and Forward) come back to the same rows (P270: Back put every screen at its
+   top: the redraw a move makes goes there, and the browser's own restoring ran before it). Read at the touch, click or key that moves
+   the app, before anything has moved, and kept on the step it left (the trail, so a reload keeps it too). */
+var _navLeave = null;
+function navLeaveMark() { _navLeave = { idx: _navIdx, y: window.scrollY }; }
+['pointerdown', 'touchstart', 'keydown'].forEach(function(t) { document.addEventListener(t, navLeaveMark, { capture: true, passive: true }); });
 function navPush(loc, extra) {
   _navMoves++;
+  var t = _navTrail[_navIdx];
+  if (t && _navLeave && _navLeave.idx === _navIdx) t.y = _navLeave.y;
+  _navLeave = null;
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
@@ -84974,8 +85271,15 @@ function navOpen(loc) {
 
 /* Takes the step, if the app moved: a new place is pushed; a layer that opened gets its entry; a layer that shut
    without back marks its entry to be passed over. */
+/* A form's own way out (its Back, its Done, a correction saved) goes back to the screen it was opened from. Where that screen is the
+   step before, the move is taken as a step back, not a new one: pushed, the form stayed in the history under it, and the phone's back
+   (or Backspace, or the bar's arrow) opened it again, empty, and on Power's Enter a cut as Production's plain hand form. */
+var _navReturn = false;
+function navReturn() { _navReturn = true; }
 function navSync() {
   _navTimer = null;
+  var ret = _navReturn;
+  _navReturn = false;
   // A book another window saved while this one was busy (a dialog open, a form typed) is drawn as soon as it is not:
   // the toast promised it, and nothing drew it before the next screen (the QA sweep, 29 Sep 2026).
   if (_bookRedrawPending && !bookBusy()) { _bookRedrawPending = false; tabRedrawActive(); }
@@ -84984,7 +85288,20 @@ function navSync() {
   if (!st || !st.sep) { history.replaceState(navState(loc), '', navUrl(loc)); _navCur = history.state; navTrailPut(loc); navBarDraw(); return; }
   if (st.layer && !layer) history.replaceState(Object.assign({}, st, { layer: false, skip: true }), '', window.location.href);
   _navCur = history.state;
-  if (navKey(history.state.loc) !== navKey(loc)) navPush(loc);
+  if (navKey(history.state.loc) !== navKey(loc)) {
+    // The step before, over any layer shut on the way (the toolbar's More the form was opened from is one).
+    var j = _navIdx - 1;
+    while (j > 0 && _navTrail[j] === null) j--;
+    var prev = j >= 0 ? _navTrail[j] : null;
+    if (ret && !layer && prev && prev.loc && navKey(prev.loc) === navKey(loc)) {
+      // The browser goes back onto the step the app is already showing: the arrival is the app's own (popstate, _navIgnore).
+      _navIgnore++;
+      history.go(j - _navIdx);
+      setTimeout(function() { if (_navIgnore) { _navIgnore = 0; navSoon(); } }, 400);
+      return;
+    }
+    navPush(loc);
+  }
   if (layer && !history.state.layer) navPush(loc, { layer: true });
   _navCur = history.state;
   navBarDraw();
@@ -85014,7 +85331,8 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1,
+  invFphClose: 1, invFphList: 1 };   // Photos' way back from a photo being tagged and from Areas (P270)
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -85070,14 +85388,22 @@ window.addEventListener('popstate', function(e) {
 function navArrive(st, from) {
   if (navKey(st.loc) === navKey(navLoc())) { navBarDraw(); return; }
   _navHold++;
+  var y = _navTrail[st.idx] && _navTrail[st.idx].y;
   navLeaveOk().then(function(ok) {
-    if (ok) { _navHold--; navApply(st.loc); return; }
+    if (ok) { _navHold--; navApply(st.loc); if (y > 0) navScrollTo(y); return; }
     // Stay: the browser is put back on the form's entry. Nothing is recorded until it gets there.
     _navHold--;
     _navIgnore++;
     history.go(from - _navIdx);
     setTimeout(function() { _navIgnore = 0; navSoon(); }, 400);
   });
+}
+/* Back on the rows the screen was left at: now, and once more after the frame where a screen drawn late has its height. */
+function navScrollTo(y) {
+  window.scrollTo(0, y);
+  _navTrail[_navIdx] && (_navTrail[_navIdx].y = y);
+  var at = _viewTopAt;
+  requestAnimationFrame(function() { if (_viewTopAt === at && window.scrollY < y) window.scrollTo(0, y); });
 }
 function navCanBack() { return _navIdx > 0; }
 function navBack() { if (navCanBack()) history.back(); }
@@ -85135,21 +85461,41 @@ document.addEventListener('keyup', navSoon);
 // A dialog or sheet opened later (after a question was answered, a file read) is a layer too.
 new MutationObserver(navSoon).observe(document.body, { childList: true });
 
-/* Backspace goes back when no field has focus (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
+/* The user is typing: one rule for every key the app takes for itself (Backspace here; Ctrl K, /, N, C, G, J, K in search.js;
+   A in add.js). A text-like field (text, number, date, time, search, tel and the rest), a textarea, a select and anything
+   editable keep their keys; a checkbox, a radio, a button, a range, a colour or a file picker, and the page, type nothing
+   (P276: Backspace tested the tag, INPUT, so a focused checkbox or radio stopped it going back, while the shortcuts let
+   them through). A field in a dialog, or one with its suggestion list open, is a field like any other. */
+var NAV_UNTYPED = /^(checkbox|radio|button|submit|reset|range|color|file|image|hidden)$/i;
+function navTyping(t) {
+  if (!t || !t.tagName) return false;
+  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+  return t.tagName === 'INPUT' && !NAV_UNTYPED.test(t.type || 'text');
+}
+
+/* Backspace goes back when no field is typed in (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
    screen (switchTab's step 8: the search on the Register, History, Create) while it is still empty and nobody has typed in
    it or left it since: arriving there, Backspace did nothing (the QA audit of 30 Sep 2026). Once typed in, even emptied
    again, its Backspace is the field's. */
 var _navArrivalField = null;
 function navArrived() {
   var a = document.activeElement;
-  _navArrivalField = a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.value ? a : null;
+  _navArrivalField = a && navTyping(a) && !a.value ? a : null;
 }
+function navAtArrival(t) { return !!t && t === _navArrivalField && !t.value; }
 document.addEventListener('input', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
 document.addEventListener('focusout', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
+/* A held Backspace takes one step: its repeats are the field's (emptying it) or nothing, never a run of screens back (a
+   field emptied and then left, as a redraw leaves it, put the focus on the page and the repeats walked the trail). Nothing
+   during an IME composition. Over a layer it closes the top one, as Escape does (events.js): Back closes a layer, and this
+   way the screen behind never moves, whether or not the layer's step is written yet (P276). */
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Backspace' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) && !(t === _navArrivalField && !t.value)) return;
+  if (navTyping(t) && !navAtArrival(t)) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.repeat) { e.preventDefault(); return; }
+  if (navLayerOpen()) { e.preventDefault(); navCloseLayer().then(navSoon); return; }
   if (!navCanBack()) return;
   e.preventDefault();
   navBack();
@@ -85196,8 +85542,8 @@ function navBoot(launch) {
    Before anything is typed: Recent (the last eight opened from here, kept on the device), then Go to.
 
    KEYS: Ctrl K or / searches, N a new invoice, C a new challan, G then a letter jumps, J and K walk the rows of Invoices
-   and Challans (Enter opens one), Esc shuts the desktop's pane, ? lists them. None fires while a field has focus or a
-   layer is open (nav.js's rule for Backspace); Ctrl K, which types nothing, also works from the field the app focused
+   and Challans (Enter opens one), Esc shuts the desktop's pane, ? lists them. None fires while a field is typed in (navTyping,
+   nav.js: Backspace's rule too) or a layer is open; Ctrl K, which types nothing, also works from the field the app focused
    on arriving at a screen, while it is still empty.
 
    NEW WINDOWS (desktop): Ctrl+click or a middle click on a sidebar item, a view tab or a list row opens that place's
@@ -86077,12 +86423,6 @@ function srchAct(a) {
 /* ---------- Keys ---------- */
 var _srchG = 0;    // when G was pressed: a letter within SRCH_G_MS jumps
 
-/* A field being typed in: a text box, a select, an editable block. A tick box or a button is not. */
-function srchTyping(t) {
-  if (!t || !t.tagName) return false;
-  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
-  return t.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file|image)$/i.test(t.type || 'text');
-}
 /* G then a letter: the workspace's first screen this build holds, or Invoices (R) and Challans (C). */
 function srchGTarget(letter) {
   var sp = SRCH_SPACES.find(function(x) { return x[0] === letter; }), ids = sp ? sp[2] : SRCH_G_MORE[letter];
@@ -86128,12 +86468,12 @@ document.addEventListener('keydown', function(e) {
   // Ctrl K (Cmd K on a Mac): search, from anywhere but a field being typed in or another layer.
   if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (key === 'k' || key === 'K')) {
     if (t && t.closest && t.closest('[data-search]')) { e.preventDefault(); return; }
-    if (navLayerOpen() || (srchTyping(t) && !(t === _navArrivalField && !t.value))) return;
+    if (navLayerOpen() || (navTyping(t) && !navAtArrival(t))) return;
     e.preventDefault();
     searchOpen();
     return;
   }
-  if (e.ctrlKey || e.metaKey || e.altKey || navLayerOpen() || srchTyping(t)) { _srchG = 0; return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || navLayerOpen() || navTyping(t)) { _srchG = 0; return; }
   if (e.repeat) return;
   if (_srchG) {
     var g = Date.now() - _srchG < SRCH_G_MS ? srchGTarget(key.toLowerCase()) : null;

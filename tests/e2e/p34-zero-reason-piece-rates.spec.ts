@@ -145,12 +145,12 @@ test.describe('P34: piece rates on record', () => {
     });
     const L = (partNumber: string, desc: string, rate: number) => ({ partNumber, desc, unit: 'NOS', qty: 100, rate, amount: rate * 100 });
     s.invoices = [
-      inv('858', '2026-08-31', [L('5174 5460 3302', 'BRACKET', 9), L('5166 5460 3303', 'BRACKET', 3)]),
-      inv('860', '2026-08-31', [L('5174 5460 3302', 'BRACKET', 9)]),
-      inv('861', '2026-08-31', [L('5166 5460 3303', 'BRACKET', 3)]),
+      inv('858', '2026-08-31', [L('9108 0000 0001', 'BRACKET', 8), L('9108 0000 0002', 'BRACKET', 2)]),
+      inv('860', '2026-08-31', [L('9108 0000 0001', 'BRACKET', 8)]),
+      inv('861', '2026-08-31', [L('9108 0000 0002', 'BRACKET', 2)]),
       // The swap: each bracket at the other's rate, on one invoice each.
-      inv('922', '2026-09-10', [L('5174 5460 3302', 'BRACKET', 3)]),
-      inv('923', '2026-09-10', [L('5166 5460 3303', 'BRACKET', 9)]),
+      inv('922', '2026-09-10', [L('9108 0000 0001', 'BRACKET', 2)]),
+      inv('923', '2026-09-10', [L('9108 0000 0002', 'BRACKET', 8)]),
       // Two gauges under one name, no gauge on the line: 4.27 / 4.89 / 4.27.
       inv('780', '2026-08-04', [L('CLAMP 165X83 (NT)', 'CLAMP 165X83 (NT)', 4.27)]),
       inv('781', '2026-08-05', [L('CLAMP 165X83 (NT)', 'CLAMP 165X83 (NT)', 4.89)]),
@@ -168,9 +168,9 @@ test.describe('P34: piece rates on record', () => {
       return pieceRatesFromHistory(c);
     })()`);
     const find = (pn: string) => r.add.filter((a: any) => a.partNumber === pn).map((a: any) => [a.gauge, a.rate, a.effectiveFrom]);
-    expect(find('5174 5460 3302')).toEqual([['', 9, '2026-08-31']]);
-    expect(find('5166 5460 3303')).toEqual([['', 3, '2026-08-31']]);
-    expect(r.outliers.map((o: any) => [o.invoiceNumber, o.rate, o.usual]).sort()).toEqual([['922', 3, 9], ['923', 9, 3]]);
+    expect(find('9108 0000 0001')).toEqual([['', 8, '2026-08-31']]);
+    expect(find('9108 0000 0002')).toEqual([['', 2, '2026-08-31']]);
+    expect(r.outliers.map((o: any) => [o.invoiceNumber, o.rate, o.usual]).sort()).toEqual([['922', 2, 8], ['923', 8, 2]]);
     expect(find('CLAMP 165X83 (NT)')).toEqual([]);
     expect(r.mixed.map((m: any) => m.partNumber)).toEqual(['CLAMP 165X83 (NT)']);
     expect(find('CLAMP 70X86 (NT)')).toEqual([['25X6', 2.05, '2026-06-01'], ['25X6', 2.08, '2026-07-01']]);

@@ -940,7 +940,7 @@ function prodTaughtRead(msg, ctx) {
     if (it.kind !== 'plated') { it.line = null; delete it.lineHint; }
     else if (!it.lineHint || it.lineHint === t.line) { it.line = it.lineHint || t.line || null; delete it.lineHint; }
     else it.issues.push({ tone: 'amber', code: 'linehint', text: 'Entered by hand on ' + (PROD_LINE_LABEL[t.line] || 'no line') + ' before; the header above says ' + PROD_LINE_LABEL[it.lineHint] + '. Pick the line.' });
-    it.issues.push({ tone: 'amber', code: 'taught', text: 'Read as this line was entered by hand' + (t.at ? ' on ' + new Date(t.at).toISOString().slice(0, 10) : '') + ': ' + (c ? c.name : 'no client') + (t.part ? ' · ' + t.part : '') + '.' });
+    it.issues.push({ tone: 'amber', code: 'taught', text: 'Read as this line was entered by hand' + (t.at ? ' on ' + formatDate(isoOf(new Date(t.at))) : '') + ': ' + (c ? c.name : 'no client') + (t.part ? ' · ' + t.part : '') + '.' });
   });
   if (!hit) return { items: [], notes: [], date: r.date, noDate: r.noDate };
   r.taught = hit;

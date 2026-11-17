@@ -3,8 +3,8 @@ subject: "Navigation: addresses, the trail, long lists, list and pane"
 domain: design
 modules: [split/nav.js]
 specs: [docs/UX_OVERHAUL_2.md]
-tests: [P55, P80, P100, P101, P103, P147, P153]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P55, P80, P100, P101, P103, P147, P153, P269, P270, P276]
+updated: 2026-11-17 (Backspace and the single keys read one rule for typing, P276; a form's own way out is a step back, P269; P270)
 ---
 
 **Every screen has an address, and one trail goes back** (UX overhaul 2, step 1; owner, 28 Sep 2026: *"Backspace goes back
@@ -16,19 +16,33 @@ the app from anywhere. `nav.js`:
   widget's `todo=` still work first. Filters, sorts, pagers and a phone row expanding are not places.
 - **Every move is a history step, taken after it** (`navSync`, after any click, change or key and on any node added to
   `<body>`): no screen announces itself, so a screen added later is covered by adding its line to `navLoc` /
-  `navApply`. The browser's back, `Alt+←`, the phone's back gesture, **Backspace** (only with no field focused) and the
-  top bar's arrow all walk it; on the desktop the bar also names up to three earlier steps, each a link
+  `navApply`. The browser's back, `Alt+←`, the phone's back gesture, **Backspace** (only with no field typed in; below) and
+  the top bar's arrow all walk it; on the desktop the bar also names up to three earlier steps, each a link
   (`inv-topbar-trail`), and the page's name is followed by the view and the record (`#topbarCtx`). The trail survives
   a reload (sessionStorage).
 - **A layer is one step over the screen**: a dialog, the More sheet, a print preview. Back closes the top one; a dialog
   holding typed work asks first (`dialogLeaveOk`), Settings asks its own way (`closeSettings`). Shut any other way, its
   step is marked `skip` and back passes over it.
+- **Backspace, and every single key the app takes, read one rule for "typing"** (`navTyping`, nav.js; P276, 17 Nov 2026). A
+  text-like field (text, number, date, time, search, tel and the rest), a textarea, a select and anything editable keep their
+  keys, in a dialog as on a screen; a checkbox, a radio, a button, a range and the page do not, so Backspace goes back from
+  them and A, `/`, N, C, G, J and K work there (Backspace tested the tag, so a focused checkbox stopped it while the shortcuts
+  let it through). The field the app focused on arriving at a screen, still empty, is the one exception (`navAtArrival`):
+  Backspace and Ctrl K work from it. **Over a layer, Backspace closes the top one**, as Escape does (`navCloseLayer`, a dialog
+  holding typed work asking first), and the screen behind never moves, the layer's step written yet or not. **A held
+  Backspace takes one step**: its repeats are the field's or nothing (a field emptied and then left let them walk the trail).
+  Nothing during an IME composition.
 - **A form with unsaved work asks before anything leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
   screen that shows its Save in the action bar (the challan form, a paste check, Enter by hand). Back asks (Stay puts the browser back on the form's step), and so does a **tap that leaves** — the phone bar
   (the form's own screen included, whose redraw drops the form), the sidebar, a screen in the More sheet, a view tab, a
   sub-view's back button — and a swipe (owner, 29 Sep 2026: *"that's a real bug"*; only Back asked, and a tap dropped a
   half-typed challan). The tap is caught before `events.js` sees it (`NAV_LEAVE_ACTIONS`, a capture listener in nav.js)
   and runs again on Leave. **Create asks nothing**: its form stays as typed when the app leaves it. P103.
+- **A form's own way out is a step back** (`navReturn`, 17 Nov 2026): Stock's and Production's Back, the hand form's Done and a
+  correction saved go to the screen the form was opened from, and where that screen is the step before (over any layer shut on the
+  way, the toolbar's More among them) the browser is taken back to it rather than given a new step. Pushed, the form stayed under it
+  and the phone's back opened it again, empty; Power's *Enter a cut* came back as Production's plain hand form. A form opened from
+  anywhere else still pushes its way out. P269.
 - **IM's two lists are view tabs**: *Awaiting invoice* (the default, a part-invoiced challan included) and *Invoiced*,
   which goes back a month at a time by challan date (`imSetTab`, `imMonthShown`). A link to a challan opens the tab and
   month it is under (`imShowChallanTab`). **Swiping** follows the phone bar and then More in its order
@@ -57,3 +71,19 @@ that may not see wages sees no rate on the roster** (`grdSeesWages`; the rows sh
 a 100rem window the `inv-panels-3` grids (Finance's Overview; Stats' until U3, whose Dashboard is a board; Pulse's questions and widgets until UI pass 3, whose board has its own grid) are three columns, and every
 panel in a grid is a `panel-w` container, so a strip of tiles never leaves a blank cell (the Home widgets' rule, now every
 panel's); every other grid stays two across, since three left a column empty or a lone card under a row. P147, P80, P153.
+
+**The navigation sweep (P270, 17 Nov 2026).** Screens added after the navigation step had no line in `navLoc` / `navApply`, so Back,
+a reload and a link did not know them:
+- **Production → Photos**: the photo being tagged is the address's `id` (`v=photos&id=FP…`) and Areas is `v=photos/areas`
+  (`fphNavSub`, `fphNavApply`, floorphotos.js). Opening either was no step: Back left Production for the screen before Photos and
+  the photo stayed open behind it. Their ways back (`invFphClose`, `invFphList`) are sub-view back buttons in `NAV_LEAVE_ACTIONS`,
+  so typed work asks first; a photo opened, closed or the areas saved start clean (`_pageTyped`).
+- **Production → Lines**: the line on screen is its view (a tap on it opens at its top, as a view tab does), so it is in the address:
+  `v=lines/pickling`, `lines/vat-a2`, `lines/barrel`; the first line is plain `v=lines`, as before. A reload on Pickling had come back
+  on VAT A1, and Back did not walk the lines.
+- **Production → the register photo's check** (and its reading) is `v=<view>/photo`, as `tabs.js`' form parts already expected: Back
+  from it left Production for the screen before, and the photo stayed held, so the next one picked waited unread. Back now comes to
+  the view the photo was picked on and drops the photo, as the check's own way back does; a reload, with no photo to show, opens the view.
+- **Back comes back to the rows a screen was left at.** The redraw a move makes put every screen at its top, the browser's own restoring
+  having run before it. The scroll is read at the touch, click or key that moves the app (`navLeaveMark`, before anything moved), kept on
+  the step it left (the trail, `y`), and put back after `navApply` on Back or Forward (`navScrollTo`). A move forward still opens at the top.

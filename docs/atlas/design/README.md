@@ -9,9 +9,9 @@ Route: `CLAUDE.md` → `docs/atlas/INDEX.md` → this file → a topic → the c
 | [Interaction rules: pop-ups, forms, dialogs, selects, scroll](interaction-rules.md) | Interaction rules: pop-ups, forms, dialogs, selects, scroll | `events.js`, `state.js` | 6.0 |
 | [Navigation: addresses, the trail, long lists, list and pane](navigation.md) | Navigation: addresses, the trail, long lists, list and pane | `nav.js` | 5.4 |
 | [A figure says whether it is good](figures-and-tone.md) | A figure says whether it is good | — | 2.3 |
-| [Design system: the migration to v2.0 and the polish passes](design-system.md) | Design System | `appearance.js` | 15.6 |
+| [Design system: the migration to v2.0 and the polish passes](design-system.md) | Design System | `appearance.js` | 18.4 |
 | [UI pass 3: the look (U1)](ui-pass-3-look.md) | UI pass 3: the look (U1) | `dataview.js` | 3.1 |
-| [UI pass 3: Home and its widgets (U2)](ui-pass-3-home-widgets.md) | UI pass 3: Home and its widgets (U2) | `feeds.js`, `widgetcards.js`, `widgets.js` | 12.2 |
+| [UI pass 3: Home and its widgets (U2)](ui-pass-3-home-widgets.md) | UI pass 3: Home and its widgets (U2) | `feeds.js`, `widgetcards.js`, `widgets.js` | 12.9 |
 | [UI pass 3: the card family (U2R)](ui-pass-3-card-family.md) | UI pass 3: the card family (U2R) | — | 7.7 |
 | [UI pass 3: Home leads](ui-pass-3-home-leads.md) | UI pass 3: Home leads (21 Oct 2026) | `today.js` | 7.0 |
 | [UI pass 3: Stats as a dashboard (U3)](ui-pass-3-stats.md) | UI pass 3: Stats as a dashboard (U3) | `stats.js` | 6.0 |

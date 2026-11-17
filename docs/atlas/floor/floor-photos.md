@@ -3,8 +3,8 @@ subject: "Floor photos: the log, the areas, tagging"
 domain: floor
 modules: [split/floorphotos.js]
 specs: []
-tests: [P267]
-updated: 2026-11-17 (new: Production → Photos)
+tests: [P267, P270]
+updated: 2026-11-17 (a photo open and Areas are places, P270)
 ---
 
 ### Floor photos: the log, the areas, tagging
@@ -33,3 +33,5 @@ whatsapp."* Asked who tags: the sender at upload, the owner later from a queue, 
 - **A photo is voided with a reason, never deleted** (the voids permission).
 - **Drawing the tab writes nothing** (`fphData`: a read answers an empty log; only a save attaches `floorPhotos` to the book), so the
   change log sees no change from a screen drawn (P141).
+- **A photo open and Areas are places** (`v=photos&id=…`, `v=photos/areas`): Back comes back to the log, a reload stays. See also
+  `docs/atlas/design/navigation.md` (P270).

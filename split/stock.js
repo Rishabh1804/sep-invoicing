@@ -1420,6 +1420,10 @@ function stockSaveManual() {
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');
   if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
+  // The cursor goes back to the first quantity for the next entry, as Production's hand form puts it on the part: the redraw had
+  // left it nowhere, so the next key typed went to the page. It does not move the page: the list just saved stays in sight.
+  var nextQty = !touchScreen() && document.querySelector('#stockContent [data-flow] [data-stock-qty]');
+  if (nextQty) try { nextQty.focus({ preventScroll: true }); } catch (x) { /* a convenience */ }
   // Saved as typed, and said at once when it does not fit (an entry checked before it is believed).
   var chk = stockChecksFor(ids);
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (chk.n ? ' · check ' + (chk.n === 1 ? 'it' : chk.n + ' of them') + ': ' + chk.first :
@@ -2178,7 +2182,7 @@ function stockAction(action, btn) {
       if (_stockView === 'review') { stockSetView('paste'); break; }
       // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
       if (_stockView === 'manual') _stockBill = null;
-      _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
+      _stockReview = null; _stockManual = null; _stockReorder = null; navReturn(); stockSetView(_stockHome); break;
     case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
     case 'invStockPaneClose': stockSetView('list'); break;
     case 'invStockMerge': stockMergeOpen(btn.dataset.id, btn.dataset.into); break;

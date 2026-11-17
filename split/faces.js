@@ -2055,7 +2055,8 @@ function faceVatAction(action, btn) {
     case 'invFaceVatAdd':
       f.rows.push(faceVatRowBlank(f.rows[f.rows.length - 1])); faceVatKeep(f); keepScroll(renderFace);
       var tm = document.querySelector('[data-face-vat="' + (f.rows.length - 1) + '"][data-k="time"]');
-      if (tm && !touchScreen()) try { tm.focus(); } catch (x) { /* a convenience */ }
+      // The new row's time, clear of the action bar (state.js kbdFocus, P275).
+      if (tm && !touchScreen()) kbdFocus(tm);
       return true;
     case 'invFaceVatDel':
       if (!f.rows[k]) return true;

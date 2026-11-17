@@ -3,8 +3,8 @@ subject: "Design system: the migration to v2.0 and the polish passes"
 domain: design
 modules: [split/appearance.js, split/state.js, split/styles.css]
 specs: [docs/SEP_INVOICING_DESIGN_PRINCIPLES.md]
-tests: [P54, P55, P67, P68, P69, P70, P71, P72, P73, P74, P75, P76, P80, P94, P104]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P54, P55, P67, P68, P69, P70, P71, P72, P73, P74, P75, P76, P80, P94, P104, P274]
+updated: 2026-11-17 (the text-fit sweep, P274)
 ---
 
 ## Design System
@@ -162,3 +162,24 @@ box). The screenshot audit's list went from 18 to 0 in both themes with no visib
 P76's sweep now also fails on a figure broken inside a group (`brokenFigures`), a phone meta line cut past its two lines on
 the sweep book (`cutMeta`), anything an ellipsis cuts without a `title` (`untitled`), and a tapped legend row under 44px; and
 the crore book asserts Home's revenue breaks after a comma and its recent invoices lead with the date.
+
+**The text-fit sweep (17 Nov 2026, P274)**: every page, view tab and dialog at 360px and 393px on the phone and at 1024px and
+1280px on the desktop, both themes, with CI's wider text laid over, on a book whose every name and figure runs long (`fitState`,
+`tests/e2e/fit-fixture.ts`: an 80-character client, a 42-character part, a 100-character description, crores). `fitScan` reads each
+line of text against the nearest box that draws an edge (a border, or a fill unlike the one behind it) and fails on a line that
+spills past it, is cut by a box drawing no ellipsis, runs into a padded side, sits under 3px from a drawn edge, or is ellipsised to
+under three characters; a typed value scrolling in its input and a native select's own cut are left out. What it found and fixed:
+- **The phone's top bar** left its title 24px at 360px ("O…" for Office): eight gaps between the arrow and five 44px tools. The
+  tools now sit edge to edge (each holds its icon 12px in) and the title takes the room. On the desktop **the page's name never
+  gives way** to the trail ("Ho…" at 1024px), and a trail step keeps 2.5rem, a few letters and an ellipsis, never "…" alone.
+- **A dot that says a sentence wraps**: in a note, a callout, a field's hint and a meter's key (`inv-dot` is one line, for a status
+  word), the dot centred on its first line. The check-in review's notes ran 55px out of their panel; *Over 90 days* into the
+  owed card's padding. A hint in the identifier face (`inv-field-hint inv-id`, a client's P.O. example) wraps too.
+- **A segment's label takes a second line** at a space before an ellipsis cuts it, and five segments keep a 4px inset on the phone.
+- **The planner board's month heads** keep a 2px inset, not a cell's 12px, and the year whole ("’2" / "6" before).
+- **The line editor** stacks as on the phone in a card under 48rem on the desktop (its part field had no width at 1024px and the
+  amount ran 120px out of the card), and in the row the amount shows a crore with its paise.
+- **A chart drawn in rows in a widget** lets go of whole rows (`wdgVizDraw`); the Add dialog's grid buttons keep a 4px side inset;
+  a client's remove buttons draw the close icon (`iconSvg`), not a text ×.
+Left as they are: a native `<select>` cuts a long client's name at its arrow with no ellipsis (Chromium draws it; the list shows
+the whole name), and a search field's long placeholder is cut at the field's edge.

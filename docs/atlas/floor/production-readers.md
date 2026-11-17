@@ -3,8 +3,8 @@ subject: "Production readers: slots as text, the barrel list, the night block"
 domain: floor
 modules: [split/prodparse.js]
 specs: []
-tests: [P189, P220, P222, P264]
-updated: 2026-11-17 (a message no reader knows: Enter it from the text, and its lines taught)
+tests: [P189, P220, P222, P264, P277]
+updated: 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -56,6 +56,7 @@ text does not show line by line. The entries are the supervisor's message entere
 message is kept (`kind: 'taught'`) so the same text pasted again is refused, and **each line saved teaches its shape** (`learn.lines`,
 `prodTeachKey`: the words as written, the figures masked, with the client line above it where it had one). The next message no reader knows is
 read by those shapes (`prodTaughtRead`): a taught line takes the client, part, unit, kind, shift and line entered, said amber (*Read as this
-line was entered by hand*); a header above it that disagrees with the line entered is asked; the message's other lines are read loosely and
+line was entered by hand on 17 Nov 2026*, the day on this device's clock, never UTC's, which put a lesson taught before 5:30 AM in IST on
+the day before; P277); a header above it that disagrees with the line entered is asked; the message's other lines are read loosely and
 asked. **A message none of whose lines was taught is still not read**, so chatter with a figure in it is never taken for production. The
 readers above run first: a lesson never changes how a roll, a list, a slot log or a pickling message is read.

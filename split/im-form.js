@@ -9,32 +9,8 @@ var _challanForm = null;
    data-k key that survives the re-render, since the elements themselves do not. */
 var _challanFocusNext = null;
 
-function _challanCaptureFocus() {
-  var el = document.activeElement;
-  if (!el || !el.dataset || !el.dataset.k) return null;
-  var area = document.getElementById('imAddForm');
-  if (!area || !area.contains(el)) return null;
-  var sel = null;
-  // Only text-ish inputs expose a caret; number inputs report null here.
-  try { sel = el.selectionStart; } catch (e) { sel = null; }
-  return { k: el.dataset.k, sel: sel };
-}
-
-function _challanRestoreFocus(target) {
-  if (!target) return false;
-  var area = document.getElementById('imAddForm');
-  if (!area) return false;
-  var el = area.querySelector('[data-k="' + target.k + '"]');
-  if (!el) return false;
-  try {
-    el.focus();
-    // setSelectionRange throws on number inputs, so the caret restore is
-    // attempted separately from the focus that matters.
-    if (target.sel != null && el.setSelectionRange) el.setSelectionRange(target.sel, target.sel);
-    else if (el.select) el.select();
-  } catch (e) {}
-  return true;
-}
+function _challanCaptureFocus() { return kbdCaptureFocus(document.getElementById('imAddForm')); }
+function _challanRestoreFocus(target) { return kbdRestoreFocus(document.getElementById('imAddForm'), target); }
 
 function showAddChallanForm() {
   _challanForm = {
@@ -126,12 +102,7 @@ function renderAddChallanForm() {
   var date = _challanForm.challanDate || localDateStr();
   var total = gstRound(_challanForm.items.reduce(function(t, it) { return t + (it.amount || 0); }, 0));
   var html;
-  var keys = '<p class="inv-keys">' +
-      '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
-      '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
-      '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
-      '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
-    '</p>';
+  var keys = kbdKeysHtml();
 
   // Step 1, whose challan: client, number, date, vehicle, wanted by.
   var who = '<div class="inv-panel inv-panel-flush">';
@@ -399,14 +370,15 @@ function saveChallan() {
   if (gap) {
     showToast(gap.msg, 'error');
     var gapEl = document.querySelector('#imAddForm [data-k="' + gap.k + '"]');
-    if (gapEl) gapEl.focus();
+    // Clear of the bars over the page (state.js kbdReveal, P275).
+    kbdFocus(gapEl);
     return;
   }
   // The day it is wanted by is never before the day it came in, as the Wanted by dialog holds it (flow.js).
   if (_challanForm.priority && _challanForm.challanDate && _challanForm.priority < _challanForm.challanDate) {
     showToast('Wanted by a day before the challan came in', 'error');
     var wbEl = document.getElementById('imWantedBy');
-    if (wbEl) wbEl.focus();
+    kbdFocus(wbEl);
     return;
   }
 

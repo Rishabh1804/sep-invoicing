@@ -180,7 +180,7 @@ function _cardRowHtml(what, figure, date, removeAttrs) {
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + what + '</span>' +
     '<span class="inv-row-meta inv-id">' + (date ? 'from ' + escHtml(date) : '') + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-num">' + figure + '</span>' +
-    (removeAttrs ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm"' + removeAttrs + '>&times;</button>' : '') + '</span></div>';
+    (removeAttrs ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm"' + removeAttrs + '>' + iconSvg('close') + '</button>' : '') + '</span></div>';
 }
 
 function _showClientOverlay(client, isAdd, inPlace) {
@@ -299,7 +299,7 @@ function _clientRateRowsHtml(c, editable) {
     return '<div class="inv-row"><span class="inv-row-main inv-id">from ' + escHtml(r.effectiveFrom) + '</span>' +
       '<span class="inv-row-end">' + (cur ? '<span class="inv-dot inv-dot-ok">Current</span>' : '') +
       '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' +
-      (editable ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invRemoveRate" data-client="' + c.id + '" data-idx="' + r._i + '" aria-label="Remove rate">&times;</button>' : '') +
+      (editable ? '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invRemoveRate" data-client="' + c.id + '" data-idx="' + r._i + '" aria-label="Remove rate">' + iconSvg('close') + '</button>' : '') +
       '</span></div>';
   }).join('');
 }

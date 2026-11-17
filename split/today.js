@@ -602,7 +602,6 @@ function homeMastPrtLead(f, facts, red, tone) {
     html: '<button type="button" class="inv-mast-lead" data-action="invPrtLight" data-home-lead="station" title="Open the print station">' + escHtml(f.text) + '</button>',
     act: f.jobs ? '<button type="button" class="inv-btn inv-btn-tint" data-action="invPrtLight" data-home-lead="station">' + escHtml(f.jobs === 1 ? 'See the job' : 'See the ' + f.jobs + ' jobs') + '</button>' : '' };
 }
-var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
 function homeMastHtml() {
   var now = new Date(), lead = homeMastLead(), wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
   // The sentence beside its lamp, wrapping under its own first line (the lead's button, or its words in a span). The print station

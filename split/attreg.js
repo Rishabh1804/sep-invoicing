@@ -408,11 +408,55 @@ function aregNextCell(mo, at) {
   for (var d = at.d + 1; d < mo.days.length; d++) if (mo.days[d].kind === 'work' && mo.days[d].cells[at.c]) return { d: d, c: at.c };
   return null;
 }
-function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); }
+function aregCellOpen(d, c) { _aregCellAt = { d: d, c: c }; dialogOpen(aregCellHtml()); aregCellFocus(); }
+/* A page entered by hand is typed cell after cell: the cursor waits in As written (it opened on the dialog's ×), and Enter there keeps
+   what was typed and goes on to the column's next working day, or closes on the last (it kept the cell and stayed on it: the Next day
+   button was three Tabs away). Never on a touch screen, where a focused field raises the keyboard over the dialog. */
+function aregCellFocus() {
+  var f = document.querySelector('.inv-scrim-dialog [data-areg-cell] [data-areg-raw]');
+  if (f && !touchScreen()) { try { f.focus(); f.select(); } catch (e) { /* a convenience */ } }
+}
+function aregCellEnter(el) {
+  // Left first, so the change it fires keeps what was typed on this cell (aregOnChange): moving on with the field still in the
+  // dialog, the redraw took it away, and its change landed on the next day's cell.
+  try { el.blur(); } catch (e) { /* already gone */ }
+  aregSetRaw(el.value);   // a no-op where the change kept it
+  var mo = aregMonthOf(aregMonthShown()), nx = mo && _aregCellAt ? aregNextCell(mo, _aregCellAt) : null;
+  if (!nx) { _aregCellAt = null; closeOverlay(); keepScroll(renderAttendance); return; }
+  _aregCellAt = nx;
+  aregCellRedraw();
+  aregCellFocus();
+}
+/* The cell's dialog drawn again where it stands. A button its foot draws alike stays where it is, never taken out of the page: a cell
+   typed and then Next day pressed redraws on the field's change, which fires as the press starts, and a button replaced (or only moved)
+   under the pointer takes no click (Next day had to be pressed twice). */
 function aregCellRedraw() {
-  var scrim = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
-  scrim = scrim && scrim.closest('.inv-scrim-dialog');
-  if (scrim) scrim.innerHTML = aregCellHtml();
+  var dlg = document.querySelector('.inv-scrim-dialog [data-areg-cell]');
+  var scrim = dlg && dlg.closest('.inv-scrim-dialog');
+  if (scrim) {
+    var html = aregCellHtml(), tpl = document.createElement('div');
+    tpl.innerHTML = html;
+    var nd = tpl.firstElementChild, oldFoot = dlg.querySelector(':scope > .inv-dialog-foot'), newFoot = nd && nd.querySelector(':scope > .inv-dialog-foot');
+    if (nd && oldFoot && newFoot) {
+      // All but the foot drawn new, in front of it.
+      Array.prototype.slice.call(dlg.children).forEach(function(c) { if (c !== oldFoot) c.remove(); });
+      Array.prototype.slice.call(nd.children).forEach(function(c) { if (c !== newFoot) dlg.insertBefore(c, oldFoot); });
+      // The foot: a button drawn alike is kept in place; the rest go, and the new ones are put in order around those kept.
+      var olds = Array.prototype.slice.call(oldFoot.children), used = [];
+      var want = Array.prototype.slice.call(newFoot.children).map(function(b) {
+        var same = olds.find(function(o) { return used.indexOf(o) < 0 && o.outerHTML === b.outerHTML; });
+        if (same) { used.push(same); return same; }
+        return b;
+      });
+      olds.forEach(function(o) { if (used.indexOf(o) < 0) o.remove(); });
+      var at = null;
+      want.forEach(function(el) {
+        if (used.indexOf(el) >= 0) { at = el; return; }
+        oldFoot.insertBefore(el, at ? at.nextSibling : oldFoot.firstChild);
+        at = el;
+      });
+    } else scrim.innerHTML = html;
+  }
   renderAttendance();
 }
 /* A cell typed or corrected: what it said before is kept on it. A cell read from paper and changed is a correction; a cell
@@ -673,7 +717,7 @@ function aregAction(action, btn) {
     }
     case 'invAregNext': {
       var mo4 = aregMonthOf(aregMonthShown()), nx = mo4 && _aregCellAt ? aregNextCell(mo4, _aregCellAt) : null;
-      if (nx) { _aregCellAt = nx; aregCellRedraw(); var f = document.querySelector('[data-areg-raw]'); if (f && !touchScreen()) f.focus(); }
+      if (nx) { _aregCellAt = nx; aregCellRedraw(); aregCellFocus(); }
       return true;
     }
   }

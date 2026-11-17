@@ -91,23 +91,23 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await page.locator('.inv-toolbar [data-action="invAddItem"]').click();
     await expect(page.locator('.inv-dialog-title')).toHaveText('Add part');
 
-    await page.locator('#itemEditPN').fill('15020030');
-    await page.locator('#itemEditDesc').fill('188 CD');
+    await page.locator('#itemEditPN').fill('91100001');
+    await page.locator('#itemEditDesc').fill('TEST PART');
     await page.locator('#itemEditRate').fill('9');
     await page.locator('[data-action="invSaveItem"][data-mode="add"]').click();
 
     await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
-    await expect(page.locator('#itemsList')).toContainText('15020030');
+    await expect(page.locator('#itemsList')).toContainText('91100001');
   });
 
   test('guard: duplicate part number is rejected', async ({ page }) => {
     const state = stateWithOneClient();
-    state.items = [{ id: 1, partNumber: '15020030', desc: '188 CD', hsn: '998873', unit: 'KG', rate: 9, stdWeightKg: null }];
+    state.items = [{ id: 1, partNumber: '91100001', desc: 'TEST PART', hsn: '998873', unit: 'KG', rate: 9, stdWeightKg: null }];
     await loadAppWithState(page, state);
     await openItemsTab(page);
 
     await page.locator('.inv-toolbar [data-action="invAddItem"]').click();
-    await page.locator('#itemEditPN').fill('15020030');
+    await page.locator('#itemEditPN').fill('91100001');
     await page.locator('[data-action="invSaveItem"][data-mode="add"]').click();
 
     await expect(page.locator('.inv-dialog')).toBeVisible();

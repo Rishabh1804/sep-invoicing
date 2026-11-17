@@ -22,7 +22,7 @@ test('ticking an unbilled challan brings its lines, challan no. and vehicle; unt
   await tick.check();
   await expect(page.locator('.inv-line')).toHaveCount(1);
   await expect(page.locator('#invChallanNo')).toHaveValue('101');
-  await expect(page.locator('#invTransport')).toHaveValue('JH 05AN 0878');
+  await expect(page.locator('#invTransport')).toHaveValue('JH 05ZZ 0101');
   await expect(page.locator('#invOptional')).toHaveAttribute('open', '');
   await expect(page.locator('#invGrandTotal')).toHaveText('₹1,534.00');
   await page.locator('[data-action="invCreatePickChallan"][data-id="IM-101"]').uncheck();

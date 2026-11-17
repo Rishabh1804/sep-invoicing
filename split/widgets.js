@@ -376,8 +376,6 @@ function wdgShortMoneyHtml(html) {
   wdgShortMoneyIn(t.content);
   return t.innerHTML;
 }
-/* Whole rupees with the sign a figure takes (U+2212, design §5.4): a Ledger's statement line. */
-function wdgRs(v) { var n = gstRound(Number(v) || 0, 0); return (n < 0 ? '\u2212' : '') + finRs(Math.abs(n)); }
 /* A Ledger's amount: whole rupees, or a rate to the paisa with its unit; `signed`, a rise carries its + (a bridge's causes). */
 function wdgLedgerFmt(v, rate, unit, signed) {
   var n = gstRound(Number(v) || 0, rate ? 2 : 0), sg = n < 0 ? '\u2212' : signed && n > 0 ? '+' : '';
@@ -498,6 +496,13 @@ function wdgVizDraw(card) {
     // A chart with its keys under it: drawn again shorter by what the keys took, so the two fit the room together.
     var over = Math.ceil(slot.scrollHeight - slot.clientHeight);
     if (over > 0) { if (h - over >= 20) draw(h - over); else slot.innerHTML = ''; }
+    // A chart drawn in rows (a dumbbell's) keeps each row's height at any room: past it, its keys let go, then its last rows, each
+    // whole, never one cut halfway with the keys under it (P274: the phone's Who fills the plant at 360px).
+    var rows = slot.querySelectorAll('.inv-chart-rows > .inv-chart-row');
+    if (rows.length && slot.scrollHeight > slot.clientHeight + 1) {
+      Array.prototype.forEach.call(slot.querySelectorAll('.inv-chart-keys'), function(k) { k.setAttribute('data-wdg-cut', ''); });
+      for (var i = rows.length - 1; i > 0 && slot.scrollHeight > slot.clientHeight + 1; i--) rows[i].setAttribute('data-wdg-cut', '');
+    }
   } catch (e) { wdgErr(def, e); slot.innerHTML = ''; }
 }
 /* A card is exactly its size's height (§24h), so what it shows fits it or lets go: first the parts it can do without, all together
@@ -664,7 +669,7 @@ function wdgAfter(root) {
 /* ---------- The type builders (§24d, §24g): presentation only. A widget reads its screen's functions for its figures (I8) and
    hands them here; no widget writes a row's markup of its own. ---------- */
 
-/* Ledger: amounts on dotted leaders, right-aligned, in whole rupees (wdgRs) so they add up; a total ruled once above and twice
+/* Ledger: amounts on dotted leaders, right-aligned, in whole rupees (wdgLedgerFmt) so they add up; a total ruled once above and twice
    below, drawn only where the lines above it add up to it (to half a rupee a line, each rounded from its exact amount); a cut list
    ends in one line for the rest and their sum (wdgFit). lines: [{label, meta, amt, text, tone, title, go: {action | jump, attrs},
    attrs}]: `text` a value said in words (a range, a rate), never summed; total: {label, amt, tone}. o: noun (a line's, for the rest
@@ -832,8 +837,6 @@ function wdgMoveWorthHtml(mv) {
   return figHtml('<span class="inv-nowrap" data-adv-worth title="' + escHtml((w.sign < 0 ? '−' : '+') + formatCurrency(w.amount)) + '">' + (w.sign < 0 ? '−' : '+') + escHtml(c.text) + '</span>', w.sign < 0 ? 'danger' : 'ok') +
     (typeof advWorthLabel === 'function' && advWorthLabel(w) ? ' ' + escHtml(advWorthLabel(w)) : '');
 }
-/* A sentence shortened on a board keeps its whole words as its title. */
-function wdgMoveTitle(s) { return s && wdgShortMoney(s) !== String(s) ? ' title="' + escHtml(s) + '"' : ''; }
 /* A move on the owner's list says so wherever it is drawn (What to do): On your list, in its meta line. */
 function wdgMoveListedHtml(mv) { return typeof advListedKeys === 'function' && advListedKeys()[mv.key] ? ADV_LISTED_HTML : ''; }
 /* A move's sentence on a board (the canvas's Do first): what to do, where its sentence leads with a whole instruction before its

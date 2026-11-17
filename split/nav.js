@@ -54,8 +54,14 @@ function navLoc() {
     case 'pageStats': v = statsTab() === 'tables' ? 'tables/' + statsTable() : 'board'; break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
-      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
+      // The register photo's check is a place too, its reading included (P270): Back from it had left Production.
+      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : /^(photo|reading)$/.test(_prodView) ? '/photo' : '');
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
+      // Photos: the photo being tagged and the Areas form are places (P270); Back from either had left Production.
+      if (_prodTab === 'photos' && _prodView === 'main') { if (_fphOpen) id = _fphOpen; else if (fphNavSub()) v += '/' + fphNavSub(); }
+      // Lines: the line on screen is its view (a tap on it opens at its top, as a view tab does), so a reload, Back and a link keep it
+      // (P270: a reload on Pickling came back on VAT A1). The first line is the plain address, as before.
+      if (_prodTab === 'lines' && _prodView === 'main' && _prodLine !== PROD_LINES[0] && navProdLineOk(_prodLine)) v += '/' + _prodLine;
       break;
     case 'pagePower': v = _powerTab; break;
     case 'pageStaff': v = _attView === 'register' ? 'register/' + aregMonthShown() : _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
@@ -74,6 +80,8 @@ function navLoc() {
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
+/* A line Lines can show: the plating lines and pickling. */
+function navProdLineOk(l) { return l === 'pickling' || PROD_LINES.indexOf(l) >= 0; }
 function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') + (loc.d ? '|' + loc.d : '') : ''; }
 function navUrl(loc) {
   return window.location.pathname + '?tab=' + encodeURIComponent(loc.tab) +
@@ -167,7 +175,14 @@ function navLabel(loc) {
       break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
-      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
+      if (parts[0] === 'lines' && navProdLineOk(parts[1])) sub.push(parts[1] === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[parts[1]]);
+      if (parts[0] === 'photos') {
+        if (parts[1] === 'areas') sub.push('Areas');
+        var fp = loc.id && fphData().photos.find(function(x) { return x.id === loc.id; });
+        if (fp) { var fa = fphArea(fp.area); rec = (fa ? fa.name : 'Floor photo') + ', ' + fp.time; }
+        break;
+      }
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
@@ -244,10 +259,17 @@ function navApply(loc) {
       case 'pageStats': statsPlace(parts[0] || 'board', parts[1]); break;
       case 'pageProduction':
         // An address of the register photo's check (it came out on 13 Oct 2026) opens the view under it.
+        // The photo's check stays where a photo is being read or checked; left (Back), the photo goes with it, as its own way back
+        // drops it (a photo left behind made the next one picked wait unread). A reload has none to show: the view under it opens.
+        var prodWas = _prodView;
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main';
+        if (parts[1] === 'photo' && /^(photo|reading)$/.test(prodWas) && (_prodPhoto || _prodPhotoBusy)) _prodView = prodWas;
+        else if (prodWas === 'photo') prodPhotoDrop();
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
+        if (parts[0] === 'photos' && _prodView === 'main') fphNavApply(parts[1], id);
+        if (parts[0] === 'lines' && _prodView === 'main') _prodLine = navProdLineOk(parts[1]) ? parts[1] : PROD_LINES[0];
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
@@ -315,8 +337,17 @@ function navTrailPut(loc) {
   _navTrail[_navIdx] = loc ? Object.assign({ loc: loc }, navLabel(loc)) : null;
   try { sessionStorage.setItem(NAV_TRAIL_KEY, JSON.stringify(_navTrail)); } catch (e) { /* a convenience only */ }
 }
+/* Where the screen was scrolled when it was left, so Back (and Forward) come back to the same rows (P270: Back put every screen at its
+   top: the redraw a move makes goes there, and the browser's own restoring ran before it). Read at the touch, click or key that moves
+   the app, before anything has moved, and kept on the step it left (the trail, so a reload keeps it too). */
+var _navLeave = null;
+function navLeaveMark() { _navLeave = { idx: _navIdx, y: window.scrollY }; }
+['pointerdown', 'touchstart', 'keydown'].forEach(function(t) { document.addEventListener(t, navLeaveMark, { capture: true, passive: true }); });
 function navPush(loc, extra) {
   _navMoves++;
+  var t = _navTrail[_navIdx];
+  if (t && _navLeave && _navLeave.idx === _navIdx) t.y = _navLeave.y;
+  _navLeave = null;
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
@@ -330,8 +361,15 @@ function navOpen(loc) {
 
 /* Takes the step, if the app moved: a new place is pushed; a layer that opened gets its entry; a layer that shut
    without back marks its entry to be passed over. */
+/* A form's own way out (its Back, its Done, a correction saved) goes back to the screen it was opened from. Where that screen is the
+   step before, the move is taken as a step back, not a new one: pushed, the form stayed in the history under it, and the phone's back
+   (or Backspace, or the bar's arrow) opened it again, empty, and on Power's Enter a cut as Production's plain hand form. */
+var _navReturn = false;
+function navReturn() { _navReturn = true; }
 function navSync() {
   _navTimer = null;
+  var ret = _navReturn;
+  _navReturn = false;
   // A book another window saved while this one was busy (a dialog open, a form typed) is drawn as soon as it is not:
   // the toast promised it, and nothing drew it before the next screen (the QA sweep, 29 Sep 2026).
   if (_bookRedrawPending && !bookBusy()) { _bookRedrawPending = false; tabRedrawActive(); }
@@ -340,7 +378,20 @@ function navSync() {
   if (!st || !st.sep) { history.replaceState(navState(loc), '', navUrl(loc)); _navCur = history.state; navTrailPut(loc); navBarDraw(); return; }
   if (st.layer && !layer) history.replaceState(Object.assign({}, st, { layer: false, skip: true }), '', window.location.href);
   _navCur = history.state;
-  if (navKey(history.state.loc) !== navKey(loc)) navPush(loc);
+  if (navKey(history.state.loc) !== navKey(loc)) {
+    // The step before, over any layer shut on the way (the toolbar's More the form was opened from is one).
+    var j = _navIdx - 1;
+    while (j > 0 && _navTrail[j] === null) j--;
+    var prev = j >= 0 ? _navTrail[j] : null;
+    if (ret && !layer && prev && prev.loc && navKey(prev.loc) === navKey(loc)) {
+      // The browser goes back onto the step the app is already showing: the arrival is the app's own (popstate, _navIgnore).
+      _navIgnore++;
+      history.go(j - _navIdx);
+      setTimeout(function() { if (_navIgnore) { _navIgnore = 0; navSoon(); } }, 400);
+      return;
+    }
+    navPush(loc);
+  }
   if (layer && !history.state.layer) navPush(loc, { layer: true });
   _navCur = history.state;
   navBarDraw();
@@ -370,7 +421,8 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1,
+  invFphClose: 1, invFphList: 1 };   // Photos' way back from a photo being tagged and from Areas (P270)
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -426,14 +478,22 @@ window.addEventListener('popstate', function(e) {
 function navArrive(st, from) {
   if (navKey(st.loc) === navKey(navLoc())) { navBarDraw(); return; }
   _navHold++;
+  var y = _navTrail[st.idx] && _navTrail[st.idx].y;
   navLeaveOk().then(function(ok) {
-    if (ok) { _navHold--; navApply(st.loc); return; }
+    if (ok) { _navHold--; navApply(st.loc); if (y > 0) navScrollTo(y); return; }
     // Stay: the browser is put back on the form's entry. Nothing is recorded until it gets there.
     _navHold--;
     _navIgnore++;
     history.go(from - _navIdx);
     setTimeout(function() { _navIgnore = 0; navSoon(); }, 400);
   });
+}
+/* Back on the rows the screen was left at: now, and once more after the frame where a screen drawn late has its height. */
+function navScrollTo(y) {
+  window.scrollTo(0, y);
+  _navTrail[_navIdx] && (_navTrail[_navIdx].y = y);
+  var at = _viewTopAt;
+  requestAnimationFrame(function() { if (_viewTopAt === at && window.scrollY < y) window.scrollTo(0, y); });
 }
 function navCanBack() { return _navIdx > 0; }
 function navBack() { if (navCanBack()) history.back(); }
@@ -491,21 +551,41 @@ document.addEventListener('keyup', navSoon);
 // A dialog or sheet opened later (after a question was answered, a file read) is a layer too.
 new MutationObserver(navSoon).observe(document.body, { childList: true });
 
-/* Backspace goes back when no field has focus (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
+/* The user is typing: one rule for every key the app takes for itself (Backspace here; Ctrl K, /, N, C, G, J, K in search.js;
+   A in add.js). A text-like field (text, number, date, time, search, tel and the rest), a textarea, a select and anything
+   editable keep their keys; a checkbox, a radio, a button, a range, a colour or a file picker, and the page, type nothing
+   (P276: Backspace tested the tag, INPUT, so a focused checkbox or radio stopped it going back, while the shortcuts let
+   them through). A field in a dialog, or one with its suggestion list open, is a field like any other. */
+var NAV_UNTYPED = /^(checkbox|radio|button|submit|reset|range|color|file|image|hidden)$/i;
+function navTyping(t) {
+  if (!t || !t.tagName) return false;
+  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+  return t.tagName === 'INPUT' && !NAV_UNTYPED.test(t.type || 'text');
+}
+
+/* Backspace goes back when no field is typed in (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
    screen (switchTab's step 8: the search on the Register, History, Create) while it is still empty and nobody has typed in
    it or left it since: arriving there, Backspace did nothing (the QA audit of 30 Sep 2026). Once typed in, even emptied
    again, its Backspace is the field's. */
 var _navArrivalField = null;
 function navArrived() {
   var a = document.activeElement;
-  _navArrivalField = a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.value ? a : null;
+  _navArrivalField = a && navTyping(a) && !a.value ? a : null;
 }
+function navAtArrival(t) { return !!t && t === _navArrivalField && !t.value; }
 document.addEventListener('input', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
 document.addEventListener('focusout', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
+/* A held Backspace takes one step: its repeats are the field's (emptying it) or nothing, never a run of screens back (a
+   field emptied and then left, as a redraw leaves it, put the focus on the page and the repeats walked the trail). Nothing
+   during an IME composition. Over a layer it closes the top one, as Escape does (events.js): Back closes a layer, and this
+   way the screen behind never moves, whether or not the layer's step is written yet (P276). */
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Backspace' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) && !(t === _navArrivalField && !t.value)) return;
+  if (navTyping(t) && !navAtArrival(t)) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.repeat) { e.preventDefault(); return; }
+  if (navLayerOpen()) { e.preventDefault(); navCloseLayer().then(navSoon); return; }
   if (!navCanBack()) return;
   e.preventDefault();
   navBack();

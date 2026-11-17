@@ -551,21 +551,41 @@ document.addEventListener('keyup', navSoon);
 // A dialog or sheet opened later (after a question was answered, a file read) is a layer too.
 new MutationObserver(navSoon).observe(document.body, { childList: true });
 
-/* Backspace goes back when no field has focus (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
+/* The user is typing: one rule for every key the app takes for itself (Backspace here; Ctrl K, /, N, C, G, J, K in search.js;
+   A in add.js). A text-like field (text, number, date, time, search, tel and the rest), a textarea, a select and anything
+   editable keep their keys; a checkbox, a radio, a button, a range, a colour or a file picker, and the page, type nothing
+   (P276: Backspace tested the tag, INPUT, so a focused checkbox or radio stopped it going back, while the shortcuts let
+   them through). A field in a dialog, or one with its suggestion list open, is a field like any other. */
+var NAV_UNTYPED = /^(checkbox|radio|button|submit|reset|range|color|file|image|hidden)$/i;
+function navTyping(t) {
+  if (!t || !t.tagName) return false;
+  if (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+  return t.tagName === 'INPUT' && !NAV_UNTYPED.test(t.type || 'text');
+}
+
+/* Backspace goes back when no field is typed in (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
    screen (switchTab's step 8: the search on the Register, History, Create) while it is still empty and nobody has typed in
    it or left it since: arriving there, Backspace did nothing (the QA audit of 30 Sep 2026). Once typed in, even emptied
    again, its Backspace is the field's. */
 var _navArrivalField = null;
 function navArrived() {
   var a = document.activeElement;
-  _navArrivalField = a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.value ? a : null;
+  _navArrivalField = a && navTyping(a) && !a.value ? a : null;
 }
+function navAtArrival(t) { return !!t && t === _navArrivalField && !t.value; }
 document.addEventListener('input', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
 document.addEventListener('focusout', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
+/* A held Backspace takes one step: its repeats are the field's (emptying it) or nothing, never a run of screens back (a
+   field emptied and then left, as a redraw leaves it, put the focus on the page and the repeats walked the trail). Nothing
+   during an IME composition. Over a layer it closes the top one, as Escape does (events.js): Back closes a layer, and this
+   way the screen behind never moves, whether or not the layer's step is written yet (P276). */
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Backspace' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) && !(t === _navArrivalField && !t.value)) return;
+  if (navTyping(t) && !navAtArrival(t)) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.repeat) { e.preventDefault(); return; }
+  if (navLayerOpen()) { e.preventDefault(); navCloseLayer().then(navSoon); return; }
   if (!navCanBack()) return;
   e.preventDefault();
   navBack();

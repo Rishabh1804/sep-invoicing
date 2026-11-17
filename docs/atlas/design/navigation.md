@@ -3,8 +3,8 @@ subject: "Navigation: addresses, the trail, long lists, list and pane"
 domain: design
 modules: [split/nav.js]
 specs: [docs/UX_OVERHAUL_2.md]
-tests: [P55, P80, P100, P101, P103, P147, P153, P269, P270]
-updated: 2026-11-17 (a form's own way out is a step back, P269; P270: the navigation sweep)
+tests: [P55, P80, P100, P101, P103, P147, P153, P269, P270, P276]
+updated: 2026-11-17 (Backspace and the single keys read one rule for typing, P276; a form's own way out is a step back, P269; P270)
 ---
 
 **Every screen has an address, and one trail goes back** (UX overhaul 2, step 1; owner, 28 Sep 2026: *"Backspace goes back
@@ -16,13 +16,22 @@ the app from anywhere. `nav.js`:
   widget's `todo=` still work first. Filters, sorts, pagers and a phone row expanding are not places.
 - **Every move is a history step, taken after it** (`navSync`, after any click, change or key and on any node added to
   `<body>`): no screen announces itself, so a screen added later is covered by adding its line to `navLoc` /
-  `navApply`. The browser's back, `Alt+←`, the phone's back gesture, **Backspace** (only with no field focused) and the
-  top bar's arrow all walk it; on the desktop the bar also names up to three earlier steps, each a link
+  `navApply`. The browser's back, `Alt+←`, the phone's back gesture, **Backspace** (only with no field typed in; below) and
+  the top bar's arrow all walk it; on the desktop the bar also names up to three earlier steps, each a link
   (`inv-topbar-trail`), and the page's name is followed by the view and the record (`#topbarCtx`). The trail survives
   a reload (sessionStorage).
 - **A layer is one step over the screen**: a dialog, the More sheet, a print preview. Back closes the top one; a dialog
   holding typed work asks first (`dialogLeaveOk`), Settings asks its own way (`closeSettings`). Shut any other way, its
   step is marked `skip` and back passes over it.
+- **Backspace, and every single key the app takes, read one rule for "typing"** (`navTyping`, nav.js; P276, 17 Nov 2026). A
+  text-like field (text, number, date, time, search, tel and the rest), a textarea, a select and anything editable keep their
+  keys, in a dialog as on a screen; a checkbox, a radio, a button, a range and the page do not, so Backspace goes back from
+  them and A, `/`, N, C, G, J and K work there (Backspace tested the tag, so a focused checkbox stopped it while the shortcuts
+  let it through). The field the app focused on arriving at a screen, still empty, is the one exception (`navAtArrival`):
+  Backspace and Ctrl K work from it. **Over a layer, Backspace closes the top one**, as Escape does (`navCloseLayer`, a dialog
+  holding typed work asking first), and the screen behind never moves, the layer's step written yet or not. **A held
+  Backspace takes one step**: its repeats are the field's or nothing (a field emptied and then left let them walk the trail).
+  Nothing during an IME composition.
 - **A form with unsaved work asks before anything leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
   screen that shows its Save in the action bar (the challan form, a paste check, Enter by hand). Back asks (Stay puts the browser back on the form's step), and so does a **tap that leaves** — the phone bar
   (the form's own screen included, whose redraw drops the form), the sidebar, a screen in the More sheet, a view tab, a

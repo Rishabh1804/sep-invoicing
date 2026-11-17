@@ -555,13 +555,13 @@ document.addEventListener('change', function(e) {
   if (t && t.id === 'addPhotoInput') addPhotoFiles(t.files);
   else if (t && t.id === 'addFileInput') addFileGot(t.files && t.files[0]);
 });
-/* The key A opens Add on the desktop, never from a field and never over a layer (Backspace's guard, nav.js); Ctrl+Enter
-   in the sheet's box reads it. */
+/* The key A opens Add on the desktop, never from a field typed in and never over a layer (navTyping, nav.js: Backspace's
+   rule); Ctrl+Enter in the sheet's box reads it. */
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target && e.target.id === 'addPasteText') { e.preventDefault(); addRead(); return; }
   if ((e.key !== 'a' && e.key !== 'A') || e.altKey || e.ctrlKey || e.metaKey || e.repeat || e.isComposing || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (navTyping(t)) return;
   if (!_isDesktop || !S || !document.body.classList.contains('inv-booted') || navLayerOpen()) return;
   e.preventDefault();
   addOpen();

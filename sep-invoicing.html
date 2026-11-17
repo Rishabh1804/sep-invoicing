@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="06e49ac9">
+<meta name="app-build" content="d5e7f694">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -5045,13 +5045,30 @@ const METALS_KEY_KEY = 'sep_inv_metals_key';
 let _focusStack = [];
 
 function pushFocus() {
-  _focusStack.push(document.activeElement);
+  var el = document.activeElement;
+  // Kept with what names it (keepScroll's key), so a control drawn again while the dialog was open still takes the focus back (P270).
+  _focusStack.push({ el: el, key: _keepKey(el) });
 }
 
+/* Focus goes back to what opened the dialog. A save redraws the screen under it (a client edited, a row voided), mostly just after the
+   dialog shuts: that control is gone, and focus fell to <body>, so a keyboard started again from the page's top. Its redrawn twin, named
+   the same way, takes it, once the redraw is done and while nothing else has taken the focus or opened over the screen. */
+function _focusTwin(f) {
+  var twin = null;
+  try { twin = f.key ? document.querySelector(f.key) : null; } catch (e) { twin = null; }
+  if (twin) { try { twin.focus({ preventScroll: true }); } catch (e) {} }
+}
 function popFocus() {
   if (_focusStack.length === 0) return;
-  var el = _focusStack.pop();
-  try { if (el && typeof el.focus === 'function') el.focus(); } catch(e) {}
+  var f = _focusStack.pop(), el = f && f.el;
+  if (el && !el.isConnected) _focusTwin(f);
+  else { try { if (el && typeof el.focus === 'function') el.focus(); } catch(e) {} }
+  if (!el || !f.key) return;
+  setTimeout(function() {
+    var a = document.activeElement;
+    if (el.isConnected || (a && a !== document.body) || document.querySelector('.inv-scrim-dialog')) return;
+    _focusTwin(f);
+  }, 0);
 }
 
 function drainFocusStack() {
@@ -82483,18 +82500,29 @@ async function fphAddFiles(files) {
 }
 
 /* ---------- Tagging ---------- */
+function fphDraftOf(p) { return { date: p.date, time: p.time, area: p.area, sentBy: p.sentBy, note: p.note || '', tags: Object.assign({}, p.tags || {}), from: {}, claude: null }; }
 function fphOpen(id) {
   var p = fphData().photos.find(function(x) { return x.id === id; });
   if (!p) return;
   _fphOpen = id;
-  _fphDraft = { date: p.date, time: p.time, area: p.area, sentBy: p.sentBy, note: p.note || '', tags: Object.assign({}, p.tags || {}), from: {}, claude: null };
+  _fphDraft = fphDraftOf(p);
   _fphView = 'list';
+  _pageTyped = false;   // a photo opened is a form not yet typed in (Save and next had carried the last one's mark)
   if (_prodTab !== 'photos') prodSetTab('photos');
   _prodView = 'main';
   renderProduction();
   viewTop();
 }
-function fphClose() { _fphOpen = null; _fphDraft = null; keepScroll(renderProduction); }
+function fphClose() { _fphOpen = null; _fphDraft = null; _pageTyped = false; keepScroll(renderProduction); }
+/* Where Photos is, for the address (nav.js): the photo open (`id`) and Areas (`photos/areas`) are places, so Back from either comes
+   back to the log, and a reload or a link opens them. A photo not in the log opens the log. */
+function fphNavSub() { return !_fphOpen && _fphView === 'areas' ? 'areas' : ''; }
+function fphNavApply(sub, id) {
+  var p = id ? fphData().photos.find(function(x) { return x.id === id; }) : null;
+  if (p) { if (_fphOpen !== id || !_fphDraft) { _fphOpen = id; _fphDraft = fphDraftOf(p); } _fphView = 'list'; return; }
+  _fphOpen = null; _fphDraft = null;
+  _fphView = sub === 'areas' ? 'areas' : 'list';
+}
 /* The next photo still to tag after the one open (the queue, oldest first), or none. */
 function fphNextTodo(afterId) {
   var todo = fphTodo().sort(function(a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
@@ -82594,6 +82622,7 @@ function fphAreasSave() {
     d.areas.push({ id: stockUid('FA'), name: n, line: '', questions: [], at: Date.now() });
   });
   saveState();
+  _pageTyped = false;   // what is on screen is what is saved: its way back asks nothing now (nav.js, P270)
   showToast('Areas saved' + (names.length ? ' · ' + todoPlural(names.length, 'area') + ' added' : ''), 'success');
   keepScroll(renderProduction);
 }
@@ -84826,8 +84855,14 @@ function navLoc() {
     case 'pageStats': v = statsTab() === 'tables' ? 'tables/' + statsTable() : 'board'; break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
-      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
+      // The register photo's check is a place too, its reading included (P270): Back from it had left Production.
+      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : /^(photo|reading)$/.test(_prodView) ? '/photo' : '');
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
+      // Photos: the photo being tagged and the Areas form are places (P270); Back from either had left Production.
+      if (_prodTab === 'photos' && _prodView === 'main') { if (_fphOpen) id = _fphOpen; else if (fphNavSub()) v += '/' + fphNavSub(); }
+      // Lines: the line on screen is its view (a tap on it opens at its top, as a view tab does), so a reload, Back and a link keep it
+      // (P270: a reload on Pickling came back on VAT A1). The first line is the plain address, as before.
+      if (_prodTab === 'lines' && _prodView === 'main' && _prodLine !== PROD_LINES[0] && navProdLineOk(_prodLine)) v += '/' + _prodLine;
       break;
     case 'pagePower': v = _powerTab; break;
     case 'pageStaff': v = _attView === 'register' ? 'register/' + aregMonthShown() : _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
@@ -84846,6 +84881,8 @@ function navLoc() {
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
+/* A line Lines can show: the plating lines and pickling. */
+function navProdLineOk(l) { return l === 'pickling' || PROD_LINES.indexOf(l) >= 0; }
 function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') + (loc.d ? '|' + loc.d : '') : ''; }
 function navUrl(loc) {
   return window.location.pathname + '?tab=' + encodeURIComponent(loc.tab) +
@@ -84939,7 +84976,14 @@ function navLabel(loc) {
       break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
-      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
+      if (parts[0] === 'lines' && navProdLineOk(parts[1])) sub.push(parts[1] === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[parts[1]]);
+      if (parts[0] === 'photos') {
+        if (parts[1] === 'areas') sub.push('Areas');
+        var fp = loc.id && fphData().photos.find(function(x) { return x.id === loc.id; });
+        if (fp) { var fa = fphArea(fp.area); rec = (fa ? fa.name : 'Floor photo') + ', ' + fp.time; }
+        break;
+      }
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
@@ -85016,10 +85060,17 @@ function navApply(loc) {
       case 'pageStats': statsPlace(parts[0] || 'board', parts[1]); break;
       case 'pageProduction':
         // An address of the register photo's check (it came out on 13 Oct 2026) opens the view under it.
+        // The photo's check stays where a photo is being read or checked; left (Back), the photo goes with it, as its own way back
+        // drops it (a photo left behind made the next one picked wait unread). A reload has none to show: the view under it opens.
+        var prodWas = _prodView;
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main';
+        if (parts[1] === 'photo' && /^(photo|reading)$/.test(prodWas) && (_prodPhoto || _prodPhotoBusy)) _prodView = prodWas;
+        else if (prodWas === 'photo') prodPhotoDrop();
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
+        if (parts[0] === 'photos' && _prodView === 'main') fphNavApply(parts[1], id);
+        if (parts[0] === 'lines' && _prodView === 'main') _prodLine = navProdLineOk(parts[1]) ? parts[1] : PROD_LINES[0];
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
@@ -85087,8 +85138,17 @@ function navTrailPut(loc) {
   _navTrail[_navIdx] = loc ? Object.assign({ loc: loc }, navLabel(loc)) : null;
   try { sessionStorage.setItem(NAV_TRAIL_KEY, JSON.stringify(_navTrail)); } catch (e) { /* a convenience only */ }
 }
+/* Where the screen was scrolled when it was left, so Back (and Forward) come back to the same rows (P270: Back put every screen at its
+   top: the redraw a move makes goes there, and the browser's own restoring ran before it). Read at the touch, click or key that moves
+   the app, before anything has moved, and kept on the step it left (the trail, so a reload keeps it too). */
+var _navLeave = null;
+function navLeaveMark() { _navLeave = { idx: _navIdx, y: window.scrollY }; }
+['pointerdown', 'touchstart', 'keydown'].forEach(function(t) { document.addEventListener(t, navLeaveMark, { capture: true, passive: true }); });
 function navPush(loc, extra) {
   _navMoves++;
+  var t = _navTrail[_navIdx];
+  if (t && _navLeave && _navLeave.idx === _navIdx) t.y = _navLeave.y;
+  _navLeave = null;
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
@@ -85162,7 +85222,8 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1,
+  invFphClose: 1, invFphList: 1 };   // Photos' way back from a photo being tagged and from Areas (P270)
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -85218,14 +85279,22 @@ window.addEventListener('popstate', function(e) {
 function navArrive(st, from) {
   if (navKey(st.loc) === navKey(navLoc())) { navBarDraw(); return; }
   _navHold++;
+  var y = _navTrail[st.idx] && _navTrail[st.idx].y;
   navLeaveOk().then(function(ok) {
-    if (ok) { _navHold--; navApply(st.loc); return; }
+    if (ok) { _navHold--; navApply(st.loc); if (y > 0) navScrollTo(y); return; }
     // Stay: the browser is put back on the form's entry. Nothing is recorded until it gets there.
     _navHold--;
     _navIgnore++;
     history.go(from - _navIdx);
     setTimeout(function() { _navIgnore = 0; navSoon(); }, 400);
   });
+}
+/* Back on the rows the screen was left at: now, and once more after the frame where a screen drawn late has its height. */
+function navScrollTo(y) {
+  window.scrollTo(0, y);
+  _navTrail[_navIdx] && (_navTrail[_navIdx].y = y);
+  var at = _viewTopAt;
+  requestAnimationFrame(function() { if (_viewTopAt === at && window.scrollY < y) window.scrollTo(0, y); });
 }
 function navCanBack() { return _navIdx > 0; }
 function navBack() { if (navCanBack()) history.back(); }

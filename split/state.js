@@ -78,7 +78,7 @@ function getDefaultState() {
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
     stock: { items: [], entries: [], pastes: [] },
-    production: { entries: [], pastes: [], photos: [], imports: [], pages: [], learn: { clients: {}, parts: {} } },
+    production: { entries: [], pastes: [], photos: [], imports: [], pages: [], learn: { clients: {}, parts: {}, lines: {} } },
     power: { load: {}, cfg: {}, items: {} },
     // The bank statement as imported (bank.js): rows merged by id, and what the operator set.
     bank: { rows: [], imports: [], parties: {}, opening: {}, cheques: [] },

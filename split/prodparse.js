@@ -838,6 +838,93 @@ function prodOwnerFill(items, ctx) {
     it.issues.push({ tone: 'amber', code: 'readas', text: 'No client written: ' + it.part + ' has only ever come from ' + rec.name + '.' });
   });
 }
+/* ---------- A message no reader knows: entered by hand from its text, and its lines learnt ----------
+   Owner, 17 Nov 2026: a paste refused ("No pickling or production lines found in that text") "should lead the app user to
+   enter data manually, referencing the whatsapp text or pasted text - the parser should learn from it and read messages
+   better next time". A message of no kind is read loosely (prodLooseRead): a date written at the head of a line is the day;
+   a line header (VAT A 1, VAT A2, berral) is the line of the work under it; a line with no figure is the client of the lines
+   under it, where it names one, or the name written there; a line with a figure is a run. That reading only fills the hand
+   form (Enter it from the text). What the owner saves from it teaches each line's shape (`learn.lines`, prodTeachKey: the
+   words as written, the figures masked, with the client line above it where it had one), and the next message no reader
+   knows is read where one of its lines has that shape (prodTaughtRead), the taught lines as entered and said so on the
+   review, the others asked. A message none of whose lines was taught is still not read: never a guess from chatter. */
+var PROD_DATE_HEAD_RE = /^[\s\-_=*.•]*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*/;
+function prodTeachKey(group, raw) {
+  var norm = function(s) {
+    return String(s || '').toUpperCase().replace(/[×✕]/g, 'X').replace(/\d+(?:[.,]\d+)?/g, '#').replace(/[^A-Z#]+/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+  var l = norm(raw);
+  if (!l || l.indexOf('#') < 0) return '';
+  var g = norm(group);
+  return g ? g + ' | ' + l : l;
+}
+function prodLooseRead(msg, ctx) {
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [];
+  var date = msg.sentOn || ctx.today, noDate = !msg.sentOn, hint = null, group = null;
+  lines.forEach(function(raw0, i) {
+    var raw = raw0, line = raw.trim(), n = i + 1;
+    if (!line) return;
+    var dm = line.match(PROD_DATE_HEAD_RE);
+    if (dm) {
+      var d = isoFromDmy(dm[1], dm[2], dm[3]);
+      if (d) { date = d; noDate = false; hint = null; group = null; }
+      line = line.slice(dm[0].length).trim();
+      if (!line) return;
+    }
+    if (!/[A-Za-z0-9]/.test(line)) { group = null; return; }
+    var it = prodReadItem(line, ctx.clients);
+    if (it.qty == null) {
+      // A heading: the line the work under it ran on ("----VAT A 1----", "berral production"), or a word that only heads
+      // ("----WORK----", "production"). Pickling headings are the pickling hand's, and say no line.
+      var bare = line.replace(/[\s\-_=*.:]+/g, ' ').trim();
+      var areas = relayHeaderAreas(bare), lineOf = prodLineOfToken(bare);
+      if (lineOf && !/pick/i.test(bare) && bare.split(' ').length <= 4) { hint = lineOf; group = null; return; }
+      if (/^(production|work|berral production|barrel production)$/i.test(bare) || (areas.length && bare.split(' ').length <= 4)) { if (areas.length === 1 && PROD_LINES.indexOf(areas[0]) >= 0) hint = areas[0]; group = null; return; }
+      // A name on a line of its own: the client of the lines under it ("DURGA / T BKT 800 NOS").
+      if (it.clientId != null && !it.part) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow, raw: line };
+      else group = { client: line, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '', how: it.clientId != null ? it.clientHow : 'unknown', raw: line };
+      notes.push({ n: n, raw: raw, text: 'Read as the client of the lines under it' });
+      return;
+    }
+    var rec = prodItemRecord(it, it.clientId == null && group ? group : null, raw, n, date, noDate);
+    rec.kind = 'plated'; rec.basis = 'relay'; rec.slot = 'general'; rec.line = null; rec.lineHint = hint;
+    rec.group = group ? group.raw : '';
+    rec.teachKey = prodTeachKey(it.clientId == null && group ? group.raw : '', line);
+    items.push(rec);
+  });
+  return { items: items, notes: notes, date: date, noDate: noDate };
+}
+/* The next message no reader knows, read by what the owner taught: only where at least one line has a shape entered by hand. */
+function prodTaughtRead(msg, ctx) {
+  var taught = ctx.taught || {}, r = prodLooseRead(msg, ctx), hit = 0;
+  r.items.forEach(function(it) {
+    var t = it.teachKey && taught[it.teachKey];
+    if (!t || typeof t !== 'object') {
+      it.issues.push({ tone: 'amber', code: 'untaught', text: 'Not a line entered by hand before: read loosely. Check the client, the part and the line.' });
+      if (it.lineHint) it.issues.push({ tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[it.lineHint] + '. Confirm it.' });
+      else it.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line, or leave it unknown.' });
+      return;
+    }
+    hit++;
+    var c = t.clientId != null && ctx.clients && ctx.clients.list.find(function(x) { return String(x.id) === String(t.clientId); });
+    if (c) {
+      it.clientId = c.id; it.clientName = c.name; it.clientHow = 'taught';
+      it.issues = it.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
+    }
+    if (t.part) { it.part = t.part; it.gauge = lineGauge(String(t.part).replace(/[×✕]/g, 'X')) || it.gauge; it.issues = it.issues.filter(function(x) { return x.code !== 'nopart'; }); }
+    if (t.unit && it.issues.some(function(x) { return x.code === 'unit'; })) { it.unit = t.unit; it.issues = it.issues.filter(function(x) { return x.code !== 'unit'; }); }
+    if (t.kind === 'plated' || t.kind === 'pickled') it.kind = t.kind;
+    if (t.slot === 'ot' || t.slot === 'day' || t.slot === 'general') it.slot = t.slot;
+    // The line: the header above it where one is written and agrees, else what was entered; a header that disagrees is asked.
+    if (it.kind !== 'plated') { it.line = null; delete it.lineHint; }
+    else if (!it.lineHint || it.lineHint === t.line) { it.line = it.lineHint || t.line || null; delete it.lineHint; }
+    else it.issues.push({ tone: 'amber', code: 'linehint', text: 'Entered by hand on ' + (PROD_LINE_LABEL[t.line] || 'no line') + ' before; the header above says ' + PROD_LINE_LABEL[it.lineHint] + '. Pick the line.' });
+    it.issues.push({ tone: 'amber', code: 'taught', text: 'Read as this line was entered by hand' + (t.at ? ' on ' + new Date(t.at).toISOString().slice(0, 10) : '') + ': ' + (c ? c.name : 'no client') + (t.part ? ' · ' + t.part : '') + '.' });
+  });
+  if (!hit) return { items: [], notes: [], date: r.date, noDate: r.noDate };
+  r.taught = hit;
+  return r;
+}
 function parseProdPaste(text, ctx) {
   var msgs = prodSplit(text).map(function(m) {
     var r;
@@ -845,6 +932,7 @@ function parseProdPaste(text, ctx) {
     else if (m.kind === 'production') r = parseProductionList(m, ctx);
     else if (m.kind === 'runs') r = parseProductionRuns(m, ctx);
     else if (m.kind === 'roll') r = prodFromRoll(m, ctx);
+    else if (ctx.taught && Object.keys(ctx.taught).length && (r = prodTaughtRead(m, ctx)).taught) m.kind = 'taught';
     else r = { items: [], notes: [], date: m.sentOn || ctx.today };
     prodOwnerFill(r.items, ctx);
     m.read = r;

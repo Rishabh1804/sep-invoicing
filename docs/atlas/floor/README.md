@@ -6,8 +6,8 @@ Route: `CLAUDE.md` → `docs/atlas/INDEX.md` → this file → a topic → the c
 
 | Topic | Covers | Its modules | KB |
 |---|---|---|---:|
-| [Production](production.md) | Production | `production.js`, `prodview.js` | 23.1 |
-| [Production readers: slots as text, the barrel list, the night block](production-readers.md) | Production typed as text, a slot a line; The barrel list by batch; The night block's production | `prodparse.js` | 4.1 |
+| [Production](production.md) | Production | `production.js`, `prodview.js` | 23.5 |
+| [Production readers: slots as text, the barrel list, the night block](production-readers.md) | Production typed as text, a slot a line; The barrel list by batch; The night block's production; A message no reader knows, entered from its text and taught | `prodparse.js` | 6.1 |
 | [A day's plating whole, and what a line earned](day-plating.md) | A day's plating, whole; What a line earned, against its cost and its usual day | — | 15.6 |
 | [Workers and the plant](workers-and-plant.md) | Workers and the plant | `checkin.js`, `idcard.js`, `people.js`, `plant.js`, `qr.js` | 9.3 |
 | [The planner](planner.md) | The planner | `planner.js`, `planview.js` | 7.2 |

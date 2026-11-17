@@ -2921,7 +2921,6 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-kb-body li { margin-bottom: var(--sp-4); }
 .inv-kb-h { margin: var(--sp-12) 0 var(--sp-6); font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-kb-summary { margin: var(--sp-8) 0 0; font-size: var(--fs-14); color: var(--text-2); line-height: 1.45; }
-.inv-kb-badges { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .inv-kb-fig { margin: var(--sp-8) var(--pad-x) var(--sp-12); }
 .inv-kb-img { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); border: var(--hair) solid var(--border); background: var(--surface-2); }
 .inv-kb-actions { padding-top: var(--sp-12); }

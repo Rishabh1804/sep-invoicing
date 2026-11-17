@@ -78,3 +78,20 @@ test('every storage key the app names is carried by the handover or listed with 
   const stale = [...known].filter(k => !named.has(k) && k !== ctx.MOVE_MARK_OLD && k !== ctx.MOVE_MARK_NEW);
   expect(stale, 'listed in move.js but named nowhere else').toEqual([]);
 });
+
+test("the new address's Content-Security-Policy lets the app reach every host its code names", () => {
+  const worker = readFileSync(path.join(ROOT, 'server', 'app', 'src', 'index.js'), 'utf8');
+  const connect = worker.match(/export const CONNECT = \[([\s\S]*?)\];/)![1];
+  const allowed = new Set([...connect.matchAll(/'https:\/\/([^']+)'/g)].map(m => m[1]));
+  // Hosts only ever navigated to (a link, a new tab), never fetched: no connect-src needed. And the two addresses themselves.
+  const navigated = new Set(['wa.me', 'web.whatsapp.com', 'www.gdeltproject.org', 'rishabh1804.github.io', 'app.somaelectro.co.in']);
+  const hosts = new Set<string>();
+  const srcDir = path.join(ROOT, 'split');
+  for (const f of readdirSync(srcDir).filter(f => /\.(js|html)$/.test(f))) {
+    const src = readFileSync(path.join(srcDir, f), 'utf8');
+    for (const m of src.matchAll(/https:\/\/(?:[^\s/'"@]+@)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)/g)) hosts.add(m[1]);
+  }
+  expect(hosts.size).toBeGreaterThan(5);
+  const missing = [...hosts].filter(h => !navigated.has(h) && !allowed.has(h));
+  expect(missing, 'hosts the app names that the CSP would refuse').toEqual([]);
+});

@@ -2,6 +2,7 @@ import http from 'node:http';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CSP } from '../../server/app/src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -33,6 +34,9 @@ function localFonts(html) {
    127.0.0.1 here and the new one localhost, the same server, so each keeps its own storage as two hosts would. The checks
    themselves are never loosened, and a page fetched without the header is the page as built. */
 const MOVE_TEST_HEADER = 'x-sep-move-test';
+/* P280: a page asked with this header carries the new address's Content-Security-Policy, the Worker's own string
+   (server/app/src/index.js), so a spec can watch the app run under it. */
+const CSP_TEST_HEADER = 'x-sep-csp';
 function moveOrigins(html) {
   return html.replace(/var MOVE_OLD_ORIGIN = '[^']*';/, `var MOVE_OLD_ORIGIN = 'http://127.0.0.1:${PORT}';`)
     .replace(/var MOVE_OLD_PATH = '[^']*';/, "var MOVE_OLD_PATH = '/';")
@@ -52,7 +56,9 @@ const server = http.createServer(async (req, res) => {
       if (req.headers[MOVE_TEST_HEADER]) html = moveOrigins(html);
       data = Buffer.from(html);
     }
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    const head = { 'Content-Type': MIME[ext] || 'application/octet-stream' };
+    if (ext === '.html' && req.headers[CSP_TEST_HEADER]) head['Content-Security-Policy'] = CSP;
+    res.writeHead(200, head);
     res.end(data);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain' });

@@ -296,6 +296,29 @@ export function moveSpecs() {
     expect((await ls(page, ['sep_inv_claude_key'])).sep_inv_claude_key).toBe(CLAUDE);
   });
 
+  test("the move and the app run under the new address's Content-Security-Policy without one refusal", async ({ page, context }) => {
+    await context.setExtraHTTPHeaders({ ...MOVE_HEADER, 'x-sep-csp': '1' });
+    await context.addInitScript(() => {
+      (window as any).__csp = [];
+      document.addEventListener('securitypolicyviolation', e => (window as any).__csp.push(e.violatedDirective + ' ' + e.blockedURI));
+    });
+    await fakeGitHub(context);
+    await seedOld(context);
+    await openOld(page);
+    const popup = await startMove(page);
+    await expect(page.locator('[data-move-dialog] .inv-dialog-title')).toHaveText('Moved', { timeout: 20000 });
+    await popup.waitForURL(u => u.origin === NEW && !u.search.includes('move=1'));
+    await waitForBoot(popup);
+    // The policy was there, and nothing was refused by it, on either side.
+    const sent = await popup.evaluate(() => fetch(location.href).then(r => r.headers.get('content-security-policy')));
+    expect(sent).toContain("frame-ancestors 'none'");
+    // A few screens of the app at the new address, the knowledge base's photo drawn from its blob among them.
+    await popup.evaluate(() => (window as any).switchTab('pageKnow'));
+    await popup.evaluate(() => (window as any).openSettings('sync'));
+    expect(await page.evaluate(() => (window as any).__csp)).toEqual([]);
+    expect(await popup.evaluate(() => (window as any).__csp)).toEqual([]);
+  });
+
   test('the copy left behind can be deleted; the old address then only forwards, and the check-in card stays', async ({ page, context }) => {
     await fakeGitHub(context);
     await seedOld(context);

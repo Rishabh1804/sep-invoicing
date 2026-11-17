@@ -4,7 +4,7 @@ domain: floor
 modules: [split/faces.js, split/facesheet.js, split/flow.js]
 specs: [docs/ENTRY_FACES.md]
 tests: [P195, P199, P200, P201, P202, P203, P204]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (the pickling load says where it is going, P265)
 ---
 
 ### Entry faces
@@ -32,7 +32,8 @@ build: the people are the book's.
 - **Search finds Mine** only where it opens (`srchSees`).
 - **The pickling hand enters on Mine itself** (F2, P200): *A load into the tank* (the client, those with material open first; its parts
   as the challans name them, those open first with what is open on them, or a name typed as written; pieces or kilograms; the time it
-  went in, now by default; re-pickling or rework) and *Material in* (a challan in the book counted line by line against its own figure,
+  went in, now by default; re-pickling or rework; where it is going, VAT A1, VAT A2 or Barrel, if known, written into the group's message
+  as `FOR VAT A1`, P265) and *Material in* (a challan in the book counted line by line against its own figure,
   or what came with no challan in the book yet). A save is the record a paste makes (`pickled`, `basis: 'pickling'`; `arrived`,
   `basis: 'floor-in'` with `imId`, `imItemId`, `challanNo`), with `src: 'face'` and `by` the person; the form stays for the next and
   lists what was saved from it. **Correct** opens the form on the entry; saved, it takes the entry's place (`replaces`).

@@ -4,7 +4,7 @@ domain: floor
 modules: [split/production.js, split/prodview.js]
 specs: []
 tests: [P85, P90, P122, P198, P214, P258]
-updated: 2026-11-17 (a refused paste opens Enter it from the text)
+updated: 2026-11-17 (the pickling hand's line for a load, measured against the plating)
 ---
 
 ### Production
@@ -65,12 +65,22 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   both** (`twinOk: {ids, at, by}`: kept apart from each copy it was paired with, written as roots so a correction keeps it; Cipher's
   Edict V). History names both words (*counted by hand*, *kept as two runs*). **A data flow changed**: `countSet` and `twinOk` travel
   on the entries in the `sep-production` export (NEXT_SESSION).
-- **A pickling message never names the line.** A load's line is read from the plating it became (the same part, the
+- **A load's line is read from its plating.** The pickling message named no line until 17 Nov 2026, and what it names now is kept
+  apart (below). A load's line is read from the plating it became (the same part, the
   same day from half an hour before, or the next working day before noon), shown and **never stored**; a load with no
   plating offers the part's **usual line** (5+ days at 80%+, learnt only from lines written or set, so the pattern
   cannot feed itself) as a chip the owner taps. A load naming only the kind and gauge (*"CLAMP(40×6)"*, over half the
   loads since August) is matched at the family level; **a named part only ever matches its own challans** (CLAMP 90X81
   was once set against CLAMP 165X83's).
+- **Where the pickling hand says a load is going** (owner, 17 Nov 2026: *"he should also be able to give us data whether the pickled
+  material is going to VAT A1, VAT A2 or one the barrels … we can cross check hand written production against it, if it starts aligning
+  we can skip one step"*; P265). A load carries his word as `dest`, given on Mine (*Where is it going?*), in his message (a line of its
+  own, `FOR VAT A1`, `A1 ke liye`, for the loads of its block, or after a load's figure, `…-200 NOS VAT A2`; a bare `BARREL` stays a
+  barrel note) or on Enter by hand (*Going to*). **It is kept apart from the load's line** above: the line is still read from the plating,
+  and `dest` is measured against it (`prodLoadDest`, `prodDestCheck`): Lines → Pickling's *Pickling's line against the plating*, eight
+  weeks, by week and by the line he named, with the loads that disagree; Entries' flag *Line not as said*. A load with no plating found is
+  neither agreement nor disagreement (the barrel keeps no register). **Which step it may replace is the owner's, on the measure** (17 Nov
+  2026: decided later).
 - **The register** is a transcription, never a reading — times, rack arithmetic, the START rule (a START takes the next
   round's figure, the owner's rule of 26 Jun), the day's total, are this app's, in code (`prodFromRegisterRead`: a page
   typed on Mine, a file, and the photos Gemini read until 13 Oct 2026). **A struck row is asked each time** (owner): red

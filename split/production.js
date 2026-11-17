@@ -1053,6 +1053,45 @@ function prodLoadLine(e) {
   return { line: null, how: 'unknown', hint: u && u.kind === 'usual' ? u : null, family: !!(k && k.indexOf('F:') === 0) };
 }
 
+/* ---------- Where the pickling hand says a load is going, against where it was plated ----------
+   Owner, 17 Nov 2026: "[The pickling hand] gives us Pickling data, he should also be able to give us data whether the pickled material is going to
+   VAT A1, VAT A2 or one the barrels. That should feed into our data and we can cross check hand written production against it, if it
+   starts aligning we can skip one step and get reliable data." The load carries his word (`dest`, written on Mine, in his message or by
+   hand), kept apart from the line the owner sets (`line`) and from the line read off its plating (prodMatchAll), so the two can be
+   compared; nothing is inferred from it yet. Which step it may replace is the owner's to decide on the measure below (17 Nov 2026). */
+function prodLoadDest(e) {
+  if (!e || e.kind !== 'pickled' || !e.dest) return null;
+  var m = prodIndex().match[e.id];
+  if (m && m.line) return { dest: e.dest, plated: m.line, verdict: m.line === e.dest ? 'agree' : 'differ' };
+  if (m && m.split) return { dest: e.dest, plated: null, lines: m.lines, verdict: m.lines.indexOf(e.dest) >= 0 ? 'split' : 'differ' };
+  return { dest: e.dest, plated: null, verdict: 'unmatched' };
+}
+/* The measure: over `days` to today, the loads pickled, those he gave a line for, those a plating was found for, and how many agree;
+   by the line he named and by week (Monday). A load re-pickled counts as any other. A load with no plating found is neither agreement
+   nor disagreement: it is said apart, since the barrel keeps no register. */
+function prodDestCheck(days) {
+  var idx = prodIndex(), today = localDateStr(), from = isoAddDays(today, -((days || 56) - 1));
+  var out = { from: from, to: today, loads: 0, given: 0, matched: 0, agree: 0, differ: 0, split: 0, unmatched: 0, byLine: {}, weeks: {}, differs: [] };
+  PROD_LINES.forEach(function(l) { out.byLine[l] = { given: 0, matched: 0, agree: 0 }; });
+  idx.live.forEach(function(e) {
+    if (e.kind !== 'pickled' || idx.replaced[e.id] || e.date < from || e.date > today) return;
+    out.loads++;
+    var d = prodLoadDest(e);
+    if (!d || !out.byLine[d.dest]) return;
+    out.given++; out.byLine[d.dest].given++;
+    var wd = new Date(e.date + 'T00:00:00').getDay(), mon = isoAddDays(e.date, -((wd + 6) % 7));
+    var w = out.weeks[mon] = out.weeks[mon] || { mon: mon, given: 0, matched: 0, agree: 0 };
+    w.given++;
+    out[d.verdict]++;
+    if (d.verdict === 'unmatched') return;
+    out.matched++; out.byLine[d.dest].matched++; w.matched++;
+    if (d.verdict === 'agree') { out.byLine[d.dest].agree++; w.agree++; }
+    else if (d.verdict === 'differ') out.differs.push(e);
+  });
+  out.weeks = Object.keys(out.weeks).sort().map(function(k) { return out.weeks[k]; });
+  return out;
+}
+
 /* A day's power cuts, as one list. The pickling hand's messages and the register's power log report the same cut
    twice, a minute or two apart. A cut from one source is joined to a cut from ANOTHER source that overlaps it or began
    within ten minutes of it (the earliest cut, the latest return); two cuts in one source are two cuts, however close

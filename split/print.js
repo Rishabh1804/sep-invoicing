@@ -8,21 +8,23 @@ function formatQtyHeld(q) {
 
 function formatInvoiceData(inv) {
   const addr = inv.clientAddress || {};
+  // The company is the book's (Settings → Business → Company): blank on a new book, never a name from the build (P279).
+  const co = S.company || {};
   return {
     invoiceNumber: inv.displayNumber || '',
     date: formatDate(inv.date),
     cancelled: inv.status === 'cancelled',
     cancelledAt: inv.cancelledAt ? new Date(inv.cancelledAt).toLocaleDateString('en-IN') : null,
     // Company
-    companyName: S.company.name,
-    companyAdd1: S.company.add1,
-    companyAdd2: S.company.add2,
-    companyPhone: S.company.phone || '',
-    companyMobile: S.company.mobile || '',
-    companyEmail: S.company.email || '',
-    companyGSTIN: S.company.gstin,
-    companyState: S.company.state,
-    companyStateCode: S.company.stateCode,
+    companyName: co.name || '',
+    companyAdd1: co.add1 || '',
+    companyAdd2: co.add2 || '',
+    companyPhone: co.phone || '',
+    companyMobile: co.mobile || '',
+    companyEmail: co.email || '',
+    companyGSTIN: co.gstin || '',
+    companyState: co.state || '',
+    companyStateCode: co.stateCode || '',
     // Client
     clientName: inv.clientName || '',
     clientAdd1: addr.add1 || '',
@@ -239,6 +241,19 @@ var _printInvId = null;   // the invoice in the preview; null for any other docu
    opens a job only for an ID it fits (prtlight.js prtJobOpens). */
 var _printNeed = null;
 function printNeed(need) { _printNeed = need || null; }
+/* Who issues a document is the book's company (Settings → Business → Company), and a new book starts with it blank: nothing about
+   the shop is in the build (owner, 17 Nov 2026). A document that names its issuer (the invoice, the credit note, the certificate,
+   the quotation, the statement) is drawn as the book holds it, the blank printing blank, and its preview says so: warn, never
+   block. The paper carries no placeholder. Returns whether anything was missing. */
+function printIdentityGap(what) {
+  var c = (S && S.company) || {}, gap = [];
+  if (!String(c.name || '').trim()) gap.push('name');
+  if (!String(c.gstin || '').trim()) gap.push('GSTIN');
+  if (!gap.length) return false;
+  showToast('The company’s ' + gap.join(' and ') + (gap.length > 1 ? ' are' : ' is') + ' not set, so ' + what + ' prints ' + (gap.length > 1 ? 'them' : 'it') +
+    ' blank: Settings → Business → Company', 'warning');
+  return true;
+}
 function showPrintPreview(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv) return;
@@ -258,6 +273,7 @@ function showPrintPreview(invId) {
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   document.body.style.overflow = 'hidden';
   printFit();
+  printIdentityGap('the invoice');
   // Set page title for PDF filename (Phase 6b)
   document._savedTitle = document.title;
   document.title = (inv.displayNumber || 'Invoice') + ' - ' + (inv.clientName || 'SEP');

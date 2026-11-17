@@ -4,7 +4,7 @@ domain: core
 modules: [split/github-sync.js, split/init.js, split/state.js]
 specs: []
 tests: [P93]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (the company is the book's: filled empty only where a book has none)
 ---
 
 ## Persistence
@@ -121,7 +121,8 @@ Belrise rate cleanup stay bootstrap-only, deliberately and in writing.
 than restated. There were three copies: the loader's and ghPull's had already drifted by four keys,
 and **Settings → Import had none at all** — a backup written before `staff` existed left it
 undefined and the Staff tab threw on open. Containers are filled *empty* (the app never invents
-business data to repair a shape); config objects are filled from the defaults, key by key, because
+business data to repair a shape; a book with no `company` at all gets its empty shape, and a company a book holds is never
+filled, merged or overwritten from code, 17 Nov 2026, P279); config objects are filled from the defaults, key by key, because
 `labourCfg()` reads `extraRate || 0` and a missing constant would silently price the extra at
 nothing rather than leave a visible gap.
 

@@ -832,8 +832,9 @@ function _pcMonths(m) { return m == null ? '—' : m < 1 ? 'under a month' : for
 
 function powerCaseHtml(a) {
   a = a || powerAnalysis();
-  var co = (S.company && S.company.name) || 'Soma Electro Products', t = a.totals, today = localDateStr(), L = a.load, y = a.year;
-  var h = '<div class="inv-sr-doc" data-power-case><div class="inv-sr-head"><div class="inv-sr-co">' + escHtml(co) + '</div></div>' +
+  // Who files it is the book's company (Settings), or none: no name is written into the build (P279).
+  var co = String((S.company && S.company.name) || '').trim(), t = a.totals, today = localDateStr(), L = a.load, y = a.year;
+  var h = '<div class="inv-sr-doc" data-power-case>' + (co ? '<div class="inv-sr-head"><div class="inv-sr-co">' + escHtml(co) + '</div></div>' : '') +
     '<div class="inv-sr-title">Power cuts: the case for reliable supply</div>' +
     '<table class="inv-sr-meta"><tr><td class="inv-sr-meta-l">As of</td><td>' + escHtml(formatDate(today)) + ', drawn from the app&rsquo;s records when printed</td></tr>' +
     '<tr><td class="inv-sr-meta-l">Record</td><td>' + (a.first ? escHtml(formatDate(a.first) + ' to ' + formatDate(today) + ' · ' + todoPlural(t.cuts, 'cut') + ' · ' + a.span.recorded + ' of ' + a.span.of + ' working days carry a record') : 'no cut on record') + '</td></tr>' +

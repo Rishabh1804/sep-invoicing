@@ -208,6 +208,7 @@ function qtPrint(id) {
   _printInvId = null;
   printNeed({ pages: ['pageClients'] });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the quotation');
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = qtNumberText(q).replace(/\//g, '-') + ' - ' + qtRecipient(q);

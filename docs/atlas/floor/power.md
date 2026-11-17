@@ -4,7 +4,7 @@ domain: floor
 modules: [split/power.js, split/powercause.js]
 specs: []
 tests: [P177, P196, P243, P278]
-updated: 2026-11-17 (Case is not a Supervisor's, P278)
+updated: 2026-11-17 (the load is the book's: the once-only migration that wrote the plant's own is removed; the case names the book's company or none; Case is not a Supervisor's, P278)
 ---
 
 ### Power
@@ -89,8 +89,11 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   (Iuno H-3: April's cuts on days with no record had been divided by recorded days, which made 11–15 May look quiet), and a
   cut on a Sunday worked ends a run. "Possibly unreported" is a fact about the app's record, not about what was sent: a
   stretch no export has been read for yet reads the same.
-- **The load is recorded** (owner: *"Yes, record it"*): `S.power.load` {sanctioned, approved, approvedOn, ref, note}, set
-  once to 25 / 50 kVA approved 18 May 2026 where empty (`_powerLoad1`). A bill's own details are set on Load & bills
+- **The load is recorded** (owner: *"Yes, record it"*): `S.power.load` {sanctioned, approved, approvedOn, ref, note}, the book's,
+  set on Load & bills. A once-only migration wrote the plant's own load and its approval day where empty (`_powerLoad1`); the owner
+  ruled it out on 17 Nov 2026 (nothing about the shop is in the build, HR-10; P279), and every book it ran on keeps the load it
+  wrote. The case (`powerCaseHtml`) heads itself with the book's company name, or with none: no name is written into the build.
+  A bill's own details are set on Load & bills
   (`POWER_BILL_FIELDS`: billed at, peak, kWh, kVAh, fixed, energy, excess-CD penalty, fuel adjustment, duty, net), and a
   bill's "billed at" wins over the typed load. To-do rule **`powerLoad`** asks while the approved load is not on the bill,
   with the penalty on the bills since approval.

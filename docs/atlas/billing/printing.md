@@ -3,9 +3,18 @@ subject: "Printing: the preview, the long tax invoice, its type"
 domain: billing
 modules: [split/print.js]
 specs: []
-tests: [P94]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P94, P279]
+updated: 2026-11-17 (who issues a document is the book's company, blank on a new book; the preview says what is not set)
 ---
+
+### Who issues a document: the book's company, blank until set
+Every document that names its issuer (the tax invoice, the credit note, the test certificate, the quotation, the statement,
+the ID card, the pay slip, the check-in sheet, a report, the power case, a CSV's first row) reads `S.company`, and a new book
+starts with it blank (owner, 17 Nov 2026: nothing about the shop is in the build; the default held the firm's name, address,
+phones, e-mail, GSTIN and bank account until then). A blank prints blank: never *undefined*, never a name from the build, and
+the paper carries no placeholder. The invoice, credit note, certificate, quotation and statement previews say so in a toast
+(`printIdentityGap`, print.js: *the company's name and GSTIN are not set … Settings → Business → Company*), warn, never block.
+The sign-in screen falls back to the app's own name, the ID card's back to *the plant*. P279.
 
 ### The print preview is the page
 The preview drew the tax invoice in the phone's column (`--max-w`, 520px) against a layout that needs the page's 186mm:

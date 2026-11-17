@@ -796,6 +796,7 @@ function showCreditNotePreview(cnId, said) {
   _printInvId = null;
   printNeed({ pages: ['pageRegister'] });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the credit note');
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = cn.displayNumber.replace(/\//g, '-') + ' - ' + (cn.clientName || 'SEP');

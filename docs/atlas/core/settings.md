@@ -3,8 +3,8 @@ subject: "Settings"
 domain: core
 modules: [split/settings.js]
 specs: []
-tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P50, P75, P279]
+updated: 2026-11-17 (Company carries every field the documents print; a new book starts with it blank)
 ---
 
 ## Settings
@@ -14,6 +14,13 @@ alerts, To-do), **Costing** (full cost, live-cost fallbacks with the chemicals m
 (overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, the Claude key for photos since 3 Nov 2026, GitHub sync; the Gemini key went with the photo reading, 13 Oct 2026)
 and **Data & device** (backup, storage, build). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`
 in `settings.js`, each with a `summary()`, `body()`, `why` and `save()`.
+
+- **Company and Bank details are the book's, blank on a new book** (owner, 17 Nov 2026: nothing about the shop is in the
+  build, HR-10). `getDefaultState()` holds `company` in its shape with every field empty and `bankDetails` empty; each section's
+  line reads *Not set* until typed. Company has every field a document prints: name, GSTIN, three address lines, state and
+  state code, phone, mobile and e-mail (`setComp…`; until then only name, GSTIN, two address lines and phone could be typed, the
+  rest coming from the build). A book that holds its company keeps it: nothing fills, merges or overwrites it from code
+  (`ensureStateShape` gives a book with no `company` at all the empty shape and touches no other). P279.
 
 - **Every section is folded to one line saying what it is set to** (`10% · ₹100 · ±3%`), so Settings reads
   at a glance; the ruling behind the figures sits under *How this is used*.

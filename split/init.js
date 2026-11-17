@@ -445,9 +445,9 @@ if (!S._cnSeriesStart1) {
    other client records the build held (data.js). Every book it ran on keeps the settings it wrote. */
 
 /* Six once-only migrations stood here until 17 Nov 2026. Each found one client by the name written into it and wrote that
-   client's records into the book: clamp gauges by the round (`_prodGaugeRules1`), parts' rounds and plating times
-   (`_partTimes1`), the register's rounds read as parts (`_prodPartRules1`), a default weight a piece (`_clientKgPcDefault1`),
-   payment terms (`_clientTerms1`), and a round added to a gauge rule with two liner series rules (the sixth). The owner ruled
+   client's records into the book: clamp gauges by the round, parts' rounds and plating times, the register's rounds read as
+   parts, a default weight a piece, payment terms, and a round added to a gauge rule with two liner series rules (their flags
+   are named in docs/atlas/floor/production.md, not here: the build carries none of them, P279). The owner ruled
    them out (17 Nov 2026: the build carries no client's data, HR-10). Each had run on every live book and its flag travels with
    the synced state, so a book keeps what they wrote and every reader reads it as before (a client's part times, kg a piece and
    terms are edited on the client; no screen writes a production rule yet: docs/atlas/floor/production.md); a new device takes
@@ -517,21 +517,11 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
-/* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
-   Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
-   18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,
-   only where no load is recorded, and once:
-   the flag travels with the state, so a load the owner corrected or cleared stays as they left it. */
-(function() {
-  if (S._powerLoad1) return;
-  var p = powerData();
-  // Only on a book that keeps electricity bills: the load is this connection's, and a book with none (a new device before
-  // its import, a test) has no connection to speak for yet. The flag waits until there is one.
-  if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
-  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
-  S._powerLoad1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
+/* The connection's load (sanctioned and approved kVA, the day it was approved) is the book's, set on Power → Load & bills. A
+   once-only migration here wrote the plant's own load and its approval day on a book with electricity bills (its flag is named
+   in docs/atlas/floor/power.md, not here); it came out on 17 Nov 2026 (owner: nothing about the shop is in the build, HR-10).
+   Every book it ran on keeps the load it wrote. */
+
 /* ===== THE FUME EXTRACTION IN PLANS ALREADY SAVED, ONCE =====
    Owner, 28 Oct 2026: the fume extraction is its own option, and ISO 9001 and CQI-11 need it. A plan saved before then holding
    ISO 9001, CQI-11 or "Acid recovery and fume hood" gains it at the earliest month of those, so it does not lose them unseen;

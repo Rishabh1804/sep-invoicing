@@ -668,7 +668,7 @@ function _sortedCard(list) {
 
 function _pieceRatesEditHtml(c) {
   // Every client: a weight-billed client can still send a part billed per piece
-  // (Parakh's ROLLER), and the matcher tells the operator to add it here.
+  // (DELTA AUTO's QX1), and the matcher tells the operator to add it here.
   var rows = _sortedPieceRates(c).map(function(pr) {
     return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom,
       ' data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate"');

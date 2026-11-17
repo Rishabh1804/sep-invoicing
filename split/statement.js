@@ -234,6 +234,7 @@ function soaPrint() {
   _printInvId = null;
   printNeed({ pages: ['pageFinance'], money: true });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the statement');
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = 'Statement - ' + s.client.name + ' - ' + s.to;

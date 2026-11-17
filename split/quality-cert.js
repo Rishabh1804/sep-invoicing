@@ -383,6 +383,7 @@ function showQualityCertificates(invIds) {
   _printInvId = null;
   printNeed({ pages: ['pageRegister'] });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the certificate');
   document.body.style.overflow = 'hidden';
 
   // Drives the filename when the browser saves the preview as a PDF.

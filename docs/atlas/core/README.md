@@ -19,3 +19,4 @@ Route: `CLAUDE.md` → `docs/atlas/INDEX.md` → this file → a topic → the c
 | [Settings](settings.md) | Settings | `settings.js` | 1.8 |
 | [Persistence](persistence.md) | Persistence | `github-sync.js`, `init.js` | 12.2 |
 | [Offline](offline.md) | Offline | — | 3.0 |
+| [The new address: app.somaelectro.co.in, dist/, the Worker and the handover (S0)](new-address.md) | The new address; what crosses and what does not | `move.js`, `dist.sh` | 9.8 |

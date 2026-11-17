@@ -1,6 +1,8 @@
 # The server: one SQL book in the cloud, a full copy in the office
 
-**Status:** spec, not built. Owner, 15 Oct 2026; revised the same day with the owner's rulings (§1), then again after its review
+**Status:** S0 built as groundwork, 17 Nov 2026 (owner: *"Then we'll get the groundwork on the keys, that is S0"*): the code, the
+Worker, the tests and the owner's guide (`docs/S0_GUIDE.md`); nothing is deployed and nothing changes on a device until the owner
+creates the Worker and moves each device. S1–S5: spec, not built. Owner, 15 Oct 2026; revised the same day with the owner's rulings (§1), then again after its review
 (§1, *the review's answers*). Six steps, S0–S5, one PR each (§9). Nothing changes on any device until S1 is built and switched on in
 Settings.
 
@@ -185,7 +187,15 @@ of 15 Oct 2026), on its UPS, set never to sleep. It is a registered device like 
 
 ## §9 Steps, one PR each
 
-0. **S0 · The app's own address.** `app.somaelectro.co.in`, a Cloudflare Worker serving static files (free; deployed from this repo on
+0. **S0 · The app's own address.** **Built as groundwork, 17 Nov 2026** (`docs/atlas/core/new-address.md`; `split/move.js`,
+   `split/dist.sh`, `server/app`; P280): what is built is below as specced, with these decisions. `dist/` is built by the deploy and
+   never committed. The Worker answers every other host with a `308` to the custom domain and sets a CSP and the other headers, with
+   no Cross-Origin-Opener-Policy (the handover needs its opener); its deploy is Cloudflare's own build, so S0 needs no secret on
+   GitHub (S1's Actions deploy is still S1's). The handover pushes first, then opens the new address on its own tap. **The keys
+   leave the old address once the new one has verified them, by default** (a box the owner can untick); **the book stays there**
+   until the owner deletes it from the copy left behind (`?stay=1` → Settings), so a device can go back. **What remains the
+   owner's**: creating the Worker and its custom domain, Sentry's allowed domain, the handover on each of the three devices, the
+   print station's shortcut (`docs/S0_GUIDE.md`, §10). `app.somaelectro.co.in`, a Cloudflare Worker serving static files (free; deployed from this repo on
    merge, a preview per PR). First because every device's storage, GitHub token and (from S1) server secret belong to an origin:
    moved later, every device would register twice.
    - **Only the app is published**: the build writes the app's files to `dist/` (the page, `sw.js`, the manifest, the icons,
@@ -247,7 +257,7 @@ device switches.
 
 All of it in **the owner's own Cloudflare account**, beside the website, which is not touched.
 
-**S0**: in Cloudflare, **Workers & Pages → Create**, from this repository (the deploy builds `dist/`; the S0 guide names each screen
+**S0** (`docs/S0_GUIDE.md`, step by step): in Cloudflare, **Workers & Pages → Create**, from this repository (the deploy builds `dist/`; the S0 guide names each screen
 as it is that day), then the Worker's **custom domain** `app.somaelectro.co.in` (the DNS record is made for you). Then the handover on each of the
 three devices, the owner's phone first.
 

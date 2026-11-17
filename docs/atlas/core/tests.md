@@ -4,7 +4,7 @@ domain: core
 modules: []
 specs: []
 tests: [P21, P73, P228]
-updated: 2026-11-16 (the paper record reads an auto margin as auto; it does not pass in the sandbox)
+updated: 2026-11-17 (P280 runs two origins on one test server, by a header: S0)
 ---
 
 ### Tests
@@ -41,6 +41,12 @@ on 29 Oct 2026 (Chromium 147 on a Linux runner), each in half 2 and on the phone
 whose app and tests were those of `f04cb9f`, where both passed. Each half's `playwright-traces-2` artifact held the trace: the
 navigation's own call ended, the test's never did, the last frame was the shell with no board, and closing reported the same unbound
 response. Android and Windows have no Linux font service. Run that one test again before reading the failure as yours.
+
+**Two origins on one server** (P280, S0): the app checks two exact origins for the handover (`move.js`). A request carrying
+`x-sep-move-test` gets a page whose three lines naming them name the test server's own `127.0.0.1` (the old address) and
+`localhost` (the new), so each keeps its own storage as two hosts would; with `x-sep-csp` the page also carries the new address's
+CSP, the Worker's own string. Without the headers the page is as built, so no other spec sees either. A third origin is a route
+(`http://evil.test`), fulfilled by Playwright.
 
 **Fixtures seed the LEGACY key and wait for `body.inv-booted`.** `loadAppWithState` writes
 `sep_invoicing_state` to localStorage from an init script; the app migrates it into IndexedDB at

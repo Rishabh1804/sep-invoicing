@@ -4,7 +4,7 @@ domain: core
 modules: []
 specs: [docs/COGNITIVE_LOAD_SURVEY.md, docs/ENTRY_FACES.md, docs/FINANCE_INTELLIGENCE_SPEC.md, docs/INTELLIGENCE_2.md, docs/KNOWLEDGE_BASE.md, docs/KNOWLEDGE_BASE_2.md, docs/NEXT_SESSION.md, docs/PLANNER.md, docs/PLANT_PICTURE.md, docs/SERVER.md, docs/TAB_MAP.md, docs/UI_PASS_3.md, docs/UX_OVERHAUL_2.md, docs/WORKERS_AND_PLANT.md]
 tests: [P195, P197]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (S0 built as groundwork: the new address)
 ---
 
 ## Next session — read `docs/NEXT_SESSION.md` first
@@ -82,8 +82,9 @@ Six steps, S0–S5, one PR each: the app moves to `app.somaelectro.co.in` first,
 device's registration handed over); sync is record by record from S1, merged on the server by the same `merge.js` with compare-and-set
 writes; **everything goes to the server, the sensitive sealed** (encrypted on the owner's devices, the key wrapped by the owner's PIN;
 the review's answers, 15 Oct 2026); *Ask* answers from the published articles through Claude on the server (S4); an APK (S5), its
-shell chosen once the phone the web app will not open on is diagnosed. The free plan first, reported on after a week. Not built;
-KB2-2 onward builds on it.
+shell chosen once the phone the web app will not open on is diagnosed. The free plan first, reported on after a week. **S0 is built as
+groundwork, 17 Nov 2026** (`new-address.md`, `docs/S0_GUIDE.md`): the handover, `dist/` and the Worker, nothing deployed until the
+owner creates it. S1–S5 not built; KB2-2 onward builds on it.
 
 **The knowledge base's second edition is specified — read `docs/KNOWLEDGE_BASE_2.md`** (owner, 14–15 Oct 2026: *"lots of blocks of
 texts … weak visual hierarchy"*; four directions drawn, then ruled). Three ways to read (Quick reference with *At a glance*, Reader set as

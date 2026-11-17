@@ -4,7 +4,7 @@ domain: core
 modules: [split/build.sh]
 specs: []
 tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (build.sh ends by writing dist/, the new address's files: split/dist.sh, S0)
 ---
 
 ### Build
@@ -22,6 +22,11 @@ pre-commit hook builds before the commit exists (HEAD would be the parent), and 
 diffs the output, so a stamp that is not a pure function of the sources fails `build-sync` on
 every commit. The same eight hex characters go into the document as `<meta name="app-build">`
 and into `version.json`; Settings shows it, so a bug report can name the build it was seen on.
+
+**Then it writes `dist/`** (`split/dist.sh`, S0): the app's own files, a list, for the new address's Worker (`server/app`). `dist/` is
+git-ignored and built by Cloudflare's deploy; it never holds `CLAUDE.md`, `docs/`, the sources or `checkin.html`
+(`new-address.md`). `bash split/dist.sh <folder>` writes it elsewhere (P280 does). CI's *App Worker tests* builds it, then runs the
+Worker's suite over it.
 
 The pre-commit hook in `.githooks/` rebuilds and stages all three artefacts, so a commit
 can't carry stale output. Sessions clone fresh, so `.claude/hooks/session-start.sh`

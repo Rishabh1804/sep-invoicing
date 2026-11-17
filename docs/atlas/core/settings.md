@@ -4,7 +4,7 @@ domain: core
 modules: [split/settings.js]
 specs: []
 tests: [P50, P75, P279]
-updated: 2026-11-17 (Company carries every field the documents print; a new book starts with it blank)
+updated: 2026-11-17 (Data & device draws The new address on the old address only: S0, new-address.md)
 ---
 
 ## Settings
@@ -12,7 +12,7 @@ Six groups (owner, 25 Sep 2026: *"Too many things all in one place, no markers, 
 **Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, invoice states, stock
 alerts, To-do), **Costing** (full cost, live-cost fallbacks with the chemicals model, zinc rate), **Labour**
 (overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, the Claude key for photos since 3 Nov 2026, GitHub sync; the Gemini key went with the photo reading, 13 Oct 2026)
-and **Data & device** (backup, storage, build). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`
+and **Data & device** (backup, storage, build; on the old address only, **The new address**, the handover of S0: `new-address.md`). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`
 in `settings.js`, each with a `summary()`, `body()`, `why` and `save()`.
 
 - **Company and Bank details are the book's, blank on a new book** (owner, 17 Nov 2026: nothing about the shop is in the

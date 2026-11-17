@@ -4,7 +4,7 @@ domain: core
 modules: [sw.js]
 specs: []
 tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (the one worker serves both addresses, each under its own scope: S0)
 ---
 
 ## Offline
@@ -45,6 +45,12 @@ The banner offers a reload and says to finish anything half-typed first: a reloa
 in-progress challan, and that is the operator's call. *Later* silences that build only; the
 next one asks again. The manual check in Settings keeps *could not reach the server* apart from
 *up to date*, so an offline device is never told it is current.
+
+**Both addresses, one worker** (S0, `new-address.md`). `sw.js` is registered relative (`sw.js`), so its scope is
+`/sep-invoicing/` on the old address and `/` on the new one; `isShellUrl` and `appWindows` read that scope, and the update poll
+matches `version.json` by its ending, so nothing in it names a host or a path. On the new address the Worker's CSP covers the
+worker's own fetches: the font hosts are in its `connect-src` for that reason. The old address keeps its worker for a device that
+has not moved; a moved one is forwarded by the page before the app starts, online or from the cached shell.
 
 Note what the stamp is and is not: it identifies the **document**, so a change to `sw.js` alone
 does not move it — the worker updates through the browser's own byte-compare, as before.

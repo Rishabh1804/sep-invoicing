@@ -70,7 +70,8 @@ GitHub sync → Push).
 - **Change its shortcut**: wherever the station opens the app at start-up (the Edge shortcut on the desktop or in the Startup
   folder: right-click → **Properties** → **Target**), replace `https://rishabh1804.github.io/sep-invoicing/` with
   **`https://app.somaelectro.co.in/`** and keep everything else on that line as it is.
-- The station's mark crosses with the move: Settings at the new address still says it is the print station.
+- The station's mark crosses with the move: Settings at the new address still says it is the print station, and the old address
+  stops being one at the same moment, so no job is printed twice. Send a test print from your phone afterwards.
 - **The Windows widget** (To-do): remove it from the Widgets board and add it again from the app installed at the new address.
 
 ### The office QR sheet

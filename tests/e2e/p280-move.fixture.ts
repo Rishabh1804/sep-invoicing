@@ -29,7 +29,7 @@ export const CARRIED: Record<string, string> = {
   sep_inv_layout: JSON.stringify({ v: 2, preset: 'owner', order: ['dofirst'], hidden: [], wide: [] }),
   sep_inv_folds: JSON.stringify({ 'p280-fold': true }),
   sep_inv_face_page: JSON.stringify({ 'u-p280|2026-01-05|L1': { rows: [{ q: 3 }], total: 3, at: 1 } }),
-  sep_inv_print_station: JSON.stringify({ on: false, since: 1 }),
+  sep_inv_print_station: JSON.stringify({ on: true, since: 1 }),
   sep_inv_device_id: 'dev-p280bench',
   sep_inv_device_name: 'Bench PC',
 };
@@ -188,6 +188,9 @@ export function moveSpecs() {
     expect(JSON.parse(old.sep_inv_moved!)).toMatchObject({ to: NEW });
     expect([old.sep_inv_claude_key, old.sep_inv_metals_key, old.sep_inv_github_token, old.sep_inv_github_token_enc]).toEqual([null, null, null, null]);
     expect(old.sep_ck_card).toBe('9000');
+    // The print station is the new address now; the old one stops being it, or both would print each job.
+    expect(JSON.parse((await ls(page, ['sep_inv_print_station'])).sep_inv_print_station!)).toEqual({ on: false });
+    expect(JSON.parse(old.sep_inv_moved!).station).toBe(true);
     expect(JSON.parse((await bookRaw(page))!).clients[0].name).toBe('DELTA AUTO');
 
     // From now on this device's old address forwards to the new one, keeping a shortcut's screen.
@@ -202,6 +205,15 @@ export function moveSpecs() {
     await expect(page.locator('[data-action="invMoveDeleteOld"]')).toBeVisible();
     stops.push(await sweep(page, 'settings: the copy left behind'));
     expect(problems(stops)).toEqual([]);
+    // Undo: the old address opens its copy again, the print station's mark given back, and it no longer forwards.
+    await page.locator('[data-action="invMoveUndo"]').click();
+    await page.locator('[data-ui-ask] [data-ans="ok"]').click();
+    await page.waitForURL(u => u.origin === OLD && !u.search.includes('stay'));
+    await waitForBoot(page);
+    expect(new URL(page.url()).origin).toBe(OLD);
+    const back = await ls(page, ['sep_inv_moved', 'sep_inv_print_station']);
+    expect(back.sep_inv_moved).toBeNull();
+    expect(JSON.parse(back.sep_inv_print_station!).on).toBe(true);
   });
 
   test('the old address says Moved only once the new one has read every piece back', async ({ page, context }) => {

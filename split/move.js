@@ -400,8 +400,22 @@ function moveFail(why) {
     '<button type="button" class="inv-btn inv-btn-primary" data-action="invCloseConfirm">Close</button>', 'danger');
 }
 
+function movePushedDialog() {
+  moveDialog('Pushed. Now open the new address', 'The new address opens in a second window. Keep both open until this one says it has moved.',
+    '<button type="button" class="inv-btn inv-btn-secondary" data-action="invMoveCancel">Cancel</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" data-action="invMoveOpen">Open the new address</button>');
+}
+function moveHandingDialog() {
+  moveDialog('Handing over', 'The new address is open. Keep both windows open: this one says Moved once the new address has read every piece back.', '');
+}
 function moveStart() {
-  if (moveRole() !== 'old' || moveMarkOld() || _moveSess) return;
+  if (moveRole() !== 'old' || moveMarkOld()) return;
+  // A move under way whose dialog was shut: shown again where it stands, never started twice.
+  if (_moveSess) {
+    if (_moveSess.stage === 'pushed') movePushedDialog();
+    else if (_moveSess.stage !== 'pushing') moveHandingDialog();
+    return;
+  }
   if (typeof grdGate === 'function' && !grdGate('users', 'Move this device to the new address', moveStart)) return;
   var why = moveCannotPush();
   if (why) { uiAlert({ title: 'Nothing was moved', body: why }); return; }
@@ -415,9 +429,7 @@ function moveStart() {
     return _persistChain.then(function() {
       if (_moveSess !== s) return;
       s.stage = 'pushed';
-      moveDialog('Pushed. Now open the new address', 'The new address opens in a second window. Keep both open until this one says Moved.',
-        '<button type="button" class="inv-btn inv-btn-secondary" data-action="invMoveCancel">Cancel</button>' +
-        '<button type="button" class="inv-btn inv-btn-primary" data-action="invMoveOpen">Open the new address</button>');
+      movePushedDialog();
     });
   }, function(e) { if (_moveSess === s) moveFail('the push failed (' + ((e && e.message) || e) + ').'); });
 }
@@ -436,7 +448,7 @@ function moveOpenNew() {
   if (!w) { moveFail('the browser did not open the new address. Allow pop-ups for this address, then move again.'); return; }
   s.win = w;
   s.stage = 'opened';
-  moveDialog('Handing over', 'The new address is open. Keep both windows open: this one says Moved once the new address has read every piece back.', '');
+  moveHandingDialog();
   s.timer = setTimeout(function() { if (_moveSess === s && s.stage === 'opened') moveFail('the new address did not answer. Open it once in this browser while online, then move again.'); }, MOVE_WAIT_READY_MS);
 }
 
@@ -501,9 +513,12 @@ function moveLanded(s, d) {
     moveFail('the new address answered with a copy that does not match this one. Do not use the new address on this device yet; ask for help.');
     return;
   }
-  // Verified there: from now on this device's old address forwards.
-  try { localStorage.setItem(MOVE_MARK_OLD, JSON.stringify({ to: MOVE_NEW_ORIGIN, at: Date.now(), build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '' })); }
+  // Verified there: from now on this device's old address forwards. A print station stops being one here (its loop reads the mark
+  // at every look, remoteprint.js), or this window and the new address would both print each job; Undo gives the mark back.
+  var station = typeof prtIsStation === 'function' && prtIsStation();
+  try { localStorage.setItem(MOVE_MARK_OLD, JSON.stringify({ to: MOVE_NEW_ORIGIN, at: Date.now(), build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '', station: station })); }
   catch (e) { moveFail('the new address has everything, but this address would not keep its mark (' + describeStorageError(e) + '). Use the new address; this one does not forward yet.'); return; }
+  if (station) prtSetStation(false);
   s.stage = 'moved';
   _moveLast = s;
   _moveSess = null;
@@ -536,9 +551,11 @@ function moveAfterBoot() {
 }
 function moveUndo() {
   if (!grdGate('users', 'Undo the move on this device', moveUndo)) return;
-  uiConfirm({ title: 'Undo the move on this device?', body: 'This address stops forwarding and opens the copy left here. Keys deleted at the move are typed again here (Settings → Connections). The new address keeps its copy.',
+  uiConfirm({ title: 'Undo the move on this device?', body: 'This address stops forwarding and opens the copy left here (a print station is one again). Keys deleted at the move are typed again here (Settings → Connections), and a pull from GitHub brings what the new address pushed since. The new address keeps its copy: stop using it on this device.',
     okLabel: 'Undo the move' }).then(function(ok) {
     if (!ok) return;
+    var m = moveMarkOld();
+    if (m && m.station && typeof prtSetStation === 'function') prtSetStation(true);
     try { localStorage.removeItem(MOVE_MARK_OLD); } catch (e) { /* stays */ }
     location.replace(MOVE_OLD_ORIGIN + MOVE_OLD_PATH);
   });

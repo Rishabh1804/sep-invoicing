@@ -64,7 +64,9 @@ A Cloudflare Worker serving `dist/` as static assets, run first on every request
    every piece back** and compares; then marks itself (`sep_inv_move_in`) and answers with counts and the book's digest. Any
    failure undoes what it wrote and answers why; it stays empty and waiting.
 7. The old one compares the answer with what it sent (digest and every count). Only then it marks itself moved
-   (`sep_inv_moved`), deletes its keys if the box was ticked, and covers its window: this device's old address forwards from now on.
+   (`sep_inv_moved`), deletes its keys if the box was ticked, stops being the print station if it was one (the mark crossed; two
+   stations would print each job twice; *Undo* gives it back), and covers its window: this device's old address forwards from now
+   on. A move whose dialog was shut is shown again where it stands, never started twice.
 
 **The new address waits.** With no book (no mark, the database never held one, none in it), `moveGate()` draws *Waiting for the
 book* and the app does not start: no default book is saved, nothing is seeded, no key is read. *Another way* (folded): start empty,

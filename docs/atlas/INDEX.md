@@ -9,7 +9,7 @@ The map of everything `CLAUDE.md` used to hold. Read `docs/atlas/README.md` for 
 | [core](core/README.md) | How the repo is built, tested and stored; the hard rules in full; QA chains; what is built and what is next. | 12 |
 | [design](design/README.md) | The interface: the design system, UI pass 3, the tab map, navigation and interaction rules. | 16 |
 | [billing](billing/README.md) | Invoices, challans, credit notes, certificates, printing, rates, quotations and the masters. | 10 |
-| [floor](floor/README.md) | Production, the plant, stock, power, shifts, the entry faces and the planner. | 10 |
+| [floor](floor/README.md) | Production, the plant, stock, power, shifts, the entry faces, the planner and floor photos. | 11 |
 | [people](people/README.md) | Attendance, the areas and the extra, pay, pay slips, the payroll as paid and cash. | 6 |
 | [money](money/README.md) | Finance, bills, suppliers, the bank, cheques and statements. | 4 |
 | [insight](insight/README.md) | Stats, client performance, History, To-do, insights, reports and Home. | 9 |
@@ -25,7 +25,7 @@ Every topic, by domain.
 
 **billing**: [Billing spine, duplicate receipts, key business data](billing/domain-basics.md) · [Zinc pricing](billing/zinc-pricing.md) · [Invoice numbers, voids and reissues](billing/invoice-numbers.md) · [Quality certificates](billing/quality-certificates.md) · [Printing: the preview, the long tax invoice, its type](billing/printing.md) · [Credit notes](billing/credit-notes.md) · [Challan entry: keyboard, filled from the record, invoiced in parts, billed at zero](billing/challan-entry.md) · [Items Master and Client Master](billing/items-and-clients.md) · [The rate on record and the matcher](billing/rate-on-record.md) · [Quotations and prospects](billing/quotations-and-prospects.md)
 
-**floor**: [Production](floor/production.md) · [Production readers: slots as text, the barrel list, the night block](floor/production-readers.md) · [A day's plating whole, and what a line earned](floor/day-plating.md) · [Workers and the plant](floor/workers-and-plant.md) · [The planner](floor/planner.md) · [Power](floor/power.md) · [Stock](floor/stock.md) · [Entry faces](floor/entry-faces.md) · [Stock: on paper, entries checked, messages, by line, reorder](floor/stock-more.md) · [Shifts by line: the night shift](floor/shifts.md)
+**floor**: [Production](floor/production.md) · [Production readers: slots as text, the barrel list, the night block](floor/production-readers.md) · [A day's plating whole, and what a line earned](floor/day-plating.md) · [Workers and the plant](floor/workers-and-plant.md) · [The planner](floor/planner.md) · [Power](floor/power.md) · [Stock](floor/stock.md) · [Entry faces](floor/entry-faces.md) · [Stock: on paper, entries checked, messages, by line, reorder](floor/stock-more.md) · [Shifts by line: the night shift](floor/shifts.md) · [Floor photos: the log, the areas, tagging](floor/floor-photos.md)
 
 **people**: [The floor by area: staffing, the extra, OT blocks](people/areas-and-extra.md) · [Attendance: rolls from WhatsApp, the register, paper, needed per shift](people/attendance-rolls.md) · [Cash paid out and cash with the supervisor](people/cash.md) · [Labour, Pay, pay slips, the payroll as paid](people/labour-and-pay.md) · [What the seeded history says about the extra](people/extra-history.md) · [The block census, comp classes and the labour model](people/block-census-and-labour.md)
 

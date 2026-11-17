@@ -112,6 +112,7 @@ split/
 ├── im-form.js         ← IM add/edit/delete challan form (~680 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (~380 lines)
 ├── photoread.js      ← Photos read by Claude (owner, 3 Nov 2026): the key on the device (`sep_inv_claude_key`), one request a photo (`phRead`: shrunk to 1,568 px, a JSON schema, the browser header), what the photos have cost kept on the device; the register's and the challan's prompts and schemas (~190 lines)
+├── floorphotos.js    ← Floor photos (owner, 17 Nov 2026): Production → Photos, the log in the book (`S.floorPhotos`), the picture on the device, the areas and their questions the book's, Claude's suggestion confirmed by a person (~300 lines)
 ├── tatarelease.js    ← Tata Motors' monthly release read by Claude (owner, 10 Nov 2026): Tata's site and the exchanges only, the figures checked in code (they add up) before they are saved, a typed month only offered (~270 lines)
 ├── scanner.js        ← Challans → More → Scan a challan: the photo read into the challan form, the client one of the book's, every rate the client's own record (~130 lines)
 ├── events.js          ← Event delegation + input handlers (~1,180 lines)

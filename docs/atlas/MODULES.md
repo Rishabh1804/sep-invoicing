@@ -36,6 +36,7 @@ Each `split/*.js` module and the topic that owns it. The owner is the topic that
 | `split/finintel.js` | [money/bank-intelligence](money/bank-intelligence.md) |
 | `split/finlinks.js` | [money/bank-intelligence](money/bank-intelligence.md) |
 | `split/floor.js` | [design/tab-map-money-floor](design/tab-map-money-floor.md) |
+| `split/floorphotos.js` | [floor/floor-photos](floor/floor-photos.md) |
 | `split/flow.js` | [floor/entry-faces](floor/entry-faces.md) |
 | `split/github-sync.js` | [core/persistence](core/persistence.md) |
 | `split/guard.js` | [platform/guard](platform/guard.md) |

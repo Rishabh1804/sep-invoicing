@@ -113,6 +113,9 @@ var CHG_TRACK = [
   { path: 'production.photos', kind: 'raw', noun: 'register photo', label: function(r) { return r.name; } },
   { path: 'production.pages', kind: 'raw', noun: 'register page', label: function(r) { return chgJoin(typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.date ? chgDay(r.date) : ''); } },
   { path: 'production.learn', kind: 'skip' },
+  // Floor photos (floorphotos.js): the log of each photo and the areas it is tagged by; the picture itself stays on its device.
+  { path: 'floorPhotos.photos', kind: 'arr', noun: 'floor photo', plural: 'floor photos', label: function(r) { return chgJoin(r.date ? chgDay(r.date) : '', r.time); } },
+  { path: 'floorPhotos.areas', kind: 'arr', noun: 'photo area', plural: 'photo areas', label: function(r) { return r.name; } },
   { path: 'kb.articles', kind: 'arr', noun: 'article', omit: ['versions'],
     label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },
   { path: 'kb.trained', kind: 'arr', noun: 'training record', label: function(r) { return chgJoin(r.name, r.on ? chgDay(r.on) : ''); } },

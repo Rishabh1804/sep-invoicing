@@ -496,13 +496,16 @@ export async function walkProduction(page: Page, tag: string, stops: Stop[]) {
     ['hand', `switchTab('pageProduction'); prodOpenHand(null)`],
     // A message no reader knows opens Enter it from the text (P264).
     ['teach', `prodOpenPaste(${JSON.stringify(`${dmy}\n----VAT A 1----\nBETA CLAMP 240 NOS\nLINEAR 50 NOS`)})`],
+    // Floor photos (P267): the areas and a photo being tagged (its picture is on no device here).
+    ['photo-areas', `fphData(true).areas = [{ id: 'FA1', name: 'Gate', line: 'vat-a1', questions: [fphQuestion('Loaded?', 0), fphQuestion('Racks #', 1), fphQuestion('Note', 2)] }]; prodSetTab('photos'); _prodView = 'main'; _fphView = 'areas'; renderProduction()`],
+    ['photo-tag', `fphData(true).photos.push({ id: 'FP1', img: 'img-none', w: 40, h: 30, date: localDateStr(), time: '10:00', area: 'FA1', sentBy: '', tags: {}, note: '', by: '', at: 1 }); _fphView = 'list'; fphOpen('FP1')`],
   ];
   for (const [name, js] of views) {
     await page.evaluate(src => (0, eval)(src), js);
     await expect(page.locator('#productionContent .inv-pagehead')).toBeVisible();
     stops.push(await sweep(page, 'pageProduction › ' + name));
     await shot(page, `${tag}-pageProduction-${name}`);
-    await page.evaluate(() => (0, eval)(`_prodReview = null; _prodHand = null; _prodTeach = null; prodSetView('main')`));
+    await page.evaluate(() => (0, eval)(`_prodReview = null; _prodHand = null; _prodTeach = null; _fphOpen = null; _fphDraft = null; _fphView = 'list'; if (S.floorPhotos && (S.floorPhotos.photos || []).some(function(p) { return p.id === 'FP1'; })) S.floorPhotos = {}; prodSetTab('lines'); prodSetView('main')`));
   }
 }
 

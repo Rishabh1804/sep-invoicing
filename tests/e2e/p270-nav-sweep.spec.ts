@@ -142,4 +142,25 @@ test.describe('P270: navigation sweep', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
   });
 
+  test('focus goes back to what opened a dialog, even where a save drew it again', async ({ page }) => {
+    await loadAppWithState(page, longBook());
+    await switchTab(page, 'pageClients');
+    const row = page.locator('#pageClients [data-action="invEditClient"]').nth(1);
+    const id = await row.getAttribute('data-id');
+    await row.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(1);
+    await page.locator('.inv-scrim-dialog input').first().fill('OMEGA RENAMED WORKS');
+    await page.locator('.inv-scrim-dialog [data-action="invSaveClient"]').click();
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
+    // The list was drawn again under the dialog: the client's row, drawn again, has the focus (it fell to the page's body).
+    await expect.poll(() => page.evaluate(() => { const a = document.activeElement as HTMLElement; return a && a.dataset ? [a.dataset.action, a.dataset.id] : null; }))
+      .toEqual(['invEditClient', id]);
+    // Escape on a dialog with nothing redrawn: the same row, as before.
+    await page.locator(`#pageClients [data-action="invEditClient"][data-id="${id}"]`).press('Enter');
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => (document.activeElement as HTMLElement).dataset.id)).toBe(id);
+  });
 });

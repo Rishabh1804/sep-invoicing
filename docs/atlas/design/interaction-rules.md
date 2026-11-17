@@ -3,8 +3,8 @@ subject: "Interaction rules: pop-ups, forms, dialogs, selects, scroll"
 domain: design
 modules: [split/events.js, split/state.js]
 specs: []
-tests: [P76, P78, P79, P80, P92, P117, P272]
-updated: 2026-11-17 (the cursor after a stock save by hand, P272)
+tests: [P76, P78, P79, P80, P92, P117, P270, P272]
+updated: 2026-11-17 (the cursor after a stock save by hand, P272; focus back to a redrawn opener, P270)
 ---
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
@@ -69,3 +69,8 @@ Staff, To-do, History) are meant to scroll and are not checked.
 stayed ticked after they left the screen, with every bulk action still reaching them.
 `captureRegFilters()` and `captureIMFilters()` clear it; the register search binds its own
 listener and has to do it too.
+
+**Focus goes back to what opened a dialog, even where a save drew it again** (P270, 17 Nov 2026). `dialogOpen` keeps the focused
+control with the key that names it (`pushFocus`, keepScroll's `_keepKey`). A save redraws the screen under the dialog, mostly just after
+it shuts, so the opener was gone and focus fell to `<body>`: a keyboard started again from the page's top. `popFocus` now gives it to the
+redrawn twin, at once or once the redraw is done, unless something else took the focus or another dialog opened.

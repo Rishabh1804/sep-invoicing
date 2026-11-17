@@ -753,13 +753,30 @@ const METALS_KEY_KEY = 'sep_inv_metals_key';
 let _focusStack = [];
 
 function pushFocus() {
-  _focusStack.push(document.activeElement);
+  var el = document.activeElement;
+  // Kept with what names it (keepScroll's key), so a control drawn again while the dialog was open still takes the focus back (P270).
+  _focusStack.push({ el: el, key: _keepKey(el) });
 }
 
+/* Focus goes back to what opened the dialog. A save redraws the screen under it (a client edited, a row voided), mostly just after the
+   dialog shuts: that control is gone, and focus fell to <body>, so a keyboard started again from the page's top. Its redrawn twin, named
+   the same way, takes it, once the redraw is done and while nothing else has taken the focus or opened over the screen. */
+function _focusTwin(f) {
+  var twin = null;
+  try { twin = f.key ? document.querySelector(f.key) : null; } catch (e) { twin = null; }
+  if (twin) { try { twin.focus({ preventScroll: true }); } catch (e) {} }
+}
 function popFocus() {
   if (_focusStack.length === 0) return;
-  var el = _focusStack.pop();
-  try { if (el && typeof el.focus === 'function') el.focus(); } catch(e) {}
+  var f = _focusStack.pop(), el = f && f.el;
+  if (el && !el.isConnected) _focusTwin(f);
+  else { try { if (el && typeof el.focus === 'function') el.focus(); } catch(e) {} }
+  if (!el || !f.key) return;
+  setTimeout(function() {
+    var a = document.activeElement;
+    if (el.isConnected || (a && a !== document.body) || document.querySelector('.inv-scrim-dialog')) return;
+    _focusTwin(f);
+  }, 0);
 }
 
 function drainFocusStack() {

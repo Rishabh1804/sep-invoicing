@@ -49,6 +49,11 @@ Every agent, builder or reviewer, follows it. The full text is `docs/atlas/READM
 - **Sessions.** Start with `docs/NEXT_SESSION.md` (the latest close and its opening prompt). At close, replace its entry
   and move the old one to `docs/sessions/`. A PR that changes a data flow with the other repos adds its row to
   `docs/DATA_FLOWS.md` and says so.
+- **The cache warmer.** After orientation a session arms a ping to itself every 50 minutes; any message the owner types
+  resets the count. The tenth in a row with no word from him ends the chain. The rule and the close it then runs are in
+  the codex, `soma-internal/docs/atlas/continuity/cache-warmer.md`. **Nothing is pushed to this repo unattended**: it is
+  public. With the codex attached, what is uncommitted here is listed in the codex's handoff; without it, the session
+  says in the chat what is committed and what is not, and stops.
 
 ## Hard rules
 The full text, the counts and the exceptions: `docs/atlas/core/hard-rules.md`.

@@ -3,8 +3,8 @@ subject: "Tests, CI and the sandbox; fixtures"
 domain: core
 modules: []
 specs: []
-tests: [P21, P73]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P21, P73, P228]
+updated: 2026-11-16 (the paper record reads an auto margin as auto; it does not pass in the sandbox)
 ---
 
 ### Tests
@@ -58,3 +58,14 @@ keep their shape.
 **Fixtures carry `todayIso()` / `recentTs()`, never hardcoded dates.** Three tests have now
 been found passing only because of when they were written or what they happened not to
 filter on; a literal date in a fixture is a time bomb, not a constant.
+
+**The paper record (P228) reads how a document prints, never its laid-out size, and a margin set to `auto` is laid-out size**
+(16 Nov 2026). The spec had recorded the length layout gave the pay slip's signature block, which sits at the foot of its slip
+by an auto margin: 78px and 95px in the record, 104px and 95px on a Monday, when the week shown held other rows. It failed on
+a pull request that changed two docs. A margin whose computed value is `auto` is now recorded as `auto`; three record entries
+moved to match (the slip's signature block, the sales register's centred page). It is the third failure of this spec by the
+calendar (3 and 5 Nov 2026 pinned the week and its marks): a new property that layout fills in is read by its computed value.
+
+⚠ **P228's first test does not pass in this sandbox, before or after that change**: about 60 differences, nearly all on tables
+(`thead`, `tr`, `tbody`), from this Chromium against CI's. CI is the instrument for the paper record; here, filter its
+differences to the element in hand.

@@ -10,7 +10,7 @@ import { sweepState } from './sweep-fixture';
 // register, the quotation, the statement, the pay slips, the attendance and stock sheets and the ID cards print exactly as they
 // did. Each document is drawn in the print view under print media, and every element under its paper root is read for the
 // properties that make how it prints (colours, fills, edges, corners, shadows, spacing, type) and not for its laid-out size (which
-// a machine's fonts move). The record was taken on the build before UI pass 3 (PAPER_RECORD=1 writes it) on Teal, the default
+// a machine's fonts move; an auto margin is read as auto for the same reason). The record was taken on the build before UI pass 3 (PAPER_RECORD=1 writes it) on Teal, the default
 // palette until then, and is compared on Teal; any difference after fails, naming the document and the element. Paper reads no
 // palette either: the second test draws every document on each palette and holds the ink to Teal's (an element's own text, a
 // border drawn, a fill), the screens' palette being a device's choice and paper being the same for everyone.
@@ -68,7 +68,12 @@ async function looksOf(page: Page, js: string, palette = 'teal') {
       const cls = Array.from(el.classList).filter(c => c.startsWith('inv-')).sort().join('.');
       const sig = el.tagName.toLowerCase() + (cls ? '.' + cls : '');
       const cs = getComputedStyle(el);
-      const style = props.map(p => p + ':' + cs.getPropertyValue(p)).join(';');
+      // A margin set to auto is read as auto, not as the length layout gave it: that length is laid-out size. The slip's
+      // signature sits at the foot of its slip by an auto margin, and the room above it moves with the rows the week holds
+      // (16 Nov 2026, a Monday: 104px where the record held 78px).
+      const sm = (el as any).computedStyleMap?.();
+      const val = (p: string) => (p.startsWith('margin-') && sm && String(sm.get(p)) === 'auto') ? 'auto' : cs.getPropertyValue(p);
+      const style = props.map(p => p + ':' + val(p)).join(';');
       (out[sig] = out[sig] || []);
       if (!out[sig].includes(style)) out[sig].push(style);
       if (!(el as HTMLElement).checkVisibility?.()) return;

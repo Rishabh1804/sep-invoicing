@@ -12,11 +12,10 @@ import { PINS, unlock } from './p140-guard.fixture';
 // days to pay against the terms, and when each open challan and invoice is expected. Made-up names and figures; every date from today.
 
 test.describe('P204: the flow thread', () => {
-  test('T1: the plant’s target and terms in Settings, a client’s and a part’s own on the client; the rebate client’s 7 days set once', async ({ page }) => {
+  test('T1: the plant’s target and terms in Settings, a client’s and a part’s own on the client; the rebate client’s own 7 days', async ({ page }) => {
     await loadAppWithState(page, book());
-    // The client whose name reads Mehta takes 7 days once; every other reads the plant's.
+    // The rebate client reads its own 7 days, set on the client; every other reads the plant's.
     let st = await readStoredState(page);
-    expect(st._clientTerms1).toBe(true);
     expect(st.clients.find((c: any) => c.id === 13).payTermsDays).toBe(7);
     expect(st.clients.find((c: any) => c.id === 11).payTermsDays).toBeUndefined();
     expect(await ev(page, `[flowTerms(13), flowTerms(11), flowTarget(11, 'BRACKET 7')]`)).toEqual([{ days: 7, src: 'client' }, { days: 45, src: 'plant' }, { days: 1, src: 'plant' }]);

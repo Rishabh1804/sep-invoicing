@@ -212,8 +212,8 @@ The owner's answers on the material-flow study:
 **Built (10 Oct 2026, P204), as CLAUDE.md *Entry faces* says in full.** `flow.js`.
 - **T1.** The plant's target and terms are Settings → Checks & alerts → *Turnaround and terms* (`S.flowCfg`: `turnDays` 1, 0 the same
   day; `termsDays` 45). A client's own, and a part's own on it, are on the client's form (`client.payTermsDays`,
-  `client.turnaroundDays`, `client.turnaroundParts`). The client whose name reads Mehta takes 7 days once, where it has none
-  (`_clientTerms1`). A challan or one of its lines is wanted by a day (`priority`): set on the challan form or with *Wanted by*
+  `client.turnaroundDays`, `client.turnaroundParts`). A once-only migration set one client's terms by its name (`_clientTerms1`);
+  it was removed on 17 Nov 2026 (the owner, 17 Nov 2026: the build carries no client's data, HR-10), and a book keeps the terms it wrote. A challan or one of its lines is wanted by a day (`priority`): set on the challan form or with *Wanted by*
   among its actions (never before the day it came in, a line's day too; a line's own day drawn while it has one), and badged while
   anything on it is open, at its open lines' days.
 - **T2.** `flowLate`: material past its target, per client, red two working days past, saying where it stands. Waiting to pickle
@@ -262,7 +262,7 @@ Each spec uses made-up names in the shop's shapes, and each fails on the build b
   - `S.flowCfg` `{turnDays, termsDays}`, the plant's target and terms;
   - on a client, `payTermsDays`, `turnaroundDays` and `turnaroundParts` (`[{part, days}]`), each absent where the plant's stands;
   - on a challan and on a line, `priority` (a date);
-  - the once-only flag `_clientTerms1`.
+  - the once-only flag `_clientTerms1` (its migration removed on 17 Nov 2026; a book that carries the flag keeps it, and nothing reads it).
 
   The `owed90` task's id is unchanged; it now reads past each client's terms. Nothing is read from soma-internal for them.
 

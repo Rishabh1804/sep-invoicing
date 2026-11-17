@@ -4,7 +4,7 @@ domain: floor
 modules: [split/production.js, split/prodview.js, split/floor.js]
 specs: [docs/PLANT_PICTURE.md]
 tests: [P190, P191, P198, P206, P214]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (a client's default kg a piece is the book's: the once-only migration that set one by name is removed)
 ---
 
 ### A day's plating, whole
@@ -24,8 +24,8 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   count, its weight on record, or a piece client's amount over its ₹ a kg; `prodInPlant` returns its `lines` for this); **kind**
   (the client's own challans of that kind of part in the year before, CLAMP, LINER, BRACKET (*BKT* spelt out), at the run's gauge or
   the gauges its round allows: the median kg a piece by pieces, the middle 80% kept as the range); **default** (the client's own kg a
-  piece, `client.defaultKgPc`, Client → Edit → *On the floor*; owner, 9 Oct 2026: *"Default Mehta to 0.560 kg per unit,
-  adjustable"*, set once on the client whose name reads Mehta where it had none, `_clientKgPcDefault1`), before a kind whose parts
+  piece, `client.defaultKgPc`, Client → Edit → *On the floor*; owner, 9 Oct 2026, of one client's; the once-only migration that set
+  it on a client found by name, `_clientKgPcDefault1`, is removed, the owner, 17 Nov 2026: the build carries no client's data, HR-10, and a book keeps the figure it wrote), before a kind whose parts
   weigh wide apart (the middle 80% more than half its median across: Mehta's clamps of every gauge, 0.18 to 0.85 kg) and after one
   whose parts agree (their pads, 0.28 to 0.31); else **not weighed**, never a guess. The day's weighing names each client's default
   with **Change**, the client's form, and the page is drawn again on its save. Worked out once a book (`prodWeighIndex`, keyed on `_bookWrites`, `_prodVer` and the store). On the owner's book of 9 Oct:

@@ -444,100 +444,14 @@ if (!S._cnSeriesStart1) {
    vehicle and its P.O. pattern written into the build (`_clientDocDefaults1`); it came out on 22 Oct 2026 with the
    other client records the build held (data.js). Every book it ran on keeps the settings it wrote. */
 
-/* ===== SSS MEHTA'S CLAMP GAUGE BY THE ROUND, RECORDED ONCE =====
-   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
-   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." Set on the client whose name reads Mehta, where it
-   has no rule, and once: the flag travels with the state, so a rule the owner changed stays so. */
-(function() {
-  if (S._prodGaugeRules1) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  var p = prodData();
-  if (!p.gaugeRules.some(function(r) { return String(r.clientId) === String(c.id); })) {
-    var at = Date.now(), note = 'owner, 30 Sep 2026';
-    p.gaugeRules.push({ id: 'GR-seed1', clientId: c.id, family: 'CLAMP', racks: [150, 100], gauges: ['25X6', '30X6'], lines: { 150: 'vat-a1', 100: 'vat-a2' }, note: note, at: at });
-    p.gaugeRules.push({ id: 'GR-seed2', clientId: c.id, family: 'CLAMP', racks: [120, 72], gauges: ['35X6', '35X8', '40X6'], lines: { 120: 'vat-a1', 72: 'vat-a1' }, note: note, at: at });
-  }
-  S._prodGaugeRules1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
-   Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
-   takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where
-   it has no part times, and once: the flag travels with the state, so a time the owner changed or removed stays so. */
-(function() {
-  if (S._partTimes1) return;
-  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
-  if (!c) return;
-  if (!Array.isArray(c.partTimes) || !c.partTimes.length) {
-    var at = Date.now();
-    c.partTimes = [['5174 5460 3302', 24], ['5166 5460 3303', 80]].map(function(p, i) {
-      var idn = cpPartIdentity(p[0], '');
-      return { id: 'PT-seed' + (i + 1), base: idn.base, gauge: idn.gauge, name: p[0], line: 'vat-a2', pieces: p[1], plateMin: 30, at: at, note: 'owner, 30 Sep 2026' };
-    });
-  }
-  S._partTimes1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== SAMARTH'S PARTS BY THE ROUND ON THE REGISTER, RECORDED ONCE =====
-   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
-   other 3302 is Assy bracket connector that's 50 per round in VAT A1, that's recorded as 7.05 per piece and 500 g/pc."
-   The register's rounds (56, 156) replace the 24 and 80 set earlier where those still stand, the earlier figures kept in
-   the time's history; the connector's round is added. The rules that read a round as its part are set where the client
-   has none, and floor names already entered are matched again (an "Assy Bracket 3302" typed by hand finds the connector
-   by its description). Once: the flag travels with the state. */
-(function() {
-  if (S._prodPartRules1) return;
-  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
-  if (!c) return;
-  var p = prodData(), at = Date.now(), note = 'owner, 30 Sep 2026';
-  var parts = [['5174 5460 3302', 56, 'vat-a2', 'cover plate'], ['5166 5460 3303', 156, 'vat-a2', 'cover plate'], ['5167 5461 3302', 50, 'vat-a1', 'assy bracket connector']];
-  if (!p.partRules.some(function(r) { return String(r.clientId) === String(c.id); }))
-    parts.forEach(function(x, i) { p.partRules.push({ id: 'PR-seed' + (i + 1), clientId: c.id, racks: [x[1]], line: x[2], partNumber: x[0], name: x[3], note: note, at: at }); });
-  if (!Array.isArray(c.partTimes)) c.partTimes = [];
-  parts.forEach(function(x, i) {
-    var idn = cpPartIdentity(x[0], ''), t = c.partTimes.find(function(y) { return y.base === idn.base && (y.gauge || '') === idn.gauge; });
-    if (!t) { c.partTimes.push({ id: 'PT-seed' + (i + 1) + 'r', base: idn.base, gauge: idn.gauge, name: x[0], line: x[2], pieces: x[1], at: at, note: note }); return; }
-    var was = { 'PT-seed1': 24, 'PT-seed2': 80 }[t.id];
-    if (was != null && t.pieces === was) {
-      t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: t.plateMin }]);
-      t.pieces = x[1]; t.at = at; t.note = note + ': the register’s round';
-    }
-  });
-  prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt; }));
-  prodTouch();
-  S._prodPartRules1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== SSS MEHTA'S DEFAULT WEIGHT A PIECE, RECORDED ONCE =====
-   Owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable." What the floor's plating of theirs weighs where nothing
-   links a run to a part: the register writes CLAMP and a gauge, and a round no gauge rule names has no challan to set it
-   against (production.js prodWeighOf). Set on the client whose name reads Mehta, only where it has none, and once: the flag
-   travels with the state, so a figure the owner changed or cleared stays so. */
-(function() {
-  if (S._clientKgPcDefault1) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  if (!(+c.defaultKgPc > 0)) c.defaultKgPc = 0.56;
-  S._clientKgPcDefault1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== THE PAYMENT TERMS THE REBATE BUYS, SET ONCE (docs/ENTRY_FACES.md §5, T1) =====
-   Owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every other client 45 days". Every other client reads the plant's 45
-   days (Settings → Checks & alerts → Turnaround and terms); the client whose name reads Mehta is set to 7, only where it has no terms
-   of its own, and once: the flag travels with the state, so terms the owner changes or clears stay so. */
-(function() {
-  if (S._clientTerms1) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  if (!(+c.payTermsDays > 0)) c.payTermsDays = 7;
-  S._clientTerms1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
+/* Six once-only migrations stood here until 17 Nov 2026. Each found one client by the name written into it and wrote that
+   client's records into the book: clamp gauges by the round (`_prodGaugeRules1`), parts' rounds and plating times
+   (`_partTimes1`), the register's rounds read as parts (`_prodPartRules1`), a default weight a piece (`_clientKgPcDefault1`),
+   payment terms (`_clientTerms1`), and a round added to a gauge rule with two liner series rules (the sixth). The owner ruled
+   them out (17 Nov 2026: the build carries no client's data, HR-10). Each had run on every live book and its flag travels with
+   the synced state, so a book keeps what they wrote and every reader reads it as before (a client's part times, kg a piece and
+   terms are edited on the client; no screen writes a production rule yet: docs/atlas/floor/production.md); a new device takes
+   its book from sync. Nothing reads their flags or the records' seed ids. */
 
 /* ===== A CHALLAN WAITING: AMBER AT 3 DAYS, RED AT 6, SET ONCE =====
    Owner, 13 Oct 2026, of the days a challan waits to be invoiced before it is amber (red at twice them), offered keep 5, 3 or 7:
@@ -548,34 +462,6 @@ if (!S._cnSeriesStart1) {
   var c = S.todoCheck || (S.todoCheck = {});
   if (c.challanDays == null || +c.challanDays === 5) c.challanDays = 3;
   S._challanDays3 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
-   Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
-   and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule
-   whose gauges are those above 32X6 (35X6, 35X8, 40X6), and the runs already saved at 108 are read again by it
-   (prodGaugeRulesApply). The floor writes their L.C. Pads and liners as LINER: a round of 126 is one of the parts numbered
-   150…, of 90 or 87 one of the others (production.js prodSeriesFor), set where the client has no series rule. Once: the
-   flag travels with the state. */
-(function() {
-  if (S._prodMehtaRounds2) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  var p = prodData(), at = Date.now(), note = 'owner, 9 Oct 2026', mine = function(r) { return String(r.clientId) === String(c.id); };
-  var heavy = p.gaugeRules.find(function(r) { return mine(r) && r.family === 'CLAMP' && (r.gauges || []).indexOf('40X6') >= 0 && (r.gauges || []).indexOf('25X6') < 0; });
-  if (heavy && !p.gaugeRules.some(function(r) { return mine(r) && r.family === 'CLAMP' && (r.racks || []).indexOf(108) >= 0; })) {
-    heavy.racks = (heavy.racks || []).concat([108]);
-    heavy.lines = Object.assign({}, heavy.lines || {}, { 108: 'vat-a1' });
-    heavy.note = (heavy.note ? heavy.note + '; ' : '') + '108 on VAT A1, ' + note;
-  }
-  if (!p.seriesRules.some(mine)) {
-    p.seriesRules.push({ id: 'SR-seed1', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [126], lines: { 126: 'vat-a1' }, prefix: '150', name: 'the 150 series', note: note, at: at });
-    p.seriesRules.push({ id: 'SR-seed2', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [90, 87], lines: { 90: 'vat-a1', 87: 'vat-a1' }, prefix: '150', except: true, name: 'the liners outside the 150 series', note: note, at: at });
-  }
-  prodGaugeRulesApply();
-  prodTouch();
-  S._prodMehtaRounds2 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

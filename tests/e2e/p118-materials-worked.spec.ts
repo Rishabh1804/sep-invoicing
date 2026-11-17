@@ -30,7 +30,14 @@ function book(): SepState {
   s.clients = [
     { id: 1, name: 'ALPHA CLAMPS', billingMode: 'weight', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 6, effectiveFrom: '2020-04-01' }], itemRates: [] },
     { id: 2, name: 'BETA AUTO', billingMode: 'weight', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 13, effectiveFrom: '2020-04-01' }], itemRates: [] },
-    { id: 3, name: 'SAMARTH TEST WORKS', billingMode: 'piece', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 14, effectiveFrom: '2020-04-01' }], itemRates: [] },
+    { id: 3, name: 'GAMMA PRESS', billingMode: 'piece', gstType: 'intra', isActive: true, rates: [{ ratePerKg: 14, effectiveFrom: '2020-04-01' }], itemRates: [],
+      // Its parts plated by the round, set on the book (Clients → Performance → By the hour): two on VAT A2 with plating
+      // timed at 30 minutes, and one on VAT A1 with no time set.
+      partTimes: [
+        { id: 'PT-1', base: '910100000001', gauge: '', name: '9101 0000 0001', line: 'vat-a2', pieces: 56, plateMin: 30, at: 1, note: 'owner' },
+        { id: 'PT-2', base: '910100000002', gauge: '', name: '9101 0000 0002', line: 'vat-a2', pieces: 156, plateMin: 30, at: 1, note: 'owner' },
+        { id: 'PT-3', base: '910100000003', gauge: '', name: '9101 0000 0003', line: 'vat-a1', pieces: 50, at: 1, note: 'owner' },
+      ] },
   ];
   // The same clamp, written two ways: CLAMP 149X83(40X6) to ~3 months ago, then 149X83 with the gauge in the description.
   const im: any[] = [], invs: any[] = [];
@@ -41,8 +48,8 @@ function book(): SepState {
   im.push(ch(2, 25, 'B-7', 'BRACKET 5501', 'BRACKET 5501', 60, 'KG'));
   im.push(ch(2, 10, 'B-8', 'CLAMP 66X42', 'CLAMP 66X42 (30X6)', 300, 'NOS'));
   // Parts billed by the piece and plated by the round.
-  invs.push(inv(3, 12, '5174 5460 3302', 'BRACKET', 240, 'NOS', 9));
-  invs.push(inv(3, 11, '5166 5460 3303', 'BRACKET', 800, 'NOS', 3));
+  invs.push(inv(3, 12, '9101 0000 0001', 'BRACKET', 240, 'NOS', 9));
+  invs.push(inv(3, 11, '9101 0000 0002', 'BRACKET', 800, 'NOS', 3));
   s.incomingMaterial = im.length ? im : noSeedIM();
   s.invoices = invs;
   return s as SepState;
@@ -62,8 +69,8 @@ async function openPerf(page: Page, clientId: number) {
 test('one clamp spelt two ways is one part, steady, and the old spelling is not called stopped', async ({ page }) => {
   await loadAppWithState(page, book());
   await openPerf(page, 1);
-  expect(await g(page, `JSON.stringify([cpPartIdentity('CLAMP 149X83(40X6)', 'CLAMP 149X83(40X6)'), cpPartIdentity('149X83', 'CLAMP (40X6)'), cpPartIdentity('5174 5460 3302', 'BRACKET')])`))
-    .toBe(JSON.stringify([{ base: '149X83', gauge: '40X6' }, { base: '149X83', gauge: '40X6' }, { base: '517454603302', gauge: '' }]));
+  expect(await g(page, `JSON.stringify([cpPartIdentity('CLAMP 149X83(40X6)', 'CLAMP 149X83(40X6)'), cpPartIdentity('149X83', 'CLAMP (40X6)'), cpPartIdentity('9101 0000 0001', 'BRACKET')])`))
+    .toBe(JSON.stringify([{ base: '149X83', gauge: '40X6' }, { base: '149X83', gauge: '40X6' }, { base: '910100000001', gauge: '' }]));
   await expect(page.locator('[data-cp-group="stopped"]')).toContainText('Stopped · 0');
   await expect(page.locator('[data-cp-group="steady"]')).toContainText('149X83');
 });
@@ -96,19 +103,20 @@ test('materials worked: a period, a search, every challan by date, and a code an
   await expect(page.locator('[data-card="worked"] [data-cp-worked="2|66X42|30X6"]')).toContainText('300 NOS');
 });
 
-test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set once, at the register’s rounds, and removed stays removed', async ({ page }) => {
+test('by the hour: a round is pickle + plate + 15 minutes, and removed stays removed', async ({ page }) => {
   await loadAppWithState(page, book());
+  // The part times are the book's own, as set: the build writes none (the once-only migration that set a client's came out
+  // on 17 Nov 2026, HR-10).
   const c = (await readStoredState(page)).clients.find((x: any) => x.id === 3);
-  // Set at 24 and 80 first, then at the register's rounds (56, 156; owner, 30 Sep 2026), the connector's 50 added.
-  expect(c.partTimes.map((t: any) => [t.name, t.line, t.pieces, t.plateMin])).toEqual([['5174 5460 3302', 'vat-a2', 56, 30], ['5166 5460 3303', 'vat-a2', 156, 30], ['5167 5461 3302', 'vat-a1', 50, undefined]]);
+  expect(c.partTimes.map((t: any) => [t.name, t.line, t.pieces, t.plateMin])).toEqual([['9101 0000 0001', 'vat-a2', 56, 30], ['9101 0000 0002', 'vat-a2', 156, 30], ['9101 0000 0003', 'vat-a1', 50, undefined]]);
   await openPerf(page, 3);
   const card = page.locator('[data-card="hours"]');
   // No pickling on record: 30 + 15 = 45 min a round. 56 × ₹9 over 0.75 h is ₹672 an hour; 156 × ₹3 is ₹624.
-  await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('₹672.00');
-  await expect(card.locator('[data-cp-time="PT-seed2"] summary')).toContainText('₹624.00');
+  await expect(card.locator('[data-cp-time="PT-1"] summary')).toContainText('₹672.00');
+  await expect(card.locator('[data-cp-time="PT-2"] summary')).toContainText('₹624.00');
   // Its make-up is fact rows under it (the tab map, TM5f; it was a sentence): plating as set, the constant on every round.
-  await card.locator('[data-cp-time="PT-seed1"] summary').click();
-  const step = (k: string) => card.locator(`[data-cp-time="PT-seed1"] [data-cp-step="${k}"]`);
+  await card.locator('[data-cp-time="PT-1"] summary').click();
+  const step = (k: string) => card.locator(`[data-cp-time="PT-1"] [data-cp-step="${k}"]`);
   await expect(step('plate').locator('.inv-row-end')).toHaveText('30 min');
   await expect(step('plate').locator('.inv-row-meta')).toHaveText('set');
   await expect(step('over').locator('.inv-row-end')).toHaveText('15 min');
@@ -116,13 +124,13 @@ test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set o
   // The constant is the owner's to change: 5 minutes makes a round 35.
   await card.locator('#cpOverhead').fill('5');
   await card.locator('#cpOverhead').dispatchEvent('change');
-  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-seed1"] summary')).toContainText('₹864.00');
+  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-1"] summary')).toContainText('₹864.00');
   await expect(page.locator('[data-card="hours"] [data-cp-hour-ref]')).toContainText('An hour costs the plant');
-  await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] summary').click();
-  await page.locator('[data-card="hours"] [data-cp-time="PT-seed2"] [data-action="invCpTimeRemove"]').click();
+  await page.locator('[data-card="hours"] [data-cp-time="PT-2"] summary').click();
+  await page.locator('[data-card="hours"] [data-cp-time="PT-2"] [data-action="invCpTimeRemove"]').click();
   // Remove asks first (P128, G5-13).
   await answerAsk(page, 'ok');
-  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-seed2"]')).toHaveCount(0);
+  await expect(page.locator('[data-card="hours"] [data-cp-time="PT-2"]')).toHaveCount(0);
   await page.reload();
   await page.waitForSelector('body.inv-booted');
   expect((await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes).toHaveLength(2);
@@ -131,7 +139,7 @@ test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set o
 test('the times are learnt from the production record, the trend is read, and a set figure the record no longer bears out is said', async ({ page }) => {
   const s: any = book();
   const d = (n: number) => daysAgo(n);
-  const plated = (id: string, date: string, times: string[], qty: number) => ({ id, kind: 'plated', date, line: 'vat-a2', lineSrc: 'written', clientId: 3, part: '5174 5460 3302', qty: qty * times.length, unit: 'NOS',
+  const plated = (id: string, date: string, times: string[], qty: number) => ({ id, kind: 'plated', date, line: 'vat-a2', lineSrc: 'written', clientId: 3, part: '9101 0000 0001', qty: qty * times.length, unit: 'NOS',
     basis: 'register', src: 'photo', time: times[0], to: times[times.length - 1], rounds: times.map(t => ({ time: t, qty })), at: 1 });
   const pickled = (id: string, date: string, time: string, part: string, qty: number) => ({ id, kind: 'pickled', date, clientId: 3, part, qty, unit: 'NOS', time, basis: 'pickling', src: 'paste', at: 1 });
   s.production = { entries: [
@@ -140,13 +148,13 @@ test('the times are learnt from the production record, the trend is read, and a 
     // The last 30 days: 40-minute rounds, and a round of 20.
     plated('B1', d(20), ['9:00', '9:40', '10:20', '11:00'], 24), plated('B2', d(10), ['12:40', '1:20 PM', '2:00 PM'], 20),
     // Pickling: 48 pieces, the next load 24 minutes later: half a minute a piece.
-    pickled('K1', d(10), '8:00', '5174 5460 3302', 48), pickled('K2', d(10), '8:24', 'OTHER 1', 10),
+    pickled('K1', d(10), '8:00', '9101 0000 0001', 48), pickled('K2', d(10), '8:24', 'OTHER 1', 10),
   ], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
   await loadAppWithState(page, s);
-  const m = JSON.parse(await g(page, `JSON.stringify(cpMeasured(cpMeasure(3, '517454603302', '')))`) as string);
+  const m = JSON.parse(await g(page, `JSON.stringify(cpMeasured(cpMeasure(3, '910100000001', '')))`) as string);
   expect(m).toMatchObject({ nPlate: 10, nPickle: 1, pcsMax: 24, trendBefore: 30, trendNow: 40 });
   await openPerf(page, 3);
-  const row = page.locator('[data-card="hours"] [data-cp-time="PT-seed1"]');
+  const row = page.locator('[data-card="hours"] [data-cp-time="PT-1"]');
   await row.locator('summary').click();
   // What the record measured is a fact row, and the slower rounds a row of what to look at (the tab map, TM5f).
   await expect(row.locator('[data-cp-measured] .inv-row-title')).toHaveText('Plating rounds timed');

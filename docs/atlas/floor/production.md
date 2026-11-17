@@ -4,7 +4,7 @@ domain: floor
 modules: [split/production.js, split/prodview.js]
 specs: []
 tests: [P85, P90, P122, P198, P214, P258, P265, P269, P272]
-updated: 2026-11-17 (the pickling hand's line for a load; Enter by hand: the cursor on opening, its way out a step back, P269, P272)
+updated: 2026-11-17 (the rules are the book's: the once-only migrations that set them on clients found by name are removed; the pickling hand's line for a load; Enter by hand: the cursor on opening, its way out a step back, P269, P272)
 ---
 
 ### Production
@@ -169,7 +169,7 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
 - **The register's own shorthand, from the owner's pages of 23–29 Sep 2026** (P122):
   - **A clamp's gauge from its round** (owner: *"Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on
     VAT A2 and 35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1"*). The register writes Mehta's clamps as CLAMP; a
-    rule (`S.production.gaugeRules`: client, the part's first word, rack sizes, gauges; Mehta's two set once, `_prodGaugeRules1`) reads a
+    rule (`S.production.gaugeRules`: client, the part's first word, rack sizes, gauges; the book's, see *The rules are the book's* below) reads a
     round of 150 or 100 as 25X6 or 30X6 and of 120 or 72 as 35X6, 35X8 or 40X6 (`prodGaugeRuleFor`). The lines named are kept on the
     rule, not required: the pages show 150 and 120 on A2 as well. One gauge is written in; two or three are kept as the entry's
     `gaugeOptions`, set against the family's challans at any of them. A round of a size no rule names (108, 98, 82) is its own run,
@@ -180,11 +180,10 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
     ending in it, then those named like it, then all of the client's (`prodAliasOpen`).
   - **A Samarth round names its part** (owner: *"56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover
     plate. The other 3302 is Assy bracket connector that's 50 per round in VAT A1"*). Two of Samarth's parts end in 3302 and the register
-    writes all three as TINA, so a rule (`S.production.partRules`: client, rack sizes, line, part number, floor name; set once,
-    `_prodPartRules1`) reads the round on its line as the part (`prodPartRuleRead`). The line is required here, unlike a gauge rule. A code
+    writes all three as TINA, so a rule (`S.production.partRules`: client, rack sizes, line, part number, floor name; the book's)
+    reads the round on its line as the part (`prodPartRuleRead`). The line is required here, unlike a gauge rule. A code
     written that ends the rule's part, or one of the pair, is read by the rule and a disagreement is amber (*TINA(3303)* at 56 a round);
-    a code ending a part no rule names stays as written. The same pass set Samarth's per-hour rounds to the register's (56, 156; the 24 and 80
-    kept in each time's history) and added the connector's 50 on A1. A code ending two parts is settled by the name's words in the part's
+    a code ending a part no rule names stays as written. A code ending two parts is settled by the name's words in the part's
     description where one alone carries them (*Assy Bracket 3302* → the connector), on a register, an import or a hand entry. A floor name
     learnt as two parts (TINA from 3303 and 3302) is kept as **ambiguous** and finds neither; an entry's own part number wins over a
     learnt name.
@@ -204,7 +203,17 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
     the client's rules and challans for that kind, or typed; `gaugeSrc: 'set'`), and To-do rule **`prodGaugeUnknown`** asks per client,
     imported runs included. **A rule given a round later reads the runs already saved at it** (`prodGaugeRulesApply`: the gauges the
     register read would have given, `gaugeSrc: 'rack'`, `gaugeRuled: {rack, at}`; a gauge picked by hand stays): the owner, 9 Oct 2026,
-    on a round of 108 of Mehta's clamps on VAT A1, *"above 32x6"*, so 108 joined the rule of 35X6, 35X8 and 40X6 (`_prodMehtaRounds2`).
+    on a round of 108 of a client's clamps on VAT A1, *"above 32x6"*, so 108 joined the rule of 35X6, 35X8 and 40X6. Its only caller
+    was the once-only migration that added the round, removed on 17 Nov 2026; a screen that edits a rule is to call it (P191 calls it
+    directly).
+  - **The rules are the book's** (the owner, 17 Nov 2026: the build carries no client's data, HR-10). The gauge, part and series rules, a client's part times on
+    the round and its default kg a piece were set until then by six once-only migrations in init.js, each finding one client by a name
+    written into the build (`_prodGaugeRules1`, `_partTimes1`, `_prodPartRules1`, `_clientKgPcDefault1`, `_clientTerms1` and a sixth
+    for a round and the liner series). They are removed. Each had run on every live book and its flag travels with the synced state, so
+    a book keeps the rules it carries and every reader above reads them as before; a new device takes its book from sync. Nothing reads
+    the flags or the records' seed ids (`GR-seed…`, `PR-seed…`, `SR-seed…`, `PT-seed…`). **No screen writes a gauge, part or series rule
+    yet**: a new one comes from the book (a backup or sync) until one does. Specs set the rules on their own books (`clampRules` in
+    `tests/e2e/fixtures.ts`).
   - **A floor word whose round names a series** (`S.production.seriesRules`, `prodSeriesFor`; owner, 9 Oct 2026, on Mehta's liners:
     *"126 - 150xxxxxx series, 90/87 - everything else"*): the floor writes Mehta's L.C. Pads and liners as LINER, and the round says which
     of them it can be, not which one: a rule is a client, the floor's word, the challans' kinds it covers (LINER, PAD), the rack sizes and

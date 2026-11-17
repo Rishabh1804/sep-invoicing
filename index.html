@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="13526652">
+<meta name="app-build" content="bdc96d6d">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -4334,8 +4334,10 @@ const STORAGE_KEY = 'sep_invoicing_state';
 
 function getDefaultState() {
   return {
-    company: {name:"SOMA ELECTRO PRODUCTS",add1:"8-B, 1st Phase,  Industrial Area, Adityapur",add2:"Jamshedpur - 832 109",add3:"",phone:"9431523950",mobile:"8271063224,9386780003",email:"soma_electro123@rediffmail.com",gstin:"20AAPFS4718J2Z0",state:"JHARKHAND",stateCode:"20"},
-    bankDetails: "Bank - Bank Of Baroda, Jamshedpur Main Branch\nA/c No - 00190200000222\nIFSC : BARB0JAMSHE\nPlease Pay by A/c Payee Cheque",
+    // Who issues the documents is the book's, typed in Settings → Business → Company and Bank details: nothing about the shop is
+    // in the build (owner, 17 Nov 2026, HR-10). The same shape, every field empty; every reader copes with a blank (P279).
+    company: { name: '', add1: '', add2: '', add3: '', phone: '', mobile: '', email: '', gstin: '', state: '', stateCode: '' },
+    bankDetails: '',
     companyLogo: "",
     invPrefix: "SEP/2026-27/",
     invNextNum: 1,
@@ -4990,6 +4992,10 @@ function ensureStateShape(s) {
     });
   });
   if (!s.cnNextNum) s.cnNextNum = 1;
+  // The company is the book's own (Settings → Business → Company). A book with none at all gets the empty shape, so every
+  // screen and document reads blanks rather than throwing; a company the book holds, filled or blank, is never touched, and
+  // nothing here ever writes a name or a number into it (owner, 17 Nov 2026, HR-10; P279).
+  if (!s.company || typeof s.company !== 'object' || Array.isArray(s.company)) s.company = d.company;
   // The market's four stores (feeds.js): each its own shape, filled empty; the models followed take the default only where
   // there is no list at all (a list emptied by the owner stays empty).
   var mk = s.market && typeof s.market === 'object' && !Array.isArray(s.market) ? s.market : (s.market = {});
@@ -7404,7 +7410,7 @@ function getRateOnRecord(client, onDate, item) {
     if (pr) return { rate: pr.rate, unit: 'piece', source: 'pieceRate', effectiveFrom: pr.effectiveFrom };
     // Only a nos_to_weight line with a weight on record is priced per kg. Any
     // other NOS line carries a per-piece figure, and the ₹/kg ladder is not a
-    // reference for it (Parakh's ROLLER at ₹1.10/pc is not "off" from ₹10/kg).
+    // reference for it (DELTA AUTO's QX1 at ₹1.10/pc is not "off" from ₹10/kg).
     var w = (S.partWeights || {})[(item.partNumber || '').toUpperCase()];
     if (client.billingMode !== 'nos_to_weight' || !w) return null;
   }
@@ -11760,7 +11766,7 @@ function _sortedCard(list) {
 
 function _pieceRatesEditHtml(c) {
   // Every client: a weight-billed client can still send a part billed per piece
-  // (Parakh's ROLLER), and the matcher tells the operator to add it here.
+  // (DELTA AUTO's QX1), and the matcher tells the operator to add it here.
   var rows = _sortedPieceRates(c).map(function(pr) {
     return _cardRowHtml(_partGaugeHtml(pr), formatCurrency(pr.rate) + '/pc', pr.effectiveFrom,
       ' data-action="invRemovePieceRate" data-client="' + c.id + '" data-idx="' + pr._i + '" aria-label="Remove piece rate"');
@@ -14600,11 +14606,16 @@ var SETTINGS_SECS = {
         _sfg('GSTIN', 'setCompGstin', '<input class="inv-input inv-id" id="setCompGstin" value="' + escHtml(S.company.gstin) + '">') +
         _sfg('Address 1', 'setCompAdd1', '<input class="inv-input" id="setCompAdd1" value="' + escHtml(S.company.add1) + '">') +
         _sfg('Address 2', 'setCompAdd2', '<input class="inv-input" id="setCompAdd2" value="' + escHtml(S.company.add2) + '">') +
-        _sfg('Phone', 'setCompPhone', '<input class="inv-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">');
+        _sfg('Address 3', 'setCompAdd3', '<input class="inv-input" id="setCompAdd3" value="' + escHtml(S.company.add3) + '">') +
+        _sRow(_sfg('State', 'setCompState', '<input class="inv-input" id="setCompState" value="' + escHtml(S.company.state) + '">'),
+          _sfg('State code', 'setCompStateCode', '<input class="inv-input inv-id" id="setCompStateCode" maxlength="2" inputmode="numeric" value="' + escHtml(S.company.stateCode) + '">')) +
+        _sfg('Phone', 'setCompPhone', '<input class="inv-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">') +
+        _sfg('Mobile', 'setCompMobile', '<input class="inv-input" id="setCompMobile" value="' + escHtml(S.company.mobile) + '">') +
+        _sfg('E-mail', 'setCompEmail', '<input class="inv-input" id="setCompEmail" type="email" value="' + escHtml(S.company.email) + '">');
     },
-    why: 'Printed on the tax invoice, the credit note and the test certificate. All three read it from here, so they can never disagree about who issued them.',
+    why: 'Printed on the tax invoice, the credit note, the test certificate, the quotation and the statement. All of them read it from here, so they can never disagree about who issued them. A new book starts with it blank: nothing about the shop is in the app itself.',
     save: function() {
-      ['Name', 'Gstin', 'Add1', 'Add2', 'Phone'].forEach(function(f) {
+      ['Name', 'Gstin', 'Add1', 'Add2', 'Add3', 'State', 'StateCode', 'Phone', 'Mobile', 'Email'].forEach(function(f) {
         S.company[f.charAt(0).toLowerCase() + f.slice(1)] = _sVal('setComp' + f).trim();
       });
     }
@@ -20324,21 +20335,23 @@ function formatQtyHeld(q) {
 
 function formatInvoiceData(inv) {
   const addr = inv.clientAddress || {};
+  // The company is the book's (Settings → Business → Company): blank on a new book, never a name from the build (P279).
+  const co = S.company || {};
   return {
     invoiceNumber: inv.displayNumber || '',
     date: formatDate(inv.date),
     cancelled: inv.status === 'cancelled',
     cancelledAt: inv.cancelledAt ? new Date(inv.cancelledAt).toLocaleDateString('en-IN') : null,
     // Company
-    companyName: S.company.name,
-    companyAdd1: S.company.add1,
-    companyAdd2: S.company.add2,
-    companyPhone: S.company.phone || '',
-    companyMobile: S.company.mobile || '',
-    companyEmail: S.company.email || '',
-    companyGSTIN: S.company.gstin,
-    companyState: S.company.state,
-    companyStateCode: S.company.stateCode,
+    companyName: co.name || '',
+    companyAdd1: co.add1 || '',
+    companyAdd2: co.add2 || '',
+    companyPhone: co.phone || '',
+    companyMobile: co.mobile || '',
+    companyEmail: co.email || '',
+    companyGSTIN: co.gstin || '',
+    companyState: co.state || '',
+    companyStateCode: co.stateCode || '',
     // Client
     clientName: inv.clientName || '',
     clientAdd1: addr.add1 || '',
@@ -20555,6 +20568,19 @@ var _printInvId = null;   // the invoice in the preview; null for any other docu
    opens a job only for an ID it fits (prtlight.js prtJobOpens). */
 var _printNeed = null;
 function printNeed(need) { _printNeed = need || null; }
+/* Who issues a document is the book's company (Settings → Business → Company), and a new book starts with it blank: nothing about
+   the shop is in the build (owner, 17 Nov 2026). A document that names its issuer (the invoice, the credit note, the certificate,
+   the quotation, the statement) is drawn as the book holds it, the blank printing blank, and its preview says so: warn, never
+   block. The paper carries no placeholder. Returns whether anything was missing. */
+function printIdentityGap(what) {
+  var c = (S && S.company) || {}, gap = [];
+  if (!String(c.name || '').trim()) gap.push('name');
+  if (!String(c.gstin || '').trim()) gap.push('GSTIN');
+  if (!gap.length) return false;
+  showToast('The company’s ' + gap.join(' and ') + (gap.length > 1 ? ' are' : ' is') + ' not set, so ' + what + ' prints ' + (gap.length > 1 ? 'them' : 'it') +
+    ' blank: Settings → Business → Company', 'warning');
+  return true;
+}
 function showPrintPreview(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv) return;
@@ -20574,6 +20600,7 @@ function showPrintPreview(invId) {
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   document.body.style.overflow = 'hidden';
   printFit();
+  printIdentityGap('the invoice');
   // Set page title for PDF filename (Phase 6b)
   document._savedTitle = document.title;
   document.title = (inv.displayNumber || 'Invoice') + ' - ' + (inv.clientName || 'SEP');
@@ -21472,6 +21499,7 @@ function showQualityCertificates(invIds) {
   _printInvId = null;
   printNeed({ pages: ['pageRegister'] });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the certificate');
   document.body.style.overflow = 'hidden';
 
   // Drives the filename when the browser saves the preview as a PDF.
@@ -22315,6 +22343,7 @@ function showCreditNotePreview(cnId, said) {
   _printInvId = null;
   printNeed({ pages: ['pageRegister'] });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the credit note');
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = cn.displayNumber.replace(/\//g, '-') + ' - ' + (cn.clientName || 'SEP');
@@ -22715,6 +22744,7 @@ function qtPrint(id) {
   _printInvId = null;
   printNeed({ pages: ['pageClients'] });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the quotation');
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = qtNumberText(q).replace(/\//g, '-') + ' - ' + qtRecipient(q);
@@ -39185,6 +39215,7 @@ function soaPrint() {
   _printInvId = null;
   printNeed({ pages: ['pageFinance'], money: true });
   printFit();
+  if (typeof printIdentityGap === 'function') printIdentityGap('the statement');
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = 'Statement - ' + s.client.name + ' - ' + s.to;
@@ -72771,8 +72802,9 @@ function _pcMonths(m) { return m == null ? '—' : m < 1 ? 'under a month' : for
 
 function powerCaseHtml(a) {
   a = a || powerAnalysis();
-  var co = (S.company && S.company.name) || 'Soma Electro Products', t = a.totals, today = localDateStr(), L = a.load, y = a.year;
-  var h = '<div class="inv-sr-doc" data-power-case><div class="inv-sr-head"><div class="inv-sr-co">' + escHtml(co) + '</div></div>' +
+  // Who files it is the book's company (Settings), or none: no name is written into the build (P279).
+  var co = String((S.company && S.company.name) || '').trim(), t = a.totals, today = localDateStr(), L = a.load, y = a.year;
+  var h = '<div class="inv-sr-doc" data-power-case>' + (co ? '<div class="inv-sr-head"><div class="inv-sr-co">' + escHtml(co) + '</div></div>' : '') +
     '<div class="inv-sr-title">Power cuts: the case for reliable supply</div>' +
     '<table class="inv-sr-meta"><tr><td class="inv-sr-meta-l">As of</td><td>' + escHtml(formatDate(today)) + ', drawn from the app&rsquo;s records when printed</td></tr>' +
     '<tr><td class="inv-sr-meta-l">Record</td><td>' + (a.first ? escHtml(formatDate(a.first) + ' to ' + formatDate(today) + ' · ' + todoPlural(t.cuts, 'cut') + ' · ' + a.span.recorded + ' of ' + a.span.of + ' working days carry a record') : 'no cut on record') + '</td></tr>' +
@@ -87084,100 +87116,14 @@ if (!S._cnSeriesStart1) {
    vehicle and its P.O. pattern written into the build (`_clientDocDefaults1`); it came out on 22 Oct 2026 with the
    other client records the build held (data.js). Every book it ran on keeps the settings it wrote. */
 
-/* ===== SSS MEHTA'S CLAMP GAUGE BY THE ROUND, RECORDED ONCE =====
-   Owner, 30 Sep 2026: "Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on VAT A2, and
-   35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1." Set on the client whose name reads Mehta, where it
-   has no rule, and once: the flag travels with the state, so a rule the owner changed stays so. */
-(function() {
-  if (S._prodGaugeRules1) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  var p = prodData();
-  if (!p.gaugeRules.some(function(r) { return String(r.clientId) === String(c.id); })) {
-    var at = Date.now(), note = 'owner, 30 Sep 2026';
-    p.gaugeRules.push({ id: 'GR-seed1', clientId: c.id, family: 'CLAMP', racks: [150, 100], gauges: ['25X6', '30X6'], lines: { 150: 'vat-a1', 100: 'vat-a2' }, note: note, at: at });
-    p.gaugeRules.push({ id: 'GR-seed2', clientId: c.id, family: 'CLAMP', racks: [120, 72], gauges: ['35X6', '35X8', '40X6'], lines: { 120: 'vat-a1', 72: 'vat-a1' }, note: note, at: at });
-  }
-  S._prodGaugeRules1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== SAMARTH'S PARTS BY THE ROUND, RECORDED ONCE =====
-   Owner, 30 Sep 2026: "3302 at 9/pc takes about 30 mins/piece and we can only do 24 pcs at a time in VAT A2; 3303 at 3/pc
-   takes about 30 minutes and we can do 80 pcs at a time in VAT A2." Set on the client whose name reads Samarth, only where
-   it has no part times, and once: the flag travels with the state, so a time the owner changed or removed stays so. */
-(function() {
-  if (S._partTimes1) return;
-  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
-  if (!c) return;
-  if (!Array.isArray(c.partTimes) || !c.partTimes.length) {
-    var at = Date.now();
-    c.partTimes = [['5174 5460 3302', 24], ['5166 5460 3303', 80]].map(function(p, i) {
-      var idn = cpPartIdentity(p[0], '');
-      return { id: 'PT-seed' + (i + 1), base: idn.base, gauge: idn.gauge, name: p[0], line: 'vat-a2', pieces: p[1], plateMin: 30, at: at, note: 'owner, 30 Sep 2026' };
-    });
-  }
-  S._partTimes1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== SAMARTH'S PARTS BY THE ROUND ON THE REGISTER, RECORDED ONCE =====
-   Owner, 30 Sep 2026: "56 is 3302 on VAT A2, 156 is 3303 on VAT A2. These two are a pair of set they call cover plate. The
-   other 3302 is Assy bracket connector that's 50 per round in VAT A1, that's recorded as 7.05 per piece and 500 g/pc."
-   The register's rounds (56, 156) replace the 24 and 80 set earlier where those still stand, the earlier figures kept in
-   the time's history; the connector's round is added. The rules that read a round as its part are set where the client
-   has none, and floor names already entered are matched again (an "Assy Bracket 3302" typed by hand finds the connector
-   by its description). Once: the flag travels with the state. */
-(function() {
-  if (S._prodPartRules1) return;
-  var c = (S.clients || []).find(function(x) { return /SAMARTH/i.test(String(x.name || '')); });
-  if (!c) return;
-  var p = prodData(), at = Date.now(), note = 'owner, 30 Sep 2026';
-  var parts = [['5174 5460 3302', 56, 'vat-a2', 'cover plate'], ['5166 5460 3303', 156, 'vat-a2', 'cover plate'], ['5167 5461 3302', 50, 'vat-a1', 'assy bracket connector']];
-  if (!p.partRules.some(function(r) { return String(r.clientId) === String(c.id); }))
-    parts.forEach(function(x, i) { p.partRules.push({ id: 'PR-seed' + (i + 1), clientId: c.id, racks: [x[1]], line: x[2], partNumber: x[0], name: x[3], note: note, at: at }); });
-  if (!Array.isArray(c.partTimes)) c.partTimes = [];
-  parts.forEach(function(x, i) {
-    var idn = cpPartIdentity(x[0], ''), t = c.partTimes.find(function(y) { return y.base === idn.base && (y.gauge || '') === idn.gauge; });
-    if (!t) { c.partTimes.push({ id: 'PT-seed' + (i + 1) + 'r', base: idn.base, gauge: idn.gauge, name: x[0], line: x[2], pieces: x[1], at: at, note: note }); return; }
-    var was = { 'PT-seed1': 24, 'PT-seed2': 80 }[t.id];
-    if (was != null && t.pieces === was) {
-      t.history = (t.history || []).concat([{ at: t.at || null, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: t.plateMin }]);
-      t.pieces = x[1]; t.at = at; t.note = note + ': the register’s round';
-    }
-  });
-  prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt; }));
-  prodTouch();
-  S._prodPartRules1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== SSS MEHTA'S DEFAULT WEIGHT A PIECE, RECORDED ONCE =====
-   Owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable." What the floor's plating of theirs weighs where nothing
-   links a run to a part: the register writes CLAMP and a gauge, and a round no gauge rule names has no challan to set it
-   against (production.js prodWeighOf). Set on the client whose name reads Mehta, only where it has none, and once: the flag
-   travels with the state, so a figure the owner changed or cleared stays so. */
-(function() {
-  if (S._clientKgPcDefault1) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  if (!(+c.defaultKgPc > 0)) c.defaultKgPc = 0.56;
-  S._clientKgPcDefault1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== THE PAYMENT TERMS THE REBATE BUYS, SET ONCE (docs/ENTRY_FACES.md §5, T1) =====
-   Owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every other client 45 days". Every other client reads the plant's 45
-   days (Settings → Checks & alerts → Turnaround and terms); the client whose name reads Mehta is set to 7, only where it has no terms
-   of its own, and once: the flag travels with the state, so terms the owner changes or clears stay so. */
-(function() {
-  if (S._clientTerms1) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  if (!(+c.payTermsDays > 0)) c.payTermsDays = 7;
-  S._clientTerms1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
+/* Six once-only migrations stood here until 17 Nov 2026. Each found one client by the name written into it and wrote that
+   client's records into the book: clamp gauges by the round, parts' rounds and plating times, the register's rounds read as
+   parts, a default weight a piece, payment terms, and a round added to a gauge rule with two liner series rules (their flags
+   are named in docs/atlas/floor/production.md, not here: the build carries none of them, P279). The owner ruled
+   them out (17 Nov 2026: the build carries no client's data, HR-10). Each had run on every live book and its flag travels with
+   the synced state, so a book keeps what they wrote and every reader reads it as before (a client's part times, kg a piece and
+   terms are edited on the client; no screen writes a production rule yet: docs/atlas/floor/production.md); a new device takes
+   its book from sync. Nothing reads their flags or the records' seed ids. */
 
 /* ===== A CHALLAN WAITING: AMBER AT 3 DAYS, RED AT 6, SET ONCE =====
    Owner, 13 Oct 2026, of the days a challan waits to be invoiced before it is amber (red at twice them), offered keep 5, 3 or 7:
@@ -87188,34 +87134,6 @@ if (!S._cnSeriesStart1) {
   var c = S.todoCheck || (S.todoCheck = {});
   if (c.challanDays == null || +c.challanDays === 5) c.challanDays = 3;
   S._challanDays3 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
-
-/* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
-   Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
-   and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule
-   whose gauges are those above 32X6 (35X6, 35X8, 40X6), and the runs already saved at 108 are read again by it
-   (prodGaugeRulesApply). The floor writes their L.C. Pads and liners as LINER: a round of 126 is one of the parts numbered
-   150…, of 90 or 87 one of the others (production.js prodSeriesFor), set where the client has no series rule. Once: the
-   flag travels with the state. */
-(function() {
-  if (S._prodMehtaRounds2) return;
-  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
-  if (!c) return;
-  var p = prodData(), at = Date.now(), note = 'owner, 9 Oct 2026', mine = function(r) { return String(r.clientId) === String(c.id); };
-  var heavy = p.gaugeRules.find(function(r) { return mine(r) && r.family === 'CLAMP' && (r.gauges || []).indexOf('40X6') >= 0 && (r.gauges || []).indexOf('25X6') < 0; });
-  if (heavy && !p.gaugeRules.some(function(r) { return mine(r) && r.family === 'CLAMP' && (r.racks || []).indexOf(108) >= 0; })) {
-    heavy.racks = (heavy.racks || []).concat([108]);
-    heavy.lines = Object.assign({}, heavy.lines || {}, { 108: 'vat-a1' });
-    heavy.note = (heavy.note ? heavy.note + '; ' : '') + '108 on VAT A1, ' + note;
-  }
-  if (!p.seriesRules.some(mine)) {
-    p.seriesRules.push({ id: 'SR-seed1', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [126], lines: { 126: 'vat-a1' }, prefix: '150', name: 'the 150 series', note: note, at: at });
-    p.seriesRules.push({ id: 'SR-seed2', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [90, 87], lines: { 90: 'vat-a1', 87: 'vat-a1' }, prefix: '150', except: true, name: 'the liners outside the 150 series', note: note, at: at });
-  }
-  prodGaugeRulesApply();
-  prodTouch();
-  S._prodMehtaRounds2 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 
@@ -87271,21 +87189,11 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
-/* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
-   Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
-   18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,
-   only where no load is recorded, and once:
-   the flag travels with the state, so a load the owner corrected or cleared stays as they left it. */
-(function() {
-  if (S._powerLoad1) return;
-  var p = powerData();
-  // Only on a book that keeps electricity bills: the load is this connection's, and a book with none (a new device before
-  // its import, a test) has no connection to speak for yet. The flag waits until there is one.
-  if (!(S.costBills || []).some(function(b) { return b.kind === 'power' && !b.voided; })) return;
-  if (!(p.load.sanctioned || p.load.approved)) p.load = { sanctioned: 25, approved: 50, approvedOn: '2026-05-18', ref: '', note: 'Recorded as approved on 18 May 2026 (no approval letter or reference on file). Billed at 25 kVA on the May bill; owner, 30 Sep 2026: the bill still shows 25, and about ₹5,000 a month is paid over the limit (their statement, not a bill figure).', at: Date.now() };
-  S._powerLoad1 = true;
-  saveJSON(STORAGE_KEY, S);
-})();
+/* The connection's load (sanctioned and approved kVA, the day it was approved) is the book's, set on Power → Load & bills. A
+   once-only migration here wrote the plant's own load and its approval day on a book with electricity bills (its flag is named
+   in docs/atlas/floor/power.md, not here); it came out on 17 Nov 2026 (owner: nothing about the shop is in the build, HR-10).
+   Every book it ran on keeps the load it wrote. */
+
 /* ===== THE FUME EXTRACTION IN PLANS ALREADY SAVED, ONCE =====
    Owner, 28 Oct 2026: the fume extraction is its own option, and ISO 9001 and CQI-11 need it. A plan saved before then holding
    ISO 9001, CQI-11 or "Acid recovery and fume hood" gains it at the earliest month of those, so it does not lose them unseen;

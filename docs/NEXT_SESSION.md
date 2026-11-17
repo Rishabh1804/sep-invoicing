@@ -24,8 +24,9 @@ At a close, the new entry replaces the one below, which moves to the top of its 
     record entries moved. No app code changed. `docs/atlas/core/tests.md`.
 - **Known, about the sandbox**: P228's first test does not pass here before or after that change (about 60 differences on
   tables, this Chromium against CI's). CI is the instrument for the paper record.
-- **Known, about the warmer**: on its first night the session limit was hit and a ping arrived ten hours late; a ping spends
-  toward that limit. Whether the warmer stays as it is, is the owner's to say (the codex's `decisions/2026-11-17.md`).
+- **The warmer is retired, the close kept** (the owner, 17 Nov, after this close was first written): on its first night the
+  session limit was hit and a ping arrived ten hours late. One check eight hours after his last message now runs the
+  close; nothing keeps the cache warm (the codex's `decisions/2026-11-17.md`).
 - **Open, the owner's, unchanged from 13 Nov**: settling the month's register differences in the app with the roll lines
   beside each cell; the 4-digit PIN (Castor H-2), deferred; ₹0 prices on the free-acid supplier's entries, his call in Stock.
 - **From 11 Nov, still open**: re-file a topic that bundles two subjects when next working in it (`docs/atlas/README.md`, *Iterate*);
@@ -44,7 +45,7 @@ Read first:
 - /home/user/sep-invoicing/docs/atlas/README.md (the protocol), then the topic for the subject in hand
 At start: HR-10, the repo is public, every example made up; run `pnpm install` if node_modules is missing and set
 PW_CHROMIUM_PATH=/opt/pw-browsers/chromium before Playwright; never raise a P195 budget; merge only on the owner's
-word; a change updates its atlas topic in the same PR. After orientation, arm the cache warmer (CLAUDE.md).
+word; a change updates its atlas topic in the same PR. After orientation, arm the unattended close (CLAUDE.md).
 Held for the owner: the 4-digit PIN (Castor H-2).
 ```
 

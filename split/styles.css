@@ -3146,7 +3146,7 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-pick { fill: var(--series-other); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 /* A month's head is a 24th of the board: its cell keeps a 2px inset, not a cell's 12px, and its year stays whole, over the phone's
    two-line meta (P274: "’26" broke after its first figure, and the month's name touched the next). */
-.inv-pl-board thead th:not(:first-child) { padding-inline: var(--sp-2); text-align: center; }
+.inv-pl-board thead th:not(:first-child) { padding: var(--sp-2); text-align: center; }
 .inv-pl-board thead th .inv-row-meta:not(.inv-row-wrap) { display: block; white-space: nowrap; overflow-wrap: normal; }
 
 /* The plant register (plant.js, owner 7 Oct 2026): a line's units are deck cards in their status's tone (§6.22; the tab map,

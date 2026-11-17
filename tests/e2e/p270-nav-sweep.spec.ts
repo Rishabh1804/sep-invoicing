@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { answerAsk, emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
+import { longBook } from './load-fixture';
 
 // P270: the navigation sweep (17 Nov 2026). Screens added since the navigation step had no line in navLoc / navApply, so Back,
 // a reload and a link did not know them. Every name and figure is made up.
@@ -118,4 +119,27 @@ test.describe('P270: navigation sweep', () => {
     await expect(page.locator('[data-action="invProdLine"]').first()).toBeVisible();
     expect(where(page)).toEqual(['pageProduction', 'lines', '']);
   });
+
+  test('Back comes back to the rows the screen was left at, not its top; a tap moving on the next screen still opens at its top', async ({ page }) => {
+    await loadAppWithState(page, longBook());
+    await switchTab(page, 'pageRegister');
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeGreaterThan(700);
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
+    // Floor from the phone's bar (it stays on screen): a move, at the top.
+    await page.locator('.inv-navbar-item[data-ws="floor"]').click();
+    await expect(page.locator('#pageRegister')).not.toHaveClass(/inv-page-active/);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    // Back: Invoices, where it was left.
+    await page.goBack();
+    await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
+    // The top bar's arrow is the same Back.
+    await page.locator('.inv-navbar-item[data-ws="floor"]').click();
+    await expect(page.locator('#pageRegister')).not.toHaveClass(/inv-page-active/);
+    await page.locator('#navBack').click();
+    await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
+  });
+
 });

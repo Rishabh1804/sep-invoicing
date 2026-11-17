@@ -337,8 +337,17 @@ function navTrailPut(loc) {
   _navTrail[_navIdx] = loc ? Object.assign({ loc: loc }, navLabel(loc)) : null;
   try { sessionStorage.setItem(NAV_TRAIL_KEY, JSON.stringify(_navTrail)); } catch (e) { /* a convenience only */ }
 }
+/* Where the screen was scrolled when it was left, so Back (and Forward) come back to the same rows (P270: Back put every screen at its
+   top: the redraw a move makes goes there, and the browser's own restoring ran before it). Read at the touch, click or key that moves
+   the app, before anything has moved, and kept on the step it left (the trail, so a reload keeps it too). */
+var _navLeave = null;
+function navLeaveMark() { _navLeave = { idx: _navIdx, y: window.scrollY }; }
+['pointerdown', 'touchstart', 'keydown'].forEach(function(t) { document.addEventListener(t, navLeaveMark, { capture: true, passive: true }); });
 function navPush(loc, extra) {
   _navMoves++;
+  var t = _navTrail[_navIdx];
+  if (t && _navLeave && _navLeave.idx === _navIdx) t.y = _navLeave.y;
+  _navLeave = null;
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
@@ -469,14 +478,22 @@ window.addEventListener('popstate', function(e) {
 function navArrive(st, from) {
   if (navKey(st.loc) === navKey(navLoc())) { navBarDraw(); return; }
   _navHold++;
+  var y = _navTrail[st.idx] && _navTrail[st.idx].y;
   navLeaveOk().then(function(ok) {
-    if (ok) { _navHold--; navApply(st.loc); return; }
+    if (ok) { _navHold--; navApply(st.loc); if (y > 0) navScrollTo(y); return; }
     // Stay: the browser is put back on the form's entry. Nothing is recorded until it gets there.
     _navHold--;
     _navIgnore++;
     history.go(from - _navIdx);
     setTimeout(function() { _navIgnore = 0; navSoon(); }, 400);
   });
+}
+/* Back on the rows the screen was left at: now, and once more after the frame where a screen drawn late has its height. */
+function navScrollTo(y) {
+  window.scrollTo(0, y);
+  _navTrail[_navIdx] && (_navTrail[_navIdx].y = y);
+  var at = _viewTopAt;
+  requestAnimationFrame(function() { if (_viewTopAt === at && window.scrollY < y) window.scrollTo(0, y); });
 }
 function navCanBack() { return _navIdx > 0; }
 function navBack() { if (navCanBack()) history.back(); }

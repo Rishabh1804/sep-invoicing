@@ -75,3 +75,6 @@ a reload and a link did not know them:
 - **Production → the register photo's check** (and its reading) is `v=<view>/photo`, as `tabs.js`' form parts already expected: Back
   from it left Production for the screen before, and the photo stayed held, so the next one picked waited unread. Back now comes to
   the view the photo was picked on and drops the photo, as the check's own way back does; a reload, with no photo to show, opens the view.
+- **Back comes back to the rows a screen was left at.** The redraw a move makes put every screen at its top, the browser's own restoring
+  having run before it. The scroll is read at the touch, click or key that moves the app (`navLeaveMark`, before anything moved), kept on
+  the step it left (the trail, `y`), and put back after `navApply` on Back or Forward (`navScrollTo`). A move forward still opens at the top.

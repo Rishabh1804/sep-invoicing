@@ -37,7 +37,7 @@ const run = (id: string, clientId: number, part: string, qty: number, extra: any
 
 function weighBook(): SepState {
   const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
-  s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5, { defaultKgPc: 0.56 }), client(32, 'ORION WORKS', 'weight', 10)];
+  s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5, { defaultKgPc: 0.52 }), client(32, 'ORION WORKS', 'weight', 10)];
   s.invoices = [{ id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001', date: before(-20), status: 'active', invoiceState: 'dispatched', clientId: 31,
     clientName: 'MEHTA TEST INDUSTRIES', items: [{ partNumber: 'CLAMP 165X83 (NT)', desc: '40X6', unit: 'NOS', qty: 100, rate: 4.4, amount: 440 }],
     taxableValue: 440, cgstAmt: 39.6, sgstAmt: 39.6, igstAmt: 0, grandTotal: 519.2, gstType: 'intra', createdAt: 1 }];
@@ -79,17 +79,17 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     expect(await weigh(page, 'R1')).toEqual(['record', 352, 'its size: CLAMP 165X83 (NT)']);
     expect(await weigh(page, 'R6')).toEqual(['record', 38, 'its size: CLAMP 133X83 (NT)']);
     // Nothing links the clamp of no gauge to a part, and the client's clamps weigh 0.33 to 0.88: the client's default.
-    expect(await weigh(page, 'R2')).toEqual(['default', 52.64, 'the client’s default']);
+    expect(await weigh(page, 'R2')).toEqual(['default', 48.88, 'the client’s default']);
     // The pads agree (0.30, 0.31): their own weight wins over the default. The liners do not (0.20, 0.50): the default.
     expect((await weigh(page, 'R3'))[0]).toBe('kind');
-    expect(await weigh(page, 'R4')).toEqual(['default', 56, 'the client’s default']);
+    expect(await weigh(page, 'R4')).toEqual(['default', 52, 'the client’s default']);
     // Two brackets of one size weigh apart: neither is guessed; ORION has no default, so its usual by kind.
     expect((await weigh(page, 'R5'))[0]).toBe('kind');
     // The day's weighing names the default, with the door that changes it.
     const card = await dayCard(page);
     const row = card.locator('[data-prod-weigh="default"]').first();
     await expect(row).toContainText('At MEHTA TEST INDUSTRIES’s default');
-    await expect(row.locator('.inv-row-meta')).toHaveText('0.560 kg a piece · 194 pcs');
+    await expect(row.locator('.inv-row-meta')).toHaveText('0.520 kg a piece · 194 pcs');
   });
 
   test('the default is adjustable on the client: changed, the runs follow; cleared, the kind is used again', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('#flrHeroes [data-prod-day-weighing] > summary').click();
     await page.locator('[data-prod-weigh="default"] [data-action="invEditClient"]').first().click();
     const f = page.locator('#ceditDefaultKgPc');
-    await expect(f).toHaveValue('0.56');
+    await expect(f).toHaveValue('0.52');
     await f.fill('0.6');
     await page.locator('[data-action="invSaveClient"]').click();
     expect((await readStoredState(page)).clients.find((c: any) => c.id === 31).defaultKgPc).toBe(0.6);
@@ -269,7 +269,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
   // everything else" (the floor writes their L.C. Pads and liners as LINER).
   test('a round of 108 reads above 32x6, the runs saved at 108 included; a liner round of 126 is the 150 series, 90 the rest', async ({ page }) => {
     const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
-    s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5, { defaultKgPc: 0.56 })];
+    s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5, { defaultKgPc: 0.52 })];
     const open = (id: string, partNumber: string, desc: string, qty: number, amount: number) => ({ id, partNumber, desc, hsn: '998873', unit: 'NOS', qty, rate: amount / qty, amount, nosQty: qty, invoiced: false, invoiceId: null });
     // The pads of the 150 series at 0.309 kg a piece (₹1.545 at ₹5 a kg), a liner outside it at 0.411.
     s.incomingMaterial.push({ id: 'C9', clientId: 31, challanNo: '91', challanDate: before(-3), items: [open('C9a', '150X88X3', 'L.C.Pad', 1000, 1545), open('C9b', '220X80X3', 'LINER', 500, 1027.5)] });
@@ -289,6 +289,6 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // The liners: a round of 126 is set against the 150 series' challan, 90 against the others, 39 against none.
     expect(await weigh(page, 'L126')).toEqual(['challans', 77.87, 'challans']);
     expect(await weigh(page, 'L90')).toEqual(['challans', 73.98, 'challans']);
-    expect(await weigh(page, 'L39')).toEqual(['default', 21.84, 'the client’s default']);
+    expect(await weigh(page, 'L39')).toEqual(['default', 20.28, 'the client’s default']);
   });
 });

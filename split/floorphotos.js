@@ -103,18 +103,29 @@ async function fphAddFiles(files) {
 }
 
 /* ---------- Tagging ---------- */
+function fphDraftOf(p) { return { date: p.date, time: p.time, area: p.area, sentBy: p.sentBy, note: p.note || '', tags: Object.assign({}, p.tags || {}), from: {}, claude: null }; }
 function fphOpen(id) {
   var p = fphData().photos.find(function(x) { return x.id === id; });
   if (!p) return;
   _fphOpen = id;
-  _fphDraft = { date: p.date, time: p.time, area: p.area, sentBy: p.sentBy, note: p.note || '', tags: Object.assign({}, p.tags || {}), from: {}, claude: null };
+  _fphDraft = fphDraftOf(p);
   _fphView = 'list';
+  _pageTyped = false;   // a photo opened is a form not yet typed in (Save and next had carried the last one's mark)
   if (_prodTab !== 'photos') prodSetTab('photos');
   _prodView = 'main';
   renderProduction();
   viewTop();
 }
-function fphClose() { _fphOpen = null; _fphDraft = null; keepScroll(renderProduction); }
+function fphClose() { _fphOpen = null; _fphDraft = null; _pageTyped = false; keepScroll(renderProduction); }
+/* Where Photos is, for the address (nav.js): the photo open (`id`) and Areas (`photos/areas`) are places, so Back from either comes
+   back to the log, and a reload or a link opens them. A photo not in the log opens the log. */
+function fphNavSub() { return !_fphOpen && _fphView === 'areas' ? 'areas' : ''; }
+function fphNavApply(sub, id) {
+  var p = id ? fphData().photos.find(function(x) { return x.id === id; }) : null;
+  if (p) { if (_fphOpen !== id || !_fphDraft) { _fphOpen = id; _fphDraft = fphDraftOf(p); } _fphView = 'list'; return; }
+  _fphOpen = null; _fphDraft = null;
+  _fphView = sub === 'areas' ? 'areas' : 'list';
+}
 /* The next photo still to tag after the one open (the queue, oldest first), or none. */
 function fphNextTodo(afterId) {
   var todo = fphTodo().sort(function(a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
@@ -214,6 +225,7 @@ function fphAreasSave() {
     d.areas.push({ id: stockUid('FA'), name: n, line: '', questions: [], at: Date.now() });
   });
   saveState();
+  _pageTyped = false;   // what is on screen is what is saved: its way back asks nothing now (nav.js, P270)
   showToast('Areas saved' + (names.length ? ' · ' + todoPlural(names.length, 'area') + ' added' : ''), 'success');
   keepScroll(renderProduction);
 }

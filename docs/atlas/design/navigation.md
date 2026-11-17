@@ -3,8 +3,8 @@ subject: "Navigation: addresses, the trail, long lists, list and pane"
 domain: design
 modules: [split/nav.js]
 specs: [docs/UX_OVERHAUL_2.md]
-tests: [P55, P80, P100, P101, P103, P147, P153, P269]
-updated: 2026-11-17 (a form's own way out is a step back, P269)
+tests: [P55, P80, P100, P101, P103, P147, P153, P269, P270]
+updated: 2026-11-17 (a form's own way out is a step back, P269; P270: the navigation sweep)
 ---
 
 **Every screen has an address, and one trail goes back** (UX overhaul 2, step 1; owner, 28 Sep 2026: *"Backspace goes back
@@ -62,3 +62,10 @@ that may not see wages sees no rate on the roster** (`grdSeesWages`; the rows sh
 a 100rem window the `inv-panels-3` grids (Finance's Overview; Stats' until U3, whose Dashboard is a board; Pulse's questions and widgets until UI pass 3, whose board has its own grid) are three columns, and every
 panel in a grid is a `panel-w` container, so a strip of tiles never leaves a blank cell (the Home widgets' rule, now every
 panel's); every other grid stays two across, since three left a column empty or a lone card under a row. P147, P80, P153.
+
+**The navigation sweep (P270, 17 Nov 2026).** Screens added after the navigation step had no line in `navLoc` / `navApply`, so Back,
+a reload and a link did not know them:
+- **Production → Photos**: the photo being tagged is the address's `id` (`v=photos&id=FP…`) and Areas is `v=photos/areas`
+  (`fphNavSub`, `fphNavApply`, floorphotos.js). Opening either was no step: Back left Production for the screen before Photos and
+  the photo stayed open behind it. Their ways back (`invFphClose`, `invFphList`) are sub-view back buttons in `NAV_LEAVE_ACTIONS`,
+  so typed work asks first; a photo opened, closed or the areas saved start clean (`_pageTyped`).

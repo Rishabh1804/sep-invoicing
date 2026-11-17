@@ -56,6 +56,8 @@ function navLoc() {
       // The paste box and its check are one place: back from the check goes where the paste came from.
       v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
+      // Photos: the photo being tagged and the Areas form are places (P270); Back from either had left Production.
+      if (_prodTab === 'photos' && _prodView === 'main') { if (_fphOpen) id = _fphOpen; else if (fphNavSub()) v += '/' + fphNavSub(); }
       break;
     case 'pagePower': v = _powerTab; break;
     case 'pageStaff': v = _attView === 'register' ? 'register/' + aregMonthShown() : _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
@@ -168,6 +170,12 @@ function navLabel(loc) {
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
       sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
+      if (parts[0] === 'photos') {
+        if (parts[1] === 'areas') sub.push('Areas');
+        var fp = loc.id && fphData().photos.find(function(x) { return x.id === loc.id; });
+        if (fp) { var fa = fphArea(fp.area); rec = (fa ? fa.name : 'Floor photo') + ', ' + fp.time; }
+        break;
+      }
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
@@ -248,6 +256,7 @@ function navApply(loc) {
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
+        if (parts[0] === 'photos' && _prodView === 'main') fphNavApply(parts[1], id);
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
@@ -390,7 +399,8 @@ function navLeaveOk() {
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1 };
+  invGoHistory: 1, invMsgGo: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1, invFlowGuide: 1, invPointerGuide: 1,
+  invFphClose: 1, invFphList: 1 };   // Photos' way back from a photo being tagged and from Areas (P270)
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

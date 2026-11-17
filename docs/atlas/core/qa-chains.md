@@ -4,8 +4,10 @@ domain: core
 modules: []
 specs: [docs/UI_PASS_3.md]
 tests: [P104, P113, P114, P123, P129, P130, P149, P150, P151, P152, P153, P211, P212, P213, P214, P215, P216, P259]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (see also: the bug sweep of 17 Nov 2026)
 ---
+
+**See also**: [the bug sweep of 17 Nov 2026](qa-sweep-2026-11-17.md), every bug of #203 with its cause and resolution.
 
 **The QA sweep of 29–30 Sep 2026** (owner: *"sweep the codebase for dead and redundant code … sweep the app for bugs and
 behavioural issues. Do a QA chain and fix the issues"*). Governors audited seven areas (about 150 findings), a scratch harness

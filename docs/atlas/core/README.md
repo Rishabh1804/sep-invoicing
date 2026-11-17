@@ -12,6 +12,7 @@ Route: `CLAUDE.md` → `docs/atlas/INDEX.md` → this file → a topic → the c
 | [Build, the stamp and the pre-commit hook](build.md) | Build | — | 1.0 |
 | [Tests, CI and the sandbox; fixtures](tests.md) | Tests | — | 4.3 |
 | [QA sweeps and chains, Sep to Nov 2026](qa-chains.md) | The QA chain of 6 Nov 2026 | — | 12.7 |
+| [The bug sweep of 17 Nov 2026: every bug, its cause and its resolution](qa-sweep-2026-11-17.md) | The bug sweep of 17 Nov 2026 (#203) | — | 13.9 |
 | [The owner's rulings of 13 Oct 2026](owner-rulings-2026-10-13.md) | The owner's rulings of 13 Oct 2026 | — | 4.8 |
 | [Hard rules HR-1 to HR-10, their exceptions and the public repository](hard-rules.md) | Hard Rules (HR-1 through HR-10); What the public repository holds | `data.js` | 13.4 |
 | [Error reports](error-reports.md) | Error reports | `errors.js` | 2.0 |

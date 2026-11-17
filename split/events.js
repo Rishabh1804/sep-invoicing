@@ -474,6 +474,8 @@ function onDocClick(e) {
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
       // The toolbar's More and Filter (state.js, one look).
       if (uiToolbarAction(action, btn)) break;
+      // The new address (move.js, S0): the handover, and the waiting screen's own buttons before the start.
+      if (moveAction(action)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (suppAction(action, btn)) break;

@@ -33,6 +33,7 @@ JS_SOURCES=(
     "$DIR/clients.js" \
     "$DIR/items.js" \
     "$DIR/create.js" \
+    "$DIR/move.js" \
     "$DIR/settings.js" \
     "$DIR/github-sync.js" \
     "$DIR/devices.js" \
@@ -152,3 +153,6 @@ printf '{ "build": "%s" }\n' "$BUILD" > "$ROOT/version.json"
 
 # Status goes to stderr so it can never contaminate the built HTML.
 echo "built sep-invoicing.html and synced index.html (build $BUILD)" >&2
+
+# The app's own files, and only those, into dist/ (S0: the new address serves dist/ and nothing else; git ignores it).
+bash "$DIR/dist.sh"

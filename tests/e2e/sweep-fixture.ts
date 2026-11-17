@@ -494,13 +494,15 @@ export async function walkProduction(page: Page, tag: string, stops: Stop[]) {
   const views: Array<[string, string]> = [
     ['paste-check', `prodOpenPaste(${JSON.stringify(paste)})`],
     ['hand', `switchTab('pageProduction'); prodOpenHand(null)`],
+    // A message no reader knows opens Enter it from the text (P264).
+    ['teach', `prodOpenPaste(${JSON.stringify(`${dmy}\n----VAT A 1----\nBETA CLAMP 240 NOS\nLINEAR 50 NOS`)})`],
   ];
   for (const [name, js] of views) {
     await page.evaluate(src => (0, eval)(src), js);
     await expect(page.locator('#productionContent .inv-pagehead')).toBeVisible();
     stops.push(await sweep(page, 'pageProduction › ' + name));
     await shot(page, `${tag}-pageProduction-${name}`);
-    await page.evaluate(() => (0, eval)(`_prodReview = null; _prodHand = null; prodSetView('main')`));
+    await page.evaluate(() => (0, eval)(`_prodReview = null; _prodHand = null; _prodTeach = null; prodSetView('main')`));
   }
 }
 

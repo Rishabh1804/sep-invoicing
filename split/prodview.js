@@ -66,6 +66,7 @@ function renderProduction() {
   if (_prodView === 'paste') h = prodPasteHtml();
   else if (_prodView === 'review' && _prodReview) h = prodReviewHtml();
   else if (_prodView === 'hand' && _prodHand) h = prodHandHtml();
+  else if (_prodView === 'teach' && _prodTeach) h = prodTeachHtml();
   else if (_prodView === 'photo' && _prodPhoto) h = prodPhotoHtml();
   else if (_prodView === 'reading') h = prodBackBar('Reading the photo') + uiBlankHtml({ kind: 'loading', title: 'Claude is reading ' + (_prodPhotoBusy || 'the photo'), body: 'A page takes about half a minute. Nothing is saved until you have checked it.' });
   else {
@@ -1044,9 +1045,108 @@ function prodReadPaste(text) {
   if (!_prodPasteDraft.trim()) { showToast('Paste the messages first', 'error'); return; }
   var msgs = parseProdPaste(_prodPasteDraft, prodCtx());
   var useful = msgs.filter(function(m) { return m.read.items.length; });
-  if (!useful.length) { showToast('No pickling or production lines found in that text', 'error'); return; }
+  // Nothing read: never a dead end (owner, 17 Nov 2026). The text opens on Enter it from the text, a row a line with a
+  // figure, filled from what a loose reading could make of it; what is saved there teaches the reader (prodparse.js).
+  if (!useful.length) { prodTeachOpen(msgs); return; }
   _prodReview = { msgs: msgs, choices: {} };
   prodSetView('review');
+}
+/* ---------- Enter it from the text ---------- */
+var _prodTeach = null;
+function prodTeachRow(it) {
+  return { raw: it ? it.raw : '', n: it ? it.n : null, date: it ? it.date : localDateStr(), key: it ? it.teachKey || '' : '', written: it ? it.client || '' : '', on: !!(it && it.qty != null),
+    kind: 'plated', clientId: it && it.clientId != null ? String(it.clientId) : '', part: it ? it.part || '' : '', qty: it && it.qty != null ? String(it.qty) : '',
+    unit: it && it.unit === 'KG' ? 'KG' : 'NOS', line: it && it.lineHint ? it.lineHint : '', slot: 'general' };
+}
+function prodTeachOpen(msgs) {
+  var ctx = prodCtx();
+  _prodTeach = { msgs: msgs.filter(function(m) { return m.kind !== 'stock'; }).map(function(m) {
+    var r = prodLooseRead(m, ctx);
+    return { text: m.text, sentBy: m.sentBy || '', sentOn: m.sentOn || '', day: r.date, noDate: r.noDate, hash: prodMsgKey(r.date, m.text),
+      rows: r.items.map(prodTeachRow) };
+  }) };
+  if (!_prodTeach.msgs.length) { showToast('No pickling or production lines found in that text', 'error'); _prodTeach = null; return; }
+  prodSetView('teach');
+}
+function prodTeachHtml() {
+  var t = _prodTeach, today = localDateStr();
+  var clients = (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+  var field = function(id, label, input) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + input + '</div>'; };
+  var opt = function(v, label, cur) { return '<option value="' + escHtml(v) + '"' + (String(cur) === String(v) ? ' selected' : '') + '>' + escHtml(label) + '</option>'; };
+  var h = prodBackBar('Enter it from the text');
+  h += '<div class="inv-callout inv-callout-warning" id="prodTeachNote">Nothing in this text was read as pickling or production. Enter it here from the message: each line with a figure is a row, filled with what could be made of it. Check every field. What you save teaches the reader, so a message written the same way is read next time.</div>';
+  var on = 0;
+  t.msgs.forEach(function(m, mi) {
+    h += '<div class="inv-panel" data-prod-teach-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml('Message' + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
+      '<span class="inv-panel-count">' + escHtml(m.sentOn ? stockShortDate(m.sentOn) : 'no date sent') + '</span></div>' +
+      '<div class="inv-quote" data-prod-teach-text>' + escHtml(m.text) + '</div>';
+    if (m.noDate) h += '<div class="inv-note inv-mt-4">No date written in the message: each entry is dated today. Check the day.</div>';
+    m.rows.forEach(function(r, ri) {
+      var k = mi + ':' + ri, f = function(name) { return 'data-prod-teach="' + k + ':' + name + '"'; }, id = function(name) { return 'prodTeach' + name + mi + '_' + ri; };
+      if (r.on) on++;
+      h += '<div class="inv-row inv-row-auto inv-row-top" data-prod-teach-row="' + k + '"><div class="inv-row-main">' +
+        (r.raw ? '<div class="inv-quote">' + escHtml(r.raw) + '</div>' : '<div class="inv-note">An entry the text does not show line by line.</div>') +
+        '<label class="inv-field-check inv-mt-8"><input type="checkbox" class="inv-check" id="' + id('On') + '" ' + f('on') + (r.on ? ' checked' : '') + '><span>Save this entry</span></label>' +
+        '<div class="inv-fields inv-mt-8">' +
+        field(id('Date'), 'Day', '<input type="date" class="inv-input" id="' + id('Date') + '" ' + f('date') + ' value="' + escHtml(r.date) + '" max="' + today + '">') +
+        field(id('Kind'), 'What', '<select class="inv-select" id="' + id('Kind') + '" ' + f('kind') + '>' + opt('plated', 'Plated', r.kind) + opt('pickled', 'Pickled', r.kind) + '</select>') +
+        field(id('Client'), 'Client', '<select class="inv-select" id="' + id('Client') + '" ' + f('clientId') + '>' + opt('', 'Pick the client', r.clientId) + clients.map(function(c) { return opt(String(c.id), c.name, r.clientId); }).join('') + '</select>') +
+        field(id('Part'), 'Part', '<input class="inv-input" id="' + id('Part') + '" ' + f('part') + ' value="' + escHtml(r.part) + '" autocomplete="off">') +
+        field(id('Qty'), 'Quantity', '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-num" id="' + id('Qty') + '" ' + f('qty') + ' value="' + escHtml(r.qty) + '">') +
+        field(id('Unit'), 'Unit', '<select class="inv-select" id="' + id('Unit') + '" ' + f('unit') + '>' + opt('NOS', 'NOS', r.unit) + opt('KG', 'kg', r.unit) + '</select>') +
+        (r.kind === 'plated' ? field(id('Line'), 'Line', '<select class="inv-select" id="' + id('Line') + '" ' + f('line') + '>' + opt('', 'Line unknown', r.line) + PROD_LINES.map(function(l) { return opt(l, PROD_LINE_LABEL[l], r.line); }).join('') + '</select>') +
+          field(id('Slot'), 'Shift', '<select class="inv-select" id="' + id('Slot') + '" ' + f('slot') + '>' + opt('general', 'General shift', r.slot) + opt('ot', 'Overtime', r.slot) + opt('day', 'Whole day (barrel list)', r.slot) + '</select>') : '') +
+        '</div>' + (r.written && !r.clientId ? '<div class="inv-note inv-mt-4">' + escHtml('Written as "' + r.written + '": no client in the book by that name.') + '</div>' : '') + '</div></div>';
+    });
+    h += '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdTeachAdd" data-mi="' + mi + '">Add an entry</button></div></div>';
+  });
+  h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">To save</div><div class="inv-actionbar-value">' + todoPlural(on, 'entry', 'entries') + '</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invProdTeachSave"' + (on ? '' : ' disabled') + '>Save</button></div>';
+  return h;
+}
+/* The rows ticked, each an entry of the supervisor's message entered by hand (src hand, basis relay), the message kept so the
+   same text is refused next time, and each line's shape learnt. */
+function prodSaveTeach() {
+  var t = _prodTeach;
+  if (!t) return;
+  if (!grdGate('floor', 'save production', prodSaveTeach)) return;   // the guard (guard.js): a floor entry
+  var today = localDateStr(), bad = '', rows = [];
+  t.msgs.forEach(function(m, mi) {
+    m.rows.forEach(function(r, ri) {
+      if (!r.on || bad) return;
+      var q = parseFloat(r.qty), at = 'Entry ' + (ri + 1) + (t.msgs.length > 1 ? ' of message ' + (mi + 1) : '') + ': ';
+      if (!r.date || r.date > today) bad = at + 'pick a day up to today';
+      else if (!r.clientId) bad = at + 'pick the client';
+      else if (!String(r.part).trim()) bad = at + 'name the part';
+      else if (!(q > 0)) bad = at + 'enter the quantity';
+      rows.push({ m: m, r: r, q: q });
+    });
+  });
+  if (bad) { showToast(bad, 'error'); return; }
+  if (!rows.length) { showToast('Tick an entry to save', 'error'); return; }
+  var p = prodData(), at = Date.now(), byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy(), pasteIds = {}, learnt = 0;
+  rows.forEach(function(x) {
+    var m = x.m, r = x.r, mi = t.msgs.indexOf(m);
+    if (!pasteIds[mi]) {
+      pasteIds[mi] = prodUid('PP');
+      p.pastes.push({ id: pasteIds[mi], at: at, by: by, sentBy: m.sentBy, sentOn: m.sentOn, day: m.day, kind: 'taught', hash: m.hash, text: m.text });
+    }
+    var cid = prodHeldId(r.clientId), part = String(r.part).trim();
+    var e = { id: prodUid('PE'), kind: r.kind, date: r.date, time: null, clientId: cid, client: r.written || prodClientName(cid), part: part, gauge: prodGaugeOf(part, part),
+      qty: x.q, unit: r.unit, basis: r.kind === 'pickled' ? 'pickling' : 'relay', src: 'hand', raw: r.raw || null, n: r.n, pasteId: pasteIds[mi], msgHash: m.hash,
+      sentBy: m.sentBy, by: by, at: at, taught: true };
+    if (r.kind === 'plated') { e.line = r.line || null; e.lineSrc = r.line ? 'set' : null; e.slot = r.slot === 'ot' || r.slot === 'day' ? r.slot : 'general'; }
+    prodLearnAliases([e]);
+    p.entries.push(prodSparse(e));
+    if (r.key) { p.learn.lines[r.key] = { kind: r.kind, clientId: cid, part: part, unit: r.unit, line: r.kind === 'plated' ? r.line || null : null, slot: e.slot || null, at: at, by: by }; learnt++; }
+  });
+  prodTouch();
+  saveState();
+  var day = rows[0].r.date;
+  _prodTeach = null; _prodPasteDraft = '';
+  if (day) { _prodDay = day; _prodDayPicked = true; }
+  prodSetView('main');
+  showToast(todoPlural(rows.length, 'entry', 'entries') + ' saved' + (learnt ? ' · ' + todoPlural(learnt, 'line') + ' learnt for the next message' : ''), 'success');
 }
 /* From Home → Paste message or a roll's review: the text opens on Production's own check. */
 function prodOpenPaste(text) {
@@ -1151,7 +1251,7 @@ function prodReviewHtml() {
   if (res.twin) h += '<div class="inv-callout inv-callout-info" id="prodTwinNote">' + todoPlural(res.twin, 'line') + ' in this paste ' + (res.twin === 1 ? 'was' : 'were') + ' entered on a face already, and ' + (res.twin === 1 ? 'is' : 'are') + ' left out.</div>';
   if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before, or sent twice, and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
   rv.msgs.forEach(function(m, mi) {
-    var kindWord = { pickling: 'Pickling', production: 'Barrel production', runs: 'Production by slot', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
+    var kindWord = { pickling: 'Pickling', production: 'Barrel production', runs: 'Production by slot', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', taught: 'Read as entered by hand before', other: 'Not production' }[m.kind];
     h += '<div class="inv-panel inv-panel-flush' + (m.dup ? ' inv-row-muted' : '') + '" data-prod-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(kindWord + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
       '<span class="inv-panel-count">' + escHtml((m.sentOn ? stockShortDate(m.sentOn) : 'no date') + (m.sentAt != null ? ' ' + relayHhmm(m.sentAt) : '')) + '</span></div>';
     if (m.dup) h += '<div class="inv-panel-body inv-note">' + (m.twice ? 'The same message is earlier in this paste: read once, left out here.' : m.faceBy ? 'Entered on a face by ' + escHtml(m.faceBy) + ': left out.' : 'Saved before: left out.') + '</div>';
@@ -1191,7 +1291,7 @@ function prodReviewRowHtml(r, idx) {
       '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep "' + escHtml(it.client || '') + '" as written</option>' +
       idx.list.slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
   }
-  if (!r.m.dup && it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot') {
+  if (!r.m.dup && it.kind === 'plated' && (it.lineHint !== undefined || (it.basis === 'relay' && it.slot === 'ot'))) {
     var lc = _prodReview.choices['line' + r.key];
     h += '<div class="inv-toolbar inv-mt-8" role="group" aria-label="Which line">' + [['', 'Unknown']].concat(PROD_LINES.map(function(l) { return [l, PROD_LINE_LABEL[l]]; })).map(function(o) {
       var pressed = lc !== undefined ? lc === o[0] : false;
@@ -1895,7 +1995,7 @@ function prodAction(action, btn) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
-      _prodReview = null; _prodHand = null; prodPhotoDrop();
+      _prodReview = null; _prodHand = null; _prodTeach = null; prodPhotoDrop();
       prodSetView('main');
       return true;
     }
@@ -1915,6 +2015,8 @@ function prodAction(action, btn) {
     case 'invProdPaste': prodSetView('paste'); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
+    case 'invProdTeachAdd': _prodTeach.msgs[+btn.dataset.mi].rows.push(Object.assign(prodTeachRow(null), { on: true })); renderProduction(); return true;
+    case 'invProdTeachSave': prodSaveTeach(); return true;
     case 'invProdRevClient': _prodReview.choices['open' + btn.dataset.key] = true; renderProduction(); return true;
     case 'invProdRevLine': _prodReview.choices['line' + btn.dataset.key] = btn.dataset.line; renderProduction(); return true;
     case 'invProdHand': prodOpenHand(null, null, _prodTab === 'lines' && _prodView === 'main'); return true;
@@ -2017,6 +2119,13 @@ function prodOnChange(t) {
     else if (byName) rc['name:' + nk] = v; else rc['client' + key] = v;
     renderProduction(); return true;
   }
+  if (_prodTeach && t.dataset && t.dataset.prodTeach) {
+    var tk = t.dataset.prodTeach.split(':'), tr = _prodTeach.msgs[+tk[0]].rows[+tk[1]];
+    tr[tk[2]] = t.type === 'checkbox' ? t.checked : t.value;
+    // What changes the form's shape or its count redraws it; a typed figure does not, so the field keeps its caret.
+    if (tk[2] === 'on' || tk[2] === 'kind') renderProduction();
+    return true;
+  }
   if (t.dataset && t.dataset.prodHand) {
     var k = t.dataset.prodHand;
     _prodHand[k] = t.type === 'checkbox' ? t.checked : t.value;
@@ -2030,5 +2139,6 @@ function prodOnInput(t) {
   if (!t) return false;
   if (t.id === 'prodPasteText') { _prodPasteDraft = t.value; return true; }
   if (t.dataset && t.dataset.prodHand && t.type !== 'checkbox') { _prodHand[t.dataset.prodHand] = t.value; return true; }
+  if (_prodTeach && t.dataset && t.dataset.prodTeach && t.type !== 'checkbox' && t.tagName !== 'SELECT') { var ik = t.dataset.prodTeach.split(':'); _prodTeach.msgs[+ik[0]].rows[+ik[1]][ik[2]] = t.value; return true; }
   return false;
 }

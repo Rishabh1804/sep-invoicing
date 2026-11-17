@@ -23,6 +23,8 @@ function prodData() {
   if (!p.learn || typeof p.learn !== 'object') p.learn = {};
   if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
+  // A line's shape entered by hand from a message no reader knew (prodparse.js, prodTeachKey): key → {kind, clientId, part, unit, line, slot, at, by}.
+  if (!p.learn.lines || typeof p.learn.lines !== 'object') p.learn.lines = {};
   if (!Array.isArray(p.gaugeRules)) p.gaugeRules = [];
   if (!Array.isArray(p.partRules)) p.partRules = [];
   if (!Array.isArray(p.seriesRules)) p.seriesRules = [];
@@ -350,7 +352,7 @@ function prodHeldId(v) { var c = (S.clients || []).find(function(x) { return Str
 function prodCtx() {
   return { clients: prodClientIndex(S.clients || [], prodData().learn.clients), roster: (S.staff || []).filter(function(w) { return w.active !== false; }), today: localDateStr(),
     partOwners: prodPartOwners(), gaugeRule: prodGaugeRuleFor, gaugeHas: prodGaugeRuleHas, partRule: prodPartRuleRead, partRuleOther: prodPartRuleOther, carryCheck: prodCarryCheck, resolvePart: prodResolveEntryPart,
-    night: typeof lineNightOn === 'function' ? lineNightOn : null };
+    night: typeof lineNightOn === 'function' ? lineNightOn : null, taught: prodData().learn.lines };
 }
 /* Which clients a part has come from, off the challans and invoices of the last year: part key → client ids. A load
    with no client written whose part only one client has ever sent ("LINER", "188 CD") is read as that client, amber. */
@@ -2124,6 +2126,13 @@ function prodMergeImport(obj, fileName) {
     if (key in p.learn.parts) return;
     var cid = key.split('|')[0];
     if (trusted[cid] && heldOf(cid) && fromL.parts[key] && typeof fromL.parts[key] === 'object') p.learn.parts[key] = fromL.parts[key];
+  });
+  // A line taught by hand names its client by id, as a part's lesson does: kept only for a client the file's entries vouch for.
+  Object.keys(fromL.lines || {}).forEach(function(key) {
+    var t = fromL.lines[key];
+    if (key in p.learn.lines || !t || typeof t !== 'object') return;
+    if (t.clientId != null && !(trusted[String(t.clientId)] && heldOf(t.clientId))) return;
+    p.learn.lines[key] = t;
   });
   var causes = typeof pcsMergeImport === 'function' ? pcsMergeImport(src.powerCauses) : 0;
   imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad };

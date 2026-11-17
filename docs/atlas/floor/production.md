@@ -4,7 +4,7 @@ domain: floor
 modules: [split/production.js, split/prodview.js]
 specs: []
 tests: [P85, P90, P122, P198, P214, P258]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (a refused paste opens Enter it from the text)
 ---
 
 ### Production
@@ -25,7 +25,8 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   today; a past day with no attendance and no run reads *No record this day*, *Did not run* only where the marks put nobody on the
   line. Every message is shown beside
   what was read before anything is saved (Stock's contract); the same message is refused, unless every entry it made was
-  voided.
+  voided. A paste nothing could be read from opens **Enter it from the text**, and what is saved there teaches the reader
+  (`production-readers.md`, P264).
 - **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
   corrected by a new entry that names the old one (`replaces`), never edited; a wrong one is voided with a reason.
 - **A past day is corrected where it is checked** (owner, 10 Oct 2026: *"we can check, its just not in the production tab, it is in

@@ -3,8 +3,8 @@ subject: "Production readers: slots as text, the barrel list, the night block"
 domain: floor
 modules: [split/prodparse.js]
 specs: []
-tests: [P189, P220, P222]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P189, P220, P222, P264]
+updated: 2026-11-17 (a message no reader knows: Enter it from the text, and its lines taught)
 ---
 
 ### Production typed as text, a slot a line
@@ -44,3 +44,18 @@ reading of the work under the slot takes them (`prodFromRoll`): a heading that w
 span, and the work under it ran 8 PM to 6 AM on the roll's day, on the line headed above it. It had read the heading as the hour the crew
 went home: a run ending at 6 AM with no start, dated as a morning. A gauge written after the count ("2700 NOS 25×6") is the part's
 (`prodReadItem`).
+
+### A message no reader knows: entered from its text, and taught
+Owner, 17 Nov 2026: a paste refused with *"No pickling or production lines found in that text"* *"should lead the app user to enter data
+manually, referencing the whatsapp text or pasted text - the parser should learn from it and read messages better next time"* (P264). The
+refused text now opens **Enter it from the text** (`prodTeachOpen`, prodview.js): the message as sent, then a row for each line with a figure,
+filled from a loose reading (`prodLooseRead`, prodparse.js): a date at the head of a line is the day of the lines under it, a line header
+(VAT A 1, VAT A2, berral) their line, a line with no figure the client of the lines under it, the client named at a line's front, the part
+and the figure. Every field is the owner's to correct, and a row is saved only with its client, part and figure; Add an entry takes what the
+text does not show line by line. The entries are the supervisor's message entered by hand (`src: 'hand'`, `basis: 'relay'`, `taught`), the
+message is kept (`kind: 'taught'`) so the same text pasted again is refused, and **each line saved teaches its shape** (`learn.lines`,
+`prodTeachKey`: the words as written, the figures masked, with the client line above it where it had one). The next message no reader knows is
+read by those shapes (`prodTaughtRead`): a taught line takes the client, part, unit, kind, shift and line entered, said amber (*Read as this
+line was entered by hand*); a header above it that disagrees with the line entered is asked; the message's other lines are read loosely and
+asked. **A message none of whose lines was taught is still not read**, so chatter with a figure in it is never taken for production. The
+readers above run first: a lesson never changes how a roll, a list, a slot log or a pickling message is read.

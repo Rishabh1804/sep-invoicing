@@ -93,6 +93,8 @@ async function createClearClient() {
   if (!f.transport || f.transport === auto.ve || f.transport === ticks.ve || typed.length) f.transport = '';
   f._auto = {}; f._pred = null; f._defaults = null;
   createSyncPoDate();
+  // The Change button is gone with the client: the keyboard goes back to the search it brings.
+  _createFocusNext = { k: 'client', sel: null };
   renderCreateForm();
 }
 
@@ -209,9 +211,16 @@ function createFlowModelOf() {
 }
 uiFlowDefine('createInvoice', createFlowModel);
 
+/* Where focus lands after the next render (the challan form's _challanFocusNext): the form re-renders by replacing
+   innerHTML, so a caller that knows where the keyboard goes next says so; otherwise the control focused before the
+   render is focused again by its data-k (state.js kbdCaptureFocus / kbdRestoreFocus). */
+var _createFocusNext = null;
+
 function renderCreateForm() {
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
   const area = document.getElementById('createFormArea');
+  const focusTarget = _createFocusNext || kbdCaptureFocus(area);
+  _createFocusNext = null;
   const editing = invoiceForm.editingId ? S.invoices.find(i => i.id === invoiceForm.editingId) : null;
   const number = createNumberShown();
   const unbilled = client && !invoiceForm.editingId && !invoiceForm.reissue ? createUnbilledHtml(client) : '';
@@ -229,11 +238,11 @@ function renderCreateForm() {
       '</strong>: this invoice takes the number back. Withdraw the customer&rsquo;s copy of the old one.</div></div>';
   }
   html += '<div class="inv-panel inv-panel-flush">';
-  if (client) html += chosenClientHtml(client, (client.gstin || 'No GSTIN') + ' · ' + client.billingMode, 'invClearClient');
+  if (client) html += chosenClientHtml(client, (client.gstin || 'No GSTIN') + ' · ' + client.billingMode, 'invClearClient', 'clientchange');
   html += '<div class="inv-panel-body"><div class="inv-fields">' +
-    (client ? '' : clientSearchHtml('invClientSearch', 'invClientResults')) +
+    (client ? '' : clientSearchHtml('invClientSearch', 'invClientResults', 'client')) +
     '<div class="inv-field"><label class="inv-field-label" for="invDate">Invoice date</label>' +
-    '<input type="date" class="inv-input inv-id" id="invDate" value="' + escHtml(invoiceForm.date) + '"></div></div></div></div>';
+    '<input type="date" class="inv-input inv-id" id="invDate" data-k="date" value="' + escHtml(invoiceForm.date) + '"></div></div></div></div>';
 
   body.client = html + unbilled;
 
@@ -251,21 +260,21 @@ function renderCreateForm() {
     // correction. The description, when it says more than the number, is said under the line.
     html += '<div class="inv-line"><span class="inv-line-num">' + (idx + 1) + '</span>' +
       lineField('Part', '<div class="inv-combo">' +
-        '<input class="inv-input" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        '<input class="inv-input" data-k="part-' + idx + '" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div>', null, 'inv-line-part') +
-      lineField('Qty', '<input type="number" class="inv-input inv-input-num" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
-      lineField('Unit', '<select class="inv-select" data-field="unit" data-idx="' + idx + '" data-change="invUpdateLine">' +
+      lineField('Qty', '<input type="number" class="inv-input inv-input-num" data-k="qty-' + idx + '" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
+      lineField('Unit', '<select class="inv-select" data-k="unit-' + idx + '" data-field="unit" data-idx="' + idx + '" data-change="invUpdateLine">' +
         '<option value="KG"' + (item.unit==='KG'?' selected':'') + '>KG</option>' +
         '<option value="NOS"' + (item.unit==='NOS'?' selected':'') + '>NOS</option></select>') +
       (item.unit === 'KG'
-        ? lineField('Pcs', '<input type="number" class="inv-input inv-input-num" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces">')
+        ? lineField('Pcs', '<input type="number" class="inv-input inv-input-num" data-k="nos-' + idx + '" value="' + (item.nosQty || '') + '" data-field="nosQty" data-idx="' + idx + '" data-action="invUpdateLine" step="1" min="0" placeholder="Pieces">')
         : '<div class="inv-field" aria-hidden="true"></div>') +
-      lineField('Rate', '<input type="number" class="inv-input inv-input-num" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      lineField('Rate', '<input type="number" class="inv-input inv-input-num" data-k="rate-' + idx + '" value="' + rateDisplay + '" data-field="rate" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
         rateMatchInputAttr(rm) + (isPieceNOS ? ' readonly title="Rate is set from this client&#39;s piece-mode profile"' : '') + '>') +
-      lineField('Amount', '<input type="number" class="inv-input inv-input-num" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
+      lineField('Amount', '<input type="number" class="inv-input inv-input-num" data-k="amount-' + idx + '" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
         (isPieceNOS ? '' : ' readonly') + '>', null, 'inv-line-amt') +
-      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-action="invRemoveLineItem" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-k="remove-' + idx + '" data-action="invRemoveLineItem" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
       '<div class="inv-line-notes"><div id="invDesc' + idx + '">' + challanDescNote(item) + '</div>' +
       (item._override ? '<div><span class="inv-badge inv-badge-info">' + escHtml(item._label || 'Override') + '</span></div>' : '') +
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
@@ -274,7 +283,7 @@ function renderCreateForm() {
       '<div id="invImShare' + idx + '">' + imShareNoteHtml(idx, shareIdx) + '</div>' +
       '</div></div>';
   });
-  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-action="invAddLineItem">Add line</button></div></div>';
+  html += '</div><div class="inv-panel-body"><button type="button" class="inv-btn inv-btn-secondary inv-btn-block" data-k="addline" data-kbd-ring data-action="invAddLineItem">Add line</button></div></div>';
   body.lines = html;
   html = '';
 
@@ -289,17 +298,17 @@ function renderCreateForm() {
     '<summary class="inv-panel-head"><span class="inv-panel-title">Optional details</span>' +
     '<span class="inv-panel-count">' + escHtml(optSummary) + '</span></summary>' +
     '<div class="inv-panel-body"><div class="inv-fields">' +
-    '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" value="' + escHtml(invoiceForm.poNumber) + '">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invChallanNo">Challan no.</label><input class="inv-input inv-id" id="invChallanNo" data-k="challanNo" value="' + escHtml(invoiceForm.challanNo) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invChallanDate">Challan date</label><input type="date" class="inv-input inv-id" id="invChallanDate" data-k="challanDate" value="' + escHtml(invoiceForm.challanDate) + '"></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPONumber">P.O. no.</label><input class="inv-input inv-id" id="invPONumber" data-k="po" value="' + escHtml(invoiceForm.poNumber) + '">' +
       '<div id="invPoHint">' + createFieldHintHtml('po') + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" value="' + escHtml(invoiceForm.poDate) + '">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invPODate">P.O. date</label><input type="date" class="inv-input inv-id" id="invPODate" data-k="poDate" value="' + escHtml(invoiceForm.poDate) + '">' +
       '<div id="invPoDateHint">' + createPoDateHintHtml() + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
+    '<div class="inv-field"><label class="inv-field-label" for="invTransport">Vehicle no.</label><input class="inv-input inv-id" id="invTransport" data-k="vehicle" value="' + escHtml(invoiceForm.transport) + '" placeholder="JH 05XX 0000" list="invVehicleList" autocomplete="off">' +
     '<datalist id="invVehicleList">' + getVehicleSuggestions(invoiceForm.clientId) + '</datalist>' +
       '<div id="invVeHint">' + createFieldHintHtml('ve') + '</div></div>' +
-    '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
-    '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
+    '<div class="inv-field"><label class="inv-field-label" for="invDespatchDate">Despatch date</label><input type="date" class="inv-input inv-id" id="invDespatchDate" data-k="despatchDate" value="' + escHtml(invoiceForm.despatchDate) + '"></div>' +
+    '</div><div class="inv-field"><label class="inv-field-label" for="invRemarks">Remarks</label><textarea class="inv-textarea" id="invRemarks" data-k="remarks" rows="2">' + escHtml(invoiceForm.remarks) + '</textarea></div></div></details>';
 
   body.details = html;
 
@@ -311,12 +320,12 @@ function renderCreateForm() {
   const model = createFlowModelOf();
   model.steps.forEach(s => { if (body[s.key] != null) s.body = body[s.key]; });
   // The form's own keys stay its own (data-flow-ownkeys): Enter walks its fields, as it always did.
-  html = '<div data-form="invoice">' + uiFlowHtml('createInvoice', model, { before: head }).replace('data-flow="createInvoice"', 'data-flow="createInvoice" data-flow-ownkeys');
+  html = '<div data-form="invoice">' + uiFlowHtml('createInvoice', model, { before: head + kbdKeysHtml() }).replace('data-flow="createInvoice"', 'data-flow="createInvoice" data-flow-ownkeys');
   // The action bar: the grand total, Clear, and the page's one primary.
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Grand total</div>' +
     '<div class="inv-actionbar-value" id="invGrandTotal">' + formatCurrency(createTotals(client).grand) + '</div></div>' +
-    '<button type="button" class="inv-btn inv-btn-secondary" data-action="invResetForm">Clear</button>' +
-    '<button type="button" class="inv-btn inv-btn-primary" id="invSaveBtn" data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
+    '<button type="button" class="inv-btn inv-btn-secondary" data-k="clear" data-action="invResetForm">Clear</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" id="invSaveBtn" data-k="save" data-kbd-ring data-action="invSaveInvoice"' + (errors.length > 0 ? ' disabled' : '') + '>' +
     (invoiceForm.editingId ? 'Update invoice' : invoiceForm.reissue ? 'Reissue ' + escHtml(invoiceForm.reissue.invoiceNumber) : 'Create invoice') + '</button></div></div>';
 
   area.innerHTML = html;
@@ -343,9 +352,10 @@ function renderCreateForm() {
       res.innerHTML = clientMenuHtml(matches, 'invSelectClient', 'invClientOpt');
       cs.setAttribute('aria-expanded', 'true');
     });
-    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap went elsewhere first.
-    focusSoon(cs);
   }
+  // Focus last, so nothing above can steal it back: where it was (or where the caller sent it), else, a moment after Create
+  // opens, the client search, unless a click or a tap went elsewhere first.
+  if (!kbdRestoreFocus(area, focusTarget) && cs) focusSoon(cs);
 }
 
 /* ===== THE CLIENT'S OWN VEHICLE AND PO =====
@@ -485,7 +495,7 @@ function createUnbilledHtml(client) {
     const parts = lines.filter(imLineBilled);
     const name = 'Challan ' + (im.challanNo || '(no number)');
     html += '<div class="inv-row inv-row-2' + (on ? ' inv-row-selected' : '') + '">' +
-      '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invCreatePickChallan" data-id="' + escHtml(im.id) + '"' +
+      '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-k="pick-' + escHtml(im.id) + '" data-action="invCreatePickChallan" data-id="' + escHtml(im.id) + '"' +
       (on ? ' checked' : '') + ' aria-label="' + escHtml(name) + '"></label>' +
       '<div class="inv-row-main"><div class="inv-row-title inv-id">' + escHtml(name) + '</div>' +
       '<div class="inv-row-meta">' + escHtml(formatDate(im.challanDate)) + ' · ' + lines.length + ' line' + (lines.length === 1 ? '' : 's') +
@@ -557,7 +567,7 @@ function zeroReasonHtml(item, idx) {
   ZERO_REASONS.forEach(function(r) {
     var on = item.zeroReason === r.id;
     html += '<button type="button" class="inv-chip' + (on ? ' inv-chip-on' : '') + '" role="radio" aria-checked="' + on + '"' +
-      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '">' + escHtml(r.label) + '</button>';
+      ' data-action="invZeroReason" data-idx="' + idx + '" data-reason="' + r.id + '" data-k="zeror-' + idx + '-' + r.id + '">' + escHtml(r.label) + '</button>';
   });
   html += '</div>' +
     '<input class="inv-input" data-action="invZeroNote" data-idx="' + idx + '" data-k="zeronote-' + idx + '"' +
@@ -841,6 +851,20 @@ function validateInvoiceKeyed() {
   return errors;
 }
 function validateInvoice() { return validateInvoiceKeyed().map(e => e.text); }
+/* A save refused: the cursor goes to the field the first error names, as the challan form's does, so a keyboard save
+   (Ctrl+Enter) is not left pointing nowhere. A line's reason goes to the first chip it asks for. */
+function createFocusError() {
+  const e = validateInvoiceKeyed()[0], area = document.getElementById('createFormArea');
+  if (!e || !area) return;
+  const m = /^line:(\d+)(?::(\w+))?$/.exec(e.key || '');
+  let el = null;
+  if (e.key === 'client') el = area.querySelector('[data-k="client"], [data-k="clientchange"]');
+  else if (e.key === 'date') el = area.querySelector('[data-k="date"]');
+  else if (e.key === 'lines') el = area.querySelector('[data-k="addline"]');
+  else if (m && m[2]) el = area.querySelector('[data-k="' + m[2] + '-' + m[1] + '"]');
+  else if (m) el = area.querySelector('#invZeroReason' + m[1] + ' [data-k], #invImShare' + m[1] + ' [data-k]') || area.querySelector('[data-k="part-' + m[1] + '"]');
+  if (el) el.focus();
+}
 function createFieldLeft(key) { (invoiceForm._left = invoiceForm._left || {})[key] = true; }
 // A line removed: what was left on the lines under it moves up with them.
 function createLeftDrop(idx) {
@@ -904,6 +928,11 @@ function selectClient(id) {
       recalcLineItem(item, client);
     });
   }
+  // The client is chosen; the keyboard goes on to the first challan waiting for an invoice, else the first line, else Add line.
+  const firstIm = client && !invoiceForm.editingId && !invoiceForm.reissue ? (S.incomingMaterial || [])
+    .filter(im => im.clientId === client.id && (im.items || []).some(it => !it.invoiced))
+    .sort((a, b) => String(a.challanDate || '').localeCompare(String(b.challanDate || '')))[0] : null;
+  _createFocusNext = { k: firstIm ? 'pick-' + firstIm.id : invoiceForm.items.length ? 'part-0' : 'addline', sel: null };
   renderCreateForm();
 }
 
@@ -916,6 +945,17 @@ function addLineItem() {
     item.rate = rateInfo.ratePerKg || 0;
   }
   invoiceForm.items.push(item);
+  _createFocusNext = { k: 'part-' + (invoiceForm.items.length - 1), sel: null };
+  renderCreateForm();
+}
+
+/* A line removed: focus lands on the line that slid into its place, or the one above when it was the last; with none
+   left, on Add line. */
+function removeLineItem(idx) {
+  captureOptionalFields();
+  invoiceForm.items.splice(idx, 1);
+  createLeftDrop(idx);
+  _createFocusNext = { k: invoiceForm.items.length ? 'part-' + Math.min(idx, invoiceForm.items.length - 1) : 'addline', sel: null };
   renderCreateForm();
 }
 
@@ -935,7 +975,7 @@ function createFyAsk() {
 async function saveInvoice() {
   const errors = validateInvoice();
   // A save tried: every error shows now, and the first is said.
-  if (errors.length > 0) { invoiceForm._tried = true; createErrorsRefresh(); showToast(errors[0], 'error'); return; }
+  if (errors.length > 0) { invoiceForm._tried = true; createErrorsRefresh(); showToast(errors[0], 'error'); createFocusError(); return; }
   // P1 (guard.js): issuing or editing an invoice.
   if (!grdOk('billing') && !(await guardAsk('billing', invoiceForm.editingId ? 'save an edited invoice' : 'save an invoice'))) return;
 

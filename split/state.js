@@ -788,6 +788,40 @@ function focusSoon(el, ms) {
     el.focus();
   }, ms == null ? 100 : ms);
 }
+/* ===== FOCUS ACROSS A RE-RENDER (keyboard entry: challan entry, Create) =====
+   A form that re-renders by replacing innerHTML drops focus to <body>, which ends the keyboard path mid-entry. Each
+   control carries a data-k key that survives the re-render (the elements do not): the key focused is captured before,
+   and the control holding it focused again after, its caret put back where a text field has one. One mechanism for
+   every form that redraws itself (docs/atlas/billing/challan-entry.md § Keyboard entry). */
+function kbdCaptureFocus(area) {
+  var el = document.activeElement;
+  if (!area || !el || !el.dataset || !el.dataset.k || !area.contains(el)) return null;
+  var sel = null;
+  // Only text-ish inputs expose a caret; number inputs report null here.
+  try { sel = el.selectionStart; } catch (e) { sel = null; }
+  return { k: el.dataset.k, sel: sel };
+}
+function kbdRestoreFocus(area, target) {
+  if (!area || !target) return false;
+  var el = area.querySelector('[data-k="' + (window.CSS && CSS.escape ? CSS.escape(target.k) : target.k) + '"]');
+  if (!el) return false;
+  try {
+    el.focus();
+    // setSelectionRange throws on number inputs, so the caret restore is attempted apart from the focus that matters.
+    if (target.sel != null && el.setSelectionRange) el.setSelectionRange(target.sel, target.sel);
+    else if (el.select) el.select();
+  } catch (e) {}
+  return true;
+}
+/* The keys a keyboard form keeps, said over it on the desk (hidden on the phone). */
+function kbdKeysHtml() {
+  return '<p class="inv-keys">' +
+    '<span><kbd class="inv-kbd">Enter</kbd> next field</span>' +
+    '<span><kbd class="inv-kbd">&uarr;</kbd><kbd class="inv-kbd">&darr;</kbd> pick suggestion</span>' +
+    '<span><kbd class="inv-kbd">Alt</kbd>+<kbd class="inv-kbd">N</kbd> add line</span>' +
+    '<span><kbd class="inv-kbd">Ctrl</kbd>+<kbd class="inv-kbd">Enter</kbd> save</span>' +
+    '</p>';
+}
 /* A touch screen, where focusing a field raises the keyboard over the screen. */
 function touchScreen() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
 

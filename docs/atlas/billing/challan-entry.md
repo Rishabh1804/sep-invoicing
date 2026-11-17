@@ -1,10 +1,10 @@
 ---
 subject: "Challan entry: keyboard, filled from the record, invoiced in parts, billed at zero"
 domain: billing
-modules: [split/im-form.js, split/im.js, split/create.js]
+modules: [split/im-form.js, split/im.js, split/create.js, split/state.js, split/events.js]
 specs: []
-tests: [P77, P78, P141, P181]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P12, P77, P78, P141, P181, P268]
+updated: 2026-11-17 (Keyboard entry on Create, P268)
 ---
 
 ### Keyboard entry
@@ -19,6 +19,18 @@ does not).
 **A part field left closes its own list, a moment later** (200 ms, so a tap on one of its options lands first), and never
 another's: it used to close every list on the page, and a client search opened inside that moment, on another screen, was
 hidden under the cursor (CI caught it on P141 on a busy runner). P181.
+
+### Keyboard entry on Create
+Owner, Nov 2026: *"creating a new invoice still has no keyboard navigation."* The invoice form re-renders the same way and
+had none of it. It now uses **the same mechanism, not a second one**: `kbdCaptureFocus` / `kbdRestoreFocus` (state.js) carry
+focus across every re-render by `data-k`, for both forms, and `kbdKeysHtml` says the keys over both on the desk. Every Create
+control has a `data-k` (`client`, `clientchange`, `date`, `pick-<challan id>`, a line's `part-`, `qty-`, `unit-`, `nos-`,
+`rate-`, `amount-`, `remove-`, its reason chips, the details, `addline`, `clear`, `save`), and a caller that knows where
+the keyboard goes next says so (`_createFocusNext`): a client picked goes on to its first challan waiting, else the first
+line, else **Add line**; a part picked to its quantity; a line added to its part; a line removed to the one that slid up,
+else Add line; Change client to the search. `Alt+N` adds a line and `Ctrl+Enter` saves; **Add line** and **Create
+invoice** are `data-kbd-ring` (a disabled button is stepped over); a remove × is not. A save refused for an error puts the
+cursor on the field it names (`createFocusError`). P268.
 
 ### A challan line filled from the record
 Owner, 26 Sep 2026: *"When I select C-Clamp 66x42(30x6) as we know all its value and std weight and rate, fill that

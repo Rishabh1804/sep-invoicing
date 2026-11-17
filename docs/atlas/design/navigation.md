@@ -72,3 +72,6 @@ a reload and a link did not know them:
 - **Production → Lines**: the line on screen is its view (a tap on it opens at its top, as a view tab does), so it is in the address:
   `v=lines/pickling`, `lines/vat-a2`, `lines/barrel`; the first line is plain `v=lines`, as before. A reload on Pickling had come back
   on VAT A1, and Back did not walk the lines.
+- **Production → the register photo's check** (and its reading) is `v=<view>/photo`, as `tabs.js`' form parts already expected: Back
+  from it left Production for the screen before, and the photo stayed held, so the next one picked waited unread. Back now comes to
+  the view the photo was picked on and drops the photo, as the check's own way back does; a reload, with no photo to show, opens the view.

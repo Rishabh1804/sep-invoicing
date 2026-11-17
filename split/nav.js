@@ -54,7 +54,8 @@ function navLoc() {
     case 'pageStats': v = statsTab() === 'tables' ? 'tables/' + statsTable() : 'board'; break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
-      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
+      // The register photo's check is a place too, its reading included (P270): Back from it had left Production.
+      v = _prodTab + (/^(paste|review|teach)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : /^(photo|reading)$/.test(_prodView) ? '/photo' : '');
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
       // Photos: the photo being tagged and the Areas form are places (P270); Back from either had left Production.
       if (_prodTab === 'photos' && _prodView === 'main') { if (_fphOpen) id = _fphOpen; else if (fphNavSub()) v += '/' + fphNavSub(); }
@@ -174,7 +175,7 @@ function navLabel(loc) {
       break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); if (parts[0] === 'tables') sub.push(statsTableName(parts[1] || statsTable())); break;
     case 'pageProduction':
-      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
       if (parts[0] === 'lines' && navProdLineOk(parts[1])) sub.push(parts[1] === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[parts[1]]);
       if (parts[0] === 'photos') {
         if (parts[1] === 'areas') sub.push('Areas');
@@ -258,7 +259,12 @@ function navApply(loc) {
       case 'pageStats': statsPlace(parts[0] || 'board', parts[1]); break;
       case 'pageProduction':
         // An address of the register photo's check (it came out on 13 Oct 2026) opens the view under it.
+        // The photo's check stays where a photo is being read or checked; left (Back), the photo goes with it, as its own way back
+        // drops it (a photo left behind made the next one picked wait unread). A reload has none to show: the view under it opens.
+        var prodWas = _prodView;
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main';
+        if (parts[1] === 'photo' && /^(photo|reading)$/.test(prodWas) && (_prodPhoto || _prodPhotoBusy)) _prodView = prodWas;
+        else if (prodWas === 'photo') prodPhotoDrop();
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;

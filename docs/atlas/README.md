@@ -63,9 +63,10 @@ a topic.
 - **Stale is a defect.** A topic that contradicts the code is fixed where it is found, in that PR.
 - **Sessions.** `docs/NEXT_SESSION.md` holds the latest close. The data flows are in `docs/DATA_FLOWS.md`. At a close, the
   new entry replaces the old, which moves to `docs/sessions/<YYYY-MM>.md`.
-- **The cache warmer** (16 Nov 2026). A session keeps its prompt cache warm with a ping every 50 minutes; ten in a row with
-  no word from the owner end the chain and, where the codex is attached, run its unattended close. The rule is the
-  codex's: `soma-internal/docs/atlas/continuity/cache-warmer.md`. An unattended session pushes nothing to this repo.
+- **The unattended close** (17 Nov 2026). A session arms one check eight hours after the owner's last message; if it
+  arrives with no word from him the session closes itself, through the codex's close where the codex is attached. The rule
+  is the codex's: `soma-internal/docs/atlas/continuity/cache-warmer.md`. It began on 16 Nov as a cache warmer, a ping
+  every 50 minutes; the pings are retired. An unattended session pushes nothing to this repo.
 
 ## The checker
 

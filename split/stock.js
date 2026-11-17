@@ -1420,6 +1420,10 @@ function stockSaveManual() {
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');
   if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
+  // The cursor goes back to the first quantity for the next entry, as Production's hand form puts it on the part: the redraw had
+  // left it nowhere, so the next key typed went to the page. It does not move the page: the list just saved stays in sight.
+  var nextQty = !touchScreen() && document.querySelector('#stockContent [data-flow] [data-stock-qty]');
+  if (nextQty) try { nextQty.focus({ preventScroll: true }); } catch (x) { /* a convenience */ }
   // Saved as typed, and said at once when it does not fit (an entry checked before it is believed).
   var chk = stockChecksFor(ids);
   showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (chk.n ? ' · check ' + (chk.n === 1 ? 'it' : chk.n + ' of them') + ': ' + chk.first :

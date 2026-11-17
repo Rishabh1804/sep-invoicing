@@ -3,8 +3,8 @@ subject: "Interaction rules: pop-ups, forms, dialogs, selects, scroll"
 domain: design
 modules: [split/events.js, split/state.js]
 specs: []
-tests: [P76, P78, P79, P80, P92, P117]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P76, P78, P79, P80, P92, P117, P272]
+updated: 2026-11-17 (the cursor after a stock save by hand, P272)
 ---
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
@@ -26,7 +26,8 @@ across the app"*). A save on a form that is filled many times in a row keeps the
   form (*Saved from this form*) with Correct and Void; **Done** leaves, back to Power when it was opened from Power's *Enter a cut*. A
   correction is one entry and still goes back.
 - **Stock by hand** (`stockSaveManual`): the form stays on its day and lists **everything the day holds** (`stockDayEntriesHtml`, pasted or
-  by hand, with the level each line was left at); another date is checked by picking it. **An entry is corrected, never edited**
+  by hand, with the level each line was left at); another date is checked by picking it. On a keyboard the cursor goes back to the first quantity
+  after Save (the list just saved stays in sight; P272), as Production's goes back to the part. **An entry is corrected, never edited**
   (`stockCorrect`): it is voided saying what it became, and a copy with the right quantity names it (`corrects`).
 - **A challan**: *Save, add another* opens the next on the same client, date and vehicle. **An electricity or other bill** stays open on the
   next month with no bill of its kind. **A credit note recorded from paper** stays on its client and reason (a new note still opens its

@@ -1,0 +1,22 @@
+# sep-app: SEP Invoicing at its own address, app.somaelectro.co.in (docs/SERVER.md §9 step 0, S0; docs/S0_GUIDE.md).
+# It serves dist/ (split/dist.sh, built by the deploy: Cloudflare's build command runs split/build.sh) and nothing else.
+# No database, no secret. No routes here: the custom domain is added in the dashboard (docs/S0_GUIDE.md), as the feeds
+# Worker's is. S1 adds /api to this Worker and its D1 binding.
+name = "sep-app"
+main = "src/index.js"
+compatibility_date = "2026-03-01"
+
+[vars]
+# The one origin. Any other host the Worker answers on (its workers.dev address, a preview) redirects here.
+APP_HOST = "app.somaelectro.co.in"
+
+[assets]
+directory = "../../dist"
+binding = "ASSETS"
+# The Worker sees every request first: the redirect to the one origin and the security headers (src/index.js).
+run_worker_first = true
+html_handling = "auto-trailing-slash"
+not_found_handling = "none"
+
+[observability]
+enabled = true

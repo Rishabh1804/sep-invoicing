@@ -20,7 +20,8 @@ var SETTINGS_GROUPS = [
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'claudeKey', 'sync'] },
   // The guard (guard.js): users and roles; builder D's Devices joins this group.
   { key: 'access', label: 'Access', secs: ['users'] },
-  { key: 'data', label: 'Data & device', secs: ['appearance', 'data'] }
+  // The new address (move.js, S0): drawn on the old address only, where a device moves from.
+  { key: 'data', label: 'Data & device', secs: ['appearance', 'data'].concat(typeof moveSecShown === 'function' && moveSecShown() ? ['move'] : []) }
 ];
 
 function _setUi() {
@@ -513,7 +514,13 @@ var SETTINGS_SECS = {
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder. Error reports go to the developer from the live site only, and carry no record, name or figure.'
   },
   // Users & access (guard.js): turning the guard on, the users, the minutes and the roles.
-  users: GRD_SETTINGS_SEC
+  users: GRD_SETTINGS_SEC,
+  // The new address (move.js, S0): the handover from the old address; no Save, its buttons act.
+  move: {
+    title: 'The new address',
+    summary: function() { return moveSecSummary(); },
+    body: function() { return moveSecBody(); }
+  }
 };
 
 /* A section is a panel that folds (§6.15 inv-panel-fold): its head is the row that says what it is set

@@ -151,3 +151,30 @@ jobs:
 
       - name: Run the Worker's tests
         run: npx vitest run
+
+  app-worker:
+    name: App Worker tests
+    runs-on: ubuntu-latest
+    # The new address's Worker (server/app, S0): it serves dist/, so the build writes dist/ first; then its own suite runs
+    # inside the Workers runtime over that folder. Nothing is deployed from here: Cloudflare's own build deploys on merge
+    # (docs/S0_GUIDE.md), so this job needs no secret. A hang backstop, not a budget.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the app into dist/
+        run: bash split/build.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server/app
+        run: npm ci
+
+      - name: Run the Worker's tests
+        working-directory: server/app
+        run: npx vitest run

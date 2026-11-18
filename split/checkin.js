@@ -245,9 +245,10 @@ function ckNewKey() {
   (window.crypto || {}).getRandomValues ? window.crypto.getRandomValues(a) : a.forEach(function(v, i) { a[i] = Math.floor(Math.random() * 256); });
   return Array.prototype.map.call(a, function(b) { return (b % 36).toString(36); }).join('').toUpperCase();
 }
-/* The link the QR carries: checkin.html beside the app, the settings in its fragment. */
+/* The link the QR carries: checkin.html on the old address, the settings in its fragment. It stays there when the app moves
+   (S0, move.js moveCheckinBase): each worker's phone keeps its card on that origin, and the sheet is not reprinted. */
 function ckUrl(cfg, withName) {
-  var base = new URL('checkin.html', location.href);
+  var base = new URL('checkin.html', typeof moveCheckinBase === 'function' ? moveCheckinBase() : location.href);
   var p = ['o=' + ckDigits(cfg.office), 'la=' + (+cfg.lat).toFixed(5), 'lo=' + (+cfg.lng).toFixed(5), 'r=' + (+cfg.radius || 150), 'k=' + encodeURIComponent(cfg.key || '')];
   var co = (S.company && (S.company.name || S.company.companyName)) || '';
   if (withName !== false && co) p.push('n=' + encodeURIComponent(co));

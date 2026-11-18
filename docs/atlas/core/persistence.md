@@ -4,7 +4,7 @@ domain: core
 modules: [split/github-sync.js, split/init.js, split/state.js]
 specs: []
 tests: [P93]
-updated: 2026-11-17 (the company is the book's: filled empty only where a book has none)
+updated: 2026-11-17 (the move to the new address carries the book and the per-device entries by a checked handover: S0)
 ---
 
 ## Persistence
@@ -159,3 +159,10 @@ must not repaint the phone that imports it.
 The sync config (`sep_inv_github_sync`) is kept off `S` for the same class of reason: a file
 SHA and a device id describe this device's relationship to the remote, and restoring someone
 else's backup must not hand this device their sync position.
+
+**The move to the app's own address (S0) is the one path that carries those per-device entries, and only for the same device**
+(`new-address.md`): the book's store whole, the photos, the listed entries and the keys cross between this device's two origins by
+a handover checked by origin both ways and read back before the old address says *Moved*. A backup, an import or a pull still
+carries none of them. The new address with no book does not start (`moveGate`, before `loadState`), so it never saves a default
+book over the handover to come. Every storage key the code names is in one of `move.js`'s lists (carried, a key, or not and why);
+P280 fails on a new one in none.

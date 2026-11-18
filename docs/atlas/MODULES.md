@@ -55,6 +55,7 @@ Each `split/*.js` module and the topic that owns it. The owner is the topic that
 | `split/labour.js` | [people/labour-and-pay](people/labour-and-pay.md) |
 | `split/learn.js` | [insight/stats-questions](insight/stats-questions.md) |
 | `split/merge.js` | [platform/guard](platform/guard.md) |
+| `split/move.js` | [core/new-address](core/new-address.md) |
 | `split/msgconfirm.js` | [platform/messages-and-photos](platform/messages-and-photos.md) |
 | `split/msgprofile.js` | [platform/messages-and-photos](platform/messages-and-photos.md) |
 | `split/msgstore.js` | [platform/messages-and-photos](platform/messages-and-photos.md) |

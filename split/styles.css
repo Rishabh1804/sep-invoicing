@@ -348,6 +348,22 @@ body.inv-desktop .inv-seg-btn { flex: 0 1 auto; padding: 0 var(--sp-16); }
    handler reads S, and there is none yet. Boot adds the class. */
 body:not(.inv-booted) { pointer-events: none; }
 
+/* ===== THE NEW ADDRESS (move.js, S0) =====
+   A whole screen over the shell, before the app starts or in place of it: the new address waiting for the book, the old one
+   forwarding a device that has moved, and the old window once its book has crossed. It takes input while the shell does not. */
+.inv-move-screen {
+  position: fixed; inset: 0; z-index: var(--z-scrim); display: grid; place-items: center; overflow-y: auto;
+  padding: var(--sp-16); background: var(--bg); color: var(--text-1); pointer-events: auto;
+}
+.inv-move-card {
+  width: 100%; max-width: var(--max-w); display: grid; gap: var(--sp-12); justify-items: start;
+  padding: var(--sp-20); border-radius: var(--r-card); background: var(--surface); box-shadow: var(--shadow-pop);
+}
+.inv-move-card > .inv-callout { justify-self: stretch; }
+.inv-move-title { margin: 0; font-size: var(--fs-19); font-weight: 600; line-height: 1.3; }
+.inv-move-steps { margin: 0; padding-left: var(--sp-20); display: grid; gap: var(--sp-6); }
+.inv-move-other { justify-self: stretch; }
+
 /* ===== UPDATE BANNER =====
    Persistent until answered, unlike a toast, so it sits under the top bar where
    the toast does but below it in the stack — a toast fired while the banner is

@@ -12,7 +12,8 @@
    held while offline (twenty at most) and sent when the device is back online. Off per device in Settings → Data &
    device → Backup, storage & build. Nothing is sent until ERR_DSN names the project. */
 var ERR_DSN = 'https://d617739ea88ba91290fa103fc43334ac@o4511273636855808.ingest.de.sentry.io/4512179552845904';
-var ERR_HOSTS = ['rishabh1804.github.io'];
+// The new address (S0, move.js) beside the old: Sentry's Allowed domains name both (docs/atlas/core/error-reports.md).
+var ERR_HOSTS = ['rishabh1804.github.io', 'app.somaelectro.co.in'];
 var ERR_OFF_KEY = 'sep_inv_err_off';
 var ERR_QUEUE_KEY = 'sep_inv_err_queue';
 var ERR_MAX_SESSION = 10, ERR_MAX_QUEUE = 20;

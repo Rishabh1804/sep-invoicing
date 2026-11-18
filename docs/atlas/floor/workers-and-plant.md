@@ -4,7 +4,7 @@ domain: floor
 modules: [split/checkin.js, split/idcard.js, split/people.js, split/plant.js, split/qr.js, checkin.html]
 specs: [docs/WORKERS_AND_PLANT.md]
 tests: [P166, P168, P170, P171, P248]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (the office QR points at checkin.html on the old address wherever it is made: S0)
 ---
 
 ### Workers and the plant
@@ -69,6 +69,9 @@ workers and every personal detail are the book's; the owner's private files (`se
   and opens WhatsApp to the office; the chat pasted into the paste box opens a review where each check-in shows its checks: a live card,
   the code, the worker's own phone, inside the radius, sent as made, the shop's hours, one phone one worker a day. Red is left unticked.
   It cannot stop a faked location or a photographed sheet, and the setup says so. `checkin.html` is hand-written and not built.
+  **It stays on the old address when the app moves** (S0, `docs/atlas/core/new-address.md`): each worker's phone keeps its card
+  there (`sep_ck_card`), so `ckUrl` builds the link from `moveCheckinBase()`, the old address's `checkin.html` even when the QR is
+  made on the new one, and the printed sheet stays good. `dist/` does not carry it.
 - **The QA chain of 7 Oct 2026** (owner: *"run QA chain before the final merge"*). Four audits (plant, worker records, ID cards, the
   office QR), the mechanical sweeps, a harness pressing every new action on both layouts (130 presses, no error), each fix with its
   test in P171, which fails on the build before. What it leaves as rules:

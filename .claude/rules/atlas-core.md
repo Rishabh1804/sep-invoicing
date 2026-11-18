@@ -11,6 +11,9 @@ paths:
   - ".github/**"
   - "split/head.html"
   - "split/body.html"
+  - "split/move.js"
+  - "split/dist.sh"
+  - "server/app/**"
 ---
 
 # Atlas route: core
@@ -29,3 +32,6 @@ If your change alters behaviour a topic describes, update that topic and its `up
 - `.github/**`: `docs/atlas/core/build.md`, `docs/atlas/core/tests.md`
 - `split/head.html`: `docs/atlas/core/architecture.md`
 - `split/body.html`: `docs/atlas/core/architecture.md`
+- `split/move.js`: `docs/atlas/core/new-address.md`; also `docs/atlas/core/persistence.md`, `docs/atlas/platform/guard.md`
+- `split/dist.sh`: `docs/atlas/core/new-address.md`; also `docs/atlas/core/build.md`
+- `server/app/**`: `docs/atlas/core/new-address.md`

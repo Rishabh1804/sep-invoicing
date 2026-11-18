@@ -47,3 +47,8 @@ test-results/
 playwright-report/
 playwright/.cache/
 .last-run.json
+
+# What the new address publishes (split/dist.sh, run by build.sh; S0): built by the deploy, never committed.
+dist/
+# The app Worker's lockfile (server/app): CI's npm ci and Cloudflare's build install from it, as the feeds Worker's.
+!server/app/package-lock.json

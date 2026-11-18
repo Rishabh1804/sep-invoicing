@@ -4,7 +4,7 @@ domain: core
 modules: [split/errors.js]
 specs: []
 tests: [P143]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (ERR_HOSTS names the new address beside the old; Sentry's Allowed domains to name both: S0)
 ---
 
 ### Error reports
@@ -18,11 +18,13 @@ has to describe it. P143.
 - **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
   breadcrumbs carry request URLs, and the metals.dev key travels in theirs. One POST of an envelope to Sentry's
   endpoint (`text/plain`, so no preflight; the service worker never touches a POST).
-- **From the live site only** (`ERR_HOSTS`), never from a test browser (`navigator.webdriver`) or a local copy. `ERR_DSN`
+- **From the live site only** (`ERR_HOSTS`: `rishabh1804.github.io` and, since S0, `app.somaelectro.co.in`), never from a test browser (`navigator.webdriver`) or a local copy. `ERR_DSN`
   names the project (the owner's, EU region, given 1 Oct 2026; a DSN is a public key, made to sit in the page). Each kind of
   error once a session, at most ten; held on the device while offline (`sep_inv_err_queue`, twenty at most) and sent when it
   is back online. Checked at setup: Sentry took a test event (environment `setup-check`) and answers the site's origin with
   `access-control-allow-origin: *` on a `text/plain` POST, so a browser needs no preflight.
 - **Off per device**: Settings → Data & device → Backup, storage & build (`sep_inv_err_off`, never on the book).
 - **In Sentry**, the project should have *Prevent storing of IP addresses* on, and *Allowed domains* set to
-  `rishabh1804.github.io` so nobody else can post into it with the public key (both under Security & Privacy).
+  `rishabh1804.github.io` and `app.somaelectro.co.in` (S0: the owner adds the second, `docs/S0_GUIDE.md`) so nobody else can post
+  into it with the public key (both under Security & Privacy). The new address's CSP lets the page reach the project's ingest host
+  (`server/app`), and only it.

@@ -737,6 +737,8 @@ function bootApp() {
   bootStep('the lock', function() { if (typeof grdBoot === 'function') grdBoot(); });
 
   // Initial layout detection (no debounce)
+  // The copy left at the old address after a move (opened with ?stay=1) says so (move.js).
+  bootStep('the new address', function() { if (typeof moveAfterBoot === 'function') moveAfterBoot(); });
   bootStep('the photo key', forgetGeminiKey);
   bootStep('the layout', updateLayoutMode);
   bootStep('the office printer', function() { if (typeof prtBoot === 'function') prtBoot(); });
@@ -906,7 +908,12 @@ bootStep('the icons', function() { iconFill(document.body); uiStatusIconVars(); 
 
 // The GitHub token is read into memory beside the book (devices.js: locked to the device), so getGhToken() answers
 // before anything asks. That read never rejects and never holds the start past its own time limit.
-Promise.all([loadState(), typeof devBootWait === 'function' ? devBootWait() : null]).then(function(r) {
-  bootState(r[0]);
-  bootApp();
+// First the new address (move.js, S0): the old address forwards a device that has moved, and the new one with no book waits
+// for the handover and starts nothing, so it writes nothing and seeds nothing until the book arrives.
+Promise.resolve(typeof moveGate === 'function' ? moveGate() : true).then(null, function() { return true; }).then(function(go) {
+  if (!go) return;
+  Promise.all([loadState(), typeof devBootWait === 'function' ? devBootWait() : null]).then(function(r) {
+    bootState(r[0]);
+    bootApp();
+  });
 });

@@ -36,7 +36,8 @@ const row = (date: string, narration: string, dr: number, cr: number, set?: any)
 export function book() {
   seq = 0;
   const s: any = emptyState();
-  s.clients = [client(11, NOVA), client(12, ORBIT, 'piece'), client(13, KAPPA)];
+  // The rebate client's own terms, 7 days, are set on the client (Client → Edit): the build sets none (17 Nov 2026, HR-10).
+  s.clients = [client(11, NOVA), client(12, ORBIT, 'piece'), { ...client(13, KAPPA), payTermsDays: 7 }];
   s.incomingMaterial = [
     // Despatched: the same day, the next working day and three working days on; ₹1,000, ₹2,000 and ₹6,000.
     challan('IM-101', 11, NOVA, wd[10], [['BRACKET 1', 'KG', 100, 1000]]),

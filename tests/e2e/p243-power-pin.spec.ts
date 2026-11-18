@@ -9,7 +9,6 @@ const ev = (page: Page, e: string) => page.evaluate(x => (0, eval)(x), e);
 const book = () => {
   const s: any = guardBook();
   s.power = { cfg: { restart: 250 }, load: {}, items: {} };
-  s._powerLoad1 = true;   // the migration that sets the load on a book with a power bill
   s.costBills = [{ id: 'B1', kind: 'power', month: '2026-09', amount: 5000, at: 1 }];
   return s;
 };

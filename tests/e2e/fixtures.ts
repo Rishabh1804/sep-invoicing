@@ -105,6 +105,28 @@ export function workingDaysBack(count: number): string[] {
   return out;
 }
 
+/**
+ * A clamp client's production rules, set on the book as Production's rules hold them: a round's size names the clamp's
+ * gauges (`gaugeRules`), and a liner's round names its series (`seriesRules`, by the part number's first digits).
+ *
+ * Until 17 Nov 2026 a once-only migration in init.js wrote rules like these on a client found by its name; it came out
+ * (the build carries no client's data, HR-10), so a spec that reads a register by these rules sets them on its own book.
+ * The rounds are the ones the production specs' register rows are written in (P122, P127, P191).
+ */
+export function clampRules(clientId: number): { gaugeRules: unknown[]; seriesRules: unknown[] } {
+  const at = 1, note = 'set on the book';
+  return {
+    gaugeRules: [
+      { id: 'GR-1', clientId, family: 'CLAMP', racks: [150, 100], gauges: ['25X6', '30X6'], lines: { 150: 'vat-a1', 100: 'vat-a2' }, note, at },
+      { id: 'GR-2', clientId, family: 'CLAMP', racks: [120, 72, 108], gauges: ['35X6', '35X8', '40X6'], lines: { 120: 'vat-a1', 72: 'vat-a1', 108: 'vat-a1' }, note, at },
+    ],
+    seriesRules: [
+      { id: 'SR-1', clientId, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [126], lines: { 126: 'vat-a1' }, prefix: '150', name: 'the 150 series', note, at },
+      { id: 'SR-2', clientId, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [90, 87], lines: { 90: 'vat-a1', 87: 'vat-a1' }, prefix: '150', except: true, name: 'the liners outside the 150 series', note, at },
+    ],
+  };
+}
+
 export function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

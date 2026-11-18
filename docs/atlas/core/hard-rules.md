@@ -3,8 +3,8 @@ subject: "Hard rules HR-1 to HR-10, their exceptions and the public repository"
 domain: core
 modules: [split/data.js, split/styles.css]
 specs: [docs/SERVER.md]
-tests: [P76, P180, P242]
-updated: 2026-11-17 (the code sweep: HR-3's count)
+tests: [P76, P180, P242, P279]
+updated: 2026-11-17 (the build's client migrations and the shop's identity removed, P279; the code sweep: HR-3's count)
 ---
 
 ## Hard Rules (HR-1 through HR-10)
@@ -51,6 +51,16 @@ that day:
   record copied under another name is still the client's. The instrument: the owner's book set against every tracked file, each
   identifier whole, in groups and pairs, and each invoice or challan line as a record (two of its figures in one file). It was not a
   sweep of every client: older passages that name clients beside their figures remain (HR-10 (3)).
+
+**17 Nov 2026** (owner: *"4 and 5. Let's change that."*): what the 22 Oct sweep left in the build came out.
+- **Six once-only migrations that found a client by a name written into them** and wrote its gauge, part and series rules, part
+  times, default kg a piece and payment terms (their flags: `docs/atlas/floor/production.md`, *The rules are the book's*). A book
+  they ran on keeps what they wrote; nothing reads their flags or seed ids.
+- **The shop's identity and settings**: the default company (the firm's name, address, phones, e-mail, GSTIN, state) and bank
+  details (bank, account, IFSC) are empty (`docs/atlas/core/settings.md`, `docs/atlas/billing/printing.md`); the migration that
+  wrote the plant's own connection load (`docs/atlas/floor/power.md`); the power case's fallback name; two comments naming a
+  client beside its per-piece rate. P279 holds it: no removed flag, no code finding a client by name, no GSTIN or IFSC anywhere in
+  the built page, and an empty company in the default state.
 
 **The history still holds them, and is left as it is** (owner, 24 Oct 2026: *"Leave it"*). Every commit before 22 Oct 2026
 stays public on GitHub. The two other ways were put to the owner: making the repository private, which waits on the app's move

@@ -77,22 +77,23 @@ test('an overnight cut runs to the next morning; one with no time back is costed
 });
 
 test('the load is recorded, the To-do asks while the approved load is not on the bill, and a bill billed at it clears it', async ({ page }) => {
-  await loadAppWithState(page, book({ costBills: [{ id: 'B1', kind: 'power', month: '2026-05', amount: 64567, kvaBilled: 25, penalty: 5220, md: 48.7, at: 1 }] }));
-  // Recorded once from the owner's word: 25 kVA billed, 50 approved on 18 May 2026.
-  expect(await g(page, 'S.power.load')).toMatchObject({ sanctioned: 25, approved: 50, approvedOn: '2026-05-18' });
+  // The load is the book's, set on Load & bills: 20 kVA billed, 40 approved (made up). Until 17 Nov 2026 a once-only migration
+  // wrote the plant's own; the build writes none now (HR-10).
+  await loadAppWithState(page, book({ power: { load: { sanctioned: 20, approved: 40, approvedOn: '2026-05-10', ref: '' }, cfg: {}, items: {} },
+    costBills: [{ id: 'B1', kind: 'power', month: '2026-05', amount: 64567, kvaBilled: 20, penalty: 5220, md: 48.7, at: 1 }] }));
   const t = await g(page, 'TODO_RULE_FNS.powerLoad()');
   expect(t).toHaveLength(1);
-  expect(t[0].title).toBe('50 kVA approved, still billed at 25 kVA');
+  expect(t[0].title).toBe('40 kVA approved, still billed at 20 kVA');
   expect(t[0].sub).toContain('₹5,220.00');
   await switchTab(page, 'pagePower');
   await page.locator('#pagePower .inv-viewtab[data-tab="load"]').click();
   // The load's card says it (the tab map, TM4e: it was a callout), in danger, the penalty since approval among its facts.
-  await expect(page.locator('#powerLoad .inv-hero-title')).toHaveText('Approved 50 kVA, billed at 25');
+  await expect(page.locator('#powerLoad .inv-hero-title')).toHaveText('Approved 40 kVA, billed at 20');
   await expect(page.locator('#powerLoad')).toHaveClass(/inv-hero-danger/);
   await expect(page.locator('#powerLoad')).toContainText('₹5,220.00 penalty since approval');
   await expect(page.locator('#powerLoad')).toContainText('48.70 kVA');
-  // The next bill is billed at 50: the task clears itself.
-  await g(page, `S.costBills.push({ id: 'B2', kind: 'power', month: '2026-06', amount: 50000, kvaBilled: 50, at: 2 }); saveState(); renderPower();`);
+  // The next bill is billed at 40: the task clears itself.
+  await g(page, `S.costBills.push({ id: 'B2', kind: 'power', month: '2026-06', amount: 50000, kvaBilled: 40, at: 2 }); saveState(); renderPower();`);
   expect(await g(page, 'TODO_RULE_FNS.powerLoad()')).toHaveLength(0);
 });
 

@@ -4,7 +4,7 @@ domain: insight
 modules: [split/client-perf.js]
 specs: []
 tests: [P118]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-17 (part times are the book's: the once-only migrations that set them by name are removed)
 ---
 
 ### Client performance
@@ -50,8 +50,9 @@ the time taken to pickle and plate + a constant 15 mins (logistics + other steps
 data … make sure the app learns from the data that is being entered, so we can evaluate if the time taken is increasing or decreasing, and
 what steps we can take to optimise setups"*). Performance → *By the hour*:
 - **A round is pickling + plating + the constant** for logistics and the other steps (`S.perfCfg.overheadMin`, 15, set on the panel). Each
-  figure is the owner's where set on the client (`client.partTimes`: pieces, `pickleMin`, `plateMin`, the line; Samarth's two set once,
-  plating 30, `_partTimes1`), else **what the production record measures** (`cpMeasure`, `cpMeasured`): the register's round-to-round
+  figure is the owner's where set on the client (`client.partTimes`: pieces, `pickleMin`, `plateMin`, the line; the once-only migrations
+  that set one client's by its name, `_partTimes1` and `_prodPartRules1`, are removed, the owner, 17 Nov 2026: the build carries no client's data, HR-10, and a book keeps
+  the times they wrote), else **what the production record measures** (`cpMeasure`, `cpMeasured`): the register's round-to-round
   gaps on the line (5–180 min; across noon on a 12-hour clock), a START–END batch's span over its rounds, the pieces a round from the
   rounds' own figures, and pickling as the gap from a load to the pickling hand's next load that day (5–120 min) a piece × the round's
   pieces. Every figure says *set*, *measured* or *not known*.

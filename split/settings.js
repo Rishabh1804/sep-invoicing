@@ -101,11 +101,16 @@ var SETTINGS_SECS = {
         _sfg('GSTIN', 'setCompGstin', '<input class="inv-input inv-id" id="setCompGstin" value="' + escHtml(S.company.gstin) + '">') +
         _sfg('Address 1', 'setCompAdd1', '<input class="inv-input" id="setCompAdd1" value="' + escHtml(S.company.add1) + '">') +
         _sfg('Address 2', 'setCompAdd2', '<input class="inv-input" id="setCompAdd2" value="' + escHtml(S.company.add2) + '">') +
-        _sfg('Phone', 'setCompPhone', '<input class="inv-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">');
+        _sfg('Address 3', 'setCompAdd3', '<input class="inv-input" id="setCompAdd3" value="' + escHtml(S.company.add3) + '">') +
+        _sRow(_sfg('State', 'setCompState', '<input class="inv-input" id="setCompState" value="' + escHtml(S.company.state) + '">'),
+          _sfg('State code', 'setCompStateCode', '<input class="inv-input inv-id" id="setCompStateCode" maxlength="2" inputmode="numeric" value="' + escHtml(S.company.stateCode) + '">')) +
+        _sfg('Phone', 'setCompPhone', '<input class="inv-input" id="setCompPhone" value="' + escHtml(S.company.phone) + '">') +
+        _sfg('Mobile', 'setCompMobile', '<input class="inv-input" id="setCompMobile" value="' + escHtml(S.company.mobile) + '">') +
+        _sfg('E-mail', 'setCompEmail', '<input class="inv-input" id="setCompEmail" type="email" value="' + escHtml(S.company.email) + '">');
     },
-    why: 'Printed on the tax invoice, the credit note and the test certificate. All three read it from here, so they can never disagree about who issued them.',
+    why: 'Printed on the tax invoice, the credit note, the test certificate, the quotation and the statement. All of them read it from here, so they can never disagree about who issued them. A new book starts with it blank: nothing about the shop is in the app itself.',
     save: function() {
-      ['Name', 'Gstin', 'Add1', 'Add2', 'Phone'].forEach(function(f) {
+      ['Name', 'Gstin', 'Add1', 'Add2', 'Add3', 'State', 'StateCode', 'Phone', 'Mobile', 'Email'].forEach(function(f) {
         S.company[f.charAt(0).toLowerCase() + f.slice(1)] = _sVal('setComp' + f).trim();
       });
     }

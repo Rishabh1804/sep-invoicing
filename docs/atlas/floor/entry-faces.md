@@ -4,7 +4,7 @@ domain: floor
 modules: [split/faces.js, split/facesheet.js, split/flow.js]
 specs: [docs/ENTRY_FACES.md]
 tests: [P195, P199, P200, P201, P202, P203, P204]
-updated: 2026-11-17 (the pickling load says where it is going, P265)
+updated: 2026-11-17 (a client's payment terms are the book's: the once-only migration that set them by name is removed; the pickling load says where it is going, P265)
 ---
 
 ### Entry faces
@@ -179,8 +179,8 @@ build: the people are the book's.
     the invoice's despatch date, else its date): the plant's (Settings → Checks & alerts → Turnaround and terms, `S.flowCfg.turnDays`,
     1; 0 is the same day), the client's (`client.turnaroundDays`) and a part's on the client (`client.turnaroundParts`, by `rateKey`), the
     part's winning. Payment terms from the invoice's date: the plant's 45 (`S.flowCfg.termsDays`) or the client's (`client.payTermsDays`).
-    Both on the client's form (*Turnaround and terms*). The client whose name reads Mehta is set to 7 once, where it has none
-    (`_clientTerms1`). **A challan wanted by a day** (`priority` on the challan, or on a line, which wins): *Wanted by* on the challan
+    Both on the client's form (*Turnaround and terms*). A once-only migration that set one client's terms by its name (`_clientTerms1`)
+    is removed (the owner, 17 Nov 2026: the build carries no client's data, HR-10); a book keeps the terms it wrote. **A challan wanted by a day** (`priority` on the challan, or on a line, which wins): *Wanted by* on the challan
     form and among a challan's actions (a dialog, the whole challan or each open line, a line's own day drawn while it has one, a lone
     open line's too); a day before the challan came in is refused, on the form and for a line; the challan is badged while anything on
     it is open, at the earliest day an open line is held to (its own, else the challan's: *Wanted 12 Oct*, blue ahead, amber on the

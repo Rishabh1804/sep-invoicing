@@ -242,6 +242,8 @@ function srchSees(e) {
     if (!page) return grdIsOwner();
     if (!grdSees(page)) return false;
     // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
+    // Power's Case is revenue and wages: listed only to a role that sees both (power.js powerCaseSees).
+    if (page === 'pagePower' && go.kind === 'place' && go.loc.v === 'case' && typeof powerCaseSees === 'function' && !powerCaseSees()) return false;
     return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
   if (e.kind === 'kb') return typeof kbCanRead === 'function' && kbCanRead(kbFind(e.id));   // each article says who reads it

@@ -252,14 +252,17 @@ function advPowerMoves(ctx) {
   // The case's recommendation (§8: the TSUISL switch first), else the option that pays back soonest.
   var opts = (a.options || []).filter(function(o) { return o.payLo != null && o.gain > 0; });
   var rec = opts.find(function(o) { return o.key === 'ts'; }) || opts.slice().sort(function(p, q) { return p.payLo - q.payLo; })[0] || null;
+  // The case is not every role's (power.js powerCaseSees): without it, the move is the month's cuts and their cost alone.
+  var caseSees = typeof powerCaseSees !== 'function' || powerCaseSees();
+  if (!caseSees) rec = null;
   return [{ key: 'power:' + m, tone: 'amber', soon: 1, cat: 2, what: todoPlural(mm.cuts, 'power cut') + ' this month',
     row: { title: todoPlural(mm.cuts, 'power cut') + ' this month', meta: mm.min ? powerDur(mm.min) + ' dark' + (mm.open ? ', ' + mm.open + ' with no time back' : '') : 'No time back recorded',
       amt: mm.cost > 0 ? gstRound(mm.cost) : null },
-    say: (rec ? 'Take up ' + (ADV_OPTION_NAME[rec.key] || rec.label) : 'Read the power case') + ': ' + todoPlural(mm.cuts, 'cut') + ' this month cost ' + advRs(mm.cost),
+    say: (rec ? 'Take up ' + (ADV_OPTION_NAME[rec.key] || rec.label) : caseSees ? 'Read the power case' : 'See the cuts') + ': ' + todoPlural(mm.cuts, 'cut') + ' this month cost ' + advRs(mm.cost),
     worth: rec ? { amount: rec.gain, sign: 1, per: 'year', label: 'a year, the case’s gain' } : (mm.cost > 0 ? { amount: mm.cost, sign: -1, label: 'this month, in damage' } : null),
     basis: (rec ? 'pays back in ' + _pcMonths(rec.payLo) + ' to ' + _pcMonths(rec.payHi) + ' · ' : '') +
       (a.year ? 'a year at the last 90 days’ rate costs ' + advRs(a.year.base) : 'not a year of record to read against yet'),
-    go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Act on the power case' }];
+    go: caseSees ? { kind: 'powerCase' } : { kind: 'power', tab: 'cuts' }, goLabel: caseSees ? 'Power case' : 'Cuts', task: caseSees ? 'Act on the power case' : 'Read the power cuts' }];
 }
 function advStaffMoves(ctx) {
   if (!(S.staff || []).length) return [];
@@ -743,6 +746,7 @@ var ADV_TASK_MOVES = {
     return [{ key: 'carry', tone: t.tone, say: 'Settle the balances brought forward', worth: null, basis: t.sub, go: { kind: 'payWeek' }, goLabel: 'Pay', task: 'Settle the balances brought forward' }];
   },
   powerLoad: function(t) {
+    if (typeof powerCaseSees === 'function' && !powerCaseSees()) return [{ key: 'powerLoad', tone: 'info', say: 'Get the approved load onto the bill', worth: null, basis: t.sub, go: { kind: 'power', tab: 'load' }, goLabel: 'Load & bills', task: 'Get the approved load onto the bill' }];
     return [{ key: 'powerCase', tone: 'info', say: 'Read the power case: the approved load comes first', worth: null, basis: t.sub, go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Get the approved load onto the bill' }];
   },
   // A cut to complete (powercause.js): each one opens on its own dialog, the oldest with no time back first.
@@ -762,8 +766,9 @@ var ADV_TASK_MOVES = {
   powerCause: function(t) {
     var name = pcsName(t.reasonId) || 'the cause', u = t.unitId && typeof pltUnitById === 'function' ? pltUnitById(t.unitId) : null;
     var worth = t.amount > 0 ? { amount: t.amount, sign: -1, label: 'in damage over 30 days' } : null;
-    if (t.scope === 'grid') return [{ key: 'pcsGrid:' + t.reasonId, tone: 'amber', say: 'Take “' + name + '” up with the supplier, and read the power case', worth: worth, basis: t.sub,
-      go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Take “' + name + '” up with the supplier' }];
+    var caseSees = typeof powerCaseSees !== 'function' || powerCaseSees();
+    if (t.scope === 'grid') return [{ key: 'pcsGrid:' + t.reasonId, tone: 'amber', say: 'Take “' + name + '” up with the supplier' + (caseSees ? ', and read the power case' : ''), worth: worth, basis: t.sub,
+      go: caseSees ? { kind: 'powerCase' } : { kind: 'power', tab: 'causes' }, goLabel: caseSees ? 'Power case' : 'Causes', task: 'Take “' + name + '” up with the supplier' }];
     return [{ key: 'pcsCheck:' + t.reasonId, tone: t.tone, say: 'Get “' + name + '” checked' + (u ? ' on ' + u.name : ''), worth: worth, basis: t.sub,
       go: u ? { kind: 'plantUnit', id: u.id } : { kind: 'power', tab: 'causes' }, goLabel: u ? 'The unit' : 'Causes', task: 'Get “' + name + '” checked' },
       { key: 'pcsCauses', tone: 'info', say: 'See what causes the cuts and what brings the power back', worth: null, basis: 'Power → Causes', go: { kind: 'power', tab: 'causes' }, goLabel: 'Causes',

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, clampRules } from './fixtures';
 
 // P191 (owner, 9 Oct 2026), on what a round of the register holds and what a piece weighs:
 //   "Each register line on A1 includes 3 tanks out of the 4 available, 150 kg/3 = 50 kg an hour per tank inside VAT A1 area.
@@ -10,11 +10,12 @@ import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, tod
 //    part being unassigned."
 // - a name that writes one size is the client's part of that size and gauge, at that part's weight; two parts of one size
 //   are never guessed between;
-// - the client's default kg a piece: set once on the client whose name reads Mehta, changed and cleared on the client form;
+// - the client's default kg a piece, set on the client (Client → Edit), changed and cleared on the client form;
 //   it weighs a run nothing links to a part, before a kind whose parts weigh wide apart, after one whose parts agree;
 // - what a tank takes a round, measured on the register's rounds over the tanks working that day: firm at 30 rounds on 5
 //   days with 80% of them from parts' own weights, it is the line's round in place of the kg typed, and says so.
-// Made-up clients and parts; every date from today.
+// Made-up clients and parts; every date from today. The default and the rules are set on each book: until 17 Nov 2026 once-only
+// migrations wrote them on a client found by name, and the build writes none now (HR-10).
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const dayOff = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
@@ -36,7 +37,7 @@ const run = (id: string, clientId: number, part: string, qty: number, extra: any
 
 function weighBook(): SepState {
   const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
-  s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5), client(32, 'ORION WORKS', 'weight', 10)];
+  s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5, { defaultKgPc: 0.52 }), client(32, 'ORION WORKS', 'weight', 10)];
   s.invoices = [{ id: 'INV-1', invoiceNumber: '00001', displayNumber: 'SEP/TEST-00001', date: before(-20), status: 'active', invoiceState: 'dispatched', clientId: 31,
     clientName: 'MEHTA TEST INDUSTRIES', items: [{ partNumber: 'CLAMP 165X83 (NT)', desc: '40X6', unit: 'NOS', qty: 100, rate: 4.4, amount: 440 }],
     taxableValue: 440, cgstAmt: 39.6, sgstAmt: 39.6, igstAmt: 0, grandTotal: 519.2, gstType: 'intra', createdAt: 1 }];
@@ -75,23 +76,20 @@ async function dayCard(page: Page, day = D) {
 test.describe('P191: what a piece weighs, and what a tank takes a round', () => {
   test('a name that writes a size is that part; the default comes after the links and a kind whose parts agree', async ({ page }) => {
     await loadAppWithState(page, weighBook());
-    // Set once on the client whose name reads Mehta, and only there.
-    const st: any = await g(page, `({ m: S.clients.find(function(c){ return c.id === 31; }).defaultKgPc, o: S.clients.find(function(c){ return c.id === 32; }).defaultKgPc, flag: S._clientKgPcDefault1 })`);
-    expect(st).toEqual({ m: 0.56, flag: true });
     expect(await weigh(page, 'R1')).toEqual(['record', 352, 'its size: CLAMP 165X83 (NT)']);
     expect(await weigh(page, 'R6')).toEqual(['record', 38, 'its size: CLAMP 133X83 (NT)']);
     // Nothing links the clamp of no gauge to a part, and the client's clamps weigh 0.33 to 0.88: the client's default.
-    expect(await weigh(page, 'R2')).toEqual(['default', 52.64, 'the client’s default']);
+    expect(await weigh(page, 'R2')).toEqual(['default', 48.88, 'the client’s default']);
     // The pads agree (0.30, 0.31): their own weight wins over the default. The liners do not (0.20, 0.50): the default.
     expect((await weigh(page, 'R3'))[0]).toBe('kind');
-    expect(await weigh(page, 'R4')).toEqual(['default', 56, 'the client’s default']);
+    expect(await weigh(page, 'R4')).toEqual(['default', 52, 'the client’s default']);
     // Two brackets of one size weigh apart: neither is guessed; ORION has no default, so its usual by kind.
     expect((await weigh(page, 'R5'))[0]).toBe('kind');
     // The day's weighing names the default, with the door that changes it.
     const card = await dayCard(page);
     const row = card.locator('[data-prod-weigh="default"]').first();
     await expect(row).toContainText('At MEHTA TEST INDUSTRIES’s default');
-    await expect(row.locator('.inv-row-meta')).toHaveText('0.560 kg a piece · 194 pcs');
+    await expect(row.locator('.inv-row-meta')).toHaveText('0.520 kg a piece · 194 pcs');
   });
 
   test('the default is adjustable on the client: changed, the runs follow; cleared, the kind is used again', async ({ page }) => {
@@ -101,7 +99,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('#flrHeroes [data-prod-day-weighing] > summary').click();
     await page.locator('[data-prod-weigh="default"] [data-action="invEditClient"]').first().click();
     const f = page.locator('#ceditDefaultKgPc');
-    await expect(f).toHaveValue('0.56');
+    await expect(f).toHaveValue('0.52');
     await f.fill('0.6');
     await page.locator('[data-action="invSaveClient"]').click();
     expect((await readStoredState(page)).clients.find((c: any) => c.id === 31).defaultKgPc).toBe(0.6);
@@ -118,7 +116,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('[data-action="invSaveClient"]').click();
     expect('defaultKgPc' in (await readStoredState(page)).clients.find((c: any) => c.id === 31)).toBe(false);
     expect((await weigh(page, 'R2'))[0]).toBe('kind');
-    // The flag travels with the book: a cleared default is not set again at the next start.
+    // A cleared default stays cleared at the next start: nothing in the build sets one.
     await page.reload();
     await page.waitForSelector('body.inv-booted');
     expect((await weigh(page, 'R2'))[0]).toBe('kind');
@@ -269,9 +267,9 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
 
   // The owner's answers of 9 Oct: a round of 108 of Mehta's clamps on VAT A1 is "above 32x6"; "126 - 150xxxxxx series, 90/87 -
   // everything else" (the floor writes their L.C. Pads and liners as LINER).
-  test('Mehta’s round of 108 reads above 32x6, the runs saved at 108 included; a liner round of 126 is the 150 series, 90 the rest', async ({ page }) => {
+  test('a round of 108 reads above 32x6, the runs saved at 108 included; a liner round of 126 is the 150 series, 90 the rest', async ({ page }) => {
     const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
-    s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5)];
+    s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5, { defaultKgPc: 0.52 })];
     const open = (id: string, partNumber: string, desc: string, qty: number, amount: number) => ({ id, partNumber, desc, hsn: '998873', unit: 'NOS', qty, rate: amount / qty, amount, nosQty: qty, invoiced: false, invoiceId: null });
     // The pads of the 150 series at 0.309 kg a piece (₹1.545 at ₹5 a kg), a liner outside it at 0.411.
     s.incomingMaterial.push({ id: 'C9', clientId: 31, challanNo: '91', challanDate: before(-3), items: [open('C9a', '150X88X3', 'L.C.Pad', 1000, 1545), open('C9b', '220X80X3', 'LINER', 500, 1027.5)] });
@@ -279,12 +277,11 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
       clientId: 31, client: 'MEHTA', part, qty: size * n, unit: 'NOS', basis: 'register', src: 'photo', at: 1, rounds: Array.from({ length: n }, (_, i) => ({ time: (9 + i) + ':00 AM', qty: size })), ...extra });
     s.production = { pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} }, entries: [
       reg('G108', 'CLAMP', 108, 2, { gaugeUnknown: 108 }), reg('G94', 'CLAMP', 94, 1, { gaugeUnknown: 94 }),
-      reg('L126', 'LINER', 126, 2), reg('L90', 'LINER', 90, 2), reg('L39', 'LINER', 39, 1)] };
+      reg('L126', 'LINER', 126, 2), reg('L90', 'LINER', 90, 2), reg('L39', 'LINER', 39, 1)], ...clampRules(31) };
     await loadAppWithState(page, s as SepState);
-    const rules: any = await g(page, `({ gauge: prodData().gaugeRules.map(function(r){ return r.racks.join('/') + ':' + r.gauges.join('/'); }),
-      series: prodData().seriesRules.map(function(r){ return r.racks.join('/') + ':' + (r.except ? 'not ' : '') + r.prefix; }) })`);
-    expect(rules).toEqual({ gauge: ['150/100:25X6/30X6', '120/72/108:35X6/35X8/40X6'], series: ['126:150', '90/87:not 150'] });
-    // The run saved at 108 is read by the rule now; a round of 94 is in none and stays flagged.
+    // The runs already saved are read again by the rules (prodGaugeRulesApply): the run saved at 108 is read by the rule now; a
+    // round of 94 is in none and stays flagged.
+    await g(page, `(function(){ prodGaugeRulesApply(); prodTouch(); saveState(); })()`);
     const st = await readStoredState(page);
     const e108 = st.production.entries.find((e: any) => e.id === 'G108'), e94 = st.production.entries.find((e: any) => e.id === 'G94');
     expect([e108.gaugeOptions, e108.gaugeSrc, e108.gaugeRuled.rack, 'gaugeUnknown' in e108]).toEqual([['35X6', '35X8', '40X6'], 'rack', 108, false]);
@@ -292,6 +289,6 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // The liners: a round of 126 is set against the 150 series' challan, 90 against the others, 39 against none.
     expect(await weigh(page, 'L126')).toEqual(['challans', 77.87, 'challans']);
     expect(await weigh(page, 'L90')).toEqual(['challans', 73.98, 'challans']);
-    expect(await weigh(page, 'L39')).toEqual(['default', 21.84, 'the client’s default']);
+    expect(await weigh(page, 'L39')).toEqual(['default', 20.28, 'the client’s default']);
   });
 });

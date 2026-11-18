@@ -3,8 +3,10 @@ const STORAGE_KEY = 'sep_invoicing_state';
 
 function getDefaultState() {
   return {
-    company: {name:"SOMA ELECTRO PRODUCTS",add1:"8-B, 1st Phase,  Industrial Area, Adityapur",add2:"Jamshedpur - 832 109",add3:"",phone:"9431523950",mobile:"8271063224,9386780003",email:"soma_electro123@rediffmail.com",gstin:"20AAPFS4718J2Z0",state:"JHARKHAND",stateCode:"20"},
-    bankDetails: "Bank - Bank Of Baroda, Jamshedpur Main Branch\nA/c No - 00190200000222\nIFSC : BARB0JAMSHE\nPlease Pay by A/c Payee Cheque",
+    // Who issues the documents is the book's, typed in Settings → Business → Company and Bank details: nothing about the shop is
+    // in the build (owner, 17 Nov 2026, HR-10). The same shape, every field empty; every reader copes with a blank (P279).
+    company: { name: '', add1: '', add2: '', add3: '', phone: '', mobile: '', email: '', gstin: '', state: '', stateCode: '' },
+    bankDetails: '',
     companyLogo: "",
     invPrefix: "SEP/2026-27/",
     invNextNum: 1,
@@ -659,6 +661,10 @@ function ensureStateShape(s) {
     });
   });
   if (!s.cnNextNum) s.cnNextNum = 1;
+  // The company is the book's own (Settings → Business → Company). A book with none at all gets the empty shape, so every
+  // screen and document reads blanks rather than throwing; a company the book holds, filled or blank, is never touched, and
+  // nothing here ever writes a name or a number into it (owner, 17 Nov 2026, HR-10; P279).
+  if (!s.company || typeof s.company !== 'object' || Array.isArray(s.company)) s.company = d.company;
   // The market's four stores (feeds.js): each its own shape, filled empty; the models followed take the default only where
   // there is no list at all (a list emptied by the owner stays empty).
   var mk = s.market && typeof s.market === 'object' && !Array.isArray(s.market) ? s.market : (s.market = {});
@@ -3073,7 +3079,7 @@ function getRateOnRecord(client, onDate, item) {
     if (pr) return { rate: pr.rate, unit: 'piece', source: 'pieceRate', effectiveFrom: pr.effectiveFrom };
     // Only a nos_to_weight line with a weight on record is priced per kg. Any
     // other NOS line carries a per-piece figure, and the ₹/kg ladder is not a
-    // reference for it (Parakh's ROLLER at ₹1.10/pc is not "off" from ₹10/kg).
+    // reference for it (DELTA AUTO's QX1 at ₹1.10/pc is not "off" from ₹10/kg).
     var w = (S.partWeights || {})[(item.partNumber || '').toUpperCase()];
     if (client.billingMode !== 'nos_to_weight' || !w) return null;
   }

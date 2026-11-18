@@ -74,8 +74,15 @@ function powerCfg() {
   Object.keys(POWER_CFG_DEFAULTS).forEach(function(k) { out[k] = Number(c[k]) > 0 ? Number(c[k]) : POWER_CFG_DEFAULTS[k]; });
   return out;
 }
+/* The case is revenue, realisation, margins and wages: a role that does not see money and wages has no Case (owner, 17 Nov 2026:
+   "Remove the option for the supervisor to view the power-case"; guard.js grdSeesMoney, grdSeesWages). A cut's cost stays
+   every role's (QA4-4). */
+function powerCaseSees() {
+  return (typeof grdSeesMoney !== 'function' || grdSeesMoney()) && (typeof grdSeesWages !== 'function' || grdSeesWages());
+}
+function powerTabs() { return POWER_TABS.filter(function(t) { return t[0] !== 'case' || powerCaseSees(); }); }
 function powerSetTab(t) {
-  if (!POWER_TABS.some(function(x) { return x[0] === t; })) t = 'cuts';
+  if (!powerTabs().some(function(x) { return x[0] === t; })) t = 'cuts';
   if (t !== _powerTab) _powerTabMoved = true;
   _powerTab = t;
   try { localStorage.setItem('sep_inv_power_tab', t); } catch (e) { /* a per-device convenience only */ }
@@ -562,9 +569,9 @@ function renderPower() {
   var el = document.getElementById('powerContent');
   if (!el) return;
   powerData();
-  if (!POWER_TABS.some(function(t) { return t[0] === _powerTab; })) _powerTab = 'cuts';
+  if (!powerTabs().some(function(t) { return t[0] === _powerTab; })) _powerTab = 'cuts';
   var a = powerAnalysis();
-  var h = '<div class="inv-viewtabs" role="tablist" aria-label="Power">' + POWER_TABS.map(function(t) {
+  var h = '<div class="inv-viewtabs" role="tablist" aria-label="Power">' + powerTabs().map(function(t) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_powerTab === t[0]) + '" data-action="invPowerTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
   if (_powerTab === 'causes') h += pcsCausesHtml(a);
@@ -578,7 +585,7 @@ function renderPower() {
   if (_powerTabMoved) { _powerTabMoved = false; viewTop(); }
   // A case open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
-  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-picture]')) {
+  if (body && view && view.classList.contains('inv-print-view-active') && !(typeof prtHereShowing === 'function' && prtHereShowing()) && body.querySelector('[data-power-picture]') && powerCaseSees()) {
     body.innerHTML = powerCasePictureHtml(a) + (body.querySelector('[data-power-case]') ? powerCaseHtml(a) : ''); printFit();
   }
 }
@@ -825,8 +832,9 @@ function _pcMonths(m) { return m == null ? '—' : m < 1 ? 'under a month' : for
 
 function powerCaseHtml(a) {
   a = a || powerAnalysis();
-  var co = (S.company && S.company.name) || 'Soma Electro Products', t = a.totals, today = localDateStr(), L = a.load, y = a.year;
-  var h = '<div class="inv-sr-doc" data-power-case><div class="inv-sr-head"><div class="inv-sr-co">' + escHtml(co) + '</div></div>' +
+  // Who files it is the book's company (Settings), or none: no name is written into the build (P279).
+  var co = String((S.company && S.company.name) || '').trim(), t = a.totals, today = localDateStr(), L = a.load, y = a.year;
+  var h = '<div class="inv-sr-doc" data-power-case>' + (co ? '<div class="inv-sr-head"><div class="inv-sr-co">' + escHtml(co) + '</div></div>' : '') +
     '<div class="inv-sr-title">Power cuts: the case for reliable supply</div>' +
     '<table class="inv-sr-meta"><tr><td class="inv-sr-meta-l">As of</td><td>' + escHtml(formatDate(today)) + ', drawn from the app&rsquo;s records when printed</td></tr>' +
     '<tr><td class="inv-sr-meta-l">Record</td><td>' + (a.first ? escHtml(formatDate(a.first) + ' to ' + formatDate(today) + ' · ' + todoPlural(t.cuts, 'cut') + ' · ' + a.span.recorded + ' of ' + a.span.of + ' working days carry a record') : 'no cut on record') + '</td></tr>' +
@@ -970,7 +978,7 @@ function _powerLongestGap(gaps) {
 /* Print the picture (one page) or the full case: the picture, then the text. */
 function powerPrint(pictureOnly) {
   var body = document.getElementById('invPrintBody');
-  if (!body) return;
+  if (!body || !powerCaseSees()) return;
   var a = powerAnalysis();
   body.innerHTML = powerCasePictureHtml(a) + (pictureOnly ? '' : powerCaseHtml(a));
   document.getElementById('invPrintView').classList.add('inv-print-view-active');

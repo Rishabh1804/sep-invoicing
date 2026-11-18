@@ -3,8 +3,8 @@ subject: "The guard"
 domain: platform
 modules: [split/changelog.js, split/devices.js, split/guard.js, split/merge.js]
 specs: [docs/GUARD.md]
-tests: [P140, P141, P142, P146, P175, P244]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P140, P141, P142, P146, P175, P244, P278]
+updated: 2026-11-17 (Power's Case needs money and wages, P278)
 ---
 
 ### The guard
@@ -31,8 +31,8 @@ updated: 2026-11-11 (moved verbatim from CLAUDE.md)
 - **Nothing a role decides is drawn while nobody is signed in** (`grdHeld`): the unlock draws the screen for whoever unlocks and
   shuts what somebody else left open (`grdAfterUser`); a launch waits for it (`grdWhenIn`). **Each role sees what its screens
   show**: its tasks (`todoSees`; the finance rules need money, the pay ones wages), Needs you's inputs, the bar's counts, Home's
-  widgets and their moves, Pipeline's *Owed to us*, a client's Money panel, Stock's forecast, Production's labour per kg and Staff's rupees
-  (`attSeesWages`); a To-do jump to a page the role does not open opens nothing (`todoGo`).
+  widgets and their moves, Pipeline's *Owed to us*, a client's Money panel, Stock's forecast, Production's labour per kg, Staff's rupees
+  (`attSeesWages`) and Power's Case (money and wages both, `powerCaseSees`, P278); a To-do jump to a page the role does not open opens nothing (`todoGo`).
 - **The change log** (`changelog.js`, P141): every save compared with the book before it, record by record, each changed
   field from → to, tagged with who was signed in and the device; kept in the book (`S.changeLog`), shown in History →
   Changes. The merge (below) reads it to say whose change stands.

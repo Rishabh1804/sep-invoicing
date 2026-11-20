@@ -37,6 +37,18 @@ const MOVE_TEST_HEADER = 'x-sep-move-test';
 /* P280: a page asked with this header carries the new address's Content-Security-Policy, the Worker's own string
    (server/app/src/index.js), so a spec can watch the app run under it. */
 const CSP_TEST_HEADER = 'x-sep-csp';
+/* P281: the move's waits (move.js: the push's limit, the new address's answer), shortened for a request carrying this header, as
+   `MOVE_PUSH_MS=1500,MOVE_WAIT_READY_MS=1500`. Only the named lines and only digits; without the header each wait is as built. */
+const MOVE_MS_TEST_HEADER = 'x-sep-move-ms';
+const MOVE_MS_NAMES = ['MOVE_PUSH_MS', 'MOVE_WAIT_READY_MS', 'MOVE_WAIT_DONE_MS'];
+function moveWaits(html, spec) {
+  String(spec).split(',').forEach((pair) => {
+    const m = /^\s*([A-Z_]+)=(\d+)\s*$/.exec(pair);
+    if (!m || !MOVE_MS_NAMES.includes(m[1])) return;
+    html = html.replace(new RegExp('var ' + m[1] + ' = \\d+;'), `var ${m[1]} = ${m[2]};`);
+  });
+  return html;
+}
 function moveOrigins(html) {
   return html.replace(/var MOVE_OLD_ORIGIN = '[^']*';/, `var MOVE_OLD_ORIGIN = 'http://127.0.0.1:${PORT}';`)
     .replace(/var MOVE_OLD_PATH = '[^']*';/, "var MOVE_OLD_PATH = '/';")
@@ -54,6 +66,7 @@ const server = http.createServer(async (req, res) => {
     if (ext === '.html') {
       let html = localFonts(data.toString('utf8'));
       if (req.headers[MOVE_TEST_HEADER]) html = moveOrigins(html);
+      if (req.headers[MOVE_TEST_HEADER] && req.headers[MOVE_MS_TEST_HEADER]) html = moveWaits(html, req.headers[MOVE_MS_TEST_HEADER]);
       data = Buffer.from(html);
     }
     const head = { 'Content-Type': MIME[ext] || 'application/octet-stream' };

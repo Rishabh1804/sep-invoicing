@@ -3,8 +3,8 @@ subject: "The new address: app.somaelectro.co.in, dist/, the Worker and the hand
 domain: core
 modules: [split/move.js, split/dist.sh, server/app/src/index.js]
 specs: [docs/SERVER.md, docs/S0_GUIDE.md]
-tests: [P280]
-updated: 2026-11-18 (the Worker's first build: Cloudflare installs with pnpm, so server/app carries a pnpm-lock.yaml)
+tests: [P280, P281]
+updated: 2026-11-20 (first use: no install before the book, a window without its opener said so, a time limit on the push; P281)
 ---
 
 ## The new address (S0)
@@ -117,6 +117,32 @@ to two origins of itself: `127.0.0.1` the old, `localhost` the new. The checks a
 layouts, swept as P76 sweeps), a new address that does not keep a write (the old one says *Nothing was moved* and nothing changes on
 either side), a push refused and no sync, offers and answers forged from another origin and window both ways, the waiting screen,
 the forward, the copy deleted, `dist/`, the key lists and the CSP. A mutation that drops the new side's origin check fails it.
+
+## First use, 20 Nov 2026
+
+The first moves, on the owner's phone (Android, Chrome) and the office PC, found three things. P281 holds each fix
+(`tests/e2e/p281-move-first-use.spec.ts`, on P280's two origins).
+
+1. **Installed before the book.** The phone installed the app from the new address while it showed *Waiting for the book*
+   (Chrome offered it). The move's `window.open` was then routed by Android into that installed app, a window with **no
+   opener**: `moveIsTarget()` was false, the new side waited untargeted, and the old side failed after 60 s (*the new address did
+   not answer*). Uninstalling the app from the new address fixed it. **Fixes:** while the new address holds no book it holds back
+   the browser's install offer (`beforeinstallprompt` → `preventDefault()`, `_moveHoldInstall`, let go once the gate finds a
+   book) and the waiting screen says *do not install from here yet; move first from a browser tab; install after the move*. The
+   browser's own menu can still install, so the words matter as much. A window that opens with the move's marker (`?move=1`) but
+   no opener says why on the waiting screen and what to do: uninstall the app installed from this address, close the window,
+   press Move again in the old tab. The old side's *did not answer* names the same cause first.
+2. **The push without a limit.** The move sat on *Pushing to GitHub*: `ghPushLocked` waits on a Web Lock
+   (`sep-invoicing-gh-push`) another window of the old address may hold, for as long as it holds it (that time it ended on a 401:
+   the token had expired). **Fix:** the move races the push against `MOVE_PUSH_MS` (90 s) and fails, moving nothing, with
+   *another window of the old address may be pushing or busy*. A push that lands after the limit moves nothing (the move's stage
+   is no longer `pushing`). The guide now has the device push first and close its other windows.
+3. **An old copy with nothing to hand over.** On the office PC the old address's storage had been cleared: an empty book, the
+   token's device key gone. The new address's *Another way* (start empty, then GitHub sync with a new token, **Pull** first) was
+   the path, and worked; it registers as a new device and the old address there never forwards. The guide's §2 says so.
+
+Under test, the waits are shortened by a header (`x-sep-move-ms: MOVE_PUSH_MS=1500`, with P280's), which rewrites only the named
+`var` lines, digits only (`tests/e2e/server.mjs`); without it each wait is as built.
 
 ## Cloudflare's build installs with pnpm
 

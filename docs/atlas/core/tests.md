@@ -4,7 +4,7 @@ domain: core
 modules: []
 specs: []
 tests: [P21, P73, P228]
-updated: 2026-11-17 (P280 runs two origins on one test server, by a header: S0)
+updated: 2026-11-20 (P281: the move's waits shortened by a header, on P280's two origins)
 ---
 
 ### Tests
@@ -45,7 +45,8 @@ response. Android and Windows have no Linux font service. Run that one test agai
 **Two origins on one server** (P280, S0): the app checks two exact origins for the handover (`move.js`). A request carrying
 `x-sep-move-test` gets a page whose three lines naming them name the test server's own `127.0.0.1` (the old address) and
 `localhost` (the new), so each keeps its own storage as two hosts would; with `x-sep-csp` the page also carries the new address's
-CSP, the Worker's own string. Without the headers the page is as built, so no other spec sees either. A third origin is a route
+CSP, the Worker's own string; with `x-sep-move-ms` (P281, beside P280's header) the move's named waits are shortened, as
+`MOVE_PUSH_MS=1500`, digits only. Without the headers the page is as built, so no other spec sees any. A third origin is a route
 (`http://evil.test`), fulfilled by Playwright.
 
 **Fixtures seed the LEGACY key and wait for `body.inv-booted`.** `loadAppWithState` writes

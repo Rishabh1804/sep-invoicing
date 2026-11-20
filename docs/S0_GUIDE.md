@@ -47,8 +47,15 @@ From now on every merge to `main` deploys the new address by itself, as GitHub P
 
 Do it **in a browser tab, in the browser the app is installed in**: **Chrome on the phone, Edge on the two PCs**. Not in the
 installed app's window: the move reads the old address's storage in that browser, and a browser tab keeps the two windows talking.
-Before you start, make sure the device is **online** and its **GitHub sync works** (Pulse's sync card, or Settings → Connections →
-GitHub sync → Push).
+**Before step 1, on each device**, online:
+- **Press Push first and see it work** (Settings → Connections → GitHub sync → **Push**). Tokens expire. If it says *GitHub
+  rejected the token*, make a new fine-grained token on GitHub (only the sync repository; Contents: read and write), enter it
+  there, and push again. The move pushes first, and stops if the push fails.
+- **Do not install the app from the new address before the move.** If the phone has an app installed from
+  `app.somaelectro.co.in`, it opens the move's window in that app, which cannot take the book. The new address says so while it
+  waits; install from it only after the move (step 7). If one is installed already, uninstall it first: it holds no book.
+- **Close the device's other windows of the old address** (other tabs, the installed app). One of them can hold up the push; the
+  move then stops after a minute and a half and says so.
 
 1. Open **rishabh1804.github.io/sep-invoicing** in a tab. If Settings → **Data & device** has no section called **The new address**,
    reload once (the newest build has it).
@@ -64,6 +71,20 @@ GitHub sync → Push).
 7. **Install the app from the new address**: Chrome on the phone → ⋮ → *Add to Home screen* / *Install app*; Edge on a PC → ⋯ →
    *Apps* → *Install this site as an app*. Then remove the old installed app (long-press its icon → *Uninstall*, or Edge → *Apps* →
    *Manage apps*). The old one would only forward to the new address now.
+
+### A device whose old copy is empty or unreadable
+
+If the old address on a device shows an empty book, or cannot read its GitHub token (its storage was cleared), there is nothing
+to hand over. Skip the handover there:
+
+1. Open **app.somaelectro.co.in** in that browser. It says *Waiting for the book*.
+2. **Another way** → **Start with an empty book** → **Start empty**.
+3. Settings → Connections → **GitHub sync**: the owner, repository, branch and file path as on the other devices, and a **new
+   token** (fine-grained, only the sync repository, Contents read and write).
+4. Press **Pull** first, and check the invoices are there. Only then **Push**.
+5. It registers as a **new device**. The old entry for this device can be removed (Settings → Access → Devices).
+6. Type the **Claude key** and the **metals.dev key** again (Settings → Connections).
+7. The old address on this device **does not forward** (it never handed over): use only the new address there from now on.
 
 ### On the office print station (Edge), also
 

@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="d9b543a7">
+<meta name="app-build" content="65676fd8">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -14544,7 +14544,7 @@ document.addEventListener('input', function(e) {
      the new address still points at the old one (moveCheckinBase). */
 
 // The two addresses. tests/e2e/server.mjs replaces these three lines, and only these, when P280's header asks: the checks
-// below are never loosened for a test.
+// below are never loosened for a test. The waits below are shortened the same way, only on a request carrying P281's header.
 var MOVE_OLD_ORIGIN = 'https://rishabh1804.github.io';
 var MOVE_OLD_PATH = '/sep-invoicing/';
 var MOVE_NEW_ORIGIN = 'https://app.somaelectro.co.in';
@@ -14553,6 +14553,9 @@ var MOVE_MARK_OLD = 'sep_inv_moved';     // the old address: {to, at, build}, th
 var MOVE_MARK_NEW = 'sep_inv_move_in';   // the new address: {how: 'handover' | 'own', at}, the book came (or will come) another way
 var MOVE_WAIT_READY_MS = 60000;
 var MOVE_WAIT_DONE_MS = 180000;
+/* The push before the move waits on a Web Lock that another window of the old address may hold (ghPushLocked), with no limit of
+   its own: on the first real move (20 Nov 2026) it sat on "Pushing to GitHub". Past this, the move fails and nothing is moved. */
+var MOVE_PUSH_MS = 90000;
 
 /* What crosses as an entry, written as it was. Sync and this device; work not yet saved; the print station; the guard's
    own entries on this device (never a PIN: those are the book's); the appearance, Pulse's layout, the folds and the
@@ -14613,6 +14616,10 @@ function moveStay() { try { return new URLSearchParams(location.search).get('sta
 function moveIsTarget() {
   try { return new URLSearchParams(location.search).get('move') === '1' && !!window.opener; } catch (e) { return false; }
 }
+/* The move's own marker on the new address (moveOpenNew), with or without the window that opened it. */
+function moveMarked() {
+  try { return new URLSearchParams(location.search).get('move') === '1'; } catch (e) { return false; }
+}
 function moveWhen(ts) { return ts ? formatDate(isoOf(new Date(ts))) : ''; }
 /* The office QR (checkin.js) points at checkin.html on the old address, wherever it is made: the worker's card is kept there. */
 function moveCheckinBase() { return moveRole() === 'new' ? MOVE_OLD_ORIGIN + MOVE_OLD_PATH : location.href; }
@@ -14624,6 +14631,14 @@ function _moveHex(buf) { return Array.prototype.map.call(new Uint8Array(buf), fu
 function _moveBlobSha(blob) { return blob.arrayBuffer().then(function(b) { return crypto.subtle.digest('SHA-256', b); }).then(_moveHex); }
 function _moveSame(a, b) { return typeof a === 'string' || typeof b === 'string' ? a === b : JSON.stringify(a) === JSON.stringify(b); }
 function _moveErr(text) { return new Error(text); }
+
+/* ===== NO INSTALL BEFORE THE BOOK (first use, 20 Nov 2026) =====
+   Installed from the new address while it waited for the book, the phone then routed the move's window.open into that installed
+   app: a window with no opener, which cannot take the handover. While the new address holds no book, the browser's install offer
+   is held back (the screen says why); it is let go once the gate finds a book here. */
+var _moveHoldInstall = moveRole() === 'new';
+function moveOnInstallOffer(e) { if (_moveHoldInstall && e && typeof e.preventDefault === 'function') e.preventDefault(); }
+if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('beforeinstallprompt', moveOnInstallOffer);
 
 /* ===== AT THE START (init.js, before the book is read) =====
    Resolves true when the app may start as usual. The old address with this device moved forwards (unless ?stay=1); the new
@@ -14637,11 +14652,11 @@ function moveGate() {
   if (role !== 'new') return Promise.resolve(true);
   var target = moveIsTarget();
   return moveHoldsBook().then(function(has) {
-    if (has) { if (target) _movePostOld({ type: 'sep-move-busy', v: 1 }); return true; }
-    moveWaitDraw(target);
+    if (has) { _moveHoldInstall = false; if (target) _movePostOld({ type: 'sep-move-busy', v: 1 }); return true; }
+    moveWaitDraw(target, !target && moveMarked());
     if (target) moveListen();
     return false;
-  }, function() { return true; });
+  }, function() { _moveHoldInstall = false; return true; });
 }
 /* A book is here: one came by the handover or the owner chose another way, the database has held one, or it holds one now. */
 function moveHoldsBook() {
@@ -14668,14 +14683,18 @@ function moveForward() {
     '<a class="inv-btn inv-btn-primary" href="' + escHtml(to) + '">Open the new address</a>');
   try { location.replace(to); } catch (e) { /* the link above */ }
 }
-function moveWaitDraw(target) {
+/* orphan: the move's own window (?move=1) arrived without its opener, so the old address cannot reach it (first use, 20 Nov 2026). */
+function moveWaitDraw(target, orphan) {
+  var status = target ? 'The old address opened this window. Waiting for it to hand over.' :
+    orphan ? 'This window opened without its link back to the old address, so the book cannot come to it. Most often the app is installed from this address and the phone opened it there. Uninstall the app installed from this address (it holds no book), close this window, and press Move again in the old address&rsquo;s tab.' : '';
   _moveScreen('<h1 class="inv-move-title">Waiting for the book</h1>' +
     '<p class="inv-note">This is SEP Invoicing&rsquo;s own address. On this device it holds no book yet, and nothing starts here until the book arrives.</p>' +
+    '<div class="inv-callout inv-callout-warning" data-move-noinstall><strong>Do not install the app from here yet.</strong> Move first, from a browser tab in the browser the app is installed in. Install from here after the move.</div>' +
     '<ol class="inv-move-steps inv-note">' +
       '<li>In this browser, open the old address: <span class="inv-id">' + escHtml(moveOldHostPath()) + '</span>.</li>' +
       '<li>Settings &rarr; Data &amp; device &rarr; The new address &rarr; <strong>Move to the new address</strong>.</li>' +
       '<li>It pushes the book to GitHub, opens this address again and hands over the book, the photos and this device&rsquo;s keys.</li></ol>' +
-    '<div class="inv-callout" data-move-status aria-live="polite">' + (target ? 'The old address opened this window. Waiting for it to hand over.' : '') + '</div>' +
+    '<div class="inv-callout' + (orphan ? ' inv-callout-danger' : '') + '" data-move-status aria-live="polite">' + status + '</div>' +
     '<details class="inv-move-other"><summary class="inv-btn-link inv-summary">Another way</summary>' +
       '<p class="inv-note inv-mt-8">Where the old address cannot hand over (a device that never had the app, or a copy that is gone): start here with an empty book, then pull from GitHub (Settings &rarr; Connections &rarr; GitHub sync, its token typed again) or import a backup (Settings &rarr; Data &amp; device). The handover is then closed on this device.</p>' +
       '<div class="inv-mt-8" data-move-own><button type="button" class="inv-btn inv-btn-secondary" data-action="invMoveOwn">Start with an empty book</button></div></details>');
@@ -14944,16 +14963,22 @@ function moveStart() {
   var wipeEl = document.getElementById('moveWipe');
   var s = _moveSess = { stage: 'pushing', nonce: _moveNonce(), wipe: !wipeEl || !!wipeEl.checked, win: null, sent: 0, refused: 0, timer: null };
   moveDialog('Pushing to GitHub', 'The book goes to GitHub first, so a copy is safe whatever happens next.', '');
+  // The push waits its turn on a lock another window of this address may hold: past MOVE_PUSH_MS the move fails, and a push that
+  // lands after that moves nothing (the stage is no longer 'pushing').
+  s.timer = setTimeout(function() {
+    if (_moveSess === s && s.stage === 'pushing') moveFail('the push to GitHub did not finish. Another window of the old address may be pushing or busy: close the other windows of the old address, then move again.');
+  }, MOVE_PUSH_MS);
   ghPushLocked({}).then(function(ok) {
-    if (_moveSess !== s) return;
+    if (_moveSess !== s || s.stage !== 'pushing') return;
+    clearTimeout(s.timer);
     if (!ok) { moveFail('the book is not pushed to GitHub (' + (_ghStatusText || 'the push did not land') + '). Push it from Settings → Connections → GitHub sync, then move again.'); return; }
     // The push's own quiet save (the device's row) lands before the book is read for the handover.
     return _persistChain.then(function() {
-      if (_moveSess !== s) return;
+      if (_moveSess !== s || s.stage !== 'pushing') return;
       s.stage = 'pushed';
       movePushedDialog();
     });
-  }, function(e) { if (_moveSess === s) moveFail('the push failed (' + ((e && e.message) || e) + ').'); });
+  }, function(e) { if (_moveSess === s && s.stage === 'pushing') moveFail('the push failed (' + ((e && e.message) || e) + ').'); });
 }
 function _moveNonce() { var a = new Uint8Array(16); crypto.getRandomValues(a); return _moveHex(a.buffer); }
 function moveCancel() {
@@ -14971,7 +14996,7 @@ function moveOpenNew() {
   s.win = w;
   s.stage = 'opened';
   moveHandingDialog();
-  s.timer = setTimeout(function() { if (_moveSess === s && s.stage === 'opened') moveFail('the new address did not answer. Open it once in this browser while online, then move again.'); }, MOVE_WAIT_READY_MS);
+  s.timer = setTimeout(function() { if (_moveSess === s && s.stage === 'opened') moveFail('the new address did not answer. If the app is installed from the new address on this device, uninstall it (it holds no book): the phone may have opened the new address there instead of in this browser. Otherwise open the new address once in this browser while online. Then move again.'); }, MOVE_WAIT_READY_MS);
 }
 
 function moveOnOld(e) {

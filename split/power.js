@@ -80,6 +80,8 @@ function powerCfg() {
 function powerCaseSees() {
   return (typeof grdSeesMoney !== 'function' || grdSeesMoney()) && (typeof grdSeesWages !== 'function' || grdSeesWages());
 }
+/* Wages (guard.js grdSeesWages): a cut's idle wages and catch-up overtime are drawn only to a role that sees them (T-JF). */
+function powerSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWages(); }
 function powerTabs() { return POWER_TABS.filter(function(t) { return t[0] !== 'case' || powerCaseSees(); }); }
 function powerSetTab(t) {
   if (!powerTabs().some(function(x) { return x[0] === t; })) t = 'cuts';
@@ -370,9 +372,13 @@ function powerRecovery(cuts, first, today, quiet) {
       out.capped++;
     }
     k.recOt = gstRound(k.recOt);
-    out.cost += k.recOt; out.hours += k.recHours;
     // The share of the cut's dark working time the overtime made up: its hand-hours over the hands the cut stood idle.
     k.recovered = k.inside > 0 && idleHands > 0 ? Math.min(1, k.recHours * 60 / (k.inside * idleHands)) : 0;
+    // A role that does not see wages is shown a cut's cost without them (owner, 18 Nov 2026, T-JF: "Hide wage parts on Cuts"):
+    // the idle wages and the catch-up overtime are left out of every figure the analysis gives, the cut's total and the month's
+    // and the year's included, so they cannot be had by subtraction. The share made up stays (hand-hours, not rupees).
+    if (!powerSeesWages()) { k.recOt = 0; k.idle = 0; k.idleAll = 0; k.idleOt = 0; k.wagesHidden = true; }
+    out.cost += k.recOt; out.hours += k.recHours;
     _powerDamage(k);
   });
   out.cost = gstRound(out.cost);
@@ -618,7 +624,7 @@ function powerCutsHtml(a) {
       (mm.recorded || 0) + ' days recorded'],
     factors: [
       { label: 'Cuts this month', fig: String(mm.cuts), tone: mm.cuts ? 'warning' : null, sub: powerHours(mm.min) + ' dark', attrs: ' data-power-tile="month"' },
-      { label: 'What they cost', fig: figWrapHtml(escHtml(formatCurrency(mm.cost))), tone: mm.cost > 0 ? 'warning' : null, sub: 'this month', attrs: ' data-power-tile="cost"' },
+      { label: 'What they cost', fig: figWrapHtml(escHtml(formatCurrency(mm.cost))), tone: mm.cost > 0 ? 'warning' : null, sub: powerSeesWages() ? 'this month' : 'this month, wages left out', attrs: ' data-power-tile="cost"' },
       { label: 'A year at this rate', fig: y ? figWrapHtml(escHtml(formatCurrency(y.base))) : '', tone: y && y.base > 0 ? 'danger' : null,
         sub: y ? 'the last 90 days, ' + y.recorded + ' of ' + y.of + ' recorded' : 'no cut on record yet', attrs: ' data-power-tile="year"' },
       { label: 'Load', fig: L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '', tone: L.pending ? 'danger' : null,
@@ -663,6 +669,7 @@ function powerCutRowHtml(c, typical) {
   if (k.idleAll) part('Wages that bought nothing', k.hands + ' plater' + (k.hands === 1 ? '' : 's') + (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone' : '') +
     (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.idle));
   if (k.fixed) part('Fixed charge', 'paid anyway, so not added', k.fixed);
+  if (k.wagesHidden) parts.push(uiFactRowHtml({ label: 'Wages', value: '', sub: 'not shown to this role, and not in the total', attrs: ' data-power-wages-hidden' }));
   var facts = [c.phase === 'single' ? uiFactRowHtml({ label: 'Single-phase', value: '', sub: 'counted as dark' }) : '',
     c.reports > 1 ? uiFactRowHtml({ label: 'Reports', value: String(c.reports), sub: 'counted once' }) : '',
     k.inside ? uiFactRowHtml({ label: 'In working hours', value: powerDur(k.inside), sub: k.ot ? powerDur(k.ot) + ' of it overtime' : '' }) : ''].join('');

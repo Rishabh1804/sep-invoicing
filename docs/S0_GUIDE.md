@@ -23,12 +23,13 @@ Everything is in **your own Cloudflare account**, beside the website and the fee
    | Field | Value |
    |---|---|
    | Project (Worker) name | **sep-app** (the name in `server/app/wrangler.toml`) |
-   | Production branch | **main** |
    | Root directory (under *Advanced*) | **server/app** |
    | Build command | **bash ../../split/build.sh** |
    | Deploy command | leave it: **npx wrangler deploy** |
    | Non-production branch builds | leave on if offered: each pull request then gets a build check. Its preview address only redirects to the app, so no book is kept there |
 
+   The import screen does not ask for a branch: it builds the repository's default branch, **main** (Settings → Build → *Branch
+   control* shows it).
 3. **Save and deploy.** The first build takes a few minutes. It builds the app into `dist/` and publishes only that folder: no
    `CLAUDE.md`, no `docs/`.
 4. The Worker → **Settings** → **Domains & Routes** → **Add** → **Custom domain** → **app.somaelectro.co.in** → **Add domain**.
@@ -112,8 +113,9 @@ new address still points there. The printed sheet stays good.
 ## Afterwards (optional, recommended)
 
 The GitHub tokens sat on the shared address until today. Once all three devices are moved, consider replacing each: on GitHub,
-make a new fine-grained token per device (this repository's data only, Contents read and write), type it at the new address
-(Settings → Connections → GitHub sync), then delete the old token on GitHub. Do the same for the Claude key (console.anthropic.com)
+make a new fine-grained token per device (Contents read and write, on the repository the app syncs to), type it at the new address
+(Settings → Connections → GitHub sync), then delete the old token on GitHub. A token limited to one repository still reaches
+everything in that repository, so the narrowest token is one on a repository that holds only the app's sync copy. Do the same for the Claude key (console.anthropic.com)
 if you like.
 
 ## Cost

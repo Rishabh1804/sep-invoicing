@@ -4,7 +4,7 @@ domain: core
 modules: [split/move.js, split/dist.sh, server/app/src/index.js]
 specs: [docs/SERVER.md, docs/S0_GUIDE.md]
 tests: [P280]
-updated: 2026-11-17 (built: the groundwork of S0; nothing deployed, nothing changed on a device)
+updated: 2026-11-18 (the Worker's first build: Cloudflare installs with pnpm, so server/app carries a pnpm-lock.yaml)
 ---
 
 ## The new address (S0)
@@ -117,3 +117,13 @@ to two origins of itself: `127.0.0.1` the old, `localhost` the new. The checks a
 layouts, swept as P76 sweeps), a new address that does not keep a write (the old one says *Nothing was moved* and nothing changes on
 either side), a push refused and no sync, offers and answers forged from another origin and window both ways, the waiting screen,
 the forward, the copy deleted, `dist/`, the key lists and the CSP. A mutation that drops the new side's origin check fails it.
+
+## Cloudflare's build installs with pnpm
+
+The first deploy (18 Nov 2026, `6904749`) failed before the build ran: Cloudflare's build image detected **pnpm** (the repository
+root has `pnpm-lock.yaml`) and ran `pnpm install --frozen-lockfile` in the root directory `server/app`, which held only npm's
+`package-lock.json` (*ERR_PNPM_NO_LOCKFILE*). `server/app` now carries a `pnpm-lock.yaml` beside it (pnpm's lockfile v9, which
+pnpm 9 and 10 both read); the CI job *App Worker tests* keeps using `package-lock.json`. **A change to `server/app/package.json`
+updates both lockfiles** (`npm install` and `pnpm install --lockfile-only` in `server/app`). Checked in the sandbox: `pnpm install
+--frozen-lockfile`, `bash ../../split/build.sh`, `npx wrangler deploy --dry-run` and the Worker's tests (9 of 9) from `server/app`.
+

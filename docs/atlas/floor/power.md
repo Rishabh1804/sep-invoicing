@@ -3,8 +3,8 @@ subject: "Power"
 domain: floor
 modules: [split/power.js, split/powercause.js]
 specs: []
-tests: [P177, P196, P243, P278]
-updated: 2026-11-17 (the load is the book's: the once-only migration that wrote the plant's own is removed; the case names the book's company or none; Case is not a Supervisor's, P278)
+tests: [P177, P196, P243, P278, P282]
+updated: 2026-11-20 (a cut's wages only to a role that sees wages, P282)
 ---
 
 ### Power
@@ -105,6 +105,11 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   Case tab (`powerTabs`), an address or a stored tab naming it opens Cuts, `powerPrint` draws nothing, search does not list it
   (`srchSees`) and the To-do's power moves lead to Cuts, Load & bills or Causes instead (`advPowerMoves`, `powerLoad`,
   `powerCause`). A cut's cost stays every role's (QA4-4).
+- **A cut's wages are drawn only to a role that sees wages** (owner, 20 Nov 2026, T-JF: *"Hide wage parts on Cuts"*;
+  `powerSeesWages`, P282). For a role without wages, `powerRecovery` leaves the idle wages and the catch-up overtime out of each
+  cut before its damage is summed, so the cut's total, the month's and the year's carry neither and cannot give them back by
+  subtraction; the row says *Wages: not shown to this role, and not in the total*, and Cuts' cost tile says *wages left out*.
+  The share made up stays (hand-hours). QA4-4's *a cut's cost is every role's* stands for the rest of the cost.
 - **The case is a document drawn from the data every time it is shown or printed** (owner: *"The case report should
   always be printable, and it should be dynamic - updates data as soon as the data feeding it is updated"*;
   `powerCaseHtml`). Case shows it on the page; Print the case sends the same document to the print view, and a save in

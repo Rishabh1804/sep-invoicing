@@ -1122,6 +1122,9 @@ function grdAfterUser() {
     else if (stale && !launched && (other || !busy) && typeof tabRedrawActive === 'function') tabRedrawActive();
     else if (page === 'pageStaff' && typeof _attView !== 'undefined' && _attView === 'pay' && !grdSeesWages() && typeof renderAttendance === 'function') renderAttendance();
   }
+  // Somebody else: the pages the last person opened are emptied, all but the one now on show (tabs.js tabClearOthers), after
+  // the page on show is settled, so a page this role was sent away from goes too.
+  if (other && typeof tabClearOthers === 'function') tabClearOthers();
   // The bar's red counts are the role's (workspace.js wsRedCounts): counted again for whoever is in.
   if (typeof wsUpdateCounts === 'function') wsUpdateCounts();
   grdRunWaiting();

@@ -3,8 +3,8 @@ subject: "The guard"
 domain: platform
 modules: [split/approve.js, split/changelog.js, split/devices.js, split/guard.js, split/merge.js]
 specs: [docs/GUARD.md]
-tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283, P284, P285]
-updated: 2026-11-21 (the export is the owner's alone, P285; a sign-in approved from a device of the owner's; the borrowed device, P284)
+tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283, P284, P285, P286]
+updated: 2026-11-21 (another person signing in empties the hidden pages, P286; the export is the owner's alone, P285; a sign-in approved from a device of the owner's; the borrowed device, P284)
 ---
 
 ### The guard
@@ -25,6 +25,12 @@ updated: 2026-11-21 (the export is the owner's alone, P285; a sign-in approved f
   refuses anyone else. Where the incoming book's IDs, PINs or roles differ, the owner is asked whether to take them
   (`grdBookUsersAsk`); Cancel keeps this book's. The Imports switch covers the floor's records (stock, production, power, a
   roster), which merge.
+- **Another person signing in empties the pages not on show** (`tabClearOthers`, tabs.js, called by `grdAfterUser`; P286; the
+  owner, 21 Nov 2026). The pages the last person opened stayed drawn, hidden, with their figures, for a role that could not
+  open them. Now every page but the one on show is emptied once that one is settled (so a page the role was sent away from
+  goes too), with the marks that say a page is drawn, the last person's selections and an invoice left half typed. Each is
+  drawn again from the book when next opened. The same person coming back keeps theirs. The book itself is still on the
+  device: this is about what is drawn, not what is stored.
 - **Taking the book out whole is the owner's alone too** (`exportData`, settings.js, P285; the owner, 21 Nov 2026). Export JSON
   wrote the whole book for any role, with only workers' personal details left out, so a role shown no rupee on screen took every
   invoice, rate and wage away in the file. Now another role is refused with a word, the button is drawn only for the owner, and

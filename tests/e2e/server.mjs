@@ -2,7 +2,7 @@ import http from 'node:http';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CSP } from '../../server/app/src/index.js';
+import { CSP } from '../../server/app/src/headers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -35,7 +35,7 @@ function localFonts(html) {
    themselves are never loosened, and a page fetched without the header is the page as built. */
 const MOVE_TEST_HEADER = 'x-sep-move-test';
 /* P280: a page asked with this header carries the new address's Content-Security-Policy, the Worker's own string
-   (server/app/src/index.js), so a spec can watch the app run under it. */
+   (server/app/src/headers.js), so a spec can watch the app run under it. */
 const CSP_TEST_HEADER = 'x-sep-csp';
 /* P281: the move's waits (move.js: the push's limit, the new address's answer), shortened for a request carrying this header, as
    `MOVE_PUSH_MS=1500,MOVE_WAIT_READY_MS=1500`. Only the named lines and only digits; without the header each wait is as built. */

@@ -1,7 +1,8 @@
 # sep-app: SEP Invoicing at its own address, app.somaelectro.co.in (docs/SERVER.md §9 step 0, S0; docs/S0_GUIDE.md).
 # It serves dist/ (split/dist.sh, built by the deploy: Cloudflare's build command runs split/build.sh) and nothing else.
-# No database, no secret. No routes here: the custom domain is added in the dashboard (docs/S0_GUIDE.md), as the feeds
-# Worker's is. S1 adds /api to this Worker and its D1 binding.
+# No database and no secret: one Durable Object class, Relay, holds a relay entry (/api/relay/<id>: an opaque, end-to-end
+# encrypted answer between two windows of the app) for at most two minutes (src/index.js). No routes here: the custom domain is
+# added in the dashboard (docs/S0_GUIDE.md), as the feeds Worker's is. S1 adds the rest of /api to this Worker and its D1 binding.
 name = "sep-app"
 main = "src/index.js"
 compatibility_date = "2026-03-01"
@@ -17,6 +18,16 @@ binding = "ASSETS"
 run_worker_first = true
 html_handling = "auto-trailing-slash"
 not_found_handling = "none"
+
+# The relay: one SQLite-backed object per id (the free plan's kind). The first deploy carrying this migration must be
+# `wrangler deploy` (production); a preview's `wrangler versions upload` refuses a migration (docs/atlas/core/new-address.md).
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "Relay"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Relay"]
 
 [observability]
 enabled = true

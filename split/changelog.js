@@ -199,7 +199,8 @@ var CHG_SECRET = { secret: 1, recovery: 1, salt: 1, hash: 1, pin: 1, pinHash: 1,
 // Said to have changed without the value (an image).
 var CHG_NOVALUE = { companyLogo: 1 };
 var CHG_ARR_NOUN = { items: 'line', lines: 'line', rates: 'rate', pieceRates: 'piece rate', pieceWeights: 'piece weight', itemRates: 'item rate',
-  extra: 'EXTRA row', crew: 'hand', relayNames: 'spelling', aliases: 'spelling', corrections: 'correction', holidays: 'holiday' };
+  extra: 'EXTRA row', crew: 'hand', relayNames: 'spelling', aliases: 'spelling', corrections: 'correction', holidays: 'holiday',
+  passkeys: 'passkey' };
 
 var _chg = null;            // { of: the S it was taken from, units: { path: { sp, recs: Map(key → the record's string) } } }
 var _chgPrevCounts = null;  // the book before it was replaced whole, for the line that says so

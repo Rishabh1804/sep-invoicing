@@ -80,7 +80,8 @@ test('every storage key the app names is carried by the handover or listed with 
 });
 
 test("the new address's Content-Security-Policy lets the app reach every host its code names", () => {
-  const worker = readFileSync(path.join(ROOT, 'server', 'app', 'src', 'index.js'), 'utf8');
+  // The policy's hosts live in src/headers.js since the relay (index.js imports them; the e2e server does too).
+  const worker = readFileSync(path.join(ROOT, 'server', 'app', 'src', 'headers.js'), 'utf8');
   const connect = worker.match(/export const CONNECT = \[([\s\S]*?)\];/)![1];
   const allowed = new Set([...connect.matchAll(/'https:\/\/([^']+)'/g)].map(m => m[1]));
   // Hosts only ever navigated to (a link, a new tab), never fetched: no connect-src needed. And the two addresses themselves.

@@ -2889,6 +2889,10 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
 /* Rows on their container's own padding (the lock's users, Settings' users, the user's menu), ruled off above. */
 .inv-guard-rows { border-top: var(--hair) solid var(--border); margin-bottom: var(--sp-12); }
 .inv-guard-rows > .inv-row { padding-left: 0; padding-right: 0; }
+/* A user's passkeys, under their row in Settings → Users & access: set in from the row, each by its device. */
+.inv-guard-pks { padding-left: var(--sp-16); border-left: var(--hair) solid var(--border); margin: 0 0 var(--sp-8) var(--sp-4); }
+.inv-guard-pks > .inv-row { padding-left: 0; padding-right: 0; }
+.inv-guard-pks > .inv-toolbar { padding: var(--sp-6) 0; }
 /* The user chosen on the lock is a selection (§5.5): the soft accent, its name in the accent's text. */
 .inv-guard-rows > [role="radio"] { padding-left: var(--sp-8); padding-right: var(--sp-8); border-radius: var(--r-md); }
 .inv-guard-rows > [role="radio"][aria-checked="true"] { background: var(--accent-soft); }

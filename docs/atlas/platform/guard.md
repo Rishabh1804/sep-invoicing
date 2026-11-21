@@ -3,8 +3,8 @@ subject: "The guard"
 domain: platform
 modules: [split/changelog.js, split/devices.js, split/guard.js, split/merge.js]
 specs: [docs/GUARD.md]
-tests: [P140, P141, P142, P146, P175, P244, P278, P282]
-updated: 2026-11-20 (Power → Cuts' wages need wages, P282)
+tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283]
+updated: 2026-11-21 (the owner's passkey beside the PIN, P283)
 ---
 
 ### The guard
@@ -25,6 +25,22 @@ updated: 2026-11-20 (Power → Cuts' wages need wages, P282)
   refuses anyone else. Where the incoming book's IDs, PINs or roles differ, the owner is asked whether to take them
   (`grdBookUsersAsk`); Cancel keeps this book's. The Imports switch covers the floor's records (stock, production, power, a
   roster), which merge.
+- **A passkey beside the PIN** (`guard.js`, P283; step 1: added, nothing removed). The owner can sign in, and answer the re-ask,
+  with a passkey made on the device (WebAuthn: the fingerprint, face or screen lock the device already keeps). **The book keeps only
+  its public key**: `users[].passkeys` `[{id, pub, alg, dev, name, at}]`, the credential's id (base64url), the public key (SPKI,
+  base64), its algorithm (ES256 or RS256 only), the device it was made on (`devId`, `devName`) and when. Each sign-in is a fresh
+  32-byte challenge the device signs; the page checks it with WebCrypto (`grdPkVerify`, WebAuthn L2 §7.2): the client data (a get,
+  the challenge sent, this origin), the authenticator data (this host's hash, the user present and verified), the signature against
+  the key held, the credential one of the user's; the signature count is not read (a synced passkey reports 0). **Offered only where
+  `grdPkSupported` says yes**: WebAuthn and a user-verifying platform authenticator, a secure context, and a host of the app's own
+  (`grdPkHostOk`): never the shared `*.github.io` address, where a passkey would bind to a host other projects share, nor an IP
+  address. Added from Settings → Access → Users & access, on one's own row (*Add a passkey for this device*, through the gate for
+  users; the owner's row only in this step, `grdPkFor`); each listed by its device and date with Remove (asked first, the same gate).
+  **On the lock and the re-ask a passkey comes first** and *Use the PIN instead* shows the PIN; a right passkey takes the right
+  PIN's path (that ID's count cleared, the session, the grace); a cancel says so and shows the PIN, uncounted; an answer that does not
+  check is counted as a wrong PIN. A PIN from before is not asked to become four digits after a passkey: its next PIN sign-in asks.
+  The book's guard signature carries the passkeys' ids (`grdBookGuardSig`), the merge keeps each side's added and removed by id
+  (`grdPkMerge`, nothing held), and the change log says a count (*1 passkey*), never the key.
 - **Wrong PINs are counted per ID** (`sep_inv_guard_fail`, `{ids, all}`): one ID's right PIN clears its own count only, and the
   recovery code counts under the owner. **One's own PIN is changed with the PIN it has** (*Change my PIN*), never reset, and a
   new recovery code asks the owner's PIN whatever the window: an owner who forgets the PIN with no recovery code cannot reset it.

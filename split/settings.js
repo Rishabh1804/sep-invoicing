@@ -498,7 +498,9 @@ var SETTINGS_SECS = {
     title: 'Backup, storage & build',
     summary: function() { return 'export, import &middot; build <span class="inv-id">' + escHtml(APP_BUILD) + '</span>'; },
     body: function() {
-      return '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invExportData">Export JSON</button>' +
+      // A borrowed device (approve.js): Sign out and clear this device, first.
+      return (typeof grdBwSecHtml === 'function' ? grdBwSecHtml() : '') +
+        '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invExportData">Export JSON</button>' +
         '<button class="inv-btn inv-btn-secondary" data-action="invImportData">Import JSON</button></div>' +
         '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
         '<div class="inv-kv">' +

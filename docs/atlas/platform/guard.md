@@ -1,10 +1,10 @@
 ---
 subject: "The guard"
 domain: platform
-modules: [split/changelog.js, split/devices.js, split/guard.js, split/merge.js]
+modules: [split/approve.js, split/changelog.js, split/devices.js, split/guard.js, split/merge.js]
 specs: [docs/GUARD.md]
-tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283]
-updated: 2026-11-21 (the owner's passkey beside the PIN, P283)
+tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283, P284]
+updated: 2026-11-21 (a sign-in approved from a device of the owner's; the borrowed device, P284)
 ---
 
 ### The guard
@@ -41,6 +41,40 @@ updated: 2026-11-21 (the owner's passkey beside the PIN, P283)
   check is counted as a wrong PIN. A PIN from before is not asked to become four digits after a passkey: its next PIN sign-in asks.
   The book's guard signature carries the passkeys' ids (`grdBookGuardSig`), the merge keeps each side's added and removed by id
   (`grdPkMerge`, nothing held), and the change log says a count (*1 passkey*), never the key.
+- **A sign-in approved from a device of the owner's** (`approve.js`, P284; step 2, owner 21 Nov 2026). He signs in with his
+  passkey on his own devices; on any other, the way in is **a request approved from one of his**. Offered on the lock (the owner
+  chosen) and in the re-ask where he holds a passkey and none was made on this device (`grdApOffer`), and on the new address's
+  waiting screen when it holds no book (*Sign in from a device of mine*); only where `grdPkHostOk` says yes (never github.io).
+  **The request (B)**: a random id (16 bytes), an ephemeral ECDH P-256 key pair (its private half non-extractable, in memory
+  only), a 32-byte challenge, shown as a QR (`qrSvg`, versions to 20) and a link, `<origin>/#approve=<base64url of {v, id, k, c,
+  n, b}>` (k B's raw public key, n its name, b it holds no book), with a **check code** of six digits off the SHA-256 of that
+  text, which A shows too. B asks the relay (`/api/relay/<id>`, `core/new-address.md`) every 2 s for up to 2 minutes and stops
+  when its view closes; 410 or the time out says so and offers a new one. **The approval (A)**: the app opened at that address
+  (the hash taken off at once, `grdApTake`; a window already open reads it on `hashchange`) shows the owner signed in where his
+  passkey is offered *Sign in as … on …?*, the code and, when b, *Let it load the book (gives it the sync token)*, on by default.
+  Approve: his passkey signs SHA-256(`sep-approve-v1|id|k|c`) (`grdPkGet` with that challenge), A checks its own answer, and
+  sends `{v, uid, a}` (and, ticked, the sync settings and the token) sealed to B's key: its own ephemeral ECDH key, HKDF-SHA-256
+  (salt c, info `sep-approve-v1`) to AES-GCM 256, a 12-byte IV, `sep-approve-v1|id` as associated data; PUT as `{v, k, iv, ct}`.
+  A 409 says the request was answered from somewhere else. A user or a device that cannot approve says why (not the owner, no
+  passkey here, the guard off, github.io, a link cut short, no book here). **Back on B**: opened, the uid the one chosen (the
+  owner), the assertion checked (`grdPkVerify`) with the same challenge; then the path a right PIN takes, or the re-ask's yes. A
+  check that fails signs nobody in and is counted as a wrong PIN; an answer that does not open is not. **The token never reaches
+  the screen, a log, the change log or S.**
+- **A device with no book: borrowed** (owner 21 Nov 2026). With the token, B stores the settings and the token as GitHub sync
+  keeps them (`setGhConfig`, `setGhToken`: locked to the device), reads GitHub's copy, and checks the assertion against **that
+  copy's** owner before anything lands (a fetched copy checked first, rather than the book once on B: nothing unchecked is ever
+  written); then the book is written as the handover writes one (the store's `current`, the merge's base at that SHA, the SHA
+  recorded), the new address marked (`sep_inv_move_in`, `how: 'approve'`), `sep_inv_borrowed` `{at, lastUsed, uid}`, the session
+  started, and the page loads onto it. Any failure removes the token and the settings again (`devForgetToken`). After that load it
+  **registers itself** (`devRegister`, name *… (borrowed)*, the owner as its user): the gate is the owner's, inside the re-ask
+  window the approval opened, so the approval is the check, and the first push carries the registration. **Sign out and clear
+  this device** (Settings → Data & device, and the account menu, on a borrowed device only) pushes first (`ghPushLocked`); a push
+  that fails clears nothing and says why. Once it lands: the book's databases (`sep-invoicing`, `-media`, `-keys`, `-widget`),
+  every `sep_inv…` entry in local and session storage **but the theme, the palette and the density** (`GRD_BW_KEEP`: how it looks,
+  nothing of the book), the session; other windows are told on the guard's channel; then the waiting screen. Its use is noted
+  at most once a minute (`lastUsed`). **Opened after 12 h unused** (at the start, or shown again) it is **held**: locked, only the
+  owner's approval opens it (no PIN, no other ID), it pushes when it can (at once, on `online`, when shown) and clears after a
+  push that lands; it never clears unpushed work. **A lock never clears it.** Reports already downloaded stay: they are files.
 - **Wrong PINs are counted per ID** (`sep_inv_guard_fail`, `{ids, all}`): one ID's right PIN clears its own count only, and the
   recovery code counts under the owner. **One's own PIN is changed with the PIN it has** (*Change my PIN*), never reset, and a
   new recovery code asks the owner's PIN whatever the window: an owner who forgets the PIN with no recovery code cannot reset it.
@@ -100,4 +134,5 @@ updated: 2026-11-21 (the owner's passkey beside the PIN, P283)
   a screen, and every other jump by the page it opens);
   Settings → GitHub sync writes the token only when the field was changed, so a token not read yet is never overwritten.
 - **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
-  compile). A PIN, a token or a key never does.
+  compile). A PIN, a token or a key never does. The sync token crosses only from one device of the owner's to another, inside an
+  approval he signed, sealed to the other device's key, through the relay (`approve.js`; `docs/DATA_FLOWS.md`).

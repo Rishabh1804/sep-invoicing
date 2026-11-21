@@ -3,8 +3,8 @@ subject: "Offline"
 domain: core
 modules: [sw.js]
 specs: []
-tests: []
-updated: 2026-11-17 (the one worker serves both addresses, each under its own scope: S0)
+tests: [P284]
+updated: 2026-11-21 (the Worker's /api/ paths are never intercepted: the relay, P284)
 ---
 
 ## Offline
@@ -22,7 +22,9 @@ opened at all without signal.
 Static assets are cache-first and revalidated behind the response. The install step keeps
 same-origin assets atomic but lets the cross-origin font CSS fail on its own — it used to sit
 in the same `addAll()`, so one CDN hiccup rejected the install and the worker never activated.
-Gemini, metals.dev and api.github.com are never intercepted.
+Gemini, metals.dev and api.github.com are never intercepted. **Nor is the app's own Worker under `/api/`** (the relay,
+`/api/relay/<id>`, `new-address.md`): cache-first, its first *nothing yet* (a 204) stood for every later poll, and the one answer
+it carries would have been kept in the cache. P284 polls it through the worker.
 
 **The shell cache is not versioned, and a worker bump used to delete the only offline copy.**
 The navigation that triggers a worker update is served by the *old* worker, which stored the

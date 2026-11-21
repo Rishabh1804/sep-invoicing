@@ -63,6 +63,8 @@ var MOVE_NOT_CARRIED = {
   sep_inv_prod_photo_draft: 'retired, removed at every start',
   sep_inv_moved: 'the old address\'s own mark',
   sep_inv_move_in: 'the new address\'s own mark',
+  sep_inv_borrowed: 'a device that loaded the book through an approval (approve.js); the old address never approves, so never lends',
+  sep_inv_ap_register: 'the borrowed device registers after the approval\'s reload (sessionStorage)',
   sep_inv_session: 'this tab\'s sign-in (sessionStorage): a sign-in never crosses; sign in again',
   sep_inv_nav_trail: 'this tab\'s trail (sessionStorage)',
   sep_inv_ws_last: 'this tab\'s last views (sessionStorage)'
@@ -173,6 +175,9 @@ function moveWaitDraw(target, orphan) {
       '<li>Settings &rarr; Data &amp; device &rarr; The new address &rarr; <strong>Move to the new address</strong>.</li>' +
       '<li>It pushes the book to GitHub, opens this address again and hands over the book, the photos and this device&rsquo;s keys.</li></ol>' +
     '<div class="inv-callout' + (orphan ? ' inv-callout-danger' : '') + '" data-move-status aria-live="polite">' + status + '</div>' +
+    // A sign-in approved from a device of the owner's, which brings the book from GitHub (approve.js); and, opened to approve one
+    // with no book here, why it cannot.
+    (typeof grdApWaitNote === 'function' ? grdApWaitNote() : '') + (typeof grdApWaitHtml === 'function' ? grdApWaitHtml() : '') +
     '<details class="inv-move-other"><summary class="inv-btn-link inv-summary">Another way</summary>' +
       '<p class="inv-note inv-mt-8">Where the old address cannot hand over (a device that never had the app, or a copy that is gone): start here with an empty book, then pull from GitHub (Settings &rarr; Connections &rarr; GitHub sync, its token typed again) or import a backup (Settings &rarr; Data &amp; device). The handover is then closed on this device.</p>' +
       '<div class="inv-mt-8" data-move-own><button type="button" class="inv-btn inv-btn-secondary" data-action="invMoveOwn">Start with an empty book</button></div></details>');

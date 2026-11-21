@@ -3,8 +3,8 @@ subject: "Workers and the plant"
 domain: floor
 modules: [split/checkin.js, split/idcard.js, split/people.js, split/plant.js, split/qr.js, checkin.html]
 specs: [docs/WORKERS_AND_PLANT.md]
-tests: [P166, P168, P170, P171, P248]
-updated: 2026-11-17 (the office QR points at checkin.html on the old address wherever it is made: S0)
+tests: [P166, P168, P169, P170, P171, P248, P284]
+updated: 2026-11-21 (qr.js reaches version 20 when asked: a sign-in request, P284)
 ---
 
 ### Workers and the plant
@@ -53,7 +53,9 @@ workers and every personal detail are the book's; the owner's private files (`se
   **Reports to can name the owner** (`{kind: 'reportsTo', owner: true}`, said as the owner's ID name, else *you (the owner)*).
 - **ID cards** (`qr.js`, `idcard.js`): a card number given once and never reused (`w.card`, `SEP-0007`; a replaced card goes to
   `cardsRetired` with a reason and is refused), its QR `SEP1:W:<card>:<check>` drawn by the app's own encoder (no library, no network;
-  checked by decoding with OpenCV). Printed ten to an A4 sheet, the owner's. **A number is given when the sheet is printed, never
+  checked by decoding with OpenCV). The encoder stops at version 10 (213 bytes) unless asked: `qrMatrix(text, maxV)` / `qrSvg(text,
+  label, maxV)` reach version 20 (666 bytes, level M) for a sign-in request (`approve.js`, about 320 bytes; versions 11 to 20 checked
+  by decoding with OpenCV, 21 Nov 2026); a card's code and the office QR are as they were. Printed ten to an A4 sheet, the owner's. **A number is given when the sheet is printed, never
   at preview** (owner, 7 Oct 2026: *"Previewing assigns ID number which holds"*): the preview shows the next numbers in turn
   (`_idcPending`), the print view's Print or the browser's own (`beforeprint`) gives them (`idcPrintCommit`), closing it gives none.
   **Two sides** (owner: *"too simple … doesn't carry the address of the plant and the back side should be safety and hazard

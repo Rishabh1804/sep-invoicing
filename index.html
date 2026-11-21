@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="65676fd8">
+<meta name="app-build" content="ce7a793f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2912,6 +2912,10 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
 /* Rows on their container's own padding (the lock's users, Settings' users, the user's menu), ruled off above. */
 .inv-guard-rows { border-top: var(--hair) solid var(--border); margin-bottom: var(--sp-12); }
 .inv-guard-rows > .inv-row { padding-left: 0; padding-right: 0; }
+/* A user's passkeys, under their row in Settings → Users & access: set in from the row, each by its device. */
+.inv-guard-pks { padding-left: var(--sp-16); border-left: var(--hair) solid var(--border); margin: 0 0 var(--sp-8) var(--sp-4); }
+.inv-guard-pks > .inv-row { padding-left: 0; padding-right: 0; }
+.inv-guard-pks > .inv-toolbar { padding: var(--sp-6) 0; }
 /* The user chosen on the lock is a selection (§5.5): the soft accent, its name in the accent's text. */
 .inv-guard-rows > [role="radio"] { padding-left: var(--sp-8); padding-right: var(--sp-8); border-radius: var(--r-md); }
 .inv-guard-rows > [role="radio"][aria-checked="true"] { background: var(--accent-soft); }
@@ -6019,6 +6023,8 @@ var ICONS = {
   note: '<path d="d:M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/>',
   chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   shield: '<path d="d:M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  // A passkey (the guard: the device's fingerprint, face or screen lock), Lucide's fingerprint.
+  fingerprint: '<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>',
   phone: '<path d="d:M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
   compass: '<path d="d:M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0z"/><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/>',
   // The plant, drawn for SEP (the design canvas’s board: vat, barrel, pickling, rack, zinc, chemical, part, overtime), and its tools
@@ -8076,7 +8082,8 @@ var CHG_SECRET = { secret: 1, recovery: 1, salt: 1, hash: 1, pin: 1, pinHash: 1,
 // Said to have changed without the value (an image).
 var CHG_NOVALUE = { companyLogo: 1 };
 var CHG_ARR_NOUN = { items: 'line', lines: 'line', rates: 'rate', pieceRates: 'piece rate', pieceWeights: 'piece weight', itemRates: 'item rate',
-  extra: 'EXTRA row', crew: 'hand', relayNames: 'spelling', aliases: 'spelling', corrections: 'correction', holidays: 'holiday' };
+  extra: 'EXTRA row', crew: 'hand', relayNames: 'spelling', aliases: 'spelling', corrections: 'correction', holidays: 'holiday',
+  passkeys: 'passkey' };
 
 var _chg = null;            // { of: the S it was taken from, units: { path: { sp, recs: Map(key → the record's string) } } }
 var _chgPrevCounts = null;  // the book before it was replaced whole, for the line that says so
@@ -9054,11 +9061,13 @@ function grdBookAsk(what) { return guardAsk('users', what); }
 function grdBookGuarded(s) {
   return !!(s && Array.isArray(s.users) && s.users.some(function(u) { return u && u.role === 'owner' && u.active !== false && u.secret && u.secret.hash; }));
 }
-/* The guard a book carries, as one string: each user's id, name, role, whether active and the PIN's hash; and the guard's
+/* The guard a book carries, as one string: each user's id, name, role, whether active, the PIN's hash and the passkeys' ids; and the guard's
    settings (the minutes, the roles, the recovery code's hash). Two books alike here sign in the same people the same way. */
 function grdBookGuardSig(s) {
   var users = (s && Array.isArray(s.users) ? s.users : []).filter(Boolean).map(function(u) {
-    return [String(u.id), String(u.name || ''), String(u.role || ''), u.active !== false, u.secret && u.secret.hash ? String(u.secret.hash) : ''];
+    // A passkey is a way in, as the PIN is: two books whose passkeys differ are asked about.
+    var pks = (Array.isArray(u.passkeys) ? u.passkeys : []).filter(Boolean).map(function(p) { return String(p.id); }).sort().join(',');
+    return [String(u.id), String(u.name || ''), String(u.role || ''), u.active !== false, u.secret && u.secret.hash ? String(u.secret.hash) : '', pks];
   }).sort(function(a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
   // Read over the defaults, as the book's shape fills them (ensureStateShape): a key one copy has not been given yet is no
   // difference.
@@ -9145,6 +9154,200 @@ function grdUid() { return 'U-' + Date.now().toString(36) + '-' + Math.random().
 function grdInitials(name) {
   var w = String(name || '').trim().split(/\s+/).filter(Boolean);
   return ((w[0] || '?').charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase();
+}
+
+/* ---------- Passkeys: a way in beside the PIN (WebAuthn, the device's own lock) ----------
+   A user may sign in, and answer the re-ask, with a passkey made on this device: the fingerprint, the face or the screen lock
+   the device already keeps. The PIN stays as it is, below it. The book keeps only the passkey's public part:
+   `users[].passkeys` [{id, pub, alg, dev, name, at}], the credential's id (base64url), its public key (SPKI, base64), its
+   algorithm (-7 ES256 or -257 RS256), the device it was made on (devices.js devId, devName) and when. The key that signs stays in
+   the device. Each sign-in is a fresh challenge, signed there and checked here with WebCrypto (WebAuthn L2 §7.2): the client
+   data (its type, the challenge, this origin), the authenticator data (this host's hash, the user present and verified) and the
+   signature over both, against the key the book holds. Offered only where the browser has a platform authenticator, the page
+   is a secure context, and the host is the app's own: never on the shared GitHub Pages address (a passkey binds to a host, and
+   that one is every project's), nor on an IP address, which is no host a passkey can name. The owner's row only, for now
+   (grdPkFor); written per user. */
+var GRD_PK_ALGS = [-7, -257];                 // ES256, RS256
+var GRD_PK_TIMEOUT_MS = 120000;
+var GRD_PK_HINT = 'Your fingerprint, face or screen lock on this device.';
+var _grdPkOk = null;                          // the device offers a passkey here: null until asked (grdPkProbe)
+var _grdPkProbing = null;
+/* The host a passkey may bind to: a name of the app's own, never github.io's shared one, never an IP address. */
+function grdPkHostOk(host) {
+  var h = String(host == null ? '' : host).toLowerCase().replace(/\.$/, '');
+  if (!h || h === 'github.io' || /\.github\.io$/.test(h)) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.indexOf(':') >= 0 || h.charAt(0) === '[') return false;
+  return true;
+}
+/* Whether this device offers a passkey here: the browser has WebAuthn, the page is a secure context on a host of the app's own,
+   and a platform authenticator that verifies the user is there. → Promise<boolean>, never a throw. */
+function grdPkSupported() {
+  try {
+    if (!window.PublicKeyCredential || !navigator.credentials || !window.isSecureContext || !grdCryptoOk()) return Promise.resolve(false);
+    if (!grdPkHostOk(location.hostname)) return Promise.resolve(false);
+    if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== 'function') return Promise.resolve(false);
+    return Promise.resolve(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()).then(function(v) { return v === true; }, function() { return false; });
+  } catch (e) { return Promise.resolve(false); }
+}
+/* Asks once more and keeps the answer; the lock and Settings are drawn again when it changes. → Promise<boolean>. */
+function grdPkProbe() {
+  if (_grdPkProbing) return _grdPkProbing;
+  _grdPkProbing = grdPkSupported().then(function(ok) {
+    _grdPkProbing = null;
+    var was = _grdPkOk;
+    _grdPkOk = ok === true;
+    if (was !== _grdPkOk) {
+      // The lock drawn again only where it would change and nothing is typed on it.
+      var u = _grdLocked && _grdPick ? grdUserById(_grdPick) : null, pin = document.querySelector('#guardRoot #grdPin');
+      if (u && grdPkOf(u).length && !_grdForgot && !_grdUpgrade && !(pin && pin.value)) grdRenderLock();
+      if (_grdAsk && !_grdAsk.busy && grdPkOf(_grdAsk.user).length) grdAskDraw();
+      grdUsersRedraw(false);
+    }
+    return _grdPkOk;
+  }, function() { _grdPkProbing = null; _grdPkOk = false; return false; });
+  return _grdPkProbing;
+}
+function grdPkReady() { return _grdPkOk === true; }
+/* Who may hold a passkey in this step: the owner. */
+function grdPkFor(u) { return !!(u && u.role === 'owner'); }
+/* A user's passkeys, as the book holds them: each with an id and a public key of an algorithm checked here. */
+function grdPkOf(u) {
+  return u && Array.isArray(u.passkeys) ? u.passkeys.filter(function(p) { return p && typeof p.id === 'string' && p.id && typeof p.pub === 'string' && p.pub && GRD_PK_ALGS.indexOf(p.alg) >= 0; }) : [];
+}
+/* Offered to this user here: they hold one and this device can use it. */
+function grdPkOffer(u) { return grdPkReady() && grdPkOf(u).length > 0; }
+function grdPkBytes(x) {
+  if (x instanceof Uint8Array) return x;
+  if (x instanceof ArrayBuffer) return new Uint8Array(x);
+  if (x && x.buffer instanceof ArrayBuffer) return new Uint8Array(x.buffer, x.byteOffset, x.byteLength);
+  return new Uint8Array(0);
+}
+function grdPkB64u(bytes) { return grdB64(grdPkBytes(bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function grdPkUnB64u(str) {
+  var s = String(str || '').replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return grdUnB64(s);
+}
+function grdPkSame(a, b) {
+  if (a.length !== b.length) return false;
+  var d = 0;
+  for (var i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
+}
+function grdPkChallenge() { var c = new Uint8Array(32); crypto.getRandomValues(c); return c; }
+/* The client data the browser signed over: its type, the challenge sent (base64url, padding aside) and this origin. */
+function grdPkClientOk(cdj, type, challenge) {
+  try {
+    var cd = JSON.parse(new TextDecoder().decode(grdPkBytes(cdj)));
+    if (!cd || cd.type !== type || typeof cd.challenge !== 'string') return false;
+    if (cd.challenge.replace(/=+$/, '') !== grdPkB64u(challenge)) return false;
+    if (cd.origin !== location.origin || cd.crossOrigin === true) return false;
+    return true;
+  } catch (e) { return false; }
+}
+/* An ECDSA signature as WebAuthn sends it (DER: SEQUENCE of two INTEGERs) → r||s, each 32 bytes, as WebCrypto takes it. null
+   when it is not one. */
+function grdPkDerToRaw(der) {
+  var b = grdPkBytes(der), i = 0;
+  var len = function() {
+    if (i >= b.length) return -1;
+    var n = b[i++];
+    if (n < 0x80) return n;
+    var k = n & 0x7f;
+    if (k < 1 || k > 2) return -1;
+    n = 0;
+    while (k--) { if (i >= b.length) return -1; n = n * 256 + b[i++]; }
+    return n;
+  };
+  var num = function() {
+    if (b[i++] !== 0x02) return null;
+    var n = len();
+    if (n < 1 || i + n > b.length) return null;
+    var v = b.subarray(i, i + n);
+    i += n;
+    while (v.length > 1 && v[0] === 0) v = v.subarray(1);
+    if (v.length > 32) return null;
+    var out = new Uint8Array(32);
+    out.set(v, 32 - v.length);
+    return out;
+  };
+  if (b.length < 8 || b[i++] !== 0x30) return null;
+  var total = len();
+  if (total < 0 || i + total !== b.length) return null;
+  var r = num(), s = r && num();
+  if (!r || !s || i !== b.length) return null;
+  var raw = new Uint8Array(64);
+  raw.set(r, 0);
+  raw.set(s, 32);
+  return raw;
+}
+/* An assertion checked against the user's passkeys (WebAuthn L2 §7.2): `a` {id, clientDataJSON, authenticatorData, signature},
+   the challenge sent. The credential is one of theirs; the client data is a get for this challenge at this origin; the
+   authenticator data names this host and says the user was present and verified; the signature over the authenticator data
+   and the client data's hash is right under the public key the book holds. The signature count is not read: a passkey synced
+   between devices reports 0. → Promise<boolean>: false on any check that fails, never a throw. */
+function grdPkVerify(u, a, challenge) {
+  try {
+    var pk = a && typeof a.id === 'string' ? grdPkOf(u).find(function(p) { return p.id === a.id; }) : null;
+    if (!pk) return Promise.resolve(false);
+    var cdj = grdPkBytes(a.clientDataJSON), ad = grdPkBytes(a.authenticatorData), sig = grdPkBytes(a.signature);
+    if (!grdPkClientOk(cdj, 'webauthn.get', challenge) || ad.length < 37 || !sig.length) return Promise.resolve(false);
+    var sub = crypto.subtle;
+    return Promise.all([sub.digest('SHA-256', new TextEncoder().encode(location.hostname)), sub.digest('SHA-256', cdj)]).then(function(h) {
+      if (!grdPkSame(ad.subarray(0, 32), new Uint8Array(h[0]))) return false;
+      if ((ad[32] & 0x01) !== 0x01 || (ad[32] & 0x04) !== 0x04) return false;
+      var data = new Uint8Array(ad.length + 32);
+      data.set(ad, 0);
+      data.set(new Uint8Array(h[1]), ad.length);
+      var spki = grdUnB64(pk.pub);
+      if (pk.alg === -7) {
+        var raw = grdPkDerToRaw(sig);
+        if (!raw) return false;
+        return sub.importKey('spki', spki, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']).then(function(key) {
+          return sub.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, raw, data);
+        });
+      }
+      return sub.importKey('spki', spki, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']).then(function(key) {
+        return sub.verify({ name: 'RSASSA-PKCS1-v1_5' }, key, sig, data);
+      });
+    }).then(function(ok) { return ok === true; }, function() { return false; });
+  } catch (e) { return Promise.resolve(false); }
+}
+/* A sign-in with a passkey: the browser asks the device for one of the user's, and the answer is checked here.
+   → Promise<'ok' | 'cancel' (put away, timed out, or none on this device) | 'fail' (an answer that did not check) | 'error'>. */
+function grdPkGet(u) {
+  var list = grdPkOf(u);
+  if (!list.length || !grdPkReady()) return Promise.resolve('error');
+  var challenge = grdPkChallenge();
+  var opts = { publicKey: { challenge: challenge, rpId: location.hostname, timeout: GRD_PK_TIMEOUT_MS, userVerification: 'required',
+    allowCredentials: list.map(function(p) { return { type: 'public-key', id: grdPkUnB64u(p.id) }; }) } };
+  var got;
+  try { got = navigator.credentials.get(opts); } catch (e) { return Promise.resolve('error'); }
+  return Promise.resolve(got).then(function(cred) {
+    if (!cred || !cred.response) return 'cancel';
+    var r = cred.response;
+    return grdPkVerify(u, { id: grdPkB64u(cred.rawId), clientDataJSON: r.clientDataJSON, authenticatorData: r.authenticatorData, signature: r.signature }, challenge)
+      .then(function(ok) { return ok ? 'ok' : 'fail'; });
+  }, function(err) { return err && (err.name === 'NotAllowedError' || err.name === 'AbortError') ? 'cancel' : 'error'; });
+}
+/* What the error line says when a passkey did not go through; the PIN is there to type. */
+function grdPkSaid(r, uid) {
+  if (r === 'fail') {
+    if (grdFailLeftMs(uid) > 0) return grdFailWords(null, uid);
+    var tries = GRD_FREE_TRIES - grdFailRead(uid).n;
+    return 'The passkey did not check' + (tries > 0 ? ' · ' + tries + ' tr' + (tries === 1 ? 'y' : 'ies') + ' left' : '') + '. Use the PIN.';
+  }
+  if (r === 'cancel') return 'The passkey was cancelled. Use the PIN.';
+  return 'This device could not use a passkey here. Use the PIN.';
+}
+/* Merging two copies of a user's passkeys (merge.js): by id, three ways. One added on either side is kept, one removed on
+   either side goes; a passkey never changes once made, so nothing is held. */
+function grdPkMerge(base, mine, theirs) {
+  var ids = function(l) { var o = {}; (Array.isArray(l) ? l : []).forEach(function(p) { if (p && p.id != null) o[String(p.id)] = true; }); return o; };
+  var b = ids(base), m = ids(mine), t = ids(theirs), out = [];
+  (Array.isArray(mine) ? mine : []).forEach(function(p) { if (!p || p.id == null || !b[String(p.id)] || t[String(p.id)]) out.push(p); });
+  (Array.isArray(theirs) ? theirs : []).forEach(function(p) { if (p && p.id != null && !m[String(p.id)] && !b[String(p.id)]) out.push(p); });
+  return out;
 }
 
 /* ---------- The lockout, per ID: five wrong, then 30 s, doubling to 15 min; that ID's right PIN clears it ----------
@@ -9321,7 +9524,7 @@ document.addEventListener('focusin', function(e) {
 var _grdAsk = null;
 function grdPinAsk(u, title) {
   if (_grdAsk) return _grdAsk.promise;
-  var ask = { user: u, done: false };
+  var ask = { user: u, title: title, done: false, pin: false };
   ask.promise = new Promise(function(resolve) {
     var obs = null, scrim = null;
     ask.finish = function(ok) {
@@ -9334,14 +9537,7 @@ function grdPinAsk(u, title) {
       if (scrim && scrim.isConnected) dialogCloseScrim(scrim);
       resolve(ok);
     };
-    var html = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="grdAskT" data-grd-ask data-nodirty>' +
-      dialogHeadHtml('<span id="grdAskT">' + escHtml(title) + '</span>', 'invGuardAskCancel', 'Cancel') +
-      '<p class="inv-note inv-mb-8">Enter your PIN to go on.</p>' +
-      '<div class="inv-field"><label class="inv-field-label" for="grdAskPin">PIN for ' + escHtml(u.name) + '</label>' +
-      grdPinInput('grdAskPin', u) + '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
-      (grdIsFour(u) && !grdDesk() ? grdKeypadHtml() : '') +
-      '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
-      '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardAskOk" data-grd-go>Go on</button></div></div>';
+    var html = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="grdAskT" data-grd-ask data-nodirty>' + grdAskInner(u, title, grdPkOffer(u)) + '</div>';
     try {
       scrim = dialogOpen(html);
       ask.scrim = scrim;
@@ -9354,7 +9550,7 @@ function grdPinAsk(u, title) {
       obs = new MutationObserver(function() { if (!scrim.isConnected) ask.finish(false); });
       obs.observe(document.body, { childList: true });
       grdShowLockout(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'), u.id);
-      var inp = scrim.querySelector('#grdAskPin');
+      var inp = scrim.querySelector('#grdAskPin, [data-action="invGuardPkAsk"]');
       if (inp) { try { inp.focus(); } catch (e) { /* focus is a convenience */ } }
     } catch (err) {
       // The shell could not draw: nothing is changed unseen, and the banner says so.
@@ -9365,6 +9561,57 @@ function grdPinAsk(u, title) {
     }
   });
   return ask.promise;
+}
+/* The dialog's inside: the passkey first where the user holds one this device can use (`pk`), the PIN below it on Use the PIN
+   instead; else the PIN. */
+function grdAskInner(u, title, pk) {
+  var head = dialogHeadHtml('<span id="grdAskT">' + escHtml(title) + '</span>', 'invGuardAskCancel', 'Cancel');
+  var err = '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div>';
+  if (pk) {
+    return head + '<p class="inv-note inv-mb-8">Confirm it is you to go on.</p>' +
+      '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardPkAsk" data-grd-pk>' + iconSvg('fingerprint') + 'Use a passkey</button>' +
+      '<p class="inv-guard-line inv-mt-8">' + escHtml(GRD_PK_HINT) + '</p>' + err +
+      '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
+      '<button type="button" class="inv-btn inv-btn-ghost" data-action="invGuardPkPin">Use the PIN instead</button></div>';
+  }
+  return head + '<p class="inv-note inv-mb-8">Enter your PIN to go on.</p>' +
+    '<div class="inv-field"><label class="inv-field-label" for="grdAskPin">PIN for ' + escHtml(u.name) + '</label>' +
+    grdPinInput('grdAskPin', u) + err + '</div>' +
+    (grdIsFour(u) && !grdDesk() ? grdKeypadHtml() : '') +
+    '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
+    '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardAskOk" data-grd-go>Go on</button></div>';
+}
+/* The dialog drawn again: the passkey's way or the PIN's (after Use the PIN instead, or a passkey that did not go through).
+   `said` goes in its error line. */
+function grdAskDraw(said) {
+  var ask = _grdAsk;
+  if (!ask || !ask.scrim || !ask.scrim.isConnected) return;
+  var box = ask.scrim.querySelector('[data-grd-ask]');
+  if (!box) return;
+  box.innerHTML = grdAskInner(ask.user, ask.title, !ask.pin && grdPkOffer(ask.user));
+  var err = box.querySelector('[data-grd-err]'), go = box.querySelector('[data-grd-go]');
+  grdShowLockout(err, go, ask.user.id);
+  if (said && err && !grdFailLeftMs(ask.user.id)) err.textContent = said;
+  var f = box.querySelector('#grdAskPin, [data-action="invGuardPkAsk"]');
+  if (f) { try { f.focus(); } catch (e) { /* focus is a convenience */ } }
+}
+/* The re-ask answered with a passkey: the path a right PIN takes (its ID's count cleared, then the change's grace); a failed
+   check is counted as a wrong PIN, a cancel is not; either leaves the PIN to type. */
+function grdPkAskGo() {
+  var ask = _grdAsk;
+  if (!ask || ask.busy) return;
+  var uid = ask.user.id, err = ask.scrim.querySelector('[data-grd-err]');
+  if (grdFailLeftMs(uid) > 0) { grdShowFail(err, null, null, uid); return; }
+  ask.busy = true;
+  grdPkGet(ask.user).then(function(r) {
+    ask.busy = false;
+    if (ask.done) return;
+    if (r === 'ok') { grdFailClear(uid); ask.finish(true); return; }
+    if (r === 'fail') grdFailNote(uid);
+    ask.pin = true;
+    grdAskDraw(grdPkSaid(r, uid));
+    if (r === 'fail') grdPinWrong(ask.scrim.querySelector('[data-grd-err]'));
+  });
 }
 function grdAskSubmit() {
   var ask = _grdAsk;
@@ -9464,6 +9711,7 @@ function grdUpgradeLive() {
   return false;
 }
 var _grdSheet = false;     // the phone's IDs, open as a sheet (Not you?)
+var _grdPkPin = false;     // the lock shows the PIN where a passkey is offered first (Use the PIN instead, or a passkey that failed)
 function grdLockHtml() {
   var users = grdActiveUsers().slice().sort(function(a, b) { return GRD_ROLES.indexOf(a.role) - GRD_ROLES.indexOf(b.role) || String(a.name).localeCompare(String(b.name)); });
   if (!users.some(function(u) { return u.id === _grdPick; })) _grdPick = null;
@@ -9499,6 +9747,12 @@ function grdLockHtml() {
         '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardRecover" data-grd-go>Reset the PIN</button>'
       : '<div class="inv-callout inv-callout-warning inv-mb-8">No recovery code is on record in this book, so a forgotten owner PIN cannot be reset. The owner&rsquo;s PIN is changed only with the PIN itself or the recovery code: once in, make one in Settings &rarr; Access &rarr; Users &amp; access &rarr; New recovery code.</div>') +
       '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="0">Back to the PIN</button>';
+  } else if (grdPkOffer(u) && !_grdPkPin) {
+    // A passkey first (the device's fingerprint, face or screen lock); the PIN below it, on Use the PIN instead.
+    body = (desk ? pick + rows() : grdPersonHtml(u, users.length > 1)) +
+      '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardPkUse" data-grd-pk>' + iconSvg('fingerprint') + 'Use a passkey</button>' +
+      '<p class="inv-guard-line inv-mt-8">' + escHtml(GRD_PK_HINT) + '</p>' + errLine() +
+      '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardPkPin">Use the PIN instead</button></p>';
   } else {
     var four = grdIsFour(u);
     var hint = u.role === 'owner' ? 'use your recovery code' : 'the owner can reset it';
@@ -9508,6 +9762,7 @@ function grdLockHtml() {
       (four ? '' : '<div class="inv-field-hint" data-grd-old>Your PIN is from before: type it.</div>') + '</div>' +
       (four && !desk ? grdKeypadHtml(_grdForgot ? '' : forgotKey) : '') +
       '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardUnlock" data-grd-go>Sign in</button>' +
+      (grdPkOffer(u) && !_grdForgot ? '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardPkBack">Use a passkey</button></p>' : '') +
       (_grdForgot ? '<p class="inv-note inv-mt-8" data-grd-forgot>The owner can reset it.</p>'
         : four && !desk ? '' : '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardForgot" data-v="1">Forgot your PIN?</button><span class="inv-guard-line">' + hint + '</span></p>');
   }
@@ -9528,7 +9783,7 @@ function grdRenderLock() {
   grdShowLockout(root.querySelector('[data-grd-err]'), root.querySelector('[data-grd-go]'), _grdPick);
   grdGoSet(root.querySelector('[data-grd-go]'), grdLockedFor(root));
   var f = (had && document.getElementById(had)) || root.querySelector('[data-grd-sheet] [aria-checked="true"], [data-grd-sheet] button') ||
-    root.querySelector('#grdPin, #grdCode, #grdUp1') || root.querySelector('[aria-checked="true"]') || root.querySelector('.inv-guard-card button');
+    root.querySelector('#grdPin, #grdCode, #grdUp1, [data-grd-pk]') || root.querySelector('[aria-checked="true"]') || root.querySelector('.inv-guard-card button');
   if (f) { try { f.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
 /* The layer, made once and kept: the shell under it inert and hidden (body.inv-locked), nothing under it taking a tap or a
@@ -9559,6 +9814,7 @@ function grdShowLock(why) {
   _grdForgot = false;
   _grdUpgrade = null;
   _grdSheet = false;
+  _grdPkPin = false;
   if (why === 'switch') _grdPick = null;
   else if (!_grdPick) { try { _grdPick = localStorage.getItem(GRD_LAST_KEY) || null; } catch (e) { _grdPick = null; } }
   document.body.appendChild(root);
@@ -9567,6 +9823,8 @@ function grdShowLock(why) {
   grdRenderLock();
   grdUserBtnDraw();
   grdLockClockStart();
+  // Whether this device offers a passkey, asked again: the lock is drawn again if the answer changed.
+  grdPkProbe();
 }
 /* The desktop panel's clock, on the minute while the lock is down. */
 var _grdClockT = null;
@@ -9591,6 +9849,7 @@ function grdHideLock() {
   _grdForgot = false;
   _grdUpgrade = null;
   _grdSheet = false;
+  _grdPkPin = false;
   if (_grdClockT) { clearInterval(_grdClockT); _grdClockT = null; }
   document.body.classList.remove('inv-locked');
   grdInertAll(false);
@@ -9751,6 +10010,30 @@ function grdUnlock() {
     if (inp) inp.focus();
   });
 }
+/* Signed in with a passkey on the lock: the path a right PIN takes (that ID's count cleared, the session started). A failed check
+   is counted as a wrong PIN; a cancel is not. Either way the PIN is shown, its field ready, and the error line says what happened. */
+function grdPkUnlock() {
+  var root = document.getElementById('guardRoot');
+  var u = _grdPick ? grdUserById(_grdPick) : null;
+  if (!root || !u || _grdBusy) return;
+  var err = root.querySelector('[data-grd-err]');
+  if (grdFailLeftMs(u.id) > 0) { grdShowFail(err, null, null, u.id); return; }
+  _grdBusy = true;
+  grdPkGet(u).then(function(r) {
+    _grdBusy = false;
+    if (!_grdLocked) return;
+    var now = grdUserById(u.id);
+    if (r === 'ok' && now && now.active !== false && _grdPick === u.id) { grdFailClear(now.id); grdSignIn(now); return; }
+    if (r === 'ok') { grdRenderLock(); return; }
+    if (r === 'fail') grdFailNote(u.id);
+    if (_grdPick !== u.id) return;
+    _grdPkPin = true;
+    grdRenderLock();
+    var e = root.querySelector('[data-grd-err]');
+    if (e && !grdFailLeftMs(u.id)) e.textContent = grdPkSaid(r, u.id);
+    if (r === 'fail') grdPinWrong(e);
+  });
+}
 /* The owner's forgotten PIN, reset with the recovery code. The code is spent: a new one is made and shown once. */
 function grdRecover() {
   var root = document.getElementById('guardRoot');
@@ -9898,6 +10181,7 @@ if (typeof MutationObserver !== 'undefined' && document.body) {
    lockMinutes, is locked, and that screen waits for the unlock (grdHeld). A session the reload kept is the same person. */
 function grdBoot() {
   grdChannel();
+  if (grdOn()) grdPkProbe();
   if (!grdOn()) { grdUserBtnDraw(); return; }
   var s = grdSessRead(), u = s && grdUserById(s.userId);
   var away = s && s.hiddenAt && Date.now() - s.hiddenAt >= grdLockMs();
@@ -10178,8 +10462,86 @@ function grdUserRowsHtml() {
     } else if (u.role !== 'owner') acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardReactivate" data-id="' + escHtml(u.id) + '">Reactivate</button>';
     return '<div class="inv-row inv-row-2 inv-row-flow' + (u.active === false ? ' inv-row-muted' : '') + '" data-grd-user="' + escHtml(u.id) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(u.name) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
-      '<span class="inv-row-end inv-row-actions">' + uiDot(u.active === false ? 'neutral' : 'ok', u.active === false ? 'Inactive' : 'Active') + acts + '</span></div>';
+      '<span class="inv-row-end inv-row-actions">' + uiDot(u.active === false ? 'neutral' : 'ok', u.active === false ? 'Inactive' : 'Active') + acts + '</span></div>' +
+      grdPkRowsHtml(u, me);
   }).join('');
+}
+/* A user's passkeys under their row: each by the device it was made on and when, with Remove (on any device: a phone lost is
+   taken off here). Add a passkey for this device on one's own row, where this device offers one and holds none of theirs. */
+function grdPkRowsHtml(u, me) {
+  if (!u || !grdPkFor(u) || u.active === false) return '';
+  var list = grdPkOf(u), here = typeof devId === 'function' ? devId() : '';
+  var rows = list.map(function(p) {
+    var when = grdWhen(p.at), mine = here && p.dev === here;
+    return '<div class="inv-row inv-row-2 inv-row-flow" data-grd-pkrow="' + escHtml(p.id) + '">' +
+      '<span class="inv-row-lead">' + iconSvg('fingerprint') + '</span>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(p.name || 'A device') + '</span><span class="inv-row-meta">' +
+      escHtml('Passkey' + (when ? ' · added ' + when : '') + (mine ? ' · this device' : '')) + '</span></span>' +
+      '<span class="inv-row-end inv-row-actions"><button type="button" class="inv-btn inv-btn-danger inv-btn-sm" data-action="invGuardPkRemove" data-id="' + escHtml(u.id) +
+      '" data-pk="' + escHtml(p.id) + '">Remove</button></span></div>';
+  }).join('');
+  var add = u.id === me && grdPkReady() && !list.some(function(p) { return here && p.dev === here; })
+    ? '<div class="inv-toolbar inv-toolbar-flush"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGuardPkAdd" data-id="' + escHtml(u.id) + '">' +
+      iconSvg('fingerprint') + 'Add a passkey for this device</button></div>' : '';
+  return rows || add ? '<div class="inv-guard-pks" data-grd-pks="' + escHtml(u.id) + '">' + rows + add + '</div>' : '';
+}
+/* Add a passkey for this device: one's own, through the gate for users. The browser makes it on the device (the fingerprint,
+   face or screen lock), and the book takes its public key once the answer is checked: the client data is a create for the
+   challenge sent at this origin, and the key is of an algorithm checked here. */
+async function grdPkAdd(uid) {
+  var u = grdUserById(uid);
+  if (!u || u.id !== grdUserId() || !grdPkFor(u)) return;
+  if (!grdOk('users') && !(await guardAsk('users', 'add a passkey'))) return;
+  if (!grdPkReady() || grdUserId() !== uid) return;
+  var challenge = grdPkChallenge();
+  var opts = { publicKey: {
+    rp: { name: 'SEP Invoicing', id: location.hostname },
+    user: { id: new TextEncoder().encode(String(u.id)), name: String(u.name || u.id), displayName: String(u.name || u.id) },
+    challenge: challenge,
+    pubKeyCredParams: GRD_PK_ALGS.map(function(a) { return { type: 'public-key', alg: a }; }),
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+    attestation: 'none', timeout: GRD_PK_TIMEOUT_MS,
+    excludeCredentials: grdPkOf(u).map(function(p) { return { type: 'public-key', id: grdPkUnB64u(p.id) }; }) } };
+  var cred;
+  try { cred = await navigator.credentials.create(opts); }
+  catch (err) {
+    var n = err && err.name;
+    showToast(n === 'InvalidStateError' ? 'This device already has a passkey for ' + u.name
+      : n === 'NotAllowedError' || n === 'AbortError' ? 'No passkey added: it was cancelled' : 'No passkey added: this device could not make one', n === 'NotAllowedError' || n === 'AbortError' ? 'info' : 'error');
+    return;
+  }
+  var r = cred && cred.response, pub = null, alg = null;
+  try { pub = r && typeof r.getPublicKey === 'function' ? r.getPublicKey() : null; alg = r && typeof r.getPublicKeyAlgorithm === 'function' ? r.getPublicKeyAlgorithm() : null; } catch (e) { pub = null; }
+  if (!cred || cred.type !== 'public-key' || !r || !grdPkClientOk(r.clientDataJSON, 'webauthn.create', challenge) || !pub || GRD_PK_ALGS.indexOf(alg) < 0) {
+    showToast('No passkey added: the device’s answer did not check', 'error');
+    return;
+  }
+  // Still the same person, signed in.
+  u = grdUserById(uid);
+  if (!u || grdUserId() !== uid) return;
+  var entry = { id: grdPkB64u(cred.rawId), pub: grdB64(grdPkBytes(pub)), alg: alg, dev: typeof devId === 'function' ? devId() : '',
+    name: typeof devName === 'function' ? devName() : 'This device', at: Date.now() };
+  u.passkeys = grdPkOf(u).filter(function(p) { return p.id !== entry.id; }).concat([entry]);
+  u.updatedAt = Date.now();
+  saveState();
+  grdUsersRedraw(false);
+  showToast('A passkey is added for ' + entry.name);
+}
+/* Remove a passkey: through the gate for users, asked first. The book forgets its public key, so it no longer signs anybody in;
+   the device keeps the passkey itself until it is deleted there. */
+async function grdPkRemove(uid, pkId) {
+  var u = grdUserById(uid), p = u ? grdPkOf(u).find(function(x) { return x.id === pkId; }) : null;
+  if (!u || !p) return;
+  if (!grdOk('users') && !(await guardAsk('users', 'remove a passkey'))) return;
+  if (!(await uiConfirm({ title: 'Remove this passkey?', body: u.name + ' can no longer sign in with the passkey made on ' + (p.name || 'that device') +
+    ', on any device that loads the book. The PIN still works. The passkey itself stays on that device until it is deleted there.', okLabel: 'Remove', danger: true }))) return;
+  u = grdUserById(uid);
+  if (!u) return;
+  u.passkeys = (Array.isArray(u.passkeys) ? u.passkeys : []).filter(function(x) { return !x || x.id !== pkId; });
+  u.updatedAt = Date.now();
+  saveState();
+  grdUsersRedraw(false);
+  showToast('The passkey is removed');
 }
 /* The roles as a grid of switches: the pages each opens, what each may change, wages and money. Home is every role's. */
 function grdRolesGridHtml() {
@@ -10316,6 +10678,7 @@ var GRD_SETTINGS_SEC = {
     'once the second figure has passed since it was last given. A backup imported or a pull from GitHub replaces the book and its IDs, so it is the owner’s alone. ' +
     'Five wrong tries for an ID lock that ID for 30 seconds, doubling to 15 minutes; the others still unlock. ' +
     'A PIN is four digits, not one digit four times, a run like 1234 or a common PIN; a PIN set before is asked to become four digits at its next sign-in. ' +
+    'The owner can also sign in with a passkey, the fingerprint, face or screen lock of a device, added on their row from that device: the book keeps only its public key, and the PIN still works. ' +
     // What four digits cannot stop, said (Castor H-2, the QA chain of 6 Nov 2026; whether the owner's may be longer is the owner's).
     'A PIN stops someone at the screen; the recovery code keeps what is sealed. Four digits do not stop someone who holds a copy of the book: its PINs can be worked out from it, so a backup is kept as safely as the book.',
   saveIf: function() { return grdOn() && grdIsOwner(); },
@@ -10325,7 +10688,13 @@ var GRD_SETTINGS_SEC = {
 /* ---------- Actions (events.js routes every invGuard… here) ---------- */
 function guardAction(action, btn) {
   switch (action) {
-    case 'invGuardPick': _grdPick = btn.dataset.id; _grdForgot = false; _grdUpgrade = null; _grdSheet = false; grdRenderLock(); return true;
+    case 'invGuardPick': _grdPick = btn.dataset.id; _grdForgot = false; _grdUpgrade = null; _grdSheet = false; _grdPkPin = false; grdRenderLock(); return true;
+    case 'invGuardPkUse': grdPkUnlock(); return true;
+    case 'invGuardPkPin': if (_grdAsk && btn.closest('[data-grd-ask]')) { _grdAsk.pin = true; grdAskDraw(); } else { _grdPkPin = true; grdRenderLock(); } return true;
+    case 'invGuardPkBack': _grdPkPin = false; grdRenderLock(); return true;
+    case 'invGuardPkAsk': grdPkAskGo(); return true;
+    case 'invGuardPkAdd': grdPkAdd(btn.dataset.id); return true;
+    case 'invGuardPkRemove': grdPkRemove(btn.dataset.id, btn.dataset.pk); return true;
     case 'invGuardNotYou': _grdSheet = true; grdRenderLock(); return true;
     case 'invGuardSheetClose': _grdSheet = false; grdRenderLock(); return true;
     case 'invGuardKey': grdPinKey(btn); return true;
@@ -42090,6 +42459,11 @@ function mrgRecord(ctx, sp, key, b, m, t) {
       else if (MRG_MAX[f] && typeof fm === 'number' && typeof ft === 'number') v = Math.max(fm, ft);
       else if (MRG_QUIET[f] || (sp.mrgQuiet && sp.mrgQuiet.indexOf(f) >= 0)) v = mrgIsObj(fm) && mrgIsObj(ft) ? Object.assign({}, ft, fm) : fm === undefined ? ft : fm;
       else if (sp.deep && sp.deep.indexOf(f) >= 0 && mrgIsObj(fm) && mrgIsObj(ft) && (fb === undefined || mrgIsObj(fb))) v = mrgDeep(ctx, sp, key, f, fb, fm, ft, m);
+      // A user's passkeys (guard.js): by id, each side's added kept and each side's removed gone; one never changes once made.
+      else if (sp.path === 'users' && f === 'passkeys' && typeof grdPkMerge === 'function' && (fm === undefined || Array.isArray(fm)) && (ft === undefined || Array.isArray(ft))) {
+        v = grdPkMerge(fb, fm, ft);
+        if (mrgJ(v) !== jm) ctx.taken++;
+      }
       else {
         if (!w) w = mrgWinner(ctx, sp.path === '#top' ? 'settings' : sp.path, key === '' ? null : key);
         v = w === 'm' ? fm : ft;

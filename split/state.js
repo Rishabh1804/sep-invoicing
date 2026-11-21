@@ -594,7 +594,7 @@ function noteSaveFailure(key, why) {
     _storageHealth.lastError = why;
     _storageHealth.lastErrorOwn = false;
     showStorageBanner('This browser did not keep the last save (' + why + '). ' +
-      'Anything entered now is in memory only and will be lost on reload. Export a backup.');
+      'Anything entered now is in memory only and will be lost on reload. ' + storageBannerWayOut().words);
   } else {
     showToast('Could not save ' + key + ' (' + why + ')', 'error');
   }
@@ -604,6 +604,17 @@ function noteSaveFailure(key, why) {
 // kind: 'save' (cleared by the next save that lands) or 'read' (a fact about
 // this load; stays for the session, or until an import or a pull ends it).
 // actionsHtml: the bar's buttons; a failed save's is Export JSON, since what was typed lives only in memory.
+// The export is the owner's alone (settings.js exportData): another role's way out is a push to GitHub where the sync is
+// set up, and the owner where it is not. Read when the bar is drawn, never at load.
+function storageBannerWayOut() {
+  if (typeof grdIsOwner !== 'function' || grdIsOwner()) {
+    return { words: 'Export a backup.', html: '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button>' };
+  }
+  if (typeof ghIsConfigured === 'function' && ghIsConfigured()) {
+    return { words: 'Back it up to GitHub.', html: '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invGhPush">Back up now</button>' };
+  }
+  return { words: 'Ask the owner to export a backup from this device.', html: '' };
+}
 function showStorageBanner(msg, kind, actionsHtml) {
   kind = kind || 'save';
   hideStorageBanner(kind);
@@ -612,8 +623,7 @@ function showStorageBanner(msg, kind, actionsHtml) {
   bar.dataset.kind = kind;
   bar.setAttribute('role', 'alert');
   bar.innerHTML = '<span class="inv-update-text">' + escHtml(msg) + '</span>' +
-    '<span class="inv-update-actions">' + (actionsHtml != null ? actionsHtml :
-    '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportData">Export JSON</button>') + '</span>';
+    '<span class="inv-update-actions">' + (actionsHtml != null ? actionsHtml : storageBannerWayOut().html) + '</span>';
   document.body.appendChild(bar);
 }
 function hideStorageBanner(kind) {

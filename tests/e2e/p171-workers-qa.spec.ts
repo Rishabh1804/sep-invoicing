@@ -248,19 +248,14 @@ test.describe('P171 W2: worker records', () => {
     expect(r[1]).toBeNull();
   });
 
-  test('a role that does not see details: no joining date, no card code, and an export without them', async ({ page }) => {
+  // The export that left the details out is gone: the export is the owner's alone (P285).
+  test('a role that does not see details: no joining date, no card code', async ({ page }) => {
     const s: any = people();
     s.staff[1].card = 'SEP-0001';
-    s.peopleCheckins = [{ id: 'C1', staffId: 2, on: day(-1), score: 2, note: 'private', at: 1 }];
     await loadAppWithState(page, s);
     await withUsers(page);
     await unlock(page, 'U-sup', PINS.super);
     const r: any = await g(page, `(function () { var h = pplRecordHtml(staffById(2)) + idcRecordHtml(staffById(2)); return [/joined /.test(h), /inv-qr/.test(h)]; })()`);
     expect(r).toEqual([false, false]);
-    const [dl] = await Promise.all([page.waitForEvent('download'), g(page, `exportData()`)]);
-    const body = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8'));
-    expect(dl.suggestedFilename()).toContain('without-details');
-    expect(body.staff[1].profile).toBeUndefined();
-    expect(body.peopleCheckins).toEqual([]);
   });
 });

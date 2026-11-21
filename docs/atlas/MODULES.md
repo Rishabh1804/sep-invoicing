@@ -14,6 +14,7 @@ Each `split/*.js` module and the topic that owns it. The owner is the topic that
 | `split/bank.js` | [money/bank](money/bank.md) |
 | `split/bills.js` | [money/finance-and-bills](money/finance-and-bills.md) |
 | `split/cashout.js` | [people/cash](people/cash.md) |
+| `split/approve.js` | [platform/guard](platform/guard.md) |
 | `split/changelog.js` | [platform/guard](platform/guard.md) |
 | `split/charts.js` | [insight/stats](insight/stats.md) |
 | `split/checkin.js` | [floor/workers-and-plant](floor/workers-and-plant.md) |

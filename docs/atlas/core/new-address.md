@@ -3,8 +3,8 @@ subject: "The new address: app.somaelectro.co.in, dist/, the Worker and the hand
 domain: core
 modules: [split/move.js, split/dist.sh, server/app/src/index.js, server/app/src/headers.js]
 specs: [docs/SERVER.md, docs/S0_GUIDE.md]
-tests: [P280, P281, server/app/test/relay.test.js]
-updated: 2026-11-21 (the relay, /api/relay/<id>: a Durable Object carrying one encrypted answer for two minutes; relay.test.js)
+tests: [P280, P281, P284, server/app/test/relay.test.js]
+updated: 2026-11-21 (the relay in use: a sign-in approved from a device of the owner's, P284; the service worker leaves /api/ alone)
 ---
 
 ## The new address (S0)
@@ -71,7 +71,9 @@ to end by the two browsers: the relay holds no secret and can read nothing it ca
   request that adds the relay is expected to fail** for that reason alone. Once production holds `v1`, later previews upload as
   before.
 - Under test: `server/app/test/relay.test.js` (the pool's `runDurableObjectAlarm` and `runInDurableObject` for the alarm and a
-  late one).
+  late one). The e2e server keeps an in-memory copy with the same semantics (`tests/e2e/server.mjs`, test-only) for P284.
+- **In use** (step 2, `approve.js`; `docs/atlas/platform/guard.md`): the approval of a sign-in, sealed by the two browsers. The
+  service worker never intercepts `/api/` (`offline.md`).
 
 ### The handover (split/move.js)
 
@@ -100,7 +102,9 @@ to end by the two browsers: the relay holds no secret and can read nothing it ca
 
 **The new address waits.** With no book (no mark, the database never held one, none in it), `moveGate()` draws *Waiting for the
 book* and the app does not start: no default book is saved, nothing is seeded, no key is read. *Another way* (folded): start empty,
-then pull from GitHub or import a backup; that closes the handover on the device.
+then pull from GitHub or import a backup; that closes the handover on the device. *Or sign in from a device of mine* (`approve.js`,
+P284): the owner approves from his phone or laptop and the book comes from GitHub with the token the approval hands over; the mark
+is then `how: 'approve'` and the device is borrowed (`docs/atlas/platform/guard.md`).
 
 The waiting screen, the forward and the moved window are drawn before the app starts or in place of it, over the inert shell
 (`.inv-move-screen` takes input while `body:not(.inv-booted)` does not): no screen of the app, so no `navLoc` line. The move's
@@ -135,6 +139,8 @@ Every storage key the code names is in one of move.js's three lists; P280 fails 
 | localStorage | appearance, `sep_inv_layout`, `sep_inv_home`, `sep_inv_folds`, view and tab choices, recents, pointers, `sep_inv_todo_seen`, `sep_inv_last_export`, `sep_inv_tata_read`, `sep_inv_claude_spent`, `_nofallback`, `sep_inv_err_off` | yes | What a person set on the device (`MOVE_CARRY_LS`) |
 | localStorage | `sep_invoicing_state`, `sep_invoicing_rev` | as the book | The book kept the old way crosses as the book |
 | localStorage | `sep_inv_idb_used` | no | The new address writes its own when the book lands |
+| localStorage | `sep_inv_borrowed` | no | A device that loaded the book through an approval (`approve.js`); the old address never approves, so never lends |
+| sessionStorage | `sep_inv_ap_register` | no | The borrowed device registers after the approval's reload |
 | localStorage | `sep_inv_err_queue`, `sep_inv_feeds`, `sep_inv_probe` | no | Reports queued at the old address; a copy of the news and weather; a scratch entry |
 | localStorage | `sep_inv_gemini_*`, `sep_inv_prod_photo_draft` | no | Retired, removed at every start |
 | sessionStorage | `sep_inv_session`, `sep_inv_nav_trail`, `sep_inv_ws_last` | no | This tab's: **a sign-in never crosses**; sign in again there |

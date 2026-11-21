@@ -448,11 +448,13 @@ function grdPkVerify(u, a, challenge) {
   } catch (e) { return Promise.resolve(false); }
 }
 /* A sign-in with a passkey: the browser asks the device for one of the user's, and the answer is checked here.
-   → Promise<'ok' | 'cancel' (put away, timed out, or none on this device) | 'fail' (an answer that did not check) | 'error'>. */
-function grdPkGet(u) {
+   → Promise<'ok' | 'cancel' (put away, timed out, or none on this device) | 'fail' (an answer that did not check) | 'error'>.
+   `challenge`: a fresh one unless given (an approval signs one bound to its request, approve.js); `out.a` gets the assertion
+   that checked, as grdPkVerify reads it. */
+function grdPkGet(u, challenge, out) {
   var list = grdPkOf(u);
   if (!list.length || !grdPkReady()) return Promise.resolve('error');
-  var challenge = grdPkChallenge();
+  challenge = challenge || grdPkChallenge();
   var opts = { publicKey: { challenge: challenge, rpId: location.hostname, timeout: GRD_PK_TIMEOUT_MS, userVerification: 'required',
     allowCredentials: list.map(function(p) { return { type: 'public-key', id: grdPkUnB64u(p.id) }; }) } };
   var got;
@@ -460,8 +462,8 @@ function grdPkGet(u) {
   return Promise.resolve(got).then(function(cred) {
     if (!cred || !cred.response) return 'cancel';
     var r = cred.response;
-    return grdPkVerify(u, { id: grdPkB64u(cred.rawId), clientDataJSON: r.clientDataJSON, authenticatorData: r.authenticatorData, signature: r.signature }, challenge)
-      .then(function(ok) { return ok ? 'ok' : 'fail'; });
+    var a = { id: grdPkB64u(cred.rawId), clientDataJSON: grdPkBytes(r.clientDataJSON), authenticatorData: grdPkBytes(r.authenticatorData), signature: grdPkBytes(r.signature) };
+    return grdPkVerify(u, a, challenge).then(function(ok) { if (ok && out) out.a = a; return ok ? 'ok' : 'fail'; });
   }, function(err) { return err && (err.name === 'NotAllowedError' || err.name === 'AbortError') ? 'cancel' : 'error'; });
 }
 /* What the error line says when a passkey did not go through; the PIN is there to type. */
@@ -671,7 +673,7 @@ function grdPinAsk(u, title) {
       if (scrim && scrim.isConnected) dialogCloseScrim(scrim);
       resolve(ok);
     };
-    var html = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="grdAskT" data-grd-ask data-nodirty>' + grdAskInner(u, title, grdPkOffer(u)) + '</div>';
+    var html = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="grdAskT" data-grd-ask data-nodirty>' + grdAskInner(u, title, grdPkOffer(u), false) + '</div>';
     try {
       scrim = dialogOpen(html);
       ask.scrim = scrim;
@@ -697,21 +699,27 @@ function grdPinAsk(u, title) {
   return ask.promise;
 }
 /* The dialog's inside: the passkey first where the user holds one this device can use (`pk`), the PIN below it on Use the PIN
-   instead; else the PIN. */
-function grdAskInner(u, title, pk) {
+   instead; else the PIN. Where the owner has no passkey made on this device, Approve from my phone or laptop under either, and the
+   request in place of both while it is under way (`ap`, approve.js). */
+function grdAskInner(u, title, pk, ap) {
   var head = dialogHeadHtml('<span id="grdAskT">' + escHtml(title) + '</span>', 'invGuardAskCancel', 'Cancel');
   var err = '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div>';
+  var apLink = typeof grdApLinkHtml === 'function' ? grdApLinkHtml(u) : '';
+  if (ap) {
+    return head + '<p class="inv-note inv-mb-8">Approve this from your phone or laptop to go on.</p>' + grdApHostHtml() +
+      '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button></div>';
+  }
   if (pk) {
     return head + '<p class="inv-note inv-mb-8">Confirm it is you to go on.</p>' +
       '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardPkAsk" data-grd-pk>' + iconSvg('fingerprint') + 'Use a passkey</button>' +
-      '<p class="inv-guard-line inv-mt-8">' + escHtml(GRD_PK_HINT) + '</p>' + err +
+      '<p class="inv-guard-line inv-mt-8">' + escHtml(GRD_PK_HINT) + '</p>' + err + apLink +
       '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
       '<button type="button" class="inv-btn inv-btn-ghost" data-action="invGuardPkPin">Use the PIN instead</button></div>';
   }
   return head + '<p class="inv-note inv-mb-8">Enter your PIN to go on.</p>' +
     '<div class="inv-field"><label class="inv-field-label" for="grdAskPin">PIN for ' + escHtml(u.name) + '</label>' +
     grdPinInput('grdAskPin', u) + err + '</div>' +
-    (grdIsFour(u) && !grdDesk() ? grdKeypadHtml() : '') +
+    (grdIsFour(u) && !grdDesk() ? grdKeypadHtml() : '') + apLink +
     '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
     '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardAskOk" data-grd-go>Go on</button></div>';
 }
@@ -722,7 +730,7 @@ function grdAskDraw(said) {
   if (!ask || !ask.scrim || !ask.scrim.isConnected) return;
   var box = ask.scrim.querySelector('[data-grd-ask]');
   if (!box) return;
-  box.innerHTML = grdAskInner(ask.user, ask.title, !ask.pin && grdPkOffer(ask.user));
+  box.innerHTML = grdAskInner(ask.user, ask.title, !ask.pin && grdPkOffer(ask.user), typeof _grdApReq !== 'undefined' && _grdApReq && _grdApReq.where === 'ask');
   var err = box.querySelector('[data-grd-err]'), go = box.querySelector('[data-grd-go]');
   grdShowLockout(err, go, ask.user.id);
   if (said && err && !grdFailLeftMs(ask.user.id)) err.textContent = said;
@@ -850,6 +858,9 @@ function grdLockHtml() {
   var users = grdActiveUsers().slice().sort(function(a, b) { return GRD_ROLES.indexOf(a.role) - GRD_ROLES.indexOf(b.role) || String(a.name).localeCompare(String(b.name)); });
   if (!users.some(function(u) { return u.id === _grdPick; })) _grdPick = null;
   var u = _grdPick ? grdUserById(_grdPick) : null, desk = grdDesk();
+  // A borrowed device opened after 12 h unused (approve.js): held for the owner's approval alone.
+  var held = typeof grdBwHeldNow === 'function' && grdBwHeldNow() && !!grdBwOwner();
+  if (held) { u = grdBwOwner(); _grdPick = u.id; }
   if (!u || _grdUpgrade !== u.id) _grdUpgrade = null;
   var co = (S && S.company && S.company.name) || 'SEP Invoicing';
   var dark = document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -860,8 +871,13 @@ function grdLockHtml() {
     '<h1 class="inv-guard-title" id="grdTitle">Welcome back</h1>';
   var errLine = function() { return '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div>'; };
   var body;
-  if (!u) body = pick + rows();
-  else if (_grdUpgrade) {
+  var apLink = u && typeof grdApLinkHtml === 'function' ? grdApLinkHtml(u) : '';
+  if (held) body = grdPersonHtml(u, false) + errLine() + grdBwHeldHtml(u);
+  else if (!u) body = pick + rows();
+  else if (typeof grdApLockOn === 'function' && grdApLockOn(u)) {
+    // A request under way (approve.js): its code, its link and its state, in place of the passkey and the PIN.
+    body = (desk ? pick + rows() : grdPersonHtml(u, users.length > 1)) + errLine() + grdApHostHtml();
+  } else if (_grdUpgrade) {
     body = grdPersonHtml(u, false) +
       '<p class="inv-guard-sub" data-grd-upgrade>Your PIN is right. A PIN is four digits now: set yours.</p>' +
       '<div class="inv-field"><label class="inv-field-label" for="grdUp1">New PIN</label>' + grdWellsHtml('grdUp1') + '</div>' +
@@ -886,7 +902,7 @@ function grdLockHtml() {
     body = (desk ? pick + rows() : grdPersonHtml(u, users.length > 1)) +
       '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardPkUse" data-grd-pk>' + iconSvg('fingerprint') + 'Use a passkey</button>' +
       '<p class="inv-guard-line inv-mt-8">' + escHtml(GRD_PK_HINT) + '</p>' + errLine() +
-      '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardPkPin">Use the PIN instead</button></p>';
+      '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardPkPin">Use the PIN instead</button></p>' + apLink;
   } else {
     var four = grdIsFour(u);
     var hint = u.role === 'owner' ? 'use your recovery code' : 'the owner can reset it';
@@ -897,6 +913,7 @@ function grdLockHtml() {
       (four && !desk ? grdKeypadHtml(_grdForgot ? '' : forgotKey) : '') +
       '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardUnlock" data-grd-go>Sign in</button>' +
       (grdPkOffer(u) && !_grdForgot ? '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardPkBack">Use a passkey</button></p>' : '') +
+      (_grdForgot ? '' : apLink) +
       (_grdForgot ? '<p class="inv-note inv-mt-8" data-grd-forgot>The owner can reset it.</p>'
         : four && !desk ? '' : '<p class="inv-guard-forgot"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invGuardForgot" data-v="1">Forgot your PIN?</button><span class="inv-guard-line">' + hint + '</span></p>');
   }
@@ -1007,7 +1024,11 @@ function grdChannel() {
   if (_grdChan === null) {
     try {
       _grdChan = new BroadcastChannel('sep-invoicing-guard');
-      _grdChan.onmessage = function(ev) { if (ev.data && ev.data.type === 'lock' && S) grdLock(ev.data.why === 'switch' ? 'switch' : 'elsewhere'); };
+      _grdChan.onmessage = function(ev) {
+        if (ev.data && ev.data.type === 'lock' && S) grdLock(ev.data.why === 'switch' ? 'switch' : 'elsewhere');
+        // A borrowed device cleared in another window (approve.js): this one saves nothing more and starts again.
+        if (ev.data && ev.data.type === 'cleared' && typeof grdBwClearedElsewhere === 'function') grdBwClearedElsewhere();
+      };
     } catch (e) { _grdChan = false; }
   }
   return _grdChan;
@@ -1026,6 +1047,9 @@ function grdSignIn(u) {
   grdSeenNote(u.id);
   grdFailClear(u.id);
   _grdPick = u.id;
+  // A request under way on the lock is done with, and a borrowed device held for an approval is open again (approve.js).
+  if (typeof grdApStop === 'function' && _grdApReq && _grdApReq.where === 'lock') grdApStop();
+  if (typeof grdBwSignedIn === 'function') grdBwSignedIn();
   // The owner looking at another's screen ends with the next sign-in (faces.js), the owner's own coming back included:
   // grdAfterUser ended it only for somebody else, and the person's screen outlived the lock.
   if (typeof _faceUid !== 'undefined' && _faceUid) { _faceUid = null; _faceDay = null; _faceForm = null; }
@@ -1109,6 +1133,8 @@ function grdRunWaiting() {
   waiting.forEach(function(fn) { try { fn(); } catch (e) { if (typeof errReport === 'function') errReport(e, 'guard: after the unlock'); } });
 }
 function grdLockSubmit() {
+  // Held for an approval (a borrowed device after 12 h unused, approve.js): no PIN opens it.
+  if (typeof grdBwHeldNow === 'function' && grdBwHeldNow()) return;
   if (_grdUpgrade) grdUpgradeSave(); else if (_grdForgot) grdRecover(); else grdUnlock();
 }
 function grdUnlock() {
@@ -1258,7 +1284,10 @@ function grdMenuOpen() {
     '<div class="inv-guard-rows">' +
     row('invGuardChangePin', 'Change my PIN', 'Your current PIN, then the new one twice') +
     row('invGuardSwitch', 'Switch user', 'Locks every window of this device for the next person') +
-    row('invGuardLockNow', 'Lock now', 'Every window of this device asks for a PIN') + '</div></div>', { dismiss: true });
+    row('invGuardLockNow', 'Lock now', 'Every window of this device asks for a PIN') +
+    // A borrowed device (approve.js): pushed, then the book and the keys deleted from it.
+    (typeof grdBwOn === 'function' && grdBwOn() ? row('invGuardBwClear', 'Sign out and clear this device', 'Pushes the book to GitHub, then deletes it and the keys here') : '') +
+    '</div></div>', { dismiss: true });
 }
 
 /* ---------- What a role opens: its doors ---------- */
@@ -1861,5 +1890,7 @@ function guardAction(action, btn) {
     case 'invGuardNewCode': grdNewRecovery(); return true;
     case 'invGuardOff': grdTurnOff(); return true;
   }
+  // A sign-in approved from another device, and the borrowed device (approve.js).
+  if ((action.indexOf('invGuardAp') === 0 || action.indexOf('invGuardBw') === 0) && typeof grdApAction === 'function') return grdApAction(action, btn);
   return false;
 }

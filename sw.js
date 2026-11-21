@@ -138,6 +138,10 @@ self.addEventListener('fetch', function(e) {
   // Network-only, before anything else can claim them.
   if (NETWORK_ONLY_HOSTS.indexOf(url.hostname) !== -1) return;
 
+  // The app's Worker's own answers (the relay, /api/relay/<id>: an answer carried once): never from a cache, never into one.
+  // Cached, the first "nothing yet" stood for every later poll, and the one answer was kept in the cache.
+  if (url.origin === self.location.origin && url.pathname.indexOf('/api/') === 0) return;
+
   // Browsers do not cache non-GET and neither do we.
   if (req.method !== 'GET') return;
 

@@ -55,8 +55,48 @@ function moveOrigins(html) {
     .replace(/var MOVE_NEW_ORIGIN = '[^']*';/, `var MOVE_NEW_ORIGIN = 'http://localhost:${PORT}';`);
 }
 
+/* P284: the relay (server/app's /api/relay/<id>, docs/atlas/core/new-address.md), in memory, test-only, with the Worker's
+   semantics: an id of 22 to 43 base64url characters; PUT (text/plain or application/octet-stream, 1 to 4096 bytes) 204, the
+   first write wins (409 after it); GET 200 with the body once, 204 while nothing is there or after the one read, 410 once the
+   entry ran out unread (120 s, kept as a mark for 120 s more); no-store on every answer. */
+const RELAY = new Map();
+const RELAY_MS = 120000;
+function relay(req, res, id) {
+  const head = { 'Cache-Control': 'no-store' };
+  const end = (status, extra = {}, body) => { res.writeHead(status, { ...head, ...extra }); res.end(body); };
+  if (!/^[A-Za-z0-9_-]{22,43}$/.test(id)) return end(404);
+  const now = Date.now();
+  const e = RELAY.get(id);
+  if (e && now - e.at >= 2 * RELAY_MS) RELAY.delete(id);
+  if (req.method === 'PUT') {
+    const ct = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (ct !== 'text/plain' && ct !== 'application/octet-stream') return end(415);
+    const parts = [];
+    let size = 0;
+    req.on('data', (c) => { size += c.length; if (size <= 4096) parts.push(c); });
+    req.on('end', () => {
+      if (!size) return end(400);
+      if (size > 4096) return end(413);
+      if (RELAY.has(id)) return end(409);
+      RELAY.set(id, { at: Date.now(), body: Buffer.concat(parts), expired: false });
+      end(204);
+    });
+    return;
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') return end(405, { Allow: 'GET, PUT' });
+  const cur = RELAY.get(id);
+  if (!cur || (!cur.body && !cur.expired)) return end(204);
+  if (cur.expired || now - cur.at >= RELAY_MS) { cur.body = null; cur.expired = true; return end(410); }
+  const body = cur.body;
+  cur.body = null;
+  end(200, { 'Content-Type': 'application/octet-stream' }, body);
+}
+
 const server = http.createServer(async (req, res) => {
   let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  const relayId = /^\/api\/relay\/([^/]*)$/.exec(urlPath);
+  if (relayId) { relay(req, res, relayId[1]); return; }
+  if (urlPath.startsWith('/api/relay')) { res.writeHead(404, { 'Cache-Control': 'no-store' }); res.end(); return; }
   if (urlPath === '/') urlPath = '/index.html';
   const filePath = path.normalize(path.join(ROOT, urlPath));
   if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end('forbidden'); return; }

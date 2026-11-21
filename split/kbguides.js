@@ -736,10 +736,17 @@ var KB_APP_GUIDES = [
     '- A wrong PIN turns the boxes red. After 5 wrong PINs, that ID waits 30 seconds, then longer each time. The other IDs can still sign in.\n' +
     '- A PIN that was set before PINs were 4 digits is typed in a field. When it is right, the app asks for a new 4-digit PIN. **Later** keeps the old PIN until the next sign-in.\n' +
     '- **Forgot your PIN?**: the owner types the recovery code. Anyone else asks the owner, who taps **Reset PIN** on their row.\n\n' +
+    '# The owner on another device\n- On your own phone or laptop, add a passkey: Settings → Access → **Users & access** → **Add a passkey for this device**. Then you sign in with your fingerprint, face or screen lock.\n' +
+    '- On another device, pick your ID on the lock and tap **Approve from my phone or laptop**. The device shows a code to scan, a link and a check code of 6 digits.\n' +
+    '- On your phone or laptop, open the code with the camera, or open the link. Check that it shows the same 6 digits, then tap **Approve** and use your passkey. Do it within 2 minutes.\n' +
+    '- A device that has no book yet shows **Sign in from a device of mine** on its first screen. Leave **Let it load the book** ticked when you approve: the book then comes to it from GitHub.\n' +
+    '- Such a device is **borrowed**. When you are done, tap the ID button → **Sign out and clear this device**. It sends the book to GitHub first, then deletes the book and the keys from it. Reports you downloaded stay.\n' +
+    '- A borrowed device that is opened after 12 hours unused asks for an approval again, and clears itself once its work is on GitHub. A lock never clears it.\n' +
+    'NOTE: Only the app’s own address offers this, never the old github.io address.\n\n' +
     '# Every day\n- The app locks after the set minutes in the background. When you open the app, it asks for a PIN.\n' +
     '- The ID button in the top bar has **Change my PIN**, **Switch user** and **Lock now**.\n' +
     '- **Reset PIN** on a user gives the user a new PIN. **Deactivate** keeps the history of the user and stops their sign-in. The other devices get an added, reset or deactivated user with the next push and pull.',
-    { roles: ['owner'], version: 2 }),
+    { roles: ['owner'], version: 3 }),
   // The news and the weather (feeds.js, docs/UI_PASS_3.md §9e): every role reads it, since a widget with no feed links it.
   _kbg('feeds', 'Setting up: the news and weather', 'Where the news and the weather come from, the place of the plant, and what the app sends', ['pageHome'],
     'The news comes from the GDELT Project and the weather from MET Norway. The shop can put its own **feeds Worker** on Cloudflare between them and the app. If the Worker is not there, the app asks GDELT and MET Norway straight from this device.\n\n' +

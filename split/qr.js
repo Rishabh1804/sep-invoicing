@@ -5,10 +5,16 @@
    check-in link included). `qrMatrix(text)` gives the modules, `qrSvg(text)` an SVG whose squares are attributes, never a
    style. Checked by decoding what it draws (P169). */
 
-// Per version (1–10), error correction M: [ec codewords a block, [blocks, data codewords]...].
+// Per version (1–20), error correction M: [ec codewords a block, [blocks, data codewords]...]. A card's code stops at 10 (qrMatrix's
+// default); a sign-in request (approve.js) carries a key and a challenge, about 320 bytes, and may go to 20 (up to 666 bytes).
 var QR_EC_M = [null, [10, [1, 16]], [16, [1, 28]], [26, [1, 44]], [18, [2, 32]], [24, [2, 43]], [16, [4, 27]], [18, [4, 31]],
-  [22, [2, 38], [2, 39]], [22, [3, 36], [2, 37]], [26, [4, 43], [1, 44]]];
-var QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+  [22, [2, 38], [2, 39]], [22, [3, 36], [2, 37]], [26, [4, 43], [1, 44]],
+  [30, [1, 50], [4, 51]], [22, [6, 36], [2, 37]], [22, [8, 37], [1, 38]], [24, [4, 40], [5, 41]], [24, [5, 41], [5, 42]],
+  [28, [7, 45], [3, 46]], [28, [10, 46], [1, 47]], [26, [9, 43], [4, 44]], [26, [3, 44], [11, 45]], [26, [3, 41], [13, 42]]];
+var QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50],
+  [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66], [6, 26, 48, 70], [6, 26, 50, 74], [6, 30, 54, 78], [6, 30, 56, 82],
+  [6, 30, 58, 86], [6, 34, 62, 90]];
+var QR_MAX_V = 20;
 
 /* Arithmetic in GF(256), polynomial 0x11d. */
 var QR_EXP = [], QR_LOG = [];
@@ -64,11 +70,11 @@ var QR_MASKS = [
   function(r, c) { return (r * c) % 2 + (r * c) % 3 === 0; }, function(r, c) { return ((r * c) % 2 + (r * c) % 3) % 2 === 0; },
   function(r, c) { return ((r + c) % 2 + (r * c) % 3) % 2 === 0; }];
 
-/* The modules of `text`, a square of true (dark) and false, or null when it is past version 10. */
-function qrMatrix(text) {
-  var bytes = qrUtf8(text), v = 1;
-  while (v <= 10 && bytes.length + (v < 10 ? 2 : 3) > qrDataCw(v)) v++;
-  if (v > 10) return null;
+/* The modules of `text`, a square of true (dark) and false, or null when it is past version `maxV` (10 unless asked, up to 20). */
+function qrMatrix(text, maxV) {
+  var bytes = qrUtf8(text), v = 1, top = Math.min(QR_MAX_V, maxV || 10);
+  while (v <= top && bytes.length + (v < 10 ? 2 : 3) > qrDataCw(v)) v++;
+  if (v > top) return null;
   var n = 17 + 4 * v, m = [], fn = [];
   for (var r = 0; r < n; r++) { m.push(new Array(n).fill(false)); fn.push(new Array(n).fill(false)); }
   var set = function(r, c, d) { m[r][c] = d; fn[r][c] = true; };
@@ -152,9 +158,9 @@ function qrPenalty(t, n) {
   p += Math.floor(Math.abs(dark * 100 / (n * n) - 50) / 5) * 10;
   return p;
 }
-/* An SVG of the code with its quiet zone: one path of dark squares, its size set by the stylesheet. */
-function qrSvg(text, label) {
-  var mx = qrMatrix(text);
+/* An SVG of the code with its quiet zone: one path of dark squares, its size set by the stylesheet. `maxV` as qrMatrix's. */
+function qrSvg(text, label, maxV) {
+  var mx = qrMatrix(text, maxV);
   if (!mx) return '';
   var n = mx.length, q = 4, d = '';
   for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (mx[r][c]) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';

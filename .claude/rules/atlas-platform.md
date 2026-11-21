@@ -1,5 +1,6 @@
 ---
 paths:
+  - "split/approve.js"
   - "split/changelog.js"
   - "split/devices.js"
   - "split/guard.js"
@@ -24,6 +25,7 @@ paths:
 Before changing one of these files, read its topics: the owner first, then the others that hold rules for it.
 If your change alters behaviour a topic describes, update that topic and its `updated` line in the same PR. If you had to search for something the atlas should have routed, add the pointer (`docs/atlas/README.md`).
 
+- `split/approve.js`: `docs/atlas/platform/guard.md`; also `docs/atlas/core/new-address.md`, `docs/atlas/design/ui-pass-3-sign-in.md`
 - `split/changelog.js`: `docs/atlas/platform/guard.md`; also `docs/atlas/insight/history.md`
 - `split/devices.js`: `docs/atlas/platform/guard.md`
 - `split/guard.js`: `docs/atlas/platform/guard.md`; also `docs/atlas/design/ui-pass-3-sign-in.md`

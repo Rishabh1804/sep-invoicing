@@ -37,6 +37,7 @@ JS_SOURCES=(
     "$DIR/settings.js" \
     "$DIR/github-sync.js" \
     "$DIR/devices.js" \
+    "$DIR/approve.js" \
     "$DIR/invoice-ops.js" \
     "$DIR/number-audit.js" \
     "$DIR/pipeline.js" \

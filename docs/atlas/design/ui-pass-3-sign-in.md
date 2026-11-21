@@ -3,8 +3,8 @@ subject: "UI pass 3: sign-in and the 4-digit PIN (U8)"
 domain: design
 modules: [split/guard.js]
 specs: [docs/UI_PASS_3.md]
-tests: [P140, P152, P234, P283]
-updated: 2026-11-21 (a passkey first where the ID holds one, P283)
+tests: [P140, P152, P234, P283, P284]
+updated: 2026-11-21 (Approve from my phone or laptop; a borrowed device held, P284)
 ---
 
 ### UI pass 3: sign-in (U8)
@@ -32,8 +32,16 @@ fixture's `unlock` rewritten to the same facts (four digits where a spec sets a 
   shows **Use a passkey** (the `fingerprint` icon, the primary button) and the line *Your fingerprint, face or screen lock on this
   device.* in place of the wells and keypad, with **Use the PIN instead** under it; the PIN view then carries **Use a passkey** back. A
   passkey cancelled or not checking draws the PIN view with the reason in the error line. The PIN asked again does the same in its dialog.
+- **Approve from my phone or laptop** (P284; `docs/atlas/platform/guard.md`, `approve.js`): for the owner where no passkey of his was
+  made on this device, a link row (the `phone` icon) under the passkey or the PIN, on the lock and in the PIN asked again. Pressed, the
+  request takes their place in the card (`.inv-ap-req`): a line saying what to do, the QR (`.inv-ap-qr`, paper as a card's code is),
+  the **check code** in the recovery code's well (`.inv-guard-code`), the link (read-only, mono) with *Copy the link* and *Cancel*,
+  and a line counting down; then *Checking*, or a callout with *Make a new request*. **A borrowed device held after 12 hours**: the
+  owner alone (no Not you?, no PIN), a warning callout saying why, a line saying where its push stands, and the approval as the
+  primary button. The new address's waiting screen gains its own block under a hairline (`.inv-ap-wait`, `.inv-ap-head`): *Or sign in
+  from a device of mine*, what a borrowed device is, and the button; the request draws there.
 - **The icons** (`tools/make-icons.mjs`, run by hand when the mark or an accent changes): the mark drawn in each palette's light accent
   in Playwright's Chromium: `icons/icon-<palette>.svg`, `-192.png`, `-512.png`; at the root `icon-192.png`, `icon-512.png` (Zinc & brass),
   `icon-512-maskable.png`, `favicon.svg`, `favicon-32.png`; the manifest's `background_color` `#e1e6eb`; the service worker `sep-inv-v32`.
 - **SERVER.md §4**: the sealing key is never wrapped by a PIN (the recovery code on the hub, a device key on each owner device).
-- The guide *Setting up: IDs, PINs and roles* is version 2. **A data flow**: `len: 4` on a user's secret, with the users.
+- The guide *Setting up: IDs, PINs and roles* is version 3 (the owner on another device, P284). **A data flow**: `len: 4` on a user's secret, with the users.

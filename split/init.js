@@ -735,6 +735,8 @@ function bootApp() {
   bootStep('the change log', function() { if (typeof chgBaseline === 'function') chgBaseline(); });
   // The guard (guard.js): a window with no session, or away past the lock's minutes, opens on the lock.
   bootStep('the lock', function() { if (typeof grdBoot === 'function') grdBoot(); });
+  // A borrowed device (approve.js): opened after 12 h unused it is held locked and clears itself once pushed; else this is a use.
+  bootStep('a borrowed device', function() { if (typeof grdBwBoot === 'function') grdBwBoot(); });
 
   // Initial layout detection (no debounce)
   // The copy left at the old address after a move (opened with ?stay=1) says so (move.js).
@@ -773,6 +775,8 @@ function bootApp() {
 
   // The address and this tab's trail (nav.js). A shortcut or widget launch has already put the app where it asked.
   bootStep('the address', function() { navBoot(_launchNew || _launchTodo ? null : _launchLoc); });
+  // Opened at a sign-in request's address (#approve=…, approve.js): the approval, for the owner once signed in.
+  bootStep('a sign-in to approve', function() { if (typeof grdApBoot === 'function') grdApBoot(); });
 
   /* A read that threw at load used to fall through to a fresh default state
      and say nothing. It is the one storage failure the operator most needs to

@@ -56,6 +56,7 @@ var MOVE_NOT_CARRIED = {
   sep_invoicing_rev: 'its revision: it crosses with the book',
   sep_inv_idb_used: 'the new address writes its own once the book has landed there',
   sep_inv_err_queue: 'error reports queued at the old address',
+  sep_inv_err_kept: 'error messages kept, not sent, at the old address',
   sep_inv_feeds: 'a copy of the news and the weather, fetched again',
   sep_inv_probe: 'a scratch entry of the storage diagnostics',
   sep_inv_gemini_key: 'retired, removed at every start',

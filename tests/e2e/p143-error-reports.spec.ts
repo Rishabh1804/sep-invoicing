@@ -142,6 +142,48 @@ test.describe('P143: error reports', () => {
     expect(envelope(sent[2])[2].exception.values[0].value).toBe('(message not sent)');
   });
 
+  test('the manual door: the last five messages that did not go are kept on the device, and the owner sends one from Settings', async ({ page }) => {
+    const sent = await live(page);
+    for (let i = 0; i < 6; i++) await throwLater(page, 'kept message ' + 'abcdef'[i] + ' for 9876543210');
+    await expect.poll(() => sent.length).toBe(6);
+    // Six went without their words; the newest five are kept, masked, never on the book.
+    const kept: any[] = await g(page, `JSON.parse(localStorage.getItem('sep_inv_err_kept'))`);
+    expect(kept.map(k => k.words)).toEqual(['b', 'c', 'd', 'e', 'f'].map(c => 'kept message ' + c + ' for [n]'));
+    expect(await g(page, `JSON.stringify(S).indexOf('kept message')`)).toBe(-1);
+    for (const r of sent) expect(r.postData() || '').not.toContain('kept message');
+    // Settings lists them, newest first, each with its own Send.
+    await openSettingsAt(page, 'data');
+    const rows = page.locator('#errKeptBox [data-err-kept]');
+    await expect(rows).toHaveCount(5);
+    await expect(rows.first()).toContainText('kept message f for [n]');
+    // Send asks first, with the words shown; Keep it here sends nothing.
+    await rows.first().locator('[data-action="invErrSendKept"]').click();
+    expect(await answerAsk(page, 'cancel')).toContain('kept message f for [n]');
+    await page.waitForTimeout(300);
+    expect(sent).toHaveLength(6);
+    await rows.first().locator('[data-action="invErrSendKept"]').click();
+    await answerAsk(page, 'ok');
+    await expect.poll(() => sent.length).toBe(7);
+    const ev = envelope(sent[6])[2];
+    expect(ev.exception.values[0].value).toBe('kept message f for [n]');
+    expect(ev.tags.follows).toBe(kept[4].id);
+    expect(ev.event_id).not.toBe(kept[4].id);
+    await expect(rows).toHaveCount(4);
+    // Clear empties the list and the device's copy.
+    await page.locator('#errKeptBox [data-action="invErrClearKept"]').click();
+    await expect(rows).toHaveCount(0);
+    expect(await g(page, `localStorage.getItem('sep_inv_err_kept')`)).toBeNull();
+    // Another role: nothing listed, and a send is refused.
+    await throwLater(page, 'kept for the owner only');
+    await expect.poll(() => sent.length).toBe(8);
+    await withUsers(page);
+    await unlock(page, 'U-sup', PINS.super);
+    expect(await g(page, `errKeptHtml()`)).toBe('');
+    await g(page, `errSendKept(errKept()[0].id)`);
+    expect(await answerAsk(page)).toContain('can’t send an error’s message');
+    expect(sent).toHaveLength(8);
+  });
+
   test('at most ten a session; and the owner can turn reports off on a device', async ({ page }) => {
     const sent = await live(page);
     for (let i = 0; i < 12; i++) await throwLater(page, 'distinct error ' + 'abcdefghijkl'[i]);

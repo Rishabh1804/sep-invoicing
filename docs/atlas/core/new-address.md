@@ -141,7 +141,7 @@ Every storage key the code names is in one of move.js's three lists; P280 fails 
 | localStorage | `sep_inv_idb_used` | no | The new address writes its own when the book lands |
 | localStorage | `sep_inv_borrowed` | no | A device that loaded the book through an approval (`approve.js`); the old address never approves, so never lends |
 | sessionStorage | `sep_inv_ap_register` | no | The borrowed device registers after the approval's reload |
-| localStorage | `sep_inv_err_queue`, `sep_inv_feeds`, `sep_inv_probe` | no | Reports queued at the old address; a copy of the news and weather; a scratch entry |
+| localStorage | `sep_inv_err_queue`, `sep_inv_err_kept`, `sep_inv_feeds`, `sep_inv_probe` | no | Reports queued, and error messages kept unsent, at the old address; a copy of the news and weather; a scratch entry |
 | localStorage | `sep_inv_gemini_*`, `sep_inv_prod_photo_draft` | no | Retired, removed at every start |
 | sessionStorage | `sep_inv_session`, `sep_inv_nav_trail`, `sep_inv_ws_last` | no | This tab's: **a sign-in never crosses**; sign in again there |
 | localStorage (checkin.html) | `sep_ck_card` | no | It stays on the old address with checkin.html |

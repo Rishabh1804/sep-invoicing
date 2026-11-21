@@ -4,7 +4,7 @@ domain: core
 modules: [split/errors.js]
 specs: []
 tests: [P143]
-updated: 2026-11-21 (the error's own message no longer goes; the owner is asked for it where a report has no place in the code); 2026-11-17 (ERR_HOSTS names the new address beside the old: S0)
+updated: 2026-11-21 (the error's own message no longer goes; the owner is asked for it where a report has no place in the code; the last five kept for him to send from Settings); 2026-11-17 (ERR_HOSTS names the new address beside the old: S0)
 ---
 
 ### Error reports
@@ -23,7 +23,13 @@ has to describe it. P143.
   error from another origin, or one raised as plain text), which says only its kind. The owner, if he is the one signed in
   on a started app (with the guard off, whoever is using it), is shown the masked message and asked: *Send the message* or
   *Send without it*. Anybody else is not asked and the report goes without. That test is the Builder's reading of his words;
-  a report that has frames and still cannot be read is not covered by it.
+  a report that has frames and still cannot be read is the manual door's.
+- **The manual door** (`errKeep`, `errKeptHtml`, `errSendKept`; the owner chose it in a dialog, 21 Nov 2026): the masked
+  messages of the last five reports that went without them are kept on the device (`sep_inv_err_kept`, never on the book;
+  not carried to a new address; gone with *Sign out and clear this device*). Settings → Backup, storage & build lists them
+  for the owner only, newest first, each with *Send this message*: asked first with the words shown, then sent as a report
+  of its own tagged `follows` with the first report's id. *Clear these messages* empties the list. This covers the report
+  that has a place in the code and still cannot be read: the developer says so, and the owner sends its message.
 - **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
   breadcrumbs carry request URLs, and the metals.dev key travels in theirs. One POST of an envelope to Sentry's
   endpoint (`text/plain`, so no preflight; the service worker never touches a POST).

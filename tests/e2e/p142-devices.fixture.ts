@@ -31,7 +31,8 @@ export const GUARD_STUB = `(function () {
   window.grdOn = function () { return users().some(function (u) { return u && u.role === 'owner' && u.active !== false; }); };
   window.grdUserId = function () { var s = session(); return s && s.userId != null ? s.userId : null; };
   window.grdUser = function () { var id = window.grdUserId(); return users().find(function (u) { return String(u.id) === String(id); }) || null; };
-  window.grdIsOwner = function () { var u = window.grdUser(); return !!(u && u.role === 'owner'); };
+  // As the guard's own (guard.js): with the guard off everyone is the owner.
+  window.grdIsOwner = function () { if (!window.grdOn()) return true; var u = window.grdUser(); return !!(u && u.role === 'owner'); };
   window.guardAsk = function (group, what) {
     if (!window.grdOn()) return Promise.resolve(true);
     var u = window.grdUser();

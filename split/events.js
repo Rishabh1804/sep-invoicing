@@ -476,6 +476,8 @@ function onDocClick(e) {
       if (uiToolbarAction(action, btn)) break;
       // The new address (move.js, S0): the handover, and the waiting screen's own buttons before the start.
       if (moveAction(action)) break;
+      // Error messages kept on the device (errors.js): the owner's Send and Clear.
+      if (errAction(action, btn)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (suppAction(action, btn)) break;

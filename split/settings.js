@@ -500,7 +500,8 @@ var SETTINGS_SECS = {
     body: function() {
       // A borrowed device (approve.js): Sign out and clear this device, first.
       return (typeof grdBwSecHtml === 'function' ? grdBwSecHtml() : '') +
-        '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invExportData">Export JSON</button>' +
+        // The export is the owner's alone (exportData): its button is drawn for no other role.
+        '<div class="inv-toolbar">' + (grdIsOwner() ? '<button class="inv-btn inv-btn-secondary" data-action="invExportData">Export JSON</button>' : '') +
         '<button class="inv-btn inv-btn-secondary" data-action="invImportData">Import JSON</button></div>' +
         '<input type="file" id="importFileInput" accept=".json" class="inv-hidden">' +
         '<div class="inv-kv">' +
@@ -886,23 +887,16 @@ function exportData() {
   // A stand-in (bookStandIn) is still exported, since anything typed this session lives only here, but as what it is: it
   // was saved as a dated backup and reset the To-do's backup reminder (the QA audit of 30 Sep 2026).
   var standIn = bookStandIn();
-  // Workers' personal details, the motivation check-ins and the office QR's key are the owner's alone (people.js,
-  // checkin.js): another role's export leaves them out, says so, and is not counted as the book's backup.
-  var partial = typeof grdIsOwner === 'function' && !grdIsOwner(), out = S;
-  if (partial) {
-    out = JSON.parse(JSON.stringify(S));
-    (out.staff || []).forEach(function(w) { delete w.profile; });
-    out.peopleCheckins = [];
-    delete out.checkinCfg;
-    out._partial = 'personal details left out: exported by a role that does not see them';
-  }
-  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  // The export is the owner's alone (the owner, 21 Nov 2026). The file held every invoice, rate, cash, bank and wage figure
+  // a role is refused on screen: only workers' personal details were left out of another role's. A device that is not the
+  // owner's is backed up by the GitHub sync. Under the lock nobody is signed in, and nothing is said.
+  if (typeof grdIsOwner === 'function' && !grdIsOwner()) { if (grdUser()) grdRefuse('export the book'); return; }
+  const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sep-invoicing-' + (standIn ? 'stand-in-' : partial ? 'without-details-' : 'backup-') + localDateStr() + '.json';
+  a.download = 'sep-invoicing-' + (standIn ? 'stand-in-' : 'backup-') + localDateStr() + '.json';
   a.click();
   if (standIn) { showToast('Exported this window\'s stand-in. It is not this device\'s book, so it does not count as a backup.', 'warning'); return; }
-  if (partial) { showToast('Exported without workers\' personal details, which are the owner\'s. It does not count as a backup.', 'warning'); return; }
   todoNoteExport();
   showToast('Data exported');
 }

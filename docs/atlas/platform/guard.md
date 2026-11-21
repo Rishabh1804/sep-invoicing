@@ -3,8 +3,8 @@ subject: "The guard"
 domain: platform
 modules: [split/approve.js, split/changelog.js, split/devices.js, split/guard.js, split/merge.js]
 specs: [docs/GUARD.md]
-tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283, P284]
-updated: 2026-11-21 (a sign-in approved from a device of the owner's; the borrowed device, P284)
+tests: [P140, P141, P142, P146, P175, P244, P278, P282, P283, P284, P285, P286]
+updated: 2026-11-21 (another person signing in empties the hidden pages, P286; the export is the owner's alone, P285; a sign-in approved from a device of the owner's; the borrowed device, P284)
 ---
 
 ### The guard
@@ -25,6 +25,19 @@ updated: 2026-11-21 (a sign-in approved from a device of the owner's; the borrow
   refuses anyone else. Where the incoming book's IDs, PINs or roles differ, the owner is asked whether to take them
   (`grdBookUsersAsk`); Cancel keeps this book's. The Imports switch covers the floor's records (stock, production, power, a
   roster), which merge.
+- **Another person signing in empties the pages not on show** (`tabClearOthers`, tabs.js, called by `grdAfterUser`; P286; the
+  owner, 21 Nov 2026). The pages the last person opened stayed drawn, hidden, with their figures, for a role that could not
+  open them. Now every page but the one on show is emptied once that one is settled (so a page the role was sent away from
+  goes too), with the marks that say a page is drawn, the last person's selections and an invoice left half typed. Each is
+  drawn again from the book when next opened. The same person coming back keeps theirs. The book itself is still on the
+  device: this is about what is drawn, not what is stored.
+- **Taking the book out whole is the owner's alone too** (`exportData`, settings.js, P285; the owner, 21 Nov 2026). Export JSON
+  wrote the whole book for any role, with only workers' personal details left out, so a role shown no rupee on screen took every
+  invoice, rate and wage away in the file. Now another role is refused with a word, the button is drawn only for the owner, and
+  under the lock nothing is written. Another role's device is backed up by the GitHub sync: where a save did not land, its
+  banner offers *Back up now* if the sync is set up, and names the owner if it is not (`storageBannerWayOut`, state.js). The
+  owner is not asked his PIN again for it: an export changes nothing. A screen's own exports (Excel, the bank's JSON) are not
+  this: each holds what its screen shows the role.
 - **A passkey beside the PIN** (`guard.js`, P283; step 1: added, nothing removed). The owner can sign in, and answer the re-ask,
   with a passkey made on the device (WebAuthn: the fingerprint, face or screen lock the device already keeps). **The book keeps only
   its public key**: `users[].passkeys` `[{id, pub, alg, dev, name, at}]`, the credential's id (base64url), the public key (SPKI,

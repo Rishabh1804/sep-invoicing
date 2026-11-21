@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
 import type { Page, Request } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, switchTab, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, switchTab, type SepState } from './fixtures';
+import { withUsers, unlock, PINS } from './p140-guard.fixture';
 
-// P143: error reports (owner, 1 Oct 2026: "Yes, add Sentry error reporting"). What goes is what went wrong, where in the
-// code, the build, the screen and the browser; never a record, a name or a figure. One POST to Sentry's envelope endpoint
+// P143: error reports (owner, 1 Oct 2026: "Yes, add Sentry error reporting"). What goes is the kind of error, where in the
+// code, the build, the screen and the browser; never a record, a name or a figure, and since 21 Nov 2026 not the error's own
+// message (the masking missed some names): only where a report has no place in the code is the owner asked for it. One POST to Sentry's envelope endpoint
 // from the live site only, each kind once, at most ten a session, held while offline, off per device in Settings.
 
 const DSN = 'https://abc123@o1.ingest.sentry.io/42';
@@ -64,7 +66,8 @@ test.describe('P143: error reports', () => {
     expect(item.type).toBe('event');
     const ex = ev.exception.values[0];
     expect(ex.type).toBe('Error');
-    expect(ex.value).toBe('Kaboom for [name]. [amount] on [n] "[text]" call [n] or [email]');   // the name's last full stop stays
+    expect(ex.value).toBe('(message not sent)');   // the error's own words stay on the device
+    expect(JSON.stringify(ev)).not.toContain('Kaboom');
     expect(ex.stacktrace.frames.length).toBeGreaterThan(0);
     expect(typeof ex.stacktrace.frames[0].lineno).toBe('number');
     expect(ev.release).toMatch(/^sep-invoicing@/);
@@ -92,7 +95,8 @@ test.describe('P143: error reports', () => {
     await expect.poll(() => sent.length).toBe(2);
     const ev = envelope(sent[1])[2];
     expect(ev.tags.where).toBe('render: pageStats');
-    expect(ev.exception.values[0].value).toBe('the stats would not draw');
+    expect(ev.exception.values[0].type).toBe('RangeError');
+    expect(ev.exception.values[0].value).toBe('(message not sent)');
   });
 
   test('offline, a report waits on the device and goes when the device is back online', async ({ page, context }) => {
@@ -103,9 +107,81 @@ test.describe('P143: error reports', () => {
     expect(sent).toHaveLength(0);
     await context.setOffline(false);
     await expect.poll(() => sent.length).toBe(1);
-    expect(envelope(sent[0])[2].exception.values[0].value).toBe('broke while offline');
+    expect(envelope(sent[0])[2].exception.values[0].value).toBe('(message not sent)');
+    expect(envelope(sent[0])[2].exception.values[0].stacktrace.frames.length).toBeGreaterThan(0);
     expect(envelope(sent[0])[2].tags.online).toBe('no');
     await expect.poll(() => g(page, `localStorage.getItem('sep_inv_err_queue')`)).toBeNull();
+  });
+
+  test('a report with no place in the code: the owner is shown the masked message and asked; anybody else is not', async ({ page }) => {
+    const sent = await live(page);
+    // The words the old masking let through: a name in single quotes, one word in capitals, a name in title case.
+    const words = `Could not place 'Ravi Kumar' of DELTA for Sunita Devi`;
+    // With the guard off whoever is using the app is its owner. Yes: the message goes, masked as it was shown.
+    await g(page, `errReport({ name: 'Error', message: ${JSON.stringify(words + ' at 9876543210')} }, 'uncaught')`);
+    const said = await answerAsk(page, 'ok');
+    expect(said).toContain('Send this error’s message?');
+    expect(said).toContain(words + ' at [n]');
+    await expect.poll(() => sent.length).toBe(1);
+    expect(envelope(sent[0])[2].exception.values[0].value).toBe(words + ' at [n]');
+    expect(envelope(sent[0])[2].exception.values[0].stacktrace).toBeUndefined();
+    // No: the report goes without it.
+    await g(page, `errReport({ name: 'Error', message: ${JSON.stringify(words + ' again')} }, 'uncaught')`);
+    await answerAsk(page, 'cancel');
+    await expect.poll(() => sent.length).toBe(2);
+    expect(sent[1].postData() || '').not.toContain('Ravi');
+    expect(envelope(sent[1])[2].exception.values[0].value).toBe('(message not sent)');
+    // Another role signed in: not asked, and the message stays.
+    await withUsers(page);
+    await unlock(page, 'U-sup', PINS.super);
+    await g(page, `ERR_DSN = '${DSN}'; ERR_HOSTS = [location.hostname];`);
+    await g(page, `errReport({ name: 'Error', message: ${JSON.stringify(words)} }, 'uncaught')`);
+    await expect.poll(() => sent.length).toBe(3);
+    await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
+    expect(sent[2].postData() || '').not.toContain('Ravi');
+    expect(envelope(sent[2])[2].exception.values[0].value).toBe('(message not sent)');
+  });
+
+  test('the manual door: the last five messages that did not go are kept on the device, and the owner sends one from Settings', async ({ page }) => {
+    const sent = await live(page);
+    for (let i = 0; i < 6; i++) await throwLater(page, 'kept message ' + 'abcdef'[i] + ' for 9876543210');
+    await expect.poll(() => sent.length).toBe(6);
+    // Six went without their words; the newest five are kept, masked, never on the book.
+    const kept: any[] = await g(page, `JSON.parse(localStorage.getItem('sep_inv_err_kept'))`);
+    expect(kept.map(k => k.words)).toEqual(['b', 'c', 'd', 'e', 'f'].map(c => 'kept message ' + c + ' for [n]'));
+    expect(await g(page, `JSON.stringify(S).indexOf('kept message')`)).toBe(-1);
+    for (const r of sent) expect(r.postData() || '').not.toContain('kept message');
+    // Settings lists them, newest first, each with its own Send.
+    await openSettingsAt(page, 'data');
+    const rows = page.locator('#errKeptBox [data-err-kept]');
+    await expect(rows).toHaveCount(5);
+    await expect(rows.first()).toContainText('kept message f for [n]');
+    // Send asks first, with the words shown; Keep it here sends nothing.
+    await rows.first().locator('[data-action="invErrSendKept"]').click();
+    expect(await answerAsk(page, 'cancel')).toContain('kept message f for [n]');
+    await page.waitForTimeout(300);
+    expect(sent).toHaveLength(6);
+    await rows.first().locator('[data-action="invErrSendKept"]').click();
+    await answerAsk(page, 'ok');
+    await expect.poll(() => sent.length).toBe(7);
+    const ev = envelope(sent[6])[2];
+    expect(ev.exception.values[0].value).toBe('kept message f for [n]');
+    expect(ev.tags.follows).toBe(kept[4].id);
+    expect(ev.event_id).not.toBe(kept[4].id);
+    await expect(rows).toHaveCount(4);
+    // Clear empties the list and the device's copy.
+    await page.locator('#errKeptBox [data-action="invErrClearKept"]').click();
+    await expect(rows).toHaveCount(0);
+    expect(await g(page, `localStorage.getItem('sep_inv_err_kept')`)).toBeNull();
+    // Another role: nothing listed, and a send is refused.
+    await throwLater(page, 'kept for the owner only');
+    await expect.poll(() => sent.length).toBe(8);
+    await withUsers(page);
+    await unlock(page, 'U-sup', PINS.super);
+    expect(await g(page, `errKeptHtml()`)).toBe('');
+    await g(page, `errSendKept(errKept()[0].id)`);
+    expect(await answerAsk(page)).toContain('can’t send an error’s message');
+    expect(sent).toHaveLength(8);
   });
 
   test('at most ten a session; and the owner can turn reports off on a device', async ({ page }) => {

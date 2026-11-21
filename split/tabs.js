@@ -220,6 +220,27 @@ function tabRender(tabId, isDirty) {
   screenKindApply();
 }
 
+/* Another person signed in (guard.js grdAfterUser): every page but the one on show is emptied, so what the last person
+   opened is not left drawn, hidden, with its figures (the owner, 21 Nov 2026). Each is drawn again from the book when it
+   is next opened, for whoever is in: the marks that say a page or its toolbar is already drawn are cleared with it, and so
+   are the last person's selections, their places on those pages and an invoice they left half typed. */
+function tabClearOthers() {
+  var create = document.getElementById('pageCreate');
+  // A fresh form, so no door to Create asks the next person about work that was never theirs (create.js).
+  if (create && !create.classList.contains('inv-page-active') && typeof initCreateForm === 'function' && typeof invoiceForm !== 'undefined' && invoiceForm) initCreateForm();
+  document.querySelectorAll('.inv-page:not(.inv-page-active) > div').forEach(function(d) { d.innerHTML = ''; });
+  _tabDirty.home = true;
+  _tabDirty.register = true;
+  _regToolbarRendered = false;
+  _imToolbarRendered = false;
+  _regSelected = {};
+  _regSelectMode = false;
+  _imSelected = {};
+  var on = document.querySelector('.inv-page-active'), kept = on ? _tabScroll[on.id] : null;
+  _tabScroll = {};
+  if (on && kept != null) _tabScroll[on.id] = kept;
+}
+
 /* The page on screen, drawn again from S where it stands: the page, its panes and dialogs keep their scroll. */
 function tabRedrawActive() {
   var page = document.querySelector('.inv-page-active');

@@ -10,42 +10,31 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 20 Nov 2026: the bug sweep (#203), the load-bearing list (#204), the app's own address (#205, #206) (read this first)
+## Session close, 21 Nov 2026: the owner's passkey and the approval from his own devices (#210, #211); the grill-me skill (read this first)
 
 - **What shipped, merged on the owner's word**:
-  - **#203** (`b55c8cd`): the bug sweep, 28 fixes each with its spec: keyboard entry on Create (P268); the field typed in kept clear
-    of the bars on a long form (P275); navigation while entering data and the navigation layer (P269, P270, P272); Backspace (P276);
-    text that did not fit its box (P274); a UTC date (P277); dead code; client identifiers left in specs replaced. Every bug with
-    its cause and resolution: `docs/atlas/core/qa-sweep-2026-11-17.md`.
-  - **#204** (`dbaf04c`): Power → Case only to a role that sees money and wages (P278); no client's data and nothing about the shop
-    in the build (P279): the once-only migrations that named a client removed, the default company empty.
-  - **#205** (`6904749`): S0, the app's own address: `dist/`, the Worker `server/app`, the move between addresses (P280),
-    `docs/S0_GUIDE.md`, `docs/atlas/core/new-address.md`.
-  - **#206** (`c83ecea`): a pnpm lockfile in `server/app` (Cloudflare's build installs with pnpm); the guide corrected.
-- **Live**: the owner made the Worker `sep-app` and the domain; `https://app.somaelectro.co.in` serves the app (*Waiting for the
-  book*), `/CLAUDE.md` and `/docs/` 404, http redirects. Cloudflare's GitHub connection was reconnected on 20 Nov (build command,
-  deploy command, the preview command `npx wrangler versions upload`, root `server/app`).
-- **Owner's, outside the code**: Sentry's allowed domains (add the new host); the move of each device from a browser tab, his phone
-  first (`docs/S0_GUIDE.md` §2); afterwards, the copy left on the old address and the tokens.
-- **Held for the owner's ruling** (recorded in the codex, not here): what a non-owner can see on Power → Cuts and take in an export,
-  the PIN's storage, the lock, error reports, the release reader, older passages that name clients. Small things seen in the sweep:
-  the catalogue's section 9.
+  - **#207** (`310ac89`), **#208** (`674d43b`), **#209** (`3637331`): the 20 Nov close; Power → Cuts leaves a cut's wages out for a
+    role without wages (P282); the move's first-use fixes (P281).
+  - **#210** (`245c070`): the owner's **passkey** beside the PIN (P283; `docs/atlas/platform/guard.md`), and the **relay** on the
+    app's Worker, `/api/relay/<id>` (a Durable Object; one sealed answer, read once, gone in 120 s; `docs/atlas/core/new-address.md`).
+    The Worker's headers moved to `server/app/src/headers.js`. The `grill-me` skill (`.claude/skills/grill-me/SKILL.md`).
+  - **#211** (`535e938`): **a sign-in approved from a device of the owner's** (a QR, his passkey, the answer sealed through the relay),
+    which can carry the sync token to a device with no book (then *borrowed*: *Sign out and clear this device*, or cleared after 12
+    hours unused, after a push; never on a lock) (P284). `sw.js` leaves `/api/` alone; `qr.js` to version 20.
+- **Live**: the relay answers on `app.somaelectro.co.in`. The PIN still works everywhere.
+- **The owner's, outside the code**: add a passkey on his phone and laptop (Settings → Access → Users & access); use the passkey and
+  the approval for a week; then step 3 (his PIN out of the book). The print station's move. The copies on the old address after 27 Nov.
+- **Ruled, to build** (the detail is in the codex): a non-owner's export, the lock clearing other pages on a change of user, error
+  reports carrying only the error's type and frames, older passages that name clients scrubbed with the history rewritten (its plan
+  put to him first). Then Floor: the sync copy's own repository, a WhatsApp helper, a live board, Compare.
 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. Last close (20 Nov 2026): #203 the bug sweep (the catalogue docs/atlas/core/qa-sweep-2026-11-17.md),
-#204 Power → Case by money and wages and no shop or client data in the build, #205 and #206 the app's own address
-(app.somaelectro.co.in, live; docs/S0_GUIDE.md). The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic →
-code, spec, tests.
-Goal: ask the owner what he wants from this session. If devices have moved to the new address, read what he meets there and fix
-it. One PR a step: the test that fails on the build before the fix, the fix, the atlas topic.
-Read first:
-- /home/user/sep-invoicing/docs/NEXT_SESSION.md (this entry)
-- /home/user/sep-invoicing/docs/atlas/README.md (the protocol), then the topic for the subject in hand
-At start: HR-10, the repo is public, every example made up; run `pnpm install` if node_modules is missing and set
-PW_CHROMIUM_PATH=/opt/pw-browsers/chromium before Playwright; give each Playwright run its own PW_PORT; never raise a P195 budget;
-merge only on the owner's word; a change updates its atlas topic in the same PR. After orientation, arm the unattended close.
+SEP Invoicing, session B. Last close (21 Nov 2026): #210 the owner's passkey and the relay on the Worker; #211 a sign-in
+approved from a device of his, and the borrowed device. The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic
+→ code, spec, tests. Next, as he says: step 3 (his PIN out of the book) after a week of use; the export the owner's alone; the
+lock clearing other pages; error reports carrying type and frames only; the older client passages scrubbed (plan to him first).
 ```
 
 ## Where the rest is

@@ -50,7 +50,7 @@ Every agent, builder or reviewer, follows it. The full text is `docs/atlas/READM
   and move the old one to `docs/sessions/`. A PR that changes a data flow with the other repos adds its row to
   `docs/DATA_FLOWS.md` and says so.
 - **The unattended close.** After orientation a session arms one check to itself, eight hours after the owner's last
-  message, and moves it each time he writes. If it arrives with no word from him, the session closes itself. The rule is
+  message, and moves it each time he writes or answers a dialog. If it arrives with no word from him, the session closes itself. The rule is
   the codex's, `soma-internal/docs/atlas/continuity/cache-warmer.md` (it began as a cache warmer; the pings are retired,
   17 Nov 2026). **Nothing is pushed to this repo unattended**: it is public. With the codex attached, what is uncommitted
   here is listed in the codex's handoff; without it, the session says in the chat what is committed and what is not, and

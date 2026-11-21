@@ -81,4 +81,6 @@ Walk these branches, in this order where one depends on another; skip a branch t
 - **This repository is public (HR-10).** A grill here may name screens, stores, roles and features. It never records a client's
   name, a part, a rate, a quantity, a vehicle, a worker's pay or anything about the shop. Where an answer carries one, it goes to
   the codex, or it is written as *a client*.
+- **His words and an option's words**: quote only what he typed. An option he picked is recorded in the option's wording,
+  never in quotation marks as his; what you added that was not offered to him is marked as yours.
 - **Close with a short summary in chat**: the decisions, the work opened, and its order.

@@ -3,8 +3,8 @@ subject: "The new address: app.somaelectro.co.in, dist/, the Worker and the hand
 domain: core
 modules: [split/move.js, split/dist.sh, server/app/src/index.js]
 specs: [docs/SERVER.md, docs/S0_GUIDE.md]
-tests: [P280, P281]
-updated: 2026-11-20 (first use: no install before the book, a window without its opener said so, a time limit on the push; P281)
+tests: [P280, P281, server/app/test/relay.test.js]
+updated: 2026-11-21 (the relay, /api/relay/<id>: a Durable Object carrying one encrypted answer for two minutes; relay.test.js)
 ---
 
 ## The new address (S0)
@@ -31,7 +31,7 @@ manifest load, and that nothing else is there.
 A Cloudflare Worker serving `dist/` as static assets, run first on every request (`run_worker_first`):
 - **One origin.** Any host but `APP_HOST` (the `*.workers.dev` address, a preview's address) and plain http answer `308` to
   `https://app.somaelectro.co.in`, path and query kept: no second origin can collect a book. `/sep-invoicing/…` goes to `/…`.
-  GET and HEAD only.
+  GET and HEAD only, but the relay's PUT (below).
 - **Headers on every answer**: a CSP (`default-src 'self'`; scripts and styles self and inline, since the page is one built
   document; `connect-src` the hosts the app calls, read from the code; `frame-ancestors`, `frame-src`, `object-src`, `form-action`
   and `base-uri` none), `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, HSTS (no subdomains: the apex is the
@@ -42,6 +42,36 @@ A Cloudflare Worker serving `dist/` as static assets, run first on every request
   own string on request).
 - Its vitest suite runs in the Workers runtime over the real `dist/` (CI: *App Worker tests*). Nothing deploys from GitHub Actions:
   Cloudflare's own build deploys on merge (`docs/S0_GUIDE.md`), so no secret is needed in S0.
+
+### The relay (/api/relay/<id>)
+
+The groundwork for approving a sign-in on another device from the owner's phone: the other device shows a QR holding a random
+request id and a public key; the phone, after its passkey check, encrypts an answer to that key and puts it here under the id;
+the other device fetches it. **The relay only carries that answer between two windows of this one origin.** It is encrypted end
+to end by the two browsers: the relay holds no secret and can read nothing it carries.
+- **Routes.** `PUT` and `GET` on `/api/relay/<id>`, where `<id>` is 22 to 43 base64url characters (a 128- to 256-bit random
+  id); any other id, `/api/relay` itself or a deeper path is `404`; any other method is `405` with `Allow: GET, PUT`. It is the
+  one path that takes a `PUT`: everywhere else stays GET and HEAD only.
+- **PUT** takes `application/octet-stream` or `text/plain` (anything else `415`), 1 to 4096 bytes (over it `413`, counted as the
+  body streams, whatever `Content-Length` says; empty `400`), and answers `204`. **The first write wins**: a second `PUT` to the
+  id is `409`, read or not, until the id is cleared.
+- **GET** answers `200` with the body (`application/octet-stream`) **once**, the body deleted as it is read; `204` while nothing
+  is there (or after the one read); `410` once the entry's time ran out unread.
+- **120 seconds.** An entry is never served more than 120 s after its write: an alarm at that time deletes the body (the GET
+  checks the time itself too, in case the alarm is late). An entry that expired unread is kept as a mark without its body for
+  120 s more, so the waiting device is told `410` and stops; then everything under the id is cleared and a `GET` is `204`.
+- **Same origin only.** A request whose `Origin` is present and is not `https://` + `APP_HOST` is `403`; no CORS headers are
+  ever sent. Every answer carries the security headers above and `Cache-Control: no-store`. `connect-src 'self'` already covers
+  it. A request on another host is redirected to the one origin first, as everything is.
+- **Storage.** A Durable Object class, `Relay`, SQLite-backed (the free plan's kind; `wrangler.toml`'s `[[migrations]]`
+  `v1`, `new_sqlite_classes`, binding `RELAY`), one object per id (`idFromName`), one key in it. The check and the write run
+  inside the object's input gate, so two `PUT`s cannot both win. Exported from `src/index.js`, as wrangler requires.
+- **The first deploy carrying the migration must be `wrangler deploy`** (production, the merge's build). Cloudflare does not
+  apply a Durable Object migration from `wrangler versions upload`, the non-production preview build: **the preview of the pull
+  request that adds the relay is expected to fail** for that reason alone. Once production holds `v1`, later previews upload as
+  before.
+- Under test: `server/app/test/relay.test.js` (the pool's `runDurableObjectAlarm` and `runInDurableObject` for the alarm and a
+  late one).
 
 ### The handover (split/move.js)
 

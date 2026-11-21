@@ -3,8 +3,8 @@ subject: "UI pass 3: sign-in and the 4-digit PIN (U8)"
 domain: design
 modules: [split/guard.js]
 specs: [docs/UI_PASS_3.md]
-tests: [P140, P152, P234]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P140, P152, P234, P283]
+updated: 2026-11-21 (a passkey first where the ID holds one, P283)
 ---
 
 ### UI pass 3: sign-in (U8)
@@ -28,6 +28,10 @@ fixture's `unlock` rewritten to the same facts (four digits where a spec sets a 
   as rows with when each was last in, the wells, Sign in, *Forgot your PIN?* with its hint). **No figure of the book is drawn before
   sign-in**; the print station's light is not. When each ID was last in is the device's (`sep_inv_guard_seen`). The layout switch draws
   the lock again.
+- **A passkey first** (P283; `docs/atlas/platform/guard.md`): where the ID chosen holds a passkey and the device can use it, the card
+  shows **Use a passkey** (the `fingerprint` icon, the primary button) and the line *Your fingerprint, face or screen lock on this
+  device.* in place of the wells and keypad, with **Use the PIN instead** under it; the PIN view then carries **Use a passkey** back. A
+  passkey cancelled or not checking draws the PIN view with the reason in the error line. The PIN asked again does the same in its dialog.
 - **The icons** (`tools/make-icons.mjs`, run by hand when the mark or an accent changes): the mark drawn in each palette's light accent
   in Playwright's Chromium: `icons/icon-<palette>.svg`, `-192.png`, `-512.png`; at the root `icon-192.png`, `icon-512.png` (Zinc & brass),
   `icon-512-maskable.png`, `favicon.svg`, `favicon-32.png`; the manifest's `background_color` `#e1e6eb`; the service worker `sep-inv-v32`.

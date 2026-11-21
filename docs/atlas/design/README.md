@@ -17,7 +17,7 @@ Route: `CLAUDE.md` → `docs/atlas/INDEX.md` → this file → a topic → the c
 | [UI pass 3: Stats as a dashboard (U3)](ui-pass-3-stats.md) | UI pass 3: Stats as a dashboard (U3) | `stats.js` | 6.0 |
 | [UI pass 3: every Enter by hand a guided flow (U4)](ui-pass-3-guided-flow.md) | UI pass 3: every Enter by hand a guided flow (U4) | — | 6.9 |
 | [UI pass 3: People leads, a picture first, across the app (U5 to U7)](ui-pass-3-people-picture-across.md) | UI pass 3: People leads (U5); UI pass 3: a picture first (U6); UI pass 3: across the app (U7) | — | 9.6 |
-| [UI pass 3: sign-in and the 4-digit PIN (U8)](ui-pass-3-sign-in.md) | UI pass 3: sign-in (U8) | — | 3.1 |
+| [UI pass 3: sign-in and the 4-digit PIN (U8)](ui-pass-3-sign-in.md) | UI pass 3: sign-in (U8) | — | 3.9 |
 | [The tab map: the shell and Today (TM1, TM2)](tab-map-shell-today.md) | The tab map: the shell (TM1); The tab map: Today (TM2) | `tabs.js` | 8.1 |
 | [The tab map: Money and Floor (TM3, TM4)](tab-map-money-floor.md) | The tab map: Money (TM3); The tab map: Floor (TM4) | `floor.js` | 9.1 |
 | [The tab map: Office and across the app (TM5, TM6)](tab-map-office-across.md) | The tab map: Office (TM5); The tab map: across the app (TM6) | — | 10.3 |

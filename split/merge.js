@@ -205,6 +205,11 @@ function mrgRecord(ctx, sp, key, b, m, t) {
       else if (MRG_MAX[f] && typeof fm === 'number' && typeof ft === 'number') v = Math.max(fm, ft);
       else if (MRG_QUIET[f] || (sp.mrgQuiet && sp.mrgQuiet.indexOf(f) >= 0)) v = mrgIsObj(fm) && mrgIsObj(ft) ? Object.assign({}, ft, fm) : fm === undefined ? ft : fm;
       else if (sp.deep && sp.deep.indexOf(f) >= 0 && mrgIsObj(fm) && mrgIsObj(ft) && (fb === undefined || mrgIsObj(fb))) v = mrgDeep(ctx, sp, key, f, fb, fm, ft, m);
+      // A user's passkeys (guard.js): by id, each side's added kept and each side's removed gone; one never changes once made.
+      else if (sp.path === 'users' && f === 'passkeys' && typeof grdPkMerge === 'function' && (fm === undefined || Array.isArray(fm)) && (ft === undefined || Array.isArray(ft))) {
+        v = grdPkMerge(fb, fm, ft);
+        if (mrgJ(v) !== jm) ctx.taken++;
+      }
       else {
         if (!w) w = mrgWinner(ctx, sp.path === '#top' ? 'settings' : sp.path, key === '' ? null : key);
         v = w === 'm' ? fm : ft;

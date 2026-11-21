@@ -1,7 +1,7 @@
 ---
 subject: "The new address: app.somaelectro.co.in, dist/, the Worker and the handover (S0)"
 domain: core
-modules: [split/move.js, split/dist.sh, server/app/src/index.js]
+modules: [split/move.js, split/dist.sh, server/app/src/index.js, server/app/src/headers.js]
 specs: [docs/SERVER.md, docs/S0_GUIDE.md]
 tests: [P280, P281, server/app/test/relay.test.js]
 updated: 2026-11-21 (the relay, /api/relay/<id>: a Durable Object carrying one encrypted answer for two minutes; relay.test.js)
@@ -65,7 +65,7 @@ to end by the two browsers: the relay holds no secret and can read nothing it ca
   it. A request on another host is redirected to the one origin first, as everything is.
 - **Storage.** A Durable Object class, `Relay`, SQLite-backed (the free plan's kind; `wrangler.toml`'s `[[migrations]]`
   `v1`, `new_sqlite_classes`, binding `RELAY`), one object per id (`idFromName`), one key in it. The check and the write run
-  inside the object's input gate, so two `PUT`s cannot both win. Exported from `src/index.js`, as wrangler requires.
+  inside the object's input gate, so two `PUT`s cannot both win. Exported from `src/index.js`, as wrangler requires. The origin and the headers live in `src/headers.js`, which imports nothing of the Workers runtime, so Node can load them: `tests/e2e/server.mjs` serves the app under the same policy.
 - **The first deploy carrying the migration must be `wrangler deploy`** (production, the merge's build). Cloudflare does not
   apply a Durable Object migration from `wrangler versions upload`, the non-production preview build: **the preview of the pull
   request that adds the relay is expected to fail** for that reason alone. Once production holds `v1`, later previews upload as

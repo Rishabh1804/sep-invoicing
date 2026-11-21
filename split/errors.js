@@ -3,10 +3,13 @@
    screen that cannot be drawn and a start-up step that fails say so too. Each is now also sent to the developer, so a
    crash on the owner's phone is seen before anybody has to describe it.
 
-   What goes: the kind of error, its message with anything that could be the book's data masked (amounts, numbers,
-   dates, quoted text, e-mails, GSTINs, names written in capitals), where in the code it happened (function names and
-   line numbers in the built page), the build stamp, the screen, the layout, the browser, and whether the device was
-   online or the app installed. What never goes: a record, a figure, the address's query, a user, or the breadcrumbs a
+   What goes: the kind of error, where in the code it happened (function names and line numbers in the built page), the
+   build stamp, the screen, the layout, the browser, and whether the device was online or the app installed. The error's
+   own words do not go (the owner, 21 Nov 2026): the masking (errScrub) missed a name in single quotes, a single word in
+   capitals and a name in title case, and no mask can know every name in a book. One case apart: an error with no place
+   in the code cannot be diagnosed from its kind alone, so the owner, if he is the one signed in, is shown its masked
+   words and asked whether they may go with it (errAskWords); anybody else is not asked and the words stay.
+   What never goes: a record, a figure, the address's query, a user, or the breadcrumbs a
    Sentry SDK collects (their request URLs carry the metals.dev key). So there is no SDK: one POST to Sentry's
    envelope endpoint, from the live site only (never a test or a local copy), at most ten a session, each kind once,
    held while offline (twenty at most) and sent when the device is back online. Off per device in Settings → Data &
@@ -32,8 +35,9 @@ function errOn() {
   } catch (e) { return false; }
 }
 
-/* The message, with what could be the book's data taken out. Engine messages ("Cannot read properties of undefined
-   (reading 'kg')") pass as they are; the app's own messages sometimes carry a figure or a quoted value. */
+/* The message, with what could be the book's data taken out. It is what the owner is shown when he is asked
+   (errAskWords) and what tells two errors apart on this device (errReport); it is sent only on his yes. */
+var ERR_NO_WORDS = '(message not sent)';
 function errScrub(s) {
   return String(s == null ? '' : s)
     .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]')
@@ -73,7 +77,7 @@ function errEvent(err, where) {
   var page = document.querySelector('.inv-page-active');
   var installed = false;
   try { installed = !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); } catch (e) { /* older browsers */ }
-  var value = { type: errScrub(type).slice(0, 60), value: errScrub(msg) };
+  var value = { type: errScrub(type).slice(0, 60), value: ERR_NO_WORDS };
   if (frames.length) value.stacktrace = { frames: frames };
   return {
     event_id: errId(), timestamp: Date.now() / 1000, platform: 'javascript', level: 'error', logger: 'sep-invoicing',
@@ -121,14 +125,38 @@ function errReport(err, where) {
     if (!errOn()) return;
     var ev = errEvent(err, where), top = ev.exception.values[0];
     var fs = top.stacktrace ? top.stacktrace.frames : [], last = fs[fs.length - 1];
-    var sig = top.type + '|' + top.value + '|' + (last ? last['function'] + ':' + last.lineno : '');
+    var words = errScrub(err && err.message != null ? err.message : String(err));
+    var sig = top.type + '|' + words + '|' + (last ? last['function'] + ':' + last.lineno : '');
     if (_errSeen[sig]) return;
     _errSeen[sig] = 1;
     if (_errSent >= ERR_MAX_SESSION) return;
     _errSent++;
-    if (navigator.onLine === false) { errQueue(ev); return; }
-    errSend(ev).catch(function() { errQueue(ev); });
+    var go = function() {
+      try {
+        if (navigator.onLine === false) { errQueue(ev); return; }
+        errSend(ev).catch(function() { errQueue(ev); });
+      } catch (e) { /* as below */ }
+    };
+    // No place in the code: the owner is asked for the words; on a no, or with nobody to ask, the report goes without.
+    if (!fs.length && words && errMayAsk()) {
+      errAskWords(words).then(function(yes) { if (yes) top.value = words; go(); }, go);
+      return;
+    }
+    go();
   } catch (e) { /* a report must never become an error of its own */ }
+}
+/* The owner signed in on a started app (with the guard off, whoever is using it): the only one asked. */
+function errMayAsk() {
+  try {
+    return typeof uiConfirm === 'function' && typeof grdIsOwner === 'function' && grdIsOwner() &&
+      !!document.body && document.body.classList.contains('inv-booted');
+  } catch (e) { return false; }
+}
+/* → Promise<boolean>. The words are shown as they would go, masked. */
+function errAskWords(words) {
+  return uiConfirm({ title: 'Send this error’s message?',
+    body: 'Something went wrong, and its report cannot say where in the code. The report goes to the developer without the error’s message unless you say it may go. The message, with figures and names masked as far as the app can tell them: “' + words + '”',
+    okLabel: 'Send the message', cancelLabel: 'Send without it' }).then(function(a) { return a === true; });
 }
 
 if (typeof window !== 'undefined' && window.addEventListener) {
@@ -142,7 +170,7 @@ function errSettingsHtml() {
   return '<label class="inv-field-check inv-mt-8"><input type="checkbox" class="inv-check" id="setErrReports" data-nodirty' +
     (errDeviceOff() ? '' : ' checked') + (set ? '' : ' disabled') + '> Send error reports from this device</label>' +
     '<p class="inv-note">' + (set
-      ? 'When something goes wrong, the developer gets what went wrong, where in the code, the build, the screen and the browser. Never a record, a name or a figure.'
+      ? 'When something goes wrong, the developer gets the kind of error, where in the code, the build, the screen and the browser. Never a record, a name or a figure, and not the error’s own message: where a report cannot say where in the code, the owner is shown the message and asked before it goes.'
       : 'Not connected to an error service yet: nothing is sent.') + '</p>';
 }
 function errOnChange(el) {

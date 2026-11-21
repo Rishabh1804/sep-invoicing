@@ -4,7 +4,7 @@ domain: core
 modules: [split/errors.js]
 specs: []
 tests: [P143]
-updated: 2026-11-17 (ERR_HOSTS names the new address beside the old; Sentry's Allowed domains to name both: S0)
+updated: 2026-11-21 (the error's own message no longer goes; the owner is asked for it where a report has no place in the code); 2026-11-17 (ERR_HOSTS names the new address beside the old: S0)
 ---
 
 ### Error reports
@@ -12,9 +12,18 @@ updated: 2026-11-17 (ERR_HOSTS names the new address beside the old; Sentry's Al
 (`errors.js`; owner, 1 Oct 2026: *"Yes, add Sentry error reporting"*, after agreeing what may go). They still reach the
 owner's screen as before (`uiNotice`); the report is the developer's copy, so a crash on the phone is seen before anybody
 has to describe it. P143.
-- **What goes**: the kind of error, its message with anything that could be the book's data masked (`errScrub`: amounts,
-  numbers, dates, quoted text, e-mails, GSTINs, names written in capitals), the stack as function names and line numbers in
-  the built page, the build stamp as the release, the screen, the layout, whether installed and online, the browser.
+- **What goes**: the kind of error, the stack as function names and line numbers in the built page, the build stamp as the
+  release, the screen, the layout, whether installed and online, the browser. In place of the message: `(message not sent)`.
+- **The error's own message does not go** (the owner, 21 Nov 2026). It went masked (`errScrub`: amounts, numbers, dates,
+  double-quoted text, e-mails, GSTINs, names of two or more words in capitals), and the mask missed text in single quotes, a
+  single word in capitals and any name in title case. No mask can know every name in a book, so the words stay on the device.
+  `errScrub` remains for two uses: telling two errors apart on the device, and the one case below.
+- **The owner is asked where a report cannot be diagnosed** (`errAskWords`): his words were *"Request for error message if
+  Sentry is unable to diagnose bugs"*. The app's test for that is a report with **no place in the code** (no stack frames: an
+  error from another origin, or one raised as plain text), which says only its kind. The owner, if he is the one signed in
+  on a started app (with the guard off, whoever is using it), is shown the masked message and asked: *Send the message* or
+  *Send without it*. Anybody else is not asked and the report goes without. That test is the Builder's reading of his words;
+  a report that has frames and still cannot be read is not covered by it.
 - **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
   breadcrumbs carry request URLs, and the metals.dev key travels in theirs. One POST of an envelope to Sentry's
   endpoint (`text/plain`, so no preflight; the service worker never touches a POST).

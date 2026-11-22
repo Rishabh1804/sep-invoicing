@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse, openSettingsAt, openStatsTab, readStoredState, switchTab, todayIso, toolbarMoreLabels } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, openSettingsAt, openStatsTab, readStoredState, switchTab, workdayIso as todayIso, toolbarMoreLabels } from './fixtures';
+// The specs' today is a working day (workdayIso): on a Sunday the plant is shut and the day's inputs are not asked for.
 import { sweepState } from './sweep-fixture';
 
 // P210: the owner's rulings of 13 Oct 2026. Made-up names; dates from today.

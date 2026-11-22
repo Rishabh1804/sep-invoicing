@@ -145,6 +145,18 @@ export function workdayIso(): string {
 }
 
 /**
+ * Puts the page's clock on workdayIso() at the present time of day, when today is not an ordinary working day; on a
+ * working day it does nothing. For a spec about the plant at work (the shift, the day's rolls, the floor's units): on a
+ * Sunday the app rightly says the plant is shut, and nine such tests failed (22 Nov 2026, the first Sunday CI ran them).
+ * Call it before the page loads, and date the book's "today" with workdayIso(). Time runs on from there as usual.
+ */
+export async function onWorkday(page: Page): Promise<void> {
+  if (workdayIso() === todayIso()) return;
+  const now = new Date(), hms = [now.getHours(), now.getMinutes(), now.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
+  await page.clock.install({ time: new Date(workdayIso() + 'T' + hms) });
+}
+
+/**
  * A timestamp guaranteed to sit inside the current month-to-date window.
  *
  * `filterByPeriod(…, 'mtd')` compares `createdAt` against midnight on the 1st,

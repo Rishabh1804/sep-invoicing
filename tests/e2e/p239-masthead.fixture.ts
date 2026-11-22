@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { loadAppWithState, todayIso, toolbarMoreLabels } from './fixtures';
+import { loadAppWithState, todayIso, workdayIso, toolbarMoreLabels } from './fixtures';
 import { longBook } from './load-fixture';
 import { geistReady } from './p235-family.fixture';
 import { withUsers, unlock, lockNow, PINS, guardBook } from './p140-guard.fixture';
@@ -54,7 +54,7 @@ export async function flatAndOrdered(page: Page, desktop: boolean) {
 
 /* The clock and the shift, before, during and after the general shift (8:30 AM to 5:00 PM), and the tick on the minute. */
 export async function clockAndShift(page: Page, desktop: boolean) {
-  await page.clock.install({ time: new Date(todayIso() + 'T07:40:00') });
+  await page.clock.install({ time: new Date(workdayIso() + 'T07:40:00') });
   await loadAppWithState(page, longBook());
   const m = mast(page), shift = m.locator('[data-home-shift]'), clock = m.locator('[data-home-clock]'), track = m.locator('[data-home-track]');
   await expect(clock).toHaveText('7:40 AM');
@@ -71,7 +71,7 @@ export async function clockAndShift(page: Page, desktop: boolean) {
   await expect(shift).toHaveText(desktop ? 'General shift starts 8:30 AM · in 49 min' : 'Shift starts 8:30 AM');
   expect(await m.evaluate((e, b) => (e as HTMLElement).querySelector('.inv-mast-say') === b, before)).toBe(true);
   // During it: what is left, and the track of the shift gone.
-  await page.clock.setFixedTime(new Date(todayIso() + 'T12:45:00'));
+  await page.clock.setFixedTime(new Date(workdayIso() + 'T12:45:00'));
   await page.clock.runFor(60_000);
   await expect(clock).toHaveText(/^12:4\d PM$/);
   if (desktop) {
@@ -82,7 +82,7 @@ export async function clockAndShift(page: Page, desktop: boolean) {
     expect(done).toBeLessThan(0.6);
   } else await expect(shift).toHaveText('Shift ends 5:00 PM');
   // After it: said so, and no track.
-  await page.clock.setFixedTime(new Date(todayIso() + 'T18:10:00'));
+  await page.clock.setFixedTime(new Date(workdayIso() + 'T18:10:00'));
   await page.clock.runFor(60_000);
   await expect(shift).toHaveText(desktop ? 'The general shift has ended' : 'The shift has ended');
   if (desktop) await expect(track).toBeHidden();

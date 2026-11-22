@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, waitForBoot, emptyState, noSeedIM, todayIso, answerAsk, openNeeds, withWidgets, switchTab, toolbarMore, toolbarMoreLabels } from './fixtures';
+import { loadAppWithState, waitForBoot, emptyState, noSeedIM, todayIso, workdayIso, answerAsk, openNeeds, withWidgets, switchTab, toolbarMore, toolbarMoreLabels } from './fixtures';
 import { longBook } from './load-fixture';
 import { sweepState } from './sweep-fixture';
 import { withUsers, unlock, lockNow, PINS, guardBook } from './p140-guard.fixture';
@@ -51,7 +51,7 @@ test.describe('P223 Home and its board (phone)', () => {
   });
 
   test('the masthead: the greeting, the clock ticking on the minute, the shift’s end, and what leads in its tone; a report from the toolbar’s More', async ({ page }) => {
-    await page.clock.install({ time: new Date(todayIso() + 'T09:42:10') });
+    await page.clock.install({ time: new Date(workdayIso() + 'T09:42:10') });
     await loadAppWithState(page, emptyBook());
     // U2R (§24j): the day card is the masthead, flat and never folded; the phone says the shift short and draws no track (P239).
     const card = page.locator('#homeDash [data-home-day]');
@@ -82,14 +82,14 @@ test.describe('P223 Home and its board (phone)', () => {
     await expect(card.locator('[data-action="invHomeReport"]')).toHaveCount(0);
     await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
-    await expect.poll(() => where(page)).toEqual(['pageReports', 'monthly/' + todayIso().slice(0, 8) + '01']);
+    await expect.poll(() => where(page)).toEqual(['pageReports', 'monthly/' + workdayIso().slice(0, 8) + '01']);
     await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
     await toolbarMore(page, 'Make today’s report');
-    await expect.poll(() => where(page)).toEqual(['pageReports', 'daily/' + todayIso()]);
+    await expect.poll(() => where(page)).toEqual(['pageReports', 'daily/' + workdayIso()]);
   });
 
   test('the masthead leads with what is red, in danger, with the ID’s name; a role without Reports has no report to make', async ({ page }) => {
-    await page.clock.install({ time: new Date(todayIso() + 'T15:05:00') });
+    await page.clock.install({ time: new Date(workdayIso() + 'T15:05:00') });
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     await unlock(page, 'U-own', PINS.owner);
@@ -98,7 +98,8 @@ test.describe('P223 Home and its board (phone)', () => {
     await expect(card.locator('[data-home-shift]')).toHaveText('Shift ends 5:00 PM');
     // What is red leads: the stock line out on the guard's book, as its move, before a move to know worth more (P241); its count
     // is Needs you's badge.
-    await g(page, `S.stock.entries.push({ id: 'u1', itemId: 'N', kind: 'used', qty: 12, date: localDateStr(), at: Date.now() }); saveState(); renderHome()`);
+    // The guard's book dates its count today by the suite's clock; the page's day is the working day (on a Sunday, the day before).
+    await g(page, `S.stock.entries[0].date = localDateStr(); S.stock.entries.push({ id: 'u1', itemId: 'N', kind: 'used', qty: 12, date: localDateStr(), at: Date.now() }); saveState(); renderHome()`);
     await expect(card.locator('.inv-mast-say')).toHaveText('Order Nitric acid: it is out');
     await expect(card.locator('.inv-mast-act [data-home-lead="move"]')).toHaveText('Reorder list');
     await expect(card).toHaveAttribute('data-tone', 'danger');

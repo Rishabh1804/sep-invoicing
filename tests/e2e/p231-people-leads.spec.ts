@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openAttendance, openFoldAt, openVerdict, setFilter, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openAttendance, openFoldAt, openVerdict, setFilter, switchTab, onWorkday, workdayIso, type SepState } from './fixtures';
 
 // P231 (docs/UI_PASS_3.md §12, §26c; the owner, 15 Oct 2026: "Every sub-tab of our people tab has the same issue it does not lead
 // the user by design", "Roster section … primitive, despite having plenty of data to show info in a better way"): each People view
@@ -12,7 +12,10 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const isoOf = (d: Date) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const shift = (from: string, n: number) => { const d = new Date(from + 'T00:00:00'); d.setDate(d.getDate() + n); return isoOf(d); };
 const ev = (page: Page, js: string) => page.evaluate(src => (0, eval)(src), js);
-const T = todayIso();
+// The day the specs call today is a working day: on a Sunday the page's clock stands on the Saturday before (onWorkday), so the
+// day's rolls and steps are a working day's whatever day the suite runs.
+const T = workdayIso();
+test.beforeEach(async ({ page }) => { await onWorkday(page); });
 // The last working day before today, so a past week's marks stand on a day the plant works.
 const WD = (() => { let d = shift(T, -1); while (new Date(d + 'T00:00:00').getDay() === 0) d = shift(d, -1); return d; })();
 const WS = (() => { const d = new Date(T + 'T00:00:00'); return shift(T, -d.getDay()); })();

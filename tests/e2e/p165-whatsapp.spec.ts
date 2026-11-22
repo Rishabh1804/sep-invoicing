@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState, openNeeds } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState, openNeeds, onWorkday } from './fixtures';
 
 // P165 (owner, 7 Oct 2026): "When connected to the internet let's have a webpage loader in the app where it can directly
 // open the web.whatsapp.com page or the installed app for us." WhatsApp Web refuses to be framed by another site
@@ -10,6 +10,8 @@ const g = (page: any, e: string) => page.evaluate((x: string) => (0, eval)(x), e
 
 test.describe('P165 WhatsApp opened from the paste boxes', () => {
   test('the phone opens the installed app, from Add, Paste message and Today', async ({ page }) => {
+    // The day's inputs are a working day's: on a Sunday the page's clock stands on the working day before (onWorkday).
+    await onWorkday(page);
     await loadAppWithState(page, book());
     await openNeeds(page);
     // Pixel 5 is an Android phone: the app by its package, which Chrome sends to the Play Store when it is missing.
@@ -42,6 +44,8 @@ test.describe('P165 WhatsApp opened from the paste boxes', () => {
   });
 
   test('offline the links hide and say why; back online they return in place', async ({ page, context }) => {
+    // The day's inputs are a working day's: on a Sunday the page's clock stands on the working day before (onWorkday).
+    await onWorkday(page);
     await loadAppWithState(page, book());
     await openNeeds(page);
     const link = page.locator('#homeNeeds [data-tdy-wa] [data-wa-go]');

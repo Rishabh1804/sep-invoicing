@@ -4,7 +4,7 @@ domain: billing
 modules: [split/credit-note.js, split/exports.js]
 specs: []
 tests: [P19, P95]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-22 (what the app does differently from the paper form, as a table here; no reference document is kept, HR-10); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### Credit notes
@@ -82,9 +82,21 @@ Own series, `CN/<3-digit>/<FY short>`, formatted off `S.invPrefix`. A credit not
 series carrying its own explanation and exports at zero. Its own CSV, too: credit notes go to
 GSTR-1 table 9B (CDNR), whose columns are not the B2B ones.
 
-The reference had four defects the app does not reproduce — see `docs/credit-notes/README.md`.
-The headline one is the same identity drift the certificate had: header "SOMA ELECTRO PRODUCT"
-against footer "SOMA ELECTRO PRODUCTS". Identity is read from `S.company`, never frozen.
+The reference (a credit note issued on paper before the app made them; no copy is kept in this repository, HR-10) had
+defects the app does not reproduce. What the app does differently, and why:
+
+| The reference | The app | Why |
+|---|---|---|
+| "Amount Chargeable (in words)" stated the sub-total | states the Total | The words disagreed with the figure printed beside them: that box held the sub-total, not what is chargeable. |
+| Tax in words stated one component | states the total tax | One of CGST and SGST is not the tax on the document. |
+| Tax summary columns "Central Tax" / "SalesTax" | CGST / SGST | Legacy wording for an intra-state supply. |
+| The firm's name and address spelt one way in the header and another in the footer | both read `S.company` | The same identity drift the certificate prototype had. One source means header and footer cannot disagree. Identity is read from `S.company`, never frozen. |
+| Named one invoice | names the batch, and annexes every invoice number in it | A consolidated credit note is legal (s.34 as amended), but a document crediting many invoices while naming one is not auditable. |
+| PO Number, PO Date and Challan Number rows, blank | replaced with Period and Reason | A single PO or challan reference does not apply to a batch. Open with the owner: if a customer expects those rows, they come back. |
+
+The discount is computed on value: the rupees come first and the kilograms are derived from them, so the quantity is a
+readable restatement of the credit, not a separately measured figure. The app rounds that derived quantity (HR-8: round,
+never floor), where the reference truncated it.
 
 **This changes the piece client's numbers.** At a standing 2%, its realisation
 is **2% under its rate** — Stats reads invoices only, so every figure of that client above is

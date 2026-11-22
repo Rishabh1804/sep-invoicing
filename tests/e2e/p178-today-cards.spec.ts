@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse, todayIso, type SepState, openNeeds } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, todayIso, type SepState, openNeeds, onWorkday } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P178: Today as cards (owner, 8 Oct 2026: "need the pulse screen and needs you screen to have less cognitive load, data
@@ -65,6 +65,8 @@ test('Needs you is cards: the day’s inputs a hero of steps with a meter, the t
 });
 
 test('with nothing to do, Now says so in the tone that all is well, and nothing opens', async ({ page }) => {
+  // The day's inputs are a working day's: on a Sunday the page's clock stands on the working day before (onWorkday).
+  await onWorkday(page);
   const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
   await loadAppWithState(page, s);
   await openNeeds(page);

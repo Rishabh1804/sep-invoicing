@@ -679,7 +679,7 @@ test('Stats prints a labour ₹/kg once coverage and range allow, against the mo
     attendance: recordedDays(26, { [POOL.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }),
     invoices: [{
       id: 'INV1', displayNumber: 'SEP/TEST-00001', clientId: 1, clientName: 'TEST CLIENT KG',
-      date: todayIso(), createdAt: recentTs(), status: 'active', invoiceState: 'created',
+      date: workdayIso(), createdAt: recentTs(), status: 'active', invoiceState: 'created',
       items: [{ partNumber: 'PLATE', desc: 'PLATE', unit: 'KG', qty: 20000, rate: 9, amount: 180000 }],
       taxableValue: 180000, grandTotal: 212400,
     }],
@@ -706,7 +706,7 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
     attendance,
     invoices: [{
       id: 'INV1', displayNumber: 'SEP/TEST-00001', clientId: 1, clientName: 'TEST CLIENT KG',
-      date: todayIso(), createdAt: recentTs(), status: 'active', invoiceState: 'created',
+      date: workdayIso(), createdAt: recentTs(), status: 'active', invoiceState: 'created',
       items: [{ partNumber: 'PLATE', desc: 'PLATE', unit: 'KG', qty: 20000, rate: 9, amount: 180000 }],
       taxableValue: 180000, grandTotal: 212400,
     }],

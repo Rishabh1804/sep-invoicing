@@ -4,7 +4,7 @@ domain: core
 modules: []
 specs: []
 tests: [P21, P73, P228]
-updated: 2026-11-20 (P281: the move's waits shortened by a header, on P280's two origins)
+updated: 2026-11-22 (a spec about the plant at work runs on a working day: onWorkday); 2026-11-20 (P281: the move's waits shortened by a header, on P280's two origins)
 ---
 
 ### Tests
@@ -65,6 +65,14 @@ keep their shape.
 **Fixtures carry `todayIso()` / `recentTs()`, never hardcoded dates.** Three tests have now
 been found passing only because of when they were written or what they happened not to
 filter on; a literal date in a fixture is a time bomb, not a constant.
+
+**A spec about the plant at work runs on a working day** (`workdayIso()`, `onWorkday(page)`; 22 Nov 2026). On a Sunday the app
+rightly says the plant is shut, and fourteen tests that assume a working day failed on a Sunday in CI (P165, P178, P199, P210,
+P223, P231, P239, P24's two Stats tests, P248): the masthead's shift line, the day's inputs, rolls and steps, a face's duties,
+the floor's units, and an invoice dated today that fell outside the range its attendance spanned. `onWorkday(page)`, called before the page loads, puts the page's
+clock on the last ordinary working day at the present time of day, and does nothing on a working day; the book's "today" is
+then dated `workdayIso()`. A spec that sets its own clock uses `workdayIso()` for the date (P199 and P210 take it as their `todayIso` for the whole file). A spec about a Sunday or a holiday
+names that day itself.
 
 **The paper record (P228) reads how a document prints, never its laid-out size, and a margin set to `auto` is laid-out size**
 (16 Nov 2026). The spec had recorded the length layout gave the pay slip's signature block, which sits at the foot of its slip

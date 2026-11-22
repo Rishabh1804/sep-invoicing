@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, readStoredState, todayIso, waitForBoot, openSettingsAt, kbRead, openNeeds } from './fixtures';
+// The specs' today is a working day (workdayIso): a face's duties are a working day's, and on a Sunday the plant is shut.
+import { loadAppWithState, readStoredState, workdayIso as todayIso, waitForBoot, openSettingsAt, kbRead, openNeeds } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P199: entry faces, the shell (docs/ENTRY_FACES.md, F1; owner, 10 Oct 2026: "develop app faces for each employee to enter data …
@@ -30,7 +31,10 @@ async function withFaces(page: Page) {
 test.describe('P199: entry faces, the shell', () => {
   test.beforeEach(async ({ page }) => {
     await page.clock.install({ time: new Date(todayIso() + 'T11:30:00') });
-    await loadAppWithState(page, guardBook());
+    // The guard's book counts its stock today by the suite's clock: dated the page's day, so it is this morning's count.
+    const s: any = guardBook();
+    s.stock.entries.forEach((e: any) => { e.date = todayIso(); });
+    await loadAppWithState(page, s);
     await withFaces(page);
   });
 

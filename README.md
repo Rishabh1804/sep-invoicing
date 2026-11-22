@@ -123,8 +123,8 @@ batch is the unit, so the note names every invoice it credits. One customer per 
 spanning under 7 days warns but is not blocked.
 
 **Credit notes** in the register toolbar lists them, previews any one for print, and exports the
-CDNR CSV. A credit note is cancelled, never deleted — see `docs/credit-notes/README.md` for the
-reference document and what the app does differently.
+CDNR CSV. A credit note is cancelled, never deleted — see `docs/atlas/billing/credit-notes.md` for
+what the app does differently from the paper form it replaced.
 
 ## Staff, attendance and labour
 

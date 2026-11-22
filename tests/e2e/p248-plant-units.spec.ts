@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openHome, readStoredState, switchTab, todayIso, withWidgets, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openHome, onWorkday, readStoredState, switchTab, todayIso, withWidgets, type SepState } from './fixtures';
 
 // P248 (T-IO, 29 Oct 2026; Vulcanus V-2, V-4, V-5, V-6 of 28 Oct): what counts toward a line is one rule, a tank or a barrel at
 // the line's station (pltPlates). A rectifier or any other unit supports a line: it is never one of the line's units, it names
@@ -236,6 +236,8 @@ test.describe('P248 a line’s units, and the units that support it', () => {
   });
 
   test('Home’s floor counts pickling’s tanks with the lines’ units', async ({ page }) => {
+    // The floor is drawn on a day the plant works: on a Sunday the clock stands on the working day before.
+    await onWorkday(page);
     await withWidgets(page, [['floornow', 'l']]);
     const s: any = book([unit('T1', 'Tank 1', 'vat-a1', 'tank'), unit('P1', 'Pickling 1', 'pick', 'tank'),
       unit('P2', 'Pickling 2', 'pick', 'tank', { status: 'down', since: day(-1), reason: 'leak' })]);

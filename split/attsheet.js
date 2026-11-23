@@ -143,9 +143,12 @@ function attSheetFillFor(iso) {
 function _asRoster(rec) { return attDayRoster(rec); }
 
 /* Deepak's sheet: blank, or filled with what the app holds for the day. */
-function attSheetDeepakHtml(iso, filled) {
+/* `top` and `keep` are the sheet to photograph's (facesheet.js): its code over the table, the hands it lists (a hand => bool),
+   and no name of the shop's on it: who fills it changes, and nothing about the shop is in the build. */
+function attSheetDeepakHtml(iso, filled, top, keep) {
   var rec = filled ? attDay(iso, false) : null;
   var roster = _asRoster(rec);
+  if (top && keep) roster = roster.filter(keep);
   var rows = roster.map(function(w, i) {
     var m = rec && rec.marks ? rec.marks[w.id] : null;
     var st = m ? m.st : '';
@@ -158,7 +161,8 @@ function attSheetDeepakHtml(iso, filled) {
       '<td>' + (m ? escHtml(_asHm(m.inMin)) : '') + '</td><td>' + (m ? escHtml(_asHm(m.outMin)) : '') + '</td>' +
       '<td>' + (m && m.hours ? escHtml(formatNum(m.hours, 1)) : '') + '</td><td>' + (m && m.ot ? escHtml(formatNum(m.ot, 1)) : '') + '</td></tr>';
   }).join('');
-  if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+  // With a code over it (facesheet.js, a sheet to photograph), one spare row and two EXTRA rows: the code takes their room.
+  if (!filled) for (var k = 0; k < (top ? 1 : 3); k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 
   // The day's EXTRA rows: a block made for a hand's slot pick books nothing, and is on the hand's own line above.
   var extras = rec ? attExtraRows(rec) : [];
@@ -167,10 +171,10 @@ function attSheetDeepakHtml(iso, filled) {
     return '<tr><td>' + escHtml(areaLabel(x.area || 'flex')) + '</td><td>' + escHtml(_asClock(x.from)) + '</td><td>' + escHtml(_asClock(x.to)) + '</td>' +
       '<td>' + escHtml(crew) + '</td><td>' + (x.hours ? escHtml(formatNum(x.hours, 1)) : '') + '</td></tr>';
   }).join('');
-  if (!filled || !extras.length) for (var j = 0; j < (filled ? 1 : 4); j++) exRows += '<tr><td></td><td></td><td></td><td></td><td></td></tr>';
+  if (!filled || !extras.length) for (var j = 0; j < (filled ? 1 : top ? 2 : 4); j++) exRows += '<tr><td></td><td></td><td></td><td></td><td></td></tr>';
 
   var title = filled ? 'Attendance as entered in the app' : 'Attendance entry';
-  return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : 'Deepak') +
+  return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : top ? 'Office and floor' : 'Deepak') + (top || '') +
     (filled && !rec ? '<div class="inv-as-note">Nothing is entered in the app for this day yet.</div>' : '') +
     '<table class="inv-as-table" data-as-entry><colgroup>' + ['num', 'name', 'tick', 'tick', 'tick', 'tick', 'area', 'area', 'area', 'area', 'time', 'time', 'fig', 'fig'].map(function(k) { return '<col data-as-col="' + k + '">'; }).join('') + '</colgroup>' +
     '<thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
@@ -181,6 +185,7 @@ function attSheetDeepakHtml(iso, filled) {
     '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. General is the area of the 8:30 to 5 shift; under Morning OT, Evening OT and Night write the area the hand stood in on that shift, or leave it blank. Hours for an hourly hand; OT for the rest.</div>' +
     (filled
       ? '<div class="inv-as-note">Printed from the app ' + escHtml(formatTimestamp(Date.now())) + '. Staple behind Shyam\'s and Deepak\'s sheets for the day.</div>'
+      : top ? '<div class="inv-as-sign"><div>Filled by</div><div>Sent on WhatsApp at</div><div>Entered in the app by / on</div></div>'
       : '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Checked by Deepak</div><div>Entered in the app by / on</div></div>') +
     '</div>';
 }

@@ -3,8 +3,8 @@ subject: "Entry faces"
 domain: floor
 modules: [split/faces.js, split/facesheet.js, split/flow.js]
 specs: [docs/ENTRY_FACES.md]
-tests: [P195, P199, P200, P201, P202, P203, P204]
-updated: 2026-11-17 (a client's payment terms are the book's: the once-only migration that set them by name is removed; the pickling load says where it is going, P265)
+tests: [P195, P199, P200, P201, P202, P203, P204, P287]
+updated: 2026-11-23 (a sheet to photograph as it fills: the code, the strip, the stop sheet, a run of days; its attendance sheet lists the floor less the ones away; P287); 2026-11-17 (a client's payment terms are the book's: the once-only migration that set them by name is removed; the pickling load says where it is going, P265)
 ---
 
 ### Entry faces
@@ -157,6 +157,20 @@ build: the people are the book's.
   - **the VAT register pages**: VAT A1 a round a row (the figure as written), VAT A2 a batch a row (began, ended); the day total
     written and what the app counts; the day's power log with why each cut came.
 
+  - **A sheet to photograph as it fills** (owner, 23 Nov 2026; P287; `fshCodedTop`, `fshBlankOf`, `fshRunDays`): for days the
+    owner is away, a hand fills the sheets on paper and sends a photo of each every half hour, and the app is to take only the new
+    rows from each photo (the reader is the next step, not built). Production → More → Print sheets takes a **run of days** (*To*;
+    Sundays and days marked shut left out, at most 31 days) and a tick, **To photograph as it fills**: each blank sheet then
+    carries its **code** in words a person and the reader both read (`SEP SHEET VA1 2026-11-24 PAGE 1`: the kind, the day, the
+    page), a **strip of 24 half hours** from 8:00 to tick when the photo is sent, and **the rule for a wrong row** in its note
+    (strike it and write it again on the next free row; never write over a figure; a full page goes on to the next page). A
+    **spare page 2** of each prints with it, its rows numbered on from page 1's, so a row's number is its own through the day. A
+    coded sheet has five rows fewer, the room the code, the strip and the rule take. Two sheets join the four: **the stop sheet**
+    (`fshStopsHtml`: one for the whole plant, a stop a row: the line, stopped at, started again at, why, of Power, No material,
+    Breakdown, Short of hands, Other) and **the attendance sheet** (attsheet.js, coded, one page: the roster is its rows; with
+    the code it keeps one spare row and two EXTRA rows). Coded, it lists **the hands on the floor only**, less the ones named in
+    the dialog as **away for the run** (`fshAttKeep`; a name whole or by its first word; a name that is nobody's is said and the
+    sheet prints), and it names nobody of the shop: who fills it changes (owner, 23 Nov 2026). A sheet not ticked prints as it always did.
   Filled, a sheet is the app's record of the day, whoever entered it, each row saying through which door (Mine and who, WhatsApp
   and who sent it, a register photo, by hand); a voided or corrected record never reaches paper. A VAT page entered on Mine prints as
   typed (the paper's ditto under a run's client and part), unless the owner voided or corrected one of its runs in Production

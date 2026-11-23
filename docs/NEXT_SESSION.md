@@ -10,31 +10,42 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 21 Nov 2026: the owner's passkey and the approval from his own devices (#210, #211); the grill-me skill (read this first)
+## Session close, 23 Nov 2026: three rulings built (#213), no reference document kept and the Sunday tests (#214) (read this first)
 
 - **What shipped, merged on the owner's word**:
-  - **#207** (`310ac89`), **#208** (`674d43b`), **#209** (`3637331`): the 20 Nov close; Power → Cuts leaves a cut's wages out for a
-    role without wages (P282); the move's first-use fixes (P281).
-  - **#210** (`245c070`): the owner's **passkey** beside the PIN (P283; `docs/atlas/platform/guard.md`), and the **relay** on the
-    app's Worker, `/api/relay/<id>` (a Durable Object; one sealed answer, read once, gone in 120 s; `docs/atlas/core/new-address.md`).
-    The Worker's headers moved to `server/app/src/headers.js`. The `grill-me` skill (`.claude/skills/grill-me/SKILL.md`).
-  - **#211** (`535e938`): **a sign-in approved from a device of the owner's** (a QR, his passkey, the answer sealed through the relay),
-    which can carry the sync token to a device with no book (then *borrowed*: *Sign out and clear this device*, or cleared after 12
-    hours unused, after a push; never on a lock) (P284). `sw.js` leaves `/api/` alone; `qr.js` to version 20.
-- **Live**: the relay answers on `app.somaelectro.co.in`. The PIN still works everywhere.
-- **The owner's, outside the code**: add a passkey on his phone and laptop (Settings → Access → Users & access); use the passkey and
-  the approval for a week; then step 3 (his PIN out of the book). The print station's move. The copies on the old address after 27 Nov.
-- **Ruled, to build** (the detail is in the codex): a non-owner's export, the lock clearing other pages on a change of user, error
-  reports carrying only the error's type and frames, older passages that name clients scrubbed with the history rewritten (its plan
-  put to him first). Then Floor: the sync copy's own repository, a WhatsApp helper, a live board, Compare.
+  - **#213** (`ad232db`):
+    - **The export is the owner's alone** (P285; `docs/atlas/platform/guard.md`): `exportData` refuses any other role, its button is
+      drawn only for the owner, and a save that did not land sends another role to the GitHub sync or to the owner
+      (`storageBannerWayOut`). The partial export is gone.
+    - **Another person signing in empties the pages not on show** (P286): `grdAfterUser` calls `tabClearOthers` (tabs.js) once the
+      page on show is settled; the last person's selections and a half-typed invoice go with them.
+    - **Error reports carry the kind of error and its place in the code, not its message** (P143; `docs/atlas/core/error-reports.md`).
+      A report with no place in the code asks the owner, with the masked message shown; the last five messages that did not go are
+      kept on the device (`sep_inv_err_kept`, never on the book, not carried to a new address) and Settings → Backup, storage &
+      build lists them for the owner to send.
+  - **#214** (`cd805ec`): `docs/credit-notes/` is removed; what the app's credit note does differently from the paper form is a
+    table in `docs/atlas/billing/credit-notes.md`. **Fourteen tests that assumed a working day now run on one**: they failed on
+    Sunday 22 Nov, when the app rightly says the plant is shut. `onWorkday(page)` (tests/e2e/fixtures.ts) puts a test's clock on
+    the last working day; a spec that sets its own clock dates it `workdayIso()` (`docs/atlas/core/tests.md`).
+- **Live**: `app.somaelectro.co.in` serves build `49089008`, the same as `main` (read 23 Nov).
+- **Found on the way**: P142's stand-in for `grdIsOwner` said nobody is the owner with the guard off; it now matches the guard.
+  A new spec file must not be named `*-export-*`: `.gitignore` drops it.
+- **Ruled, not yet built** (the detail is in the codex): older passages in this repository that HR-10 covers are to be read and
+  scrubbed, and the history rewritten after that, its plan put to the owner first. The codex holds the reading list and the
+  instrument; nothing from it is quoted here until the rewrite has run.
+- **The owner's, outside the code**: a passkey on his phone and laptop and a week of use, then step 3 (his PIN out of the book);
+  the print station's move; the copies on the old address after 27 Nov.
+- **Next, as the owner says**: he works away from the plant from 24 Nov to 6 Dec; the floor's data is to keep coming in by forms
+  filled by hand and sent as photos. The design is being grilled; its decisions go into the atlas as they are made.
 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. Last close (21 Nov 2026): #210 the owner's passkey and the relay on the Worker; #211 a sign-in
-approved from a device of his, and the borrowed device. The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic
-→ code, spec, tests. Next, as he says: step 3 (his PIN out of the book) after a week of use; the export the owner's alone; the
-lock clearing other pages; error reports carrying type and frames only; the older client passages scrubbed (plan to him first).
+SEP Invoicing, session B. Last close (23 Nov 2026): #213 the export the owner's alone, hidden pages emptied on a change of
+person, error reports without the message; #214 no reference document kept, and fourteen tests that failed on a Sunday run on a
+working day (onWorkday). The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests. Next, as he
+says: the floor's data kept up to date while the owner is away (forms by hand, sent as photos): build what the grill decided;
+then step 3 (his PIN out of the book) after a week of use; the scrub of older passages (the plan to him first).
 ```
 
 ## Where the rest is

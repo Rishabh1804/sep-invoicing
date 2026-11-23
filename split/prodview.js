@@ -1483,7 +1483,29 @@ async function prodPhotoNext() {
     if (_prodPhotoQueue.length) prodPhotoNext(); else prodSetView('main');
   }
 }
-function prodPhotoRead() { var ph = _prodPhoto; return prodRackCheck(prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices)); }
+/* A sheet printed to photograph as it fills (facesheet.js, P287) carries its code: the kind, the day and the page. A VAT page's
+   day and line are the code's, not the handwriting's, unless the check changes them. */
+function prodPhotoSheet(ph) { return typeof fshCodeRead === 'function' ? fshCodeRead((ph || _prodPhoto).json.code) : null; }
+function prodPhotoRead() {
+  var ph = _prodPhoto, cd = prodPhotoSheet(ph), ch = ph.choices;
+  if (cd && PROD_LINES.indexOf(cd.kind) >= 0) ch = Object.assign({ date: cd.date, line: cd.kind }, ph.choices);
+  return prodRackCheck(prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ch));
+}
+/* The rows of a reading's fingerprint (prodFromRegisterRead's fp: day | line | each row's time:figure). */
+function prodPhotoFpRows(fp) { var t = String(fp || '').split('|')[2]; return t ? t.split(',') : []; }
+/* A sheet read before, against this reading of it: the rows new since, the rows that read differently (the same time, another
+   figure), and the rows read then that are not on this reading. */
+function prodPhotoSince(prev, rd) {
+  var was = prodPhotoFpRows(prev.fp), now = prodPhotoFpRows(rd.fp), left = was.slice(), fresh = [];
+  now.forEach(function(x) { var i = left.indexOf(x); if (i >= 0) left.splice(i, 1); else fresh.push(x); });
+  var cut = function(x) { var i = x.lastIndexOf(':'); return { time: x.slice(0, i), qty: x.slice(i + 1) }; };
+  var differ = [], gone = [];
+  left.map(cut).forEach(function(w) {
+    var i = fresh.findIndex(function(x) { return cut(x).time === w.time; });
+    if (i >= 0) differ.push({ time: w.time, was: w.qty, now: cut(fresh.splice(i, 1)[0]).qty }); else gone.push(w);
+  });
+  return { fresh: fresh.map(cut), differ: differ, gone: gone, same: !fresh.length && !differ.length && !gone.length };
+}
 /* The register photo's check as a guided flow (UI pass 3 §26b): The page (its date and line) · Each run (a struck row counted or
    cancelled, a client) · The power log. The preview says the runs as they will count (prodPhotoRead) and warns of a page saved
    before or entered on Mine. Nothing is saved until Save. */
@@ -1491,18 +1513,22 @@ function prodPhotoState() {
   var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
   var date = ph.choices.date || rd.date;
+  // The sheet's code: another kind's sheet has no reader yet; a VAT sheet read before is replaced by this reading of it.
+  var sheet = prodPhotoSheet(ph), notYet = !!sheet && PROD_LINES.indexOf(sheet.kind) < 0;
+  var prev = sheet && !notYet ? p.photos.filter(function(x) { return x.code === sheet.text && p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); }).pop() || null : null;
+  var since = prev ? prodPhotoSince(prev, rd) : null;
   var dupFp = p.photos.find(function(x) { return x.fp === rd.fp && p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
   var red = rd.issues.filter(function(x) { return x.tone === 'red'; }).length, power = rd.page === 'power';
   rd.rows.forEach(function(r) { r.issues.forEach(function(x) { if (x.tone === 'red') red++; }); });
   rd.runs.forEach(function(e, i) { if (e.clientId == null && ph.choices['client' + i] === undefined) red++; });
   // The page entered on Mine by the register clerk (faces.js, F4) for this day and line, whose runs are in the book.
   var onMine = !power && line ? p.pages.find(function(x) { return !x.replacedBy && x.date === date && x.line === line && p.entries.some(function(e) { return e.pageId && e.date === x.date && e.line === x.line && !e.voidedAt; }); }) : null;
-  return { ph: ph, rd: rd, line: line, date: date, dupFp: dupFp, red: red, power: power, onMine: onMine };
+  return { ph: ph, rd: rd, line: line, date: date, dupFp: dupFp, red: red, power: power, onMine: onMine, sheet: sheet, notYet: notYet, prev: prev, since: since };
 }
 function prodPhotoModel() {
   if (!_prodPhoto) return null;
   var x = prodPhotoState(), rd = x.rd, ph = x.ph, steps = [], lines = [], checks = [];
-  var other = rd.page === 'other' || rd.page === 'challan';
+  var other = rd.page === 'other' || rd.page === 'challan' || x.notYet;
   // The runs Save keeps (Vulcanus L-5, U4's QA chain): a run every row of which was struck and Cancelled was never plated, and
   // prodSavePhoto leaves it out; the preview counts and lists the same runs, each with its own index for its client's pick.
   var kept = rd.runs.map(function(e, i) { return { e: e, i: i }; }).filter(function(k) { return !prodPhotoRunCancelled(k.e, ph); });
@@ -1530,10 +1556,18 @@ function prodPhotoModel() {
     if (rd.downtime.length) lines.push(escHtml(todoPlural(rd.downtime.length, 'power cut')) + ' from the page’s power log');
   }
   if (ph.dupSha) checks.push({ tone: 'danger', text: 'This photo was saved before: saving it again counts the page twice.' });
+  else if (x.prev && x.since.same) checks.push({ tone: 'warning', text: 'Nothing is new on this sheet since it was read at ' + formatTimestamp(x.prev.at) + '.' });
+  else if (x.prev) {
+    var sn = x.since, clock = function(r) { return (r.time || 'no time') + ' '; };
+    checks.push({ tone: 'info', text: 'This sheet was read before, at ' + formatTimestamp(x.prev.at) + ': ' + todoPlural(sn.fresh.length, 'row') + ' new since. Saving replaces that reading with the page as it stands now: its runs are voided, never counted twice.' });
+    sn.differ.forEach(function(r) { checks.push({ tone: 'warning', text: 'The row at ' + clock(r) + 'read ' + (r.was || 'no figure') + ' before and reads ' + (r.now || 'no figure') + ' now. Check it against the photo.' }); });
+    sn.gone.forEach(function(r) { checks.push({ tone: 'warning', text: 'A row read before is not on this reading: ' + clock(r) + (r.qty || 'no figure') + '. Check it against the photo.' }); });
+  }
   else if (x.dupFp) checks.push({ tone: 'warning', text: 'A photo with the same rows for this day and line was saved before.' });
   else if (x.onMine) checks.push({ tone: 'warning', text: 'This page was entered on Mine' + (x.onMine.by ? ' by ' + x.onMine.by : '') + ': saving the photo as well counts the day twice.' });
   if (x.red) checks.push({ tone: 'danger', text: x.red + (x.red === 1 ? ' question' : ' questions') + ' to settle before Save.' });
-  if (other) checks.push({ tone: 'info', text: rd.page === 'challan' ? 'This is a challan, not a register page: nothing is saved here.' : 'This is not a register page: nothing is saved here.' });
+  if (x.notYet) checks.push({ tone: 'info', text: 'This is ' + x.sheet.text + ': a sheet whose photo is not read into the book yet. Nothing is saved here.' });
+  else if (other) checks.push({ tone: 'info', text: rd.page === 'challan' ? 'This is a challan, not a register page: nothing is saved here.' : 'This is not a register page: nothing is saved here.' });
   return { steps: steps, preview: { lines: lines, checks: checks, empty: 'Nothing was read from this photo to save.' } };
 }
 uiFlowDefine('prodPhoto', prodPhotoModel);
@@ -1599,7 +1633,7 @@ function prodPhotoHtml() {
     });
     body.runs = runs + '</div>';
     bar = '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Counted</div><div class="inv-actionbar-value">' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS') + '</div></div>' +
-      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
+      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || x.notYet || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
   }
   model.steps.forEach(function(s) { if (body[s.key] != null) s.body = body[s.key]; });
   return uiFlowHtml('prodPhoto', model, { before: prodBackBar('Check the register') }) + bar;
@@ -1612,8 +1646,13 @@ function prodSavePhoto() {
   var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
   var id = prodUid('PF'), n = 0;
   if (rd.page === 'other' || rd.page === 'challan') return;
+  // A sheet read before: this reading is the page as it stands now, and the earlier reading's entries are voided, never deleted.
+  var st = prodPhotoState(), prev = st.prev;
+  if (st.notYet) return;
+  if (prev) p.entries.forEach(function(e) { if (e.photoId === prev.id && !e.voidedAt) { e.voidedAt = at; e.voidReason = 'Replaced by a later photo of the same sheet'; e.voidBy = by; } });
   p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, sentBy: ph.sentBy || null, usd: ph.meta.usd || null, w: ph.meta.w || 0, h: ph.meta.h || 0, model: ph.meta.model || PH_MODEL, promptVer: PROD_REGISTER_PROMPT_VER,
     readDate: date, readLine: rd.page === 'power' ? null : line || null, page: rd.page, rows: rd.page === 'power' ? rd.downtime.length : rd.rows.length, fp: rd.fp });
+  if (st.sheet) { p.photos[p.photos.length - 1].code = st.sheet.text; if (prev) p.photos[p.photos.length - 1].replaces = prev.id; }
   rd.downtime.forEach(function(x) {
     p.entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: x.date, time: x.time, to: x.to, downtime: { cause: 'power', open: !!x.open },
       basis: 'register', src: 'photo', raw: x.raw, photoId: id, by: by, at: at }));
@@ -1643,7 +1682,7 @@ function prodSavePhoto() {
   // Lines opens on the page's day and line, so where the runs went is seen (it had stayed on the day it showed before).
   if (rd.page !== 'power' && date) { _prodDay = date; _prodDayPicked = true; if (PROD_LINES.indexOf(line) >= 0) _prodLine = line; prodSetTab('lines'); }
   prodSetView('main');
-  showToast((rd.page === 'power' ? todoPlural(n, 'power cut') : todoPlural(n, 'run')) + ' saved from the register' + (date ? ', ' + formatDate(date) : ''), 'success');
+  showToast((rd.page === 'power' ? todoPlural(n, 'power cut') : todoPlural(n, 'run')) + ' saved from the register' + (date ? ', ' + formatDate(date) : '') + (prev ? ', in place of the reading before' : ''), 'success');
   if (_prodPhotoQueue.length) prodPhotoNext();
 }
 

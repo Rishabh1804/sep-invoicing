@@ -10,42 +10,39 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 23 Nov 2026: three rulings built (#213), no reference document kept and the Sunday tests (#214) (read this first)
+## Session close, 23 Nov 2026, the second: the sheets to photograph (#215); a sheet photographed again (draft, not merged) (read this first)
 
 - **What shipped, merged on the owner's word**:
-  - **#213** (`ad232db`):
-    - **The export is the owner's alone** (P285; `docs/atlas/platform/guard.md`): `exportData` refuses any other role, its button is
-      drawn only for the owner, and a save that did not land sends another role to the GitHub sync or to the owner
-      (`storageBannerWayOut`). The partial export is gone.
-    - **Another person signing in empties the pages not on show** (P286): `grdAfterUser` calls `tabClearOthers` (tabs.js) once the
-      page on show is settled; the last person's selections and a half-typed invoice go with them.
-    - **Error reports carry the kind of error and its place in the code, not its message** (P143; `docs/atlas/core/error-reports.md`).
-      A report with no place in the code asks the owner, with the masked message shown; the last five messages that did not go are
-      kept on the device (`sep_inv_err_kept`, never on the book, not carried to a new address) and Settings → Backup, storage &
-      build lists them for the owner to send.
-  - **#214** (`cd805ec`): no reference document is kept in this repository (HR-10); what the app's credit note does differently
-    from the paper form is a table in `docs/atlas/billing/credit-notes.md`. **Fourteen tests that assumed a working day now run on one**: they failed on
-    Sunday 22 Nov, when the app rightly says the plant is shut. `onWorkday(page)` (tests/e2e/fixtures.ts) puts a test's clock on
-    the last working day; a spec that sets its own clock dates it `workdayIso()` (`docs/atlas/core/tests.md`).
-- **Live**: `app.somaelectro.co.in` serves build `49089008`, the same as `main` (read 23 Nov).
-- **Found on the way**: P142's stand-in for `grdIsOwner` said nobody is the owner with the guard off; it now matches the guard.
-  A new spec file must not be named `*-export-*`: `.gitignore` drops it.
-- **Ruled, not yet built** (the detail is in the codex): older passages in this repository that HR-10 covers are to be read and
-  scrubbed, and the history rewritten after that, its plan put to the owner first. The codex holds the reading list and the
-  instrument; nothing from it is quoted here until the rewrite has run.
-- **The owner's, outside the code**: a passkey on his phone and laptop and a week of use, then step 3 (his PIN out of the book);
-  the print station's move; the copies on the old address after 27 Nov.
-- **Next, as the owner says**: he works away from the plant from 24 Nov to 6 Dec; the floor's data is to keep coming in by forms
-  filled by hand and sent as photos. The design is being grilled; its decisions go into the atlas as they are made.
+  - **#215** (`a41ddba`): **the sheets to photograph as they fill** (P287; `docs/atlas/floor/entry-faces.md`). Production → More →
+    Print sheets takes a run of days and a tick, *To photograph as it fills*: each blank sheet carries its code (the kind, the day,
+    the page), a strip of half hours to tick when the photo is sent, numbered rows that run on to a spare page 2, and the rule for
+    a wrong row. Two sheets join the four: the stop sheet for the whole plant, and the attendance sheet. Coded, the attendance
+    sheet lists the hands on the floor only, less the ones named in the dialog as away for the run, and names nobody of the shop.
+- **Built, pushed as a draft, not merged** (the next session's first act is its CI and the owner's word): **a coded sheet
+  photographed again replaces its earlier reading** (P288; `docs/atlas/platform/messages-and-photos.md`). The register reader
+  gives back the code (`reg-c3`); a VAT sheet's day and line are the code's; a later photo of the same sheet voids the earlier
+  reading's entries with the reason and saves the page as it stands, so it counts once; the check says the rows new since and a
+  row that reads differently. A coded sheet of another kind is named and nothing is saved.
+- **Not tested against the real reader**: the prompt's new lines for a printed sheet (the code, a row with a start and an end
+  time, the power log table) are tested with a stand-in answer only. The first real photo is their first test.
+- **Not built** (in the order the owner picked): one drop that sorts every photo by its code and reads the strip's ticks; the
+  readers for the barrel, pickling and stop sheets; a client's challan from a photo, one tap to save, and what the reader
+  learns; the attendance sheet as a check.
+- **Found on the way**: a spec named outside `pNNN-…` or run with `--project=desktop-chromium` finds no tests (that project runs
+  `*.desktop.spec.ts` only). The plain attendance sheets still carry the names they had.
+- **Carried**: the scrub of older passages and the history rewrite (the plan to the owner first); step 3 (his PIN out of the
+  book) after a week of use.
+- **The owner is away from the plant, 24 Nov to 6 Dec**, working from his phone. The first production sheets are due on 24 Nov.
 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. Last close (23 Nov 2026): #213 the export the owner's alone, hidden pages emptied on a change of
-person, error reports without the message; #214 no reference document kept, and fourteen tests that failed on a Sunday run on a
-working day (onWorkday). The route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests. Next, as he
-says: the floor's data kept up to date while the owner is away (forms by hand, sent as photos): build what the grill decided;
-then step 3 (his PIN out of the book) after a week of use; the scrub of older passages (the plan to him first).
+SEP Invoicing, session B. Last close (23 Nov 2026, the second): #215 merged, the sheets to photograph as they fill (P287). A
+draft PR holds P288: a coded sheet photographed again replaces its earlier reading. First: its CI, then the owner's word to
+merge. The owner is away 24 Nov to 6 Dec and reads the floor from photos of the sheets; the first real photo is the first test
+of the reader's prompt for a printed sheet (reg-c3): correct it from what the check shows. Then, in his order: the one drop
+sorted by code and the strip's ticks; the barrel, pickling and stop readers; challans from photos; the attendance check. The
+route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests.
 ```
 
 ## Where the rest is

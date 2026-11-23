@@ -79,6 +79,14 @@ function fshFromLine(list) {
    reader both read; the rows of page 2 run on from page 1's, so a row's number is its own through the day. */
 function fshFrom(o, perPage) { return o && o.coded && o.page > 1 ? (o.page - 1) * perPage + 1 : 1; }
 function fshRowsFor(o, n) { return o && o.coded ? n - FSH_CODED_LESS : n; }
+/* A code as a photo's reader gives it back, read: its kind, day and page, or null. Spaces and case as they come. */
+function fshCodeRead(text) {
+  var m = /SEP\s*SHEET\s+([A-Z0-9]{3})\s+(\d{4})\s*-\s*(\d{2})\s*-\s*(\d{2})\s+PAGE\s+(\d+)/i.exec(String(text || ''));
+  if (!m) return null;
+  var k = m[1].toUpperCase(), kind = Object.keys(FSH_CODE_KIND).find(function(x) { return FSH_CODE_KIND[x] === k; });
+  if (!kind) return null;
+  return { kind: kind, date: m[2] + '-' + m[3] + '-' + m[4], page: +m[5], text: fshCodeText(kind, m[2] + '-' + m[3] + '-' + m[4], +m[5]) };
+}
 function fshCodeText(kind, iso, page) { return 'SEP SHEET ' + (FSH_CODE_KIND[kind] || kind) + ' ' + iso + ' PAGE ' + (page || 1); }
 function fshCodedTop(kind, iso, o) {
   if (!o || !o.coded) return '';

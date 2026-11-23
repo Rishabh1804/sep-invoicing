@@ -3,8 +3,8 @@ subject: "WhatsApp messages, photos and the Tata release read by Claude"
 domain: platform
 modules: [split/msgconfirm.js, split/msgprofile.js, split/msgstore.js, split/msgview.js, split/photoread.js, split/scanner.js, split/tatarelease.js, split/wazip.js]
 specs: [docs/MESSAGES.md]
-tests: [P253, P256, P257, P263]
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P253, P256, P257, P263, P288]
+updated: 2026-11-23 (a coded sheet photographed again replaces its earlier reading, P288); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### WhatsApp messages: kept, read, confirmed
@@ -57,6 +57,15 @@ works"*) is replaced; what the app does with a reading is the reader it always h
 - **The challan scanner** (Challans → More → Scan a challan, both tabs): the challan's number, date, client, vehicle and lines read into
   the challan form, which is checked and saved as any challan. The prompt names no client and asks no rate (HR-10): the client is one
   of the book's own (matched only where one fits), every rate the client's own record. The old scanner's client map is gone with it.
+- **A sheet printed to photograph says which page it is** (owner, 23 Nov 2026; P288; `reg-c3`, `fshCodeRead`, `prodPhotoSheet`,
+  `prodPhotoSince`): the reader gives back the printed code (`SEP SHEET VA1 2026-11-24 PAGE 1`, `docs/atlas/floor/entry-faces.md`),
+  and a VAT sheet's day and line are the code's, not the handwriting's. The sheet is photographed every half hour, so **a later
+  photo of the same sheet is the page as it stands now**: saved, it takes the place of the earlier reading, whose entries are
+  voided with the reason (never deleted), and the page counts once. The check says how many rows are new since, names a row
+  that **reads differently** with both readings, and a row read before that is not on this one; a sheet with nothing new is
+  said. A coded sheet of another kind (barrel, pickling, stops, attendance) is named and nothing is saved: its reader is not
+  built. The prompt also says how a printed sheet's two-time rows and its power log are given. The photo's record gains `code` and
+  `replaces`. **Not built**: one drop sorted by code across kinds, and the strip's ticks.
 - **Photos picked several at once** (Production's picker, Add → Photo, a file that is a photo) wait in Production and are read one at a
   time, each paid for when it is reached; over five asks first with what they come to.
 - **An export's photos** (wazip.js): the chat's photo lines say who sent each and when; the zip's photos sent after the book's last

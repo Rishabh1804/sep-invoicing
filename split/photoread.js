@@ -152,7 +152,7 @@ function phSettingsBody() {
    wrote, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such. No client list
    is sent (the model would "correct" the floor's spellings to legal names), and the workers' box is not asked for. The shape
    is the one prodFromRegisterRead has always read (prodparse.js). */
-var PROD_REGISTER_PROMPT_VER = 'reg-c2';
+var PROD_REGISTER_PROMPT_VER = 'reg-c3';
 var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten registers of a zinc electroplating plant in India. The photo may be sideways or upside down: read it the way the writing runs.\n\n' +
   'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add up figures, do not add rows that are not written, do not invent anything.\n' +
   '- page: "production" if it lists batches plated (customer, part, times, figures); "power" if it is a log of power cuts and power coming back; "challan" if it is a customer\'s printed or handwritten delivery challan; "other" for anything else (a wages or hours sheet, a list of names).\n' +
@@ -164,6 +164,10 @@ var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten reg
   'qtyText: the figure written for the row, exactly as written with its signs (e.g. "72", "72+10", "98×8+1", "50+52+30", "3+4×156"), else ""; when the only figure on the row is written in the part column (e.g. "(25 NOS) TINA"), put it in qtyText too; struck: true if the row or its figure is struck through; ' +
   'over: what a correction was written over, as written; bracket: true if the row is inside a bracket carrying one total for several rows; ditto: true if the row\'s customer or part is only ditto marks; legible: false if you cannot read the figure, else true.\n' +
   '- On a power page, each row: date as written on the row, event "power cut" or "power in" (also "power on"), and time as written.\n' +
+  '- code: if a printed line beginning "SEP SHEET" is at the top of the page, that line exactly as printed (e.g. "SEP SHEET VA1 2026-11-24 PAGE 1"), else "". ' +
+  'On such a printed sheet: ignore the printed row numbers and the strip of printed times under the code ("Photo sent", "Tick the time"); give only rows a hand has written on; ' +
+  'where a written row has a "Began (START)" time and an "Ended (END)" time, give it as two rows, the first with mark "START" and the began time, the second with mark "END", the ended time and the figure; ' +
+  'and give each written row of its "Power log" table as two rows, event "power cut" with the "Power cut at" time and event "power in" with the "Power in at" time (one row only where one time is written).\n' +
   'Ignore any box of workers\' names. A text field that is not written or does not apply is ""; struck, bracket and ditto are false unless the row shows them.';
 /* The API compiles a schema's union-typed fields (anyOf, a type array) at a cost that grows fast, and refuses more than 16 of them
    (it refused the first register photo with 17, 3 Nov 2026). So a text not written is "" and a flag not set is false (legible
@@ -171,7 +175,7 @@ var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten reg
 var PH_UNION_LIMIT = 16;
 var PROD_REGISTER_SCHEMA = phObj({
   page: { type: 'string', enum: ['production', 'power', 'challan', 'other'] },
-  date: { type: 'string' }, weekday: { type: 'string' }, line: { type: 'string' }, dayTotal: phNull('number'),
+  date: { type: 'string' }, weekday: { type: 'string' }, line: { type: 'string' }, code: { type: 'string' }, dayTotal: phNull('number'),
   rows: { type: 'array', items: phObj({
     time: { type: 'string' }, mark: { type: 'string', enum: ['START', 'END', ''] }, customer: { type: 'string' }, part: { type: 'string' },
     dim: { type: 'string' }, qtyText: { type: 'string' }, struck: { type: 'boolean' }, over: { type: 'string' }, bracket: { type: 'boolean' },

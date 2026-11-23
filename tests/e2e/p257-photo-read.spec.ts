@@ -117,7 +117,7 @@ test.describe('P257: photos read by Claude', () => {
     const s = await readStoredState(page);
     const e = s.production.entries.find((x: any) => x.kind === 'plated');
     expect(e).toMatchObject({ clientId: 11, qty: 108, date: T, line: 'vat-a1' });
-    expect(s.production.photos[0]).toMatchObject({ model: 'claude-opus-5-5', promptVer: 'reg-c2', page: 'production' });
+    expect(s.production.photos[0]).toMatchObject({ model: 'claude-opus-5-5', promptVer: 'reg-c3', page: 'production' });
     expect(e.photoId).toBe(s.production.photos[0].id);
     // What the read cost is the device's: 3,000 in and 1,500 out at $4 / $20 a million is 4.2¢.
     expect(await g(page, `phSpent().usd`)).toBeCloseTo(0.042, 6);

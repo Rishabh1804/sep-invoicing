@@ -23,8 +23,8 @@ At a close, the new entry replaces the one below, which moves to the top of its 
       A report with no place in the code asks the owner, with the masked message shown; the last five messages that did not go are
       kept on the device (`sep_inv_err_kept`, never on the book, not carried to a new address) and Settings → Backup, storage &
       build lists them for the owner to send.
-  - **#214** (`cd805ec`): `docs/credit-notes/` is removed; what the app's credit note does differently from the paper form is a
-    table in `docs/atlas/billing/credit-notes.md`. **Fourteen tests that assumed a working day now run on one**: they failed on
+  - **#214** (`cd805ec`): no reference document is kept in this repository (HR-10); what the app's credit note does differently
+    from the paper form is a table in `docs/atlas/billing/credit-notes.md`. **Fourteen tests that assumed a working day now run on one**: they failed on
     Sunday 22 Nov, when the app rightly says the plant is shut. `onWorkday(page)` (tests/e2e/fixtures.ts) puts a test's clock on
     the last working day; a spec that sets its own clock dates it `workdayIso()` (`docs/atlas/core/tests.md`).
 - **Live**: `app.somaelectro.co.in` serves build `49089008`, the same as `main` (read 23 Nov).

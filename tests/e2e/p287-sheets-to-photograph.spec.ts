@@ -15,6 +15,7 @@ const MON = '2026-11-23', NEXT_MON = '2026-11-30';
 function book() {
   const s: any = guardBook();
   s.staff = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, name: 'Hand ' + (i + 1), comp: i % 2 ? 'hourly' : 'monthly', area: 'vat-a1', dayRate: 500, hourRate: 50, active: true, onFloor: true }));
+  s.staff.push({ id: 31, name: 'Gate Hand', comp: 'monthly', area: 'flex', dayRate: 500, active: true, onFloor: false });
   return s;
 }
 const pages = (page: Page) => page.locator('.inv-print-view-active .inv-as-page');
@@ -64,6 +65,30 @@ test.describe('P287: sheets to photograph as they fill', () => {
     await expect(stops.locator('[data-fsh="stops"] thead')).toContainText('Stopped at');
     for (const why of ['Power', 'No material', 'Breakdown', 'Short of hands', 'Other']) await expect(stops).toContainText(why);
     await oneSheetEach(page);
+  });
+
+  test('the attendance sheet to photograph: the hands on the floor, less the ones away, and no name of the shop on it', async ({ page }) => {
+    await open(page);
+    await page.locator('#fshDate').fill(MON);
+    for (const k of ['pickling', 'barrel', 'vat-a1', 'vat-a2']) await page.locator(`[data-fsh-pick="${k}"]`).uncheck();
+    await page.locator('[data-fsh-pick="attsheet"]').check();
+    await page.locator('#fshCoded').check();
+    await page.locator('#fshSkip').fill('hand 7, Nobody');
+    await page.locator('[data-action="invFshPreview"][data-kind="blank"]').click();
+    const sheet = pages(page).first();
+    const names = await sheet.locator('table[data-as-entry] tbody tr td:nth-child(2)').allInnerTexts();
+    // 31 on the roster: the one off the floor and the one named away are left off; one spare row closes it.
+    expect(names.filter(Boolean).length).toBe(29);
+    expect(names).not.toContain('Gate Hand');
+    expect(names).not.toContain('Hand 7');
+    expect(names).toContain('Hand 8');
+    await expect(sheet).toContainText('Office and floor');
+    await expect(sheet.locator('.inv-as-sign')).toHaveText(/^Filled bySent on WhatsApp atEntered in the app by \/ on$/);
+    // A name that is nobody's is said, and the sheet still prints.
+    await expect(page.locator('.inv-toast').last()).toContainText('Not on the roster, so not left off: nobody');
+    await page.locator('[data-action="invClosePrint"]').first().click();
+    // The plain attendance sheet (Staff, Day, Print sheets) is as it was: the whole roster.
+    expect(await ev(page, `(attSheetDeepakHtml('${MON}', false).match(/<tr><td class="inv-as-tick">\\d+<\\/td><td>[^<]+<\\/td>/g) || []).length`)).toBe(31);
   });
 
   test('a run of days leaves Sundays out, and a sheet not coded prints as it always did', async ({ page }) => {

@@ -309,7 +309,19 @@ var FSH_PROD = [['pickling', 'Pickling sheet', 'loads into the tank, and materia
 // The days away (owner, 23 Nov 2026): a stack for a run of days, each sheet coded for the photo, with two sheets more.
 var FSH_STACK = [['stops', 'Stop sheet', 'the whole plant: line, stopped at, started again, why'], ['attsheet', 'Attendance sheet', 'the day\'s roster, to tick']];
 var FSH_STACK_MAX_DAYS = 31;
-var _fshTo = '', _fshStack = { coded: false, spare: true };
+var _fshTo = '', _fshStack = { coded: false, spare: true, skip: '' };
+/* The attendance sheet to photograph lists the hands on the floor, less the ones named in the dialog as away for the run.
+   A name is matched whole or by its first word, whatever the case; a name that matches nobody is said, and the sheet prints. */
+function fshAttSkipWords() { return String(_fshStack.skip || '').split(',').map(function(x) { return x.trim().toLowerCase(); }).filter(Boolean); }
+function fshAttSkipped(w, words) {
+  var n = String(w.name || '').trim().toLowerCase();
+  return (words || fshAttSkipWords()).some(function(x) { return n === x || n.split(/\s+/)[0] === x; });
+}
+function fshAttKeep(w) { return w.onFloor !== false && !fshAttSkipped(w); }
+function fshAttSkipMissed() {
+  var roster = typeof attDayRoster === 'function' ? attDayRoster(null) : [];
+  return fshAttSkipWords().filter(function(x) { return !roster.some(function(w) { return fshAttSkipped(w, [x]); }); });
+}
 function fshProdOpen() {
   if (!_fshDay) _fshDay = localDateStr();
   var pick = function(x) { return '<label class="inv-field-check"><input type="checkbox" class="inv-check" data-fsh-pick="' + x[0] + '"' + (_fshPick[x[0]] ? ' checked' : '') + '><span>' + x[1] + ' <span class="inv-note">' + x[2] + '</span></span></label>'; };
@@ -319,6 +331,7 @@ function fshProdOpen() {
     '<div class="inv-field">' + FSH_PROD.concat(FSH_STACK).map(pick).join('') + '</div>' +
     '<div class="inv-field"><label class="inv-field-check"><input type="checkbox" class="inv-check" id="fshCoded"' + (_fshStack.coded ? ' checked' : '') + '><span>To photograph as it fills <span class="inv-note">each blank sheet carries its code, a strip of half hours and the rule for a wrong row</span></span></label>' +
     '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="fshSpare"' + (_fshStack.spare ? ' checked' : '') + '><span>A spare page 2 of each <span class="inv-note">for a sheet that fills before the day ends</span></span></label></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="fshSkip">Away for the run: leave off the attendance sheet to photograph</label><input type="text" id="fshSkip" class="inv-input" data-nodirty placeholder="Names, a comma between" value="' + escHtml(_fshStack.skip) + '"></div>' +
     '<div class="inv-field-hint">Blank, to fill by hand; or as entered for the day, to file (a sheet with nothing entered is left out). A run of days leaves out Sundays and days marked shut.</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invFshPreview" data-kind="filled">As entered</button>' +
@@ -341,7 +354,7 @@ function fshBlankOf(kind, day, o) {
   if (kind === 'pickling') return fshPicklingHtml(day, false, null, o);
   if (kind === 'barrel') return fshBarrelHtml(day, false, o);
   if (kind === 'stops') return fshStopsHtml(day, o);
-  if (kind === 'attsheet') return o && o.page > 1 ? '' : attSheetDeepakHtml(day, false, o && o.coded ? '<div class="inv-as-slot" data-fsh-code="' + escHtml(fshCodeText('attsheet', day, 1)) + '">' + escHtml(fshCodeText('attsheet', day, 1)) + '</div>' : '');
+  if (kind === 'attsheet') return o && o.page > 1 ? '' : attSheetDeepakHtml(day, false, o && o.coded ? '<div class="inv-as-slot" data-fsh-code="' + escHtml(fshCodeText('attsheet', day, 1)) + '">' + escHtml(fshCodeText('attsheet', day, 1)) + '</div>' : '', fshAttKeep);
   return fshVatHtml(day, kind, false, o);
 }
 function fshProdPreview(kind) {
@@ -350,6 +363,8 @@ function fshProdPreview(kind) {
   if (t) _fshTo = t.value || '';
   if (cd) _fshStack.coded = cd.checked;
   if (sp) _fshStack.spare = sp.checked;
+  var sk = document.getElementById('fshSkip');
+  if (sk) _fshStack.skip = sk.value.trim();
   document.querySelectorAll('[data-fsh-pick]').forEach(function(el) { _fshPick[el.dataset.fshPick] = el.checked; });
   var day = _fshDay || localDateStr(), filled = kind === 'filled', h = '', left = [];
   var picked = FSH_PROD.concat(FSH_STACK).filter(function(x) { return _fshPick[x[0]]; });
@@ -366,6 +381,8 @@ function fshProdPreview(kind) {
     closeOverlay();
     fshShow(h, 'Production sheets ' + day + (days.length > 1 ? ' to ' + days[days.length - 1] : ''), { pages: ['pageProduction'] });
     if (days.length > 1) showToast(days.length + ' days, ' + document.querySelectorAll('#invPrintBody .inv-as-page').length + ' sheets', 'info');
+    var missed = _fshStack.coded && _fshPick.attsheet ? fshAttSkipMissed() : [];
+    if (missed.length) showToast('Not on the roster, so not left off: ' + missed.join(', '), 'warning');
     return;
   }
   FSH_PROD.forEach(function(x) {

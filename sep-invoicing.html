@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="27fe7721">
+<meta name="app-build" content="3bf212d4">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -48369,9 +48369,12 @@ function attSheetFillFor(iso) {
 function _asRoster(rec) { return attDayRoster(rec); }
 
 /* Deepak's sheet: blank, or filled with what the app holds for the day. */
-function attSheetDeepakHtml(iso, filled, top) {
+/* `top` and `keep` are the sheet to photograph's (facesheet.js): its code over the table, the hands it lists (a hand => bool),
+   and no name of the shop's on it: who fills it changes, and nothing about the shop is in the build. */
+function attSheetDeepakHtml(iso, filled, top, keep) {
   var rec = filled ? attDay(iso, false) : null;
   var roster = _asRoster(rec);
+  if (top && keep) roster = roster.filter(keep);
   var rows = roster.map(function(w, i) {
     var m = rec && rec.marks ? rec.marks[w.id] : null;
     var st = m ? m.st : '';
@@ -48397,7 +48400,7 @@ function attSheetDeepakHtml(iso, filled, top) {
   if (!filled || !extras.length) for (var j = 0; j < (filled ? 1 : top ? 2 : 4); j++) exRows += '<tr><td></td><td></td><td></td><td></td><td></td></tr>';
 
   var title = filled ? 'Attendance as entered in the app' : 'Attendance entry';
-  return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : 'Deepak') + (top || '') +
+  return '<div class="inv-as-page" data-sheet="' + (filled ? 'filled' : 'deepak') + '">' + _asHead(title, iso, filled ? '' : top ? 'Office and floor' : 'Deepak') + (top || '') +
     (filled && !rec ? '<div class="inv-as-note">Nothing is entered in the app for this day yet.</div>' : '') +
     '<table class="inv-as-table" data-as-entry><colgroup>' + ['num', 'name', 'tick', 'tick', 'tick', 'tick', 'area', 'area', 'area', 'area', 'time', 'time', 'fig', 'fig'].map(function(k) { return '<col data-as-col="' + k + '">'; }).join('') + '</colgroup>' +
     '<thead><tr><th class="inv-as-tick">#</th><th>Worker</th><th class="inv-as-tick">Tier</th>' +
@@ -48408,6 +48411,7 @@ function attSheetDeepakHtml(iso, filled, top) {
     '<div class="inv-as-note">Tier: M monthly, H hourly, D daily. P present, H half day, A absent. General is the area of the 8:30 to 5 shift; under Morning OT, Evening OT and Night write the area the hand stood in on that shift, or leave it blank. Hours for an hourly hand; OT for the rest.</div>' +
     (filled
       ? '<div class="inv-as-note">Printed from the app ' + escHtml(formatTimestamp(Date.now())) + '. Staple behind Shyam\'s and Deepak\'s sheets for the day.</div>'
+      : top ? '<div class="inv-as-sign"><div>Filled by</div><div>Sent on WhatsApp at</div><div>Entered in the app by / on</div></div>'
       : '<div class="inv-as-sign"><div>Filled by Shyam</div><div>Checked by Deepak</div><div>Entered in the app by / on</div></div>') +
     '</div>';
 }
@@ -73386,7 +73390,19 @@ var FSH_PROD = [['pickling', 'Pickling sheet', 'loads into the tank, and materia
 // The days away (owner, 23 Nov 2026): a stack for a run of days, each sheet coded for the photo, with two sheets more.
 var FSH_STACK = [['stops', 'Stop sheet', 'the whole plant: line, stopped at, started again, why'], ['attsheet', 'Attendance sheet', 'the day\'s roster, to tick']];
 var FSH_STACK_MAX_DAYS = 31;
-var _fshTo = '', _fshStack = { coded: false, spare: true };
+var _fshTo = '', _fshStack = { coded: false, spare: true, skip: '' };
+/* The attendance sheet to photograph lists the hands on the floor, less the ones named in the dialog as away for the run.
+   A name is matched whole or by its first word, whatever the case; a name that matches nobody is said, and the sheet prints. */
+function fshAttSkipWords() { return String(_fshStack.skip || '').split(',').map(function(x) { return x.trim().toLowerCase(); }).filter(Boolean); }
+function fshAttSkipped(w, words) {
+  var n = String(w.name || '').trim().toLowerCase();
+  return (words || fshAttSkipWords()).some(function(x) { return n === x || n.split(/\s+/)[0] === x; });
+}
+function fshAttKeep(w) { return w.onFloor !== false && !fshAttSkipped(w); }
+function fshAttSkipMissed() {
+  var roster = typeof attDayRoster === 'function' ? attDayRoster(null) : [];
+  return fshAttSkipWords().filter(function(x) { return !roster.some(function(w) { return fshAttSkipped(w, [x]); }); });
+}
 function fshProdOpen() {
   if (!_fshDay) _fshDay = localDateStr();
   var pick = function(x) { return '<label class="inv-field-check"><input type="checkbox" class="inv-check" data-fsh-pick="' + x[0] + '"' + (_fshPick[x[0]] ? ' checked' : '') + '><span>' + x[1] + ' <span class="inv-note">' + x[2] + '</span></span></label>'; };
@@ -73396,6 +73412,7 @@ function fshProdOpen() {
     '<div class="inv-field">' + FSH_PROD.concat(FSH_STACK).map(pick).join('') + '</div>' +
     '<div class="inv-field"><label class="inv-field-check"><input type="checkbox" class="inv-check" id="fshCoded"' + (_fshStack.coded ? ' checked' : '') + '><span>To photograph as it fills <span class="inv-note">each blank sheet carries its code, a strip of half hours and the rule for a wrong row</span></span></label>' +
     '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="fshSpare"' + (_fshStack.spare ? ' checked' : '') + '><span>A spare page 2 of each <span class="inv-note">for a sheet that fills before the day ends</span></span></label></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="fshSkip">Away for the run: leave off the attendance sheet to photograph</label><input type="text" id="fshSkip" class="inv-input" data-nodirty placeholder="Names, a comma between" value="' + escHtml(_fshStack.skip) + '"></div>' +
     '<div class="inv-field-hint">Blank, to fill by hand; or as entered for the day, to file (a sheet with nothing entered is left out). A run of days leaves out Sundays and days marked shut.</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invFshPreview" data-kind="filled">As entered</button>' +
@@ -73418,7 +73435,7 @@ function fshBlankOf(kind, day, o) {
   if (kind === 'pickling') return fshPicklingHtml(day, false, null, o);
   if (kind === 'barrel') return fshBarrelHtml(day, false, o);
   if (kind === 'stops') return fshStopsHtml(day, o);
-  if (kind === 'attsheet') return o && o.page > 1 ? '' : attSheetDeepakHtml(day, false, o && o.coded ? '<div class="inv-as-slot" data-fsh-code="' + escHtml(fshCodeText('attsheet', day, 1)) + '">' + escHtml(fshCodeText('attsheet', day, 1)) + '</div>' : '');
+  if (kind === 'attsheet') return o && o.page > 1 ? '' : attSheetDeepakHtml(day, false, o && o.coded ? '<div class="inv-as-slot" data-fsh-code="' + escHtml(fshCodeText('attsheet', day, 1)) + '">' + escHtml(fshCodeText('attsheet', day, 1)) + '</div>' : '', fshAttKeep);
   return fshVatHtml(day, kind, false, o);
 }
 function fshProdPreview(kind) {
@@ -73427,6 +73444,8 @@ function fshProdPreview(kind) {
   if (t) _fshTo = t.value || '';
   if (cd) _fshStack.coded = cd.checked;
   if (sp) _fshStack.spare = sp.checked;
+  var sk = document.getElementById('fshSkip');
+  if (sk) _fshStack.skip = sk.value.trim();
   document.querySelectorAll('[data-fsh-pick]').forEach(function(el) { _fshPick[el.dataset.fshPick] = el.checked; });
   var day = _fshDay || localDateStr(), filled = kind === 'filled', h = '', left = [];
   var picked = FSH_PROD.concat(FSH_STACK).filter(function(x) { return _fshPick[x[0]]; });
@@ -73443,6 +73462,8 @@ function fshProdPreview(kind) {
     closeOverlay();
     fshShow(h, 'Production sheets ' + day + (days.length > 1 ? ' to ' + days[days.length - 1] : ''), { pages: ['pageProduction'] });
     if (days.length > 1) showToast(days.length + ' days, ' + document.querySelectorAll('#invPrintBody .inv-as-page').length + ' sheets', 'info');
+    var missed = _fshStack.coded && _fshPick.attsheet ? fshAttSkipMissed() : [];
+    if (missed.length) showToast('Not on the roster, so not left off: ' + missed.join(', '), 'warning');
     return;
   }
   FSH_PROD.forEach(function(x) {

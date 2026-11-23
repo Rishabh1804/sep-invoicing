@@ -4,7 +4,7 @@ domain: floor
 modules: [split/faces.js, split/facesheet.js, split/flow.js]
 specs: [docs/ENTRY_FACES.md]
 tests: [P195, P199, P200, P201, P202, P203, P204, P287]
-updated: 2026-11-23 (a sheet to photograph as it fills: the code, the strip, the stop sheet, a run of days; P287); 2026-11-17 (a client's payment terms are the book's: the once-only migration that set them by name is removed; the pickling load says where it is going, P265)
+updated: 2026-11-23 (a sheet to photograph as it fills: the code, the strip, the stop sheet, a run of days; its attendance sheet lists the floor less the ones away; P287); 2026-11-17 (a client's payment terms are the book's: the once-only migration that set them by name is removed; the pickling load says where it is going, P265)
 ---
 
 ### Entry faces
@@ -168,7 +168,9 @@ build: the people are the book's.
     coded sheet has five rows fewer, the room the code, the strip and the rule take. Two sheets join the four: **the stop sheet**
     (`fshStopsHtml`: one for the whole plant, a stop a row: the line, stopped at, started again at, why, of Power, No material,
     Breakdown, Short of hands, Other) and **the attendance sheet** (attsheet.js, coded, one page: the roster is its rows; with
-    the code it keeps one spare row and two EXTRA rows). A sheet not ticked prints as it always did.
+    the code it keeps one spare row and two EXTRA rows). Coded, it lists **the hands on the floor only**, less the ones named in
+    the dialog as **away for the run** (`fshAttKeep`; a name whole or by its first word; a name that is nobody's is said and the
+    sheet prints), and it names nobody of the shop: who fills it changes (owner, 23 Nov 2026). A sheet not ticked prints as it always did.
   Filled, a sheet is the app's record of the day, whoever entered it, each row saying through which door (Mine and who, WhatsApp
   and who sent it, a register photo, by hand); a voided or corrected record never reaches paper. A VAT page entered on Mine prints as
   typed (the paper's ditto under a run's client and part), unless the owner voided or corrected one of its runs in Production

@@ -380,14 +380,15 @@ function relayStockResumes(bare) {
   var k = relaySlotOrArea(bare);
   return !!(k && k.slot);
 }
-function relayStockTail(text) {
+function relayStockTail(text, toEnd) {
   var lines = String(text || '').split('\n');
   for (var i = 1; i < lines.length; i++) {
     var bare = lines[i].trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
     if (!bare) continue;
     if (RELAY_STOCK_HEAD_RE.test(bare)) {
       var end = lines.length;
-      for (var j = i + 1; j < lines.length; j++) {
+      // `toEnd`: the tail as it was read before 25 Nov 2026, to the message's end (a stock saved then hashed it so).
+      for (var j = i + 1; j < lines.length && !toEnd; j++) {
         var b2 = lines[j].trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
         if (b2 && relayStockResumes(b2)) { end = j; break; }
       }
@@ -527,7 +528,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     // "EXTRA16 HOURS" (a roll of Nov 2026): the figure written against the word is its hours, as with a space.
     var ex = bare.match(/\bextra(?:\b|(?=\d))\W*(\d+(?:\.\d+)?)\s*(?:h|$)/i) || bare.match(/\bextra(?:\b|(?=\d))\W*(\d+(?:\.\d+)?)(?!\s*(?:[:.]\s*\d|[ap]\.?\s?m\b)|\d)/i);
     var exNoHours = false;
-    if (!ex && /\bextra\b/i.test(bare) && relayTimes(bare).length) { ex = [bare.match(/\bextra\b/i)[0], '0']; exNoHours = true; }
+    if (!ex && /\bextra(?:\b|(?=\d))/i.test(bare) && relayTimes(bare).length) { ex = [bare.match(/\bextra(?:\b|(?=\d))/i)[0], '0']; exNoHours = true; }
     if (ex && !/^\d+\)/.test(bare)) {
       var hrs = +ex[1];
       var times = relayTimes(bare.replace(ex[0], ''));

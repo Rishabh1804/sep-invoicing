@@ -110,6 +110,25 @@ test.describe('P289: the WhatsApp readers against the owner’s export', () => {
     expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.dest])).toEqual([[11, 'CLAMP 73X88(25X6)', 860, 'vat-a1'], [11, '71X81(30X6)', 410, 'vat-a2']]);
   });
 
+  test('the review’s cases: a line for the block under, a weight with decimals, an unmarked time after midnight, a list that writes its times under', async ({ page }) => {
+    await load(page);
+    // Loads with their line already leave the next "FOR …" under a time to the block below it.
+    let m = await read(page, `${D.dmy}, 11:30 am - Pickler: FOR VAT A1\nNOVA CLAMPS\nBOLT--400 NOS\nPICKLING TIME 10:00 AM\nFOR VAT A2\nRING--300 NOS\nPICKLING TIME 11:00 AM`);
+    expect(m[0].items.map(i => [i.part, i.dest])).toEqual([["BOLT", "vat-a1"], ["RING", "vat-a2"]]);
+    // "HOOK--12.50" is 12.5 kg, never a time.
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: KESTREL\nHOOK--12.50\nPickling time 10:30 am`);
+    expect(m[0].items[0]).toMatchObject({ part: 'HOOK', qty: 12.5, unit: 'KG', time: '10:30' });
+    // Sent at 12:12 AM, "11:30" with no AM or PM is the evening's 11:30 the day before.
+    m = await read(page, `${D.dmy}, 12:12 am - Pickler: NOVA CLAMPS\nRING--500 nos\nPickling time 11:30`);
+    expect(m[0].items[0]).toMatchObject({ date: D0.iso, time: '23:30' });
+    // A list that writes each unload time under its batch keeps doing so, the first batch loaded the night before.
+    m = await read(page, `${D.dmy}, 3:09 pm - Supervisor: ${D.dmy}/ BERRAL PRODUCTION\n9:00 AM UNLOAD\nNOVA CLAMP 200 NOS\n10:30 AM UNLOAD\nKESTREL 300 KG\n12:00 PM UNLOAD\nDURGA 50 KG 1:00 PM UNLOAD`);
+    expect(m[0].items.map(i => [i.clientId, i.qty, i.to])).toEqual([[11, 200, '10:30'], [13, 300, '12:00'], [12, 50, '13:00']]);
+    // "EXTRA5 PM TO 6 AM": a span with no hours, kept and asked, as with a space.
+    const r = await roll(page, `${D.dmy}/ OUT TIME\n----8:00 PM----\n1) ALFA\nEXTRA5 PM TO 6 AM`, D.iso, 600);
+    expect(r.issues.some(i => /writes times, not hours/.test(i))).toBe(true);
+  });
+
   test('a numbered barrel list: its numbers are no part, a time alone heads the batches under it', async ({ page }) => {
     await load(page);
     const m = await read(page, `${D.dmy}, 3:09 pm - Supervisor: ${D.dmy}/ BERRAL UPDATED
@@ -188,12 +207,39 @@ GENERAL 210 CD 2000 NOS`, D.iso, 600);
       return {
         cuts: S.production.entries.filter(function(e) { return e.kind === 'downtime'; }).map(function(e) { return [e.date, e.time, e.to, e.downtime && e.downtime.open]; }),
         stock: (S.stock.entries || []).map(function(e) { return [items[e.itemId], e.qty, e.date]; }).sort(),
-        status: S.messages.filter(function(m) { return m.importId === 'IMP-P289' || true; }).map(function(m) { return m.kind + ':' + m.status; }).sort(),
+        status: S.messages.map(function(m) { return m.kind + ':' + m.status; }).sort(),
       };
     })()`) as any;
     expect(got.cuts).toEqual([[D.iso, '12:48', '12:55', false]]);
     expect(got.stock.length).toBeGreaterThanOrEqual(2);
     expect(got.stock.every((x: any) => x[2] === D.iso)).toBe(true);
     expect(got.status).toEqual(['in:saved', 'power:saved', 'power:saved']);
+  });
+  test('the messages’ check: a power back alone with no cut is not offered; one whose cut was saved before closes it; a roll’s stock saved before is not saved again', async ({ page }) => {
+    await load(page);
+    const wa = (at: string, who: string, text: string) => `${D.dmy}, ${at} - ${who}: ${text}`;
+    // No cut before it, stored or sent: listed, not offered.
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(wa('1:00 pm', 'Pickler', 'POWER IN 12:55PM'))}), 'zip', 'IMP-A'); saveState(); mcOpen({ importId: 'IMP-A' }); })()`);
+    await expect(page.locator('[data-mc]')).toBeVisible();
+    expect(await ev(page, `_mc.read ? Object.keys(_mc.read).map(function(k){ var r = _mc.read[k]; return r.kind + ':' + r.tickable + ':' + (r.blocked || ''); }) : []`)).toEqual(['power:false:No cut before it to close: open it in Messages.']);
+    await ev(page, `mcClose ? mcClose() : null`);
+    // A cut stored open that day: the power back sent on its own closes it.
+    await ev(page, `(function(){ S.production.entries.push({ id: 'PE-CUT', kind: 'downtime', date: ${JSON.stringify(D.iso)}, time: '12:48', to: null, downtime: { open: true }, src: 'paste', basis: 'relay', pasteId: 'PP-CUT', raw: 'Power cut 12:48 pm' }); S.production.pastes.push({ id: 'PP-CUT', at: 1, day: ${JSON.stringify(D.iso)}, kind: 'power', text: 'Power cut 12:48 pm' }); S.messages = []; saveState(); })()`);
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(wa('1:00 pm', 'Pickler', 'POWER IN 12:55PM'))}), 'zip', 'IMP-B'); saveState(); mcOpen({ importId: 'IMP-B' }); })()`);
+    await page.locator(`[data-action="invMsgMcGroup"][data-key="g:${D.iso}:power"]`).click();
+    await page.locator('[data-action="invMsgMcSave"]').click();
+    await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('1');
+    expect(await ev(page, `(function(){ var c = S.production.entries.find(function(e){ return e.id === 'PE-CUT'; }); return [c.to, c.downtime.open]; })()`)).toEqual(['12:55', false]);
+  });
+
+  test('a roll’s stock saved before through Read in Stock, the night under it in its tail, is not saved again', async ({ page }) => {
+    await load(page);
+    const text = `${D.dmy}/ IN TIME\n-------8:30 AM-----\n----VAT 1-----\n01) ALFA\n------------------\nCHEMICAL USE CHEMICAL STOCK\n1) A SOLLT 48-4=44 LTR\n2) HCL 440-100=340 LTR\n--8:00 PM TO 6:00 AM-\n------NIGHT HOLD------\n1) ECHO\nEXTRA 10 HOURS`;
+    // The stock as Read in Stock saved it before 25 Nov 2026: its tail ran to the message's end.
+    await ev(page, `(function(){ var full = relayStockTail(${JSON.stringify(text)}, true); S.stock = S.stock || {}; S.stock.pastes = [{ id: 'SP-OLD', hash: stockHash(full), text: full }]; S.stock.entries = [{ id: 'SE-OLD', pasteId: 'SP-OLD', itemId: 'X', kind: 'count', qty: 44, date: ${JSON.stringify(D.iso)} }]; saveState(); })()`);
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(`${D.dmy}, 11:24 am - Supervisor: ` + text)}), 'zip', 'IMP-S'); saveState(); mcOpen({ importId: 'IMP-S' }); })()`);
+    await page.locator('[data-action="invMsgMcSave"]').click();
+    await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('1');
+    expect(await ev(page, `S.stock.entries.length`)).toBe(1);
   });
 });

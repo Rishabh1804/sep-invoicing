@@ -255,8 +255,10 @@ function parsePickling(msg, ctx) {
   var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
   // Sent after midnight with no date written, a load pickled in the evening is the evening before ("RING--1000 nos /
   // Pickling time 6:30 pm", sent at 12:12 AM; owner, 25 Nov 2026): it had been dated the day it was sent.
-  var dayOf = function(it, min) {
+  var dayOf = function(it, min, tt) {
     if (dateWritten || !msg.sentOn || msg.sentAt == null || msg.sentAt >= PROD_REG_DAY_START || min == null || min <= msg.sentAt + 30) return;
+    // "Pickling time 11:30" with no AM or PM, sent at 12:12 AM: the evening's 11:30, as the day before is.
+    if (tt && tt.issue && tt.issue.code === 'meridiem' && min < 720) { min += 720; it.time = prodHhmm(min); it.issues = it.issues.filter(function(x) { return x.code !== 'meridiem'; }); }
     it.date = isoAddDays(msg.sentOn, -1);
     it.issues = it.issues.filter(function(x) { return x.code !== 'later' && x.code !== 'nodate'; });
     it.issues.push({ tone: 'amber', code: 'evebefore', text: 'Sent at ' + relayClockLabel(msg.sentAt) + ' with no date: ' + relayClockLabel(min) + ' is read as the evening before, ' + it.date + '.' });
@@ -267,7 +269,7 @@ function parsePickling(msg, ctx) {
       it.kind = kind;
       var tt = it.ownTime || t;
       delete it.ownTime;
-      if (tt) { it.time = prodHhmm(tt.min); if (tt.issue) it.issues.push(tt.issue); dayOf(it, tt.min); }
+      if (tt) { it.time = prodHhmm(tt.min); if (tt.issue) it.issues.push(tt.issue); dayOf(it, tt.min, tt); }
       if (kind === 'pickled' && !it.dest && blockDest) it.dest = blockDest;
       if (kind !== 'pickled') delete it.dest;
       items.push(it); lastFlushed.push(it);
@@ -345,7 +347,9 @@ function parsePickling(msg, ctx) {
     // where the loads that time closed are going.
     var dl = prodDestOfLine(line);
     if (dl) {
-      if (wasAfterTime && !pendingParts.length && lastFlushed.length) lastFlushed.forEach(function(x) { if (x.kind === 'pickled' && !x.dest) x.dest = dl; });
+      var openDest = wasAfterTime && !pendingParts.length ? lastFlushed.filter(function(x) { return x.kind === 'pickled' && !x.dest; }) : [];
+      // Loads that already have their line ("FOR VAT A1" above them) leave this one to the block under it.
+      if (openDest.length) openDest.forEach(function(x) { x.dest = dl; });
       else blockDest = dl;
       return;
     }
@@ -357,7 +361,8 @@ function parsePickling(msg, ctx) {
     // "VAT A 1 NOVA CLAMP 73×88=25×6=860 NOS": a line written before the load is where it is going (owner, 25 Nov 2026).
     var leadDest = null, lead = line.match(new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\s*[-–:]*\\s+(?=[A-Za-z0-9])', 'i'));
     if (lead && prodLineOfToken(lead[1]) && /\d/.test(line.slice(lead[0].length))) { leadDest = prodLineOfToken(lead[1]); line = line.slice(lead[0].length).trim(); }
-    var ownTime = null, otm = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|–|—|,)\s*(\d{1,2}\s*[:.]\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[ap]\.?\s?m\.?)\s*$/i.exec(line);
+    // A time needs its colon or its AM/PM: "HOOK--12.50" is 12.5 kg, never 12:50.
+    var ownTime = null, otm = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|–|—|,)\s*(\d{1,2}\s*:\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[:.]\s*\d{2}\s*[ap]\.?\s?m\.?|\d{1,2}\s*[ap]\.?\s?m\.?)\s*$/i.exec(line);
     if (otm && !/\d\s*(nos|no|pcs|pc|kgs?|k)\b/i.test(otm[1])) { ownTime = prodTimeOf(otm[2], msg.sentAt); line = otm[1].trim(); }
     var it = prodReadItem(line, ctx.clients);
     var clientLine = !it.part && it.qty == null && it.clientId != null;
@@ -492,6 +497,18 @@ function prodIsBatchList(lines) {
 function parseBarrelBatches(msg, ctx, lines) {
   var items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, power = {};
   var pending = [], loading = null, skip = -1, headUn = null;
+  // Times written over their batches, or under them: a numbered list writes them over, and so does one whose last unload
+  // time alone on its line has a batch written under it. A list that writes them under ends on its last unload.
+  var aloneUn = function(l) { var c = prodUnnumber(l).trim(); return PROD_UNLOAD_RE.test(c) && PROD_CLOCK_RE.test(c) && !/\d\s*(kg|kgs|nos|no|pcs)\b/i.test(c); };
+  var timesFirst = lines.some(function(l) { return /^\s*\(?\d{1,2}\s*\)/.test(l) && PROD_UNLOAD_RE.test(l); });
+  if (!timesFirst) {
+    var lastAlone = -1;
+    lines.forEach(function(l, k) { if (aloneUn(l)) lastAlone = k; });
+    if (lastAlone >= 0) {
+      var after = lines.slice(lastAlone + 1).map(function(l) { return l.trim(); }).filter(Boolean)[0] || '';
+      timesFirst = !!after && !PROD_UNLOAD_RE.test(after) && !PROD_LOADING_RE.test(after) && /\d\s*(kg|kgs|nos|no|pcs)\b/i.test(after);
+    }
+  }
   var clockOf = function(s) {
     var m = PROD_CLOCK_RE.exec(s);
     if (!m) return null;
@@ -623,7 +640,7 @@ function parseBarrelBatches(msg, ctx, lines) {
     }
     // "2) 10:30 AM UNLOAD" over "DELTA CLAMP 200 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
     // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
-    if (un && !recs.length && !pending.length && un.min != null) { headUn = un; return; }
+    if (timesFirst && un && !recs.length && !pending.length && un.min != null) { headUn = un; return; }
     if (un) { headUn = null; close(pending.concat(recs), un); pending = []; }
     else if (headUn) close(recs, headUn);
     else pending = pending.concat(recs);

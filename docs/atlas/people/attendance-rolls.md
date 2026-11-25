@@ -3,8 +3,8 @@ subject: "Attendance: rolls from WhatsApp, the register, paper, needed per shift
 domain: people
 modules: [split/attreg.js, split/attsheet.js, split/relay.js, split/staff.js]
 specs: []
-tests: [P43, P96, P98, P161, P207, P221, P251, P272]
-updated: 2026-11-17 (the register's cell: Enter, or one press of Next day, goes on to the next day, P272)
+tests: [P43, P96, P98, P161, P207, P221, P251, P272, P289]
+updated: 2026-11-25 (the stock in a roll, the night under it, numbering marks: P289); 2026-11-17 (the register's cell: Enter, or one press of Next day, goes on to the next day, P272)
 ---
 
 ### Attendance rolls from WhatsApp
@@ -191,3 +191,14 @@ five things had gone wrong; each is fixed, and the week's payout read from the o
   The 24th's night (three hands, EXTRA 39 h) had been in neither payout.
 - **Found, not the parser's**: the 29th's out-time roll was never pasted (the day typed by hand missed four hands' 8 PM and one hand's
   night), and the night schedule in the book runs 5:30 PM to 8:30 AM where the rolls and the owner's corrections end the night at 6 AM.
+
+### The rolls set against the owner's export (25 Nov 2026)
+From every roll in the group's export (P289; the production side is `docs/atlas/floor/production-readers.md`):
+- **The night written under the chemical stock** ("CHEMICAL USE CHEMICAL STOCK … / --8:00 PM TO 6:00 AM- / NIGHT HOLD"): the roll had
+  ended at the stock, and the night hold under it was never read (a roll of 23 Nov 2026: 40 hours). The stock is skipped and the
+  roll takes up again at a slot heading or NIGHT HOLD (`relayStockResumes`); `relayStockTail` is the stock alone.
+- **Numbering marks and a time against a name**: "07);NAME" and "NAME7:00 am" read as the name (they had been asked as names not on
+  the roster); "EXTRA16 HOURS" is 16 hours.
+- **A hand named twice under one heading** is said, amber: one of the two may be someone else (a 6 AM block of four named one hand
+  twice, and the fourth was booked to 8:30).
+- **Work under the notes** with a count or a weight ("GENERAL 210 CD 2000 NOS") is never a slot heading.

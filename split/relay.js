@@ -372,12 +372,27 @@ function relayIsChemList(text) {
    (parseRelayRoll), and from that line on is a stock message. A roll stopped earlier by another message's dated line has
    none. '' when there is none. */
 var RELAY_STOCK_HEAD_RE = /^c[ae]mical\s+(use|stock)\b|^chemical\s+(use|stock)\b/i;
+/* Where the roll takes up again under the stock written into it: a slot heading ("--8:00 PM TO 6:00 AM-", "NIGHT HOLD"). The
+   supervisor writes the night after the stock (owner, 25 Nov 2026); the roll had ended at the stock, and the night with it. */
+function relayStockResumes(bare) {
+  if (/\bnight\s*h[oa]ld\b/i.test(bare)) return true;
+  if (/^\d{1,2}\s*\)/.test(bare) || !relayTimes(bare).length) return false;
+  var k = relaySlotOrArea(bare);
+  return !!(k && k.slot);
+}
 function relayStockTail(text) {
   var lines = String(text || '').split('\n');
   for (var i = 1; i < lines.length; i++) {
     var bare = lines[i].trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
     if (!bare) continue;
-    if (RELAY_STOCK_HEAD_RE.test(bare)) return lines.slice(i).join('\n').trim();
+    if (RELAY_STOCK_HEAD_RE.test(bare)) {
+      var end = lines.length;
+      for (var j = i + 1; j < lines.length; j++) {
+        var b2 = lines[j].trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+        if (b2 && relayStockResumes(b2)) { end = j; break; }
+      }
+      return lines.slice(i, end).join('\n').trim();
+    }
     var dd = bare.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?\s*(.*)$/);
     if (dd && isoFromDmy(dd[1], dd[2], dd[3]) && /c[ae]mical|chemical|stock|in\s*-*\s*time|out\s*-*\s*time/i.test(dd[4])) return '';
   }
@@ -469,13 +484,18 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     var bare = line.replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
     if (!bare || st.stop) return;
     out.lines.push(ln);
+    if (st.inStock) {
+      if (!relayStockResumes(bare)) { ln.role = 'note'; ln.read = 'Chemical stock: read in Stock'; return; }
+      st.inStock = false;
+    }
 
     // The chemical stock written into the same message, under its own heading
     // and no date ("camical use camical stock"): the roll ends there, and the stock is Stock's (relayStockTail). More is
     // retired: the stock is read in Stock (the review's Read in Stock hands it over).
     if (RELAY_STOCK_HEAD_RE.test(bare)) {
-      st.stop = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; it is read in Stock';
-      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. It is read in Stock (Read in Stock, or Stock → Paste message).' });
+      // The roll takes up again at a slot heading under the stock (relayStockResumes): the night is written there.
+      st.inStock = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; it is read in Stock';
+      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. It is read in Stock (Read in Stock, or Stock → Paste message), and saved with the roll from the messages’ check.' });
       return;
     }
     // A date inside the roll: a holiday, or a second day's block ("16/08/26/ Sunday").
@@ -504,7 +524,8 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     // EXTRA hours: booked to the section it sits in. A number that is a clock time is not hours: "EXTRA 5 PM TO 6 AM"
     // read as 5 hours (the QA of 30 Sep 2026, on a roll of 25 Sep). Such a tag writes a span and no hours, and is kept at
     // 0 h and asked about, never given hours the roll did not write.
-    var ex = bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)\s*(?:h|$)/i) || bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)(?!\s*(?:[:.]\s*\d|[ap]\.?\s?m\b)|\d)/i);
+    // "EXTRA16 HOURS" (a roll of Nov 2026): the figure written against the word is its hours, as with a space.
+    var ex = bare.match(/\bextra(?:\b|(?=\d))\W*(\d+(?:\.\d+)?)\s*(?:h|$)/i) || bare.match(/\bextra(?:\b|(?=\d))\W*(\d+(?:\.\d+)?)(?!\s*(?:[:.]\s*\d|[ap]\.?\s?m\b)|\d)/i);
     var exNoHours = false;
     if (!ex && /\bextra\b/i.test(bare) && relayTimes(bare).length) { ex = [bare.match(/\bextra\b/i)[0], '0']; exNoHours = true; }
     if (ex && !/^\d+\)/.test(bare)) {
@@ -605,7 +626,9 @@ function parseRelayRoll(text, roster, sentOn, opts) {
       var nb = bare.match(/^0*(\d{1,2})\s+([A-Za-z].*)$/), nh = nb ? relayMatchName(nb[2].split(/[\s\-–,]+/).filter(Boolean), idx, false) : null;
       if (nh && nh.sure) numbered = nb;
     }
-    var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
+    // "07);NAME" (a roll of 21 Nov 2026): the stray mark after the number is not the name's. "NAME7:00 am": a time written
+    // against the name is the name and its time (a roll of 26 Sep 2026). Both had been asked as names not on the roster.
+    var body = (numbered ? numbered[2].replace(/^[.)\]:;,\s]+/, '').trim() : bare).replace(/^([A-Za-z]{2,})(\d{1,2}\s*[:.]\s*\d{2})/, '$1 $2');
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
     // A heading that is a night or a span ("NIGHT HOLD-8 PM TO 6 AM") is a heading, though its first word is a hand's first name
@@ -616,7 +639,9 @@ function parseRelayRoll(text, roster, sentOn, opts) {
       if (headK && headK.slot && (headK.night || (headK.start != null && headK.end != null)) &&
           relayKey(words.slice(0, hit.used).join('')) !== relayKey(hit.w.name)) hit = null;
     }
-    var isHeaderish = !numbered && !hit && relaySlotOrArea(bare);
+    // "GENERAL 210 CD 2000 NOS" under the production notes (a roll of 23 Nov 2026) is work, not the general shift's heading: a line
+    // with a count or a weight heads nothing. It had closed the night above it as an 8:30-to-5 slot.
+    var isHeaderish = !numbered && !hit && !/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(bare) && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {
       var kindH = isHeaderish;
@@ -764,6 +789,9 @@ function parseRelayRoll(text, roster, sentOn, opts) {
       p.st = 'A';
     } else {
       if (!st.sec || st.sec.prod) { newSection([], null); st.sec.slotOnly = true; }
+      // The same hand twice under one heading (owner, 25 Nov 2026: a 6 AM block of four named one of them twice, and the fourth,
+      // who was there, was booked to 8:30): one of the two is someone else. Said, never guessed.
+      if (st.sec.crewIds.indexOf(w.id) >= 0) out.issues.push({ tone: 'amber', n: ln.n, text: w.name + ' is named twice under this heading: one of the two may be someone else. Check the hand who was there.' });
       st.sec.crew.push(w.name);
       st.sec.crewIds.push(w.id);
       var areas = st.sec ? st.sec.areas : [];

@@ -3,8 +3,8 @@ subject: "WhatsApp messages, photos and the Tata release read by Claude"
 domain: platform
 modules: [split/msgconfirm.js, split/msgprofile.js, split/msgstore.js, split/msgview.js, split/photoread.js, split/scanner.js, split/tatarelease.js, split/wazip.js]
 specs: [docs/MESSAGES.md]
-tests: [P253, P256, P257, P263, P288]
-updated: 2026-11-23 (a coded sheet photographed again replaces its earlier reading, P288); 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P253, P256, P257, P263, P288, P289]
+updated: 2026-11-25 (the stock in a roll saved with it, a power back on its own: P289); 2026-11-23 (a coded sheet photographed again replaces its earlier reading, P288); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### WhatsApp messages: kept, read, confirmed
@@ -27,6 +27,10 @@ the last message of each kind the book holds). P253–P256.
   space on the desktop. A mark typed by hand the rolls disagree with is kept unless the message is used, hand by hand or for all (the
   same as People's paste, `relayPlan`'s `differs`). What nothing here saves (not read, weekly payment summaries) is one panel shut at the
   foot. One save writes through each reader's own core (`relayApplyPlan`, `prodSaveCore`, `stockCommitPaste`, `cashSaveCore`).
+- **The stock written into a roll** is read as Stock reads it, said on the roll's row (*Chemical stock: N lines, saved with the roll*)
+  and saved with the roll, on the roll's day where it writes none (`mcRollStockParse`; owner, 25 Nov 2026). It had been read nowhere.
+  **A power back sent on its own** ("POWER IN 12:55PM") is a row of its own, ticked with the cut it closes and saved with it; it
+  had been listed as a message with nothing in it, and the cut saved still open. P289.
 - **Messages** (msgview.js, a top-bar tool, the owner's; `?tab=pageMessages`): the list by day with its verdict; one message is its
   reader's check, its questions, each line beside what was read from it, its kind set by hand (a lesson for the sorter), its text edited
   and read again with what moved; *Read every message again* lists what the reader as it is now reads differently, writing nothing.

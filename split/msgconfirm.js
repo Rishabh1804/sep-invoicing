@@ -98,6 +98,13 @@ function mcReadRoll(rec, o) {
   if (!(S.staff || []).length) o.blocked = 'Add the roster first: People → Roster.';
   else if (!days.length) o.blocked = 'No date to put it on: open it in its review.';
   o.review = 'roll';
+  // The chemical stock written into the roll (owner, 25 Nov 2026): read as Stock reads it, and saved with the roll.
+  var tail = relayStockTail(rec.text);
+  if (tail) {
+    var sp = mcRollStockParse(rec, o.day);
+    o.stock = sp.lines.length ? sp : null;
+    if (o.stock) o.what.push('Chemical stock: ' + todoPlural(sp.lines.length, 'line') + ', saved with the roll');
+  }
   days.forEach(function(iso) {
     var d = r.days[iso], c = { P: 0, H: 0, A: 0 };
     Object.keys(d.people || {}).forEach(function(id) { var st = d.people[id].st; c[st] = (c[st] || 0) + 1; });
@@ -114,6 +121,16 @@ function mcReadProd(rec, o) {
   o.review = 'prod';
   msgs.forEach(function(m) { items += m.read.items.length; });
   o.key = msgs.map(function(m) { return m.hash; }).join('|');
+  // "POWER IN 12:55PM" sent on its own after "Power cut 12:48 pm" (owner, 25 Nov 2026): the power back closes the cut sent
+  // before it, so it is ticked and saved with it. Blocked as a message with nothing in it, the cut had been saved still open.
+  var backs = [];
+  msgs.forEach(function(m) { (m.read.notes || []).forEach(function(nt) { if (nt.powerIn && nt.powerIn.min != null) backs.push(nt.powerIn.min); }); });
+  if (!items && backs.length) {
+    o.day = msgs[0].read.date || o.day;
+    o.what = backs.map(function(min) { return 'Power back ' + relayClockLabel(min) + ': the end of the cut sent before it'; });
+    o.sum = { clients: [], NOS: 0, KG: 0 };
+    return;
+  }
   if (!items) { o.blocked = 'Its reader found no load, run or cut in it: open it in Messages.'; return; }
   o.day = msgs[0].read.date || o.day;
   var res = prodReviewResolve({ msgs: msgs, choices: {} }), saving = 0;
@@ -140,6 +157,12 @@ function mcStockParse(rec) {
   var text = mcWaText(rec), parsed = parseStockMessage(text);
   parsed.text = text;
   if (!parsed.to) { parsed.from = parsed.to = rec.sentOn || localDateStr(); parsed.noDate = true; }
+  return parsed;
+}
+/* The stock under a roll, as Stock's check reads it: on the roll's day where it writes none of its own. */
+function mcRollStockParse(rec, day) {
+  var parsed = mcStockParse(Object.assign({}, rec, { text: relayStockTail(rec.text) }));
+  if (parsed.noDate && day) parsed.from = parsed.to = day;
   return parsed;
 }
 function mcReadStock(rec, o) {
@@ -574,14 +597,27 @@ async function mcSave() {
     prodData().entries.slice(before).forEach(function(e) { day(e.date).prod++; });
     spans.forEach(function(sp) {
       var ids = [];
-      for (var i = sp.from; i < sp.to; i++) if (done.pasteIds[i]) ids.push(done.pasteIds[i]);
+      for (var i = sp.from; i < sp.to; i++) {
+        if (done.pasteIds[i]) ids.push(done.pasteIds[i]);
+        // A power back alone saves nothing of its own: it is saved with the cut it closed in this batch.
+        else (msgs[i].read.notes || []).forEach(function(nt) { if (nt.closes && done.pasteIds[nt.closes.mi] && ids.indexOf(done.pasteIds[nt.closes.mi]) < 0) ids.push(done.pasteIds[nt.closes.mi]); });
+      }
       if (ids.length) { ids.forEach(function(pid) { msgMarkSaved(sp.r.id, 'production.pastes', pid); }); out.saved.push(sp.r); }
       else out.skipped.push({ r: sp.r, why: 'Saved before' });
     });
     break;
   }
 
-  // 3. Stock, a message at a time, as Stock's paste check saves one.
+  // 3. Stock, a message at a time, as Stock's paste check saves one; then the stock written into a roll saved above.
+  rolls.filter(function(r) { return r.stock && out.saved.indexOf(r) >= 0; }).sort(chrono).forEach(function(r) {
+    var parsed = mcRollStockParse(r.rec, r.day), res = resolveStockParse(parsed, {});
+    if (res.dup) return;
+    var st = stockData(), before = st.entries.length;
+    var made = stockCommitPaste(parsed, res, { sentBy: parsed.sentBy, by: stockBy(), choices: {} });
+    if (!made.entries) { out.left.push({ r: r, why: 'Its chemical stock was not saved: a line needs its name in Stock' }); return; }
+    st.entries.slice(before).forEach(function(e) { day(e.date).stock++; });
+    msgMarkSaved(r.id, 'stock.pastes', st.pastes[st.pastes.length - 1].id);
+  });
   go.filter(function(r) { return r.kind === 'stock'; }).sort(chrono).forEach(function(r) {
     var parsed = mcStockParse(r.rec);
     if (!parsed.lines.length) { out.left.push({ r: r, why: 'No stock lines read' }); return; }

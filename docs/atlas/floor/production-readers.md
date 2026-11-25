@@ -3,13 +3,13 @@ subject: "Production readers: slots as text, the barrel list, the night block"
 domain: floor
 modules: [split/prodparse.js]
 specs: []
-tests: [P189, P220, P222, P264, P277]
-updated: 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+tests: [P189, P220, P222, P264, P277, P289]
+updated: 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
 Owner, 9 Oct 2026: *"When I paste '08/10/26 - / 5 pm - 8 pm - Mehta clamp 165x83(40x6) - 400 nos + Clamp 140/146x91(32x6) - 606 nos =
-1006 nos VAT A1 / 9 PM - 4 AM - General 188 CD - 300.4 KG VAT A1' as a production message, the parser refuses to read it … Same for
+1006 nos VAT A1 / 9 PM - 4 AM - General 210 CD - 300.4 KG VAT A1' as a production message, the parser refuses to read it … Same for
 Barrel and VAT A2."* A message whose lines start with two times (`prodIsRunLog`) is its own kind, **Production by slot**
 (`parseProductionRuns`, prodparse.js), checked before power since a slot log can carry a cut: the date line; the times, AM or PM taken
 from the other side or from the shop's hours (said, amber, when guessed) and a run past midnight; the line written after the slot or on
@@ -60,3 +60,25 @@ line was entered by hand on 17 Nov 2026*, the day on this device's clock, never 
 the day before; P277); a header above it that disagrees with the line entered is asked; the message's other lines are read loosely and
 asked. **A message none of whose lines was taught is still not read**, so chatter with a figure in it is never taken for production. The
 readers above run first: a lesson never changes how a roll, a list, a slot log or a pickling message is read.
+
+### The readers set against the owner's export (25 Nov 2026)
+Owner, 25 Nov 2026: *"Re-read the WhatsApp texts and make sure the parser is working as intended. Some numbering styles don't
+work, some text formats are not read properly … I have corrected a lot of those on the earlier parse, manually, compare them and
+see what was causing the issue and add those rules or edit them."* Every production paste the book held was read again and set
+against what was saved from it, and every message of the group's export read; the shapes read wrong, now read as corrected (P289):
+- **Sent after midnight** with no date written, a load whose pickling time is in the evening is the evening before
+  (`dayOf` in `parsePickling`, said amber, `evebefore`). It had been dated the day the message was sent.
+- **Where a load is going, written under its pickling time** ("PICKLING TIME 11:30 / For Barrel") is where the loads that time
+  closed go, never the next block's. A load going to two lines ("VAT A1 &A2", "FOR VAT A1& A2") goes to the first written, and the
+  line is never a part (`prodDestOfLine`); it had been saved as a part with no figure.
+- **A second client named mid-message** with no figure, between a load with its figure and another under it, heads loads of its own,
+  asked where the book has no such client; unless it is a part the client above has sent (`partOwners`). It had been read as the
+  first client's part and the figure booked to that client.
+- **A load with no client under a new block** is not carried from the block above when its part has only ever come from another
+  client: `prodOwnerFill` reads it as that client, amber.
+- **A time after the part** ("BIG RING--11:00AM") is the load's own pickling time.
+- **Sizes joined by "="** ("73×88=25×6=860 NOS") read as "73×88(25×6)--860 NOS" (`prodReadItem`). A pickling time line with the line
+  before it and a load after it ("VAT A 1 PICKLING TIME 11:00 AM … 87×83=25×6=400") gives both.
+- **A numbered barrel list** ("1) UNLOAD TIME 9:30 AM …", "2) 10:30 AM UNLOAD" over its batch): the number is no part
+  (`prodUnnumber`), and an unload time alone on its line with nothing above it waiting is the time of the batches under it, up to
+  the next unload. "BERRAL UPDATED" is the list's heading.

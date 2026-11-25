@@ -35,7 +35,10 @@ test('People → Register by hand: a cell opens on As written; Enter, or one pre
   await loadAppWithState(page, longBook());
   await switchTab(page, 'pageStaff');
   await page.evaluate(() => (0, eval)("attSetView('register'); aregStart();"));
-  await page.locator('[data-action="invAregCell"]').first().click();
+  // The grid's first working day's cell. Not the first door to a cell: the list of days the register and the roll differ on
+  // (above the grid once the month holds one, as the fixture's month does as the days go by) opens cells of any column, and a
+  // month that opens on a Sunday (November 2026) has a Sunday's cell first.
+  await page.locator('td:not([data-sun]) > button.inv-cell[data-action="invAregCell"]').first().click();
   const dlg = page.locator('[data-areg-cell]'), raw = dlg.locator('[data-areg-raw]');
   await expect(raw).toBeFocused();
   const day1 = await dlg.locator('#aregCellT').textContent();

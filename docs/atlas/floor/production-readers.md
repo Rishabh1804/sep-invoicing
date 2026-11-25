@@ -9,7 +9,7 @@ updated: 2026-11-25 (the readers set against the owner's export: P289); 2026-11-
 
 ### Production typed as text, a slot a line
 Owner, 9 Oct 2026: *"When I paste '08/10/26 - / 5 pm - 8 pm - Mehta clamp 165x83(40x6) - 400 nos + Clamp 140/146x91(32x6) - 606 nos =
-1006 nos VAT A1 / 9 PM - 4 AM - General 210 CD - 300.4 KG VAT A1' as a production message, the parser refuses to read it … Same for
+1006 nos VAT A1 / 9 PM - 4 AM - General 188 CD - 300.4 KG VAT A1' as a production message, the parser refuses to read it … Same for
 Barrel and VAT A2."* A message whose lines start with two times (`prodIsRunLog`) is its own kind, **Production by slot**
 (`parseProductionRuns`, prodparse.js), checked before power since a slot log can carry a cut: the date line; the times, AM or PM taken
 from the other side or from the shop's hours (said, amber, when guessed) and a run past midnight; the line written after the slot or on
@@ -65,20 +65,26 @@ readers above run first: a lesson never changes how a roll, a list, a slot log o
 Owner, 25 Nov 2026: *"Re-read the WhatsApp texts and make sure the parser is working as intended. Some numbering styles don't
 work, some text formats are not read properly … I have corrected a lot of those on the earlier parse, manually, compare them and
 see what was causing the issue and add those rules or edit them."* Every production paste the book held was read again and set
-against what was saved from it, and every message of the group's export read; the shapes read wrong, now read as corrected (P289):
-- **Sent after midnight** with no date written, a load whose pickling time is in the evening is the evening before
-  (`dayOf` in `parsePickling`, said amber, `evebefore`). It had been dated the day the message was sent.
-- **Where a load is going, written under its pickling time** ("PICKLING TIME 11:30 / For Barrel") is where the loads that time
-  closed go, never the next block's. A load going to two lines ("VAT A1 &A2", "FOR VAT A1& A2") goes to the first written, and the
-  line is never a part (`prodDestOfLine`); it had been saved as a part with no figure.
+against what was saved from it, and every message of the group's export read (in the codex; nothing of either is here). The
+shapes read wrong now read as corrected (P289; every example below is made up):
+- **Sent before 6 AM with no date written**, a load whose pickling time is more than half an hour after the message is the day
+  before (`dayOf` in `parsePickling`, said amber, `evebefore`); a time with no AM or PM written there is read as the evening's
+  ("Pickling time 10:45", sent at 12:20 AM, is 10:45 PM the day before). It had been dated the day the message was sent.
+- **Where a load is going, written straight under its pickling time** ("PICKLING TIME 9:40 / For Barrel"), is where the loads
+  that time closed go, those of them with no line yet; when they all have theirs, it is the next block's, as a line written above
+  a block always was. A load going to two lines ("VAT A1 &A2", "FOR VAT A1& A2") goes to the first written, and the line is never a
+  part (`prodDestOfLine`); it had been saved as a part with no figure. A line written before a load ("VAT A 2 NOVA RING …", the
+  load's `dest`) or after a figure with no unit ("…=90 VAT A 1") is where that load is going.
 - **A second client named mid-message** with no figure, between a load with its figure and another under it, heads loads of its own,
   asked where the book has no such client; unless it is a part the client above has sent (`partOwners`). It had been read as the
   first client's part and the figure booked to that client.
 - **A load with no client under a new block** is not carried from the block above when its part has only ever come from another
   client: `prodOwnerFill` reads it as that client, amber.
-- **A time after the part** ("BIG RING--11:00AM") is the load's own pickling time.
-- **Sizes joined by "="** ("73×88=25×6=860 NOS") read as "73×88(25×6)--860 NOS" (`prodReadItem`). A pickling time line with the line
-  before it and a load after it ("VAT A 1 PICKLING TIME 11:00 AM … 87×83=25×6=400") gives both.
-- **A numbered barrel list** ("1) UNLOAD TIME 9:30 AM …", "2) 10:30 AM UNLOAD" over its batch): the number is no part
-  (`prodUnnumber`), and an unload time alone on its line with nothing above it waiting is the time of the batches under it, up to
-  the next unload. "BERRAL UPDATED" is the list's heading.
+- **A time after the part** ("BIG RING--1:25PM") is the load's own pickling time. A time needs its colon or its AM/PM: "HOOK--12.50"
+  is 12.5 kg, never 12:50.
+- **Sizes joined by "="** ("52×64=20×5=120 NOS") read as "52×64(20×5)--120 NOS" (`prodReadItem`). A pickling time line with the line
+  before it and a load after it ("VAT A 2 PICKLING TIME 2:40 PM NOVA RING 52×64=20×5=120") gives both.
+- **A numbered barrel list** ("1) UNLOAD TIME 8:50 AM …", "2) 11:10 AM UNLOAD" over its batch): the number is no part
+  (`prodUnnumber`). In a list that writes its times over its batches (a numbered list, or one whose last unload time alone on its
+  line has a batch written under it), an unload time alone with nothing above it waiting is the time of the batches under it, up
+  to the next unload; a list that writes each time under its batch reads as before. "BERRAL UPDATED" is the list's heading.

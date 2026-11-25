@@ -131,7 +131,7 @@ function mcReadProd(rec, o) {
   o.review = 'prod';
   msgs.forEach(function(m) { items += m.read.items.length; });
   o.key = msgs.map(function(m) { return m.hash; }).join('|');
-  // "POWER IN 12:55PM" sent on its own after "Power cut 12:48 pm" (owner, 25 Nov 2026): the power back closes the cut sent
+  // "POWER IN 10:52AM" sent on its own after "Power cut 10:40 am" (owner, 25 Nov 2026): the power back closes the cut sent
   // before it, so it is ticked and saved with it. Blocked as a message with nothing in it, the cut had been saved still open.
   var backs = [];
   msgs.forEach(function(m) { (m.read.notes || []).forEach(function(nt) { if (nt.powerIn && nt.powerIn.min != null) backs.push(nt.powerIn.min); }); });

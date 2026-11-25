@@ -157,8 +157,8 @@ function prodMatchClient(written, idx) {
 function prodReadItem(line, idx) {
   var raw = String(line || '');
   var s = raw.replace(/[×✕]/g, 'X').replace(/(\d),(\d{3})\b/g, '$1$2').replace(/^[\s\-_=*•.]+/, '').trim();
-  // "73×88=25×6=860 NOS", "103×89=25×6=400" (the supervisor's roll and the pickling hand, Nov 2026): the size, its gauge and the
-  // figure joined by "=", read as "73×88(25×6)--860 NOS". The gauge had been read into the part and the count lost or misread.
+  // "52×64=20×5=120 NOS", "48×57=20×5=75" (the supervisor's roll and the pickling hand, Nov 2026): the size, its gauge and the
+  // figure joined by "=", read as "52×64(20×5)--120 NOS". The gauge had been read into the part and the count lost or misread.
   s = s.replace(/(\d{2,3}\s*X\s*\d{2,3})\s*=\s*(\d{2}\s*X\s*\d{1,2})\s*=\s*(\d+(?:\.\d+)?)/i, '$1($2)--$3');
   var out = { part: '', gauge: '', qty: null, unit: null, qty2: null, unit2: null, qtySrc: null, rework: false, dots: false };
   if (/\bre[-\s]*(work|pickl|plat)/i.test(s)) out.rework = true;
@@ -180,7 +180,7 @@ function prodReadItem(line, idx) {
     out.unit = t.unit;
     if (toks[1]) { out.qty2 = parseFloat(toks[1].num); out.unit2 = toks[1].unit; }
   } else {
-    // "84×81=30×6=410 VAT A 2": the line written after a figure with no unit is not the figure's (parsePickling takes it as the line).
+    // "47×53=20×5=90 VAT A 1": the line written after a figure with no unit is not the figure's (parsePickling takes it as the line).
     var tail = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|_{2}|=)\s*(\d+(?:\.\d+)?)\s*$/.exec(s.replace(PROD_LINE_END_RE, ''));
     // No unit written: a figure with decimals is weighed ("188CD-45.240"), a whole one counted. Said on the review.
     if (tail) { partText = tail[1]; out.qty = parseFloat(tail[2]); out.qtySrc = 'written'; out.unit = /\.\d/.test(tail[2]) ? 'KG' : 'NOS'; out.unitGuess = true; }
@@ -248,16 +248,16 @@ function parsePickling(msg, ctx) {
   var lines = String(msg.text || '').split('\n'), items = [], notes = [], blockDest = null;
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
   var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, carriedGroup = false, pendingParts = [], family = null, arrivedAt = null, power = {};
-  // The loads the last pickling time closed, and whether that time was the line just read: "PICKLING TIME 11:30 / For Barrel"
+  // The loads the last pickling time closed, and whether that time was the line just read: "PICKLING TIME 9:40 / For Barrel"
   // is where those loads are going (owner, 25 Nov 2026). It had gone to the next block's loads.
   var lastFlushed = [], afterTime = false, dateWritten = false;
   // A line that is only a figure and its unit ("1000 NOS"): the quantity of the load written above it, never a part.
   var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
-  // Sent after midnight with no date written, a load pickled in the evening is the evening before ("RING--1000 nos /
-  // Pickling time 6:30 pm", sent at 12:12 AM; owner, 25 Nov 2026): it had been dated the day it was sent.
+  // Sent after midnight with no date written, a load pickled in the evening is the evening before ("RING--240 nos /
+  // Pickling time 7:15 pm", sent at 12:20 AM; owner, 25 Nov 2026): it had been dated the day it was sent.
   var dayOf = function(it, min, tt) {
     if (dateWritten || !msg.sentOn || msg.sentAt == null || msg.sentAt >= PROD_REG_DAY_START || min == null || min <= msg.sentAt + 30) return;
-    // "Pickling time 11:30" with no AM or PM, sent at 12:12 AM: the evening's 11:30, as the day before is.
+    // "Pickling time 10:45" with no AM or PM, sent at 12:20 AM: the evening's 10:45, as the day before is.
     if (tt && tt.issue && tt.issue.code === 'meridiem' && min < 720) { min += 720; it.time = prodHhmm(min); it.issues = it.issues.filter(function(x) { return x.code !== 'meridiem'; }); }
     it.date = isoAddDays(msg.sentOn, -1);
     it.issues = it.issues.filter(function(x) { return x.code !== 'later' && x.code !== 'nodate'; });
@@ -314,7 +314,7 @@ function parsePickling(msg, ctx) {
     if (prodIsTimeLine(line)) {
       var t = prodTimeOf(line.replace(/^.*?t\w*me/i, ''), msg.sentAt);
       var re = /\bre[-\s]*p/i.test(line);
-      // "VAT A 1 PICKLING TIME 11:00 AM 87×83=25×6=400" (owner, 25 Nov 2026): the line written before the time is where the loads
+      // "VAT A 2 PICKLING TIME 2:40 PM 52×64=20×5=120" (owner, 25 Nov 2026): the line written before the time is where the loads
       // are going, and a load written after the time is one of them. The whole line had been a time with nothing above it.
       var tHead = (/^(.*?)p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.exec(line) || [])[1] || '';
       var tLine = tHead.trim() ? prodDestOfLine(tHead) || prodLineOfToken(tHead.replace(/[\s:*-]+$/, '')) : null;
@@ -357,8 +357,8 @@ function parsePickling(msg, ctx) {
     // "RE-PICKLING" on a line of its own marks the loads of this group as rework, above it and below it.
     if (/^\s*re[-\s]*(work|pickl\w*|plat\w*)\s*$/i.test(line)) { pendingParts.forEach(function(x) { x.rework = true; }); reworkOn = true; return; }
     if (/^\s*b[ae]r+[ae]*l+\.?\s*(production)?\s*$/i.test(line) || /unlo?a?d|lo?a?ding/i.test(line)) { notes.push({ n: n, raw: raw, text: 'A barrel note, not a pickling load; not read' }); return; }
-    // "BIG RING--11:00AM": a time written after the part is the load's own pickling time, never part of its name.
-    // "VAT A 1 NOVA CLAMP 73×88=25×6=860 NOS": a line written before the load is where it is going (owner, 25 Nov 2026).
+    // "BIG RING--1:25PM": a time written after the part is the load's own pickling time, never part of its name.
+    // "VAT A 2 NOVA RING 52×64=20×5=120 NOS": a line written before the load is where it is going (owner, 25 Nov 2026).
     var leadDest = null, lead = line.match(new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\s*[-–:]*\\s+(?=[A-Za-z0-9])', 'i'));
     if (lead && prodLineOfToken(lead[1]) && /\d/.test(line.slice(lead[0].length))) { leadDest = prodLineOfToken(lead[1]); line = line.slice(lead[0].length).trim(); }
     // A time needs its colon or its AM/PM: "HOOK--12.50" is 12.5 kg, never 12:50.
@@ -371,9 +371,9 @@ function parsePickling(msg, ctx) {
     // ("BIG LINER / Pickling time 10:30": no client written, no quantity), which was taken as a client and lost. So is one
     // with only its figure under it ("LINER / 1000 NOS"): the figure is the load's.
     var below = (lines.slice(i + 1).find(function(l) { return l.trim(); }) || '').trim();
-    // "DELTA / 7311--800 nos / KILO / HOOK--30 kg" (owner, 25 Nov 2026): a name with no figure, between a load with its figure
+    // "DELTA / 7314--260 nos / KILO / HOOK--18 kg" (owner, 25 Nov 2026): a name with no figure, between a load with its figure
     // and another under it, heads a client's loads of its own, unless it is a part the client above has sent. It had been read
-    // as the first client's part, and the 30 kg booked to that client.
+    // as the first client's part, and the 18 kg booked to that client.
     var lastLoad = pendingParts[pendingParts.length - 1];
     var midName = !!group && it.qty == null && !it.clientId && !ownTime && /^[A-Za-z][A-Za-z .&]*$/.test(line) && !!lastLoad && lastLoad.qty != null &&
       !!below && !prodIsTimeLine(below) && !bareQty(below) && /^[A-Za-z]/.test(below) && prodReadItem(below, null).qty != null &&
@@ -386,7 +386,7 @@ function parsePickling(msg, ctx) {
     if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; carriedGroup = false; }
     // A part under a second pickling time with no client written again: the client above it, said so on every load it is
     // carried to (the check then takes a pick on such a load as that load's own, and never learns the name from it).
-    // Not where the part has only ever come from another client ("INCOMING MATERIAL TIME 2:00PM / 210 CD--94 KG" under another
+    // Not where the part has only ever come from another client ("INCOMING MATERIAL TIME 3:20PM / 210 CD--41 KG" under another
     // client's block; owner, 25 Nov 2026): that load is left for prodOwnerFill to read as the part's own client, said so.
     var owner = !group && lastGroup && it.clientId == null && it.part && ctx.partOwners ? ctx.partOwners[rateKey(prodPartBase(it.part))] : null;
     if (!group && lastGroup && !(owner != null && String(owner) !== String(lastGroup.clientId))) { group = lastGroup; carriedGroup = true; }
@@ -534,7 +534,7 @@ function parseBarrelBatches(msg, ctx, lines) {
     if (!line) return;
     var hm = line.match(PROD_LIST_HEAD_RE);
     if (hm) { if (isoFromDmy(hm[1], hm[2], hm[3])) { date = isoFromDmy(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); }
-    // "1) UNLOAD TIME 9:30 AM …", "4) 3:00 PM UNLOAD …" (owner, 25 Nov 2026): a batch's number is not its client or its part.
+    // "1) UNLOAD TIME 8:50 AM …", "4) 2:20 PM UNLOAD …" (owner, 25 Nov 2026): a batch's number is not its client or its part.
     var core = prodUnnumber(line).replace(/^[\s\-–—_=*.]+|[\s\-–—_=*.]+$/g, '');
     if (!core) { pending = []; loading = null; headUn = null; return; }
     if (/^(and|end)$/i.test(core) || /^b[ae]r+[ae]*l+\.?\s*production$/i.test(core)) return;
@@ -638,7 +638,7 @@ function parseBarrelBatches(msg, ctx, lines) {
         });
       }
     }
-    // "2) 10:30 AM UNLOAD" over "DELTA CLAMP 200 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
+    // "2) 11:10 AM UNLOAD" over "DELTA RING 85 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
     // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
     if (timesFirst && un && !recs.length && !pending.length && un.min != null) { headUn = un; return; }
     if (un) { headUn = null; close(pending.concat(recs), un); pending = []; }
@@ -653,7 +653,7 @@ function parseBarrelBatches(msg, ctx, lines) {
 function parseProductionList(msg, ctx) {
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
-  // 60 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read. A count of barrels is a figure
+  // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read. A count of barrels is a figure
   // before the word; the list's own date is not one ("22/09/26 berral production", with no slash after the date, was
   // taken for a count and the whole list thrown away).
   if (prodIsBatchList(lines)) return parseBarrelBatches(msg, ctx, lines);
@@ -711,7 +711,7 @@ function parseProductionList(msg, ctx) {
    what was plated on it, the line it ran on:
      08/10/26 -
      5 pm - 8 pm - Mehta clamp 165x83(40x6) - 400 nos + Clamp 140/146x91(32x6) - 606 nos = 1006 nos VAT A1
-     9 PM - 4 AM - General 210 CD - 300.4 KG VAT A1
+     9 PM - 4 AM - General 188 CD - 300.4 KG VAT A1
    It is the register's page in words, so a slot is a run on its line, in the general shift or overtime by when it
    began (the photo's rule); a part after "+" with no client of its own is the slot's client; "= 1006 nos" is checked
    against the parts, never taken for one. A slot with no line written is asked, never guessed. */

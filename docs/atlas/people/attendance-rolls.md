@@ -55,8 +55,8 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   nobody and dropped every one silently. The spec used text ids (`'W1'`) and could not see it; P43 uses
   numbers. People → Roster → Import keeps the file's `aliases` as spellings too, a merge keeps the
   retired row's name, and the worker's Edit screen lists them and takes corrections. The chemical stock
-  written under a roll (`camical use camical stock`, no date) ends the roll rather than reading as a
-  dozen unknown names, and is read in Stock: the review's **Read in Stock** hands over that part and any
+  written under a roll (`camical use camical stock`, no date) is skipped rather than read as a dozen
+  unknown names, up to a slot heading under it where the roll takes up again (25 Nov 2026, below), and is read in Stock: the review's **Read in Stock** hands over that part and any
   stock message pasted with the rolls, each with its WhatsApp line (`relayStockParts`; it had pointed at
   the retired More sheet and was never read).
 - **A mark entered by hand is kept** and shown as kept; the relay only rewrites marks it wrote
@@ -193,12 +193,13 @@ five things had gone wrong; each is fixed, and the week's payout read from the o
   night), and the night schedule in the book runs 5:30 PM to 8:30 AM where the rolls and the owner's corrections end the night at 6 AM.
 
 ### The rolls set against the owner's export (25 Nov 2026)
-From every roll in the group's export (P289; the production side is `docs/atlas/floor/production-readers.md`):
+From every roll in the group's export (P289; the production side is `docs/atlas/floor/production-readers.md`; examples made up):
 - **The night written under the chemical stock** ("CHEMICAL USE CHEMICAL STOCK … / --8:00 PM TO 6:00 AM- / NIGHT HOLD"): the roll had
-  ended at the stock, and the night hold under it was never read (a roll of 23 Nov 2026: 40 hours). The stock is skipped and the
-  roll takes up again at a slot heading or NIGHT HOLD (`relayStockResumes`); `relayStockTail` is the stock alone.
+  ended at the stock, and the night hold under it was never read (a roll of 23 Nov 2026 lost a night's EXTRA that way). The stock is
+  skipped and the roll takes up again at a slot heading or NIGHT HOLD (`relayStockResumes`); `relayStockTail` is the stock alone
+  (with `toEnd`, the tail as it was read before, to the message's end).
 - **Numbering marks and a time against a name**: "07);NAME" and "NAME7:00 am" read as the name (they had been asked as names not on
-  the roster); "EXTRA16 HOURS" is 16 hours.
+  the roster); "EXTRA16 HOURS" is 16 hours, and "EXTRA5 PM TO 6 AM" a span with no hours, as with a space.
 - **A hand named twice under one heading** is said, amber: one of the two may be someone else (a 6 AM block of four named one hand
   twice, and the fourth was booked to 8:30).
-- **Work under the notes** with a count or a weight ("GENERAL 210 CD 2000 NOS") is never a slot heading.
+- **A line with a count or a weight** ("GENERAL RING 260 NOS") is never a slot heading, wherever it stands.

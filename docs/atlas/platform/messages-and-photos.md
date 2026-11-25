@@ -28,9 +28,13 @@ the last message of each kind the book holds). P253–P256.
   same as People's paste, `relayPlan`'s `differs`). What nothing here saves (not read, weekly payment summaries) is one panel shut at the
   foot. One save writes through each reader's own core (`relayApplyPlan`, `prodSaveCore`, `stockCommitPaste`, `cashSaveCore`).
 - **The stock written into a roll** is read as Stock reads it, said on the roll's row (*Chemical stock: N lines, saved with the roll*)
-  and saved with the roll, on the roll's day where it writes none (`mcRollStockParse`; owner, 25 Nov 2026). It had been read nowhere.
-  **A power back sent on its own** ("POWER IN 12:55PM") is a row of its own, ticked with the cut it closes and saved with it; it
-  had been listed as a message with nothing in it, and the cut saved still open. P289.
+  and saved with the roll, on the roll's day where it writes none (`mcRollStockParse`; owner, 25 Nov 2026); it had been read
+  nowhere. A stock already saved through Read in Stock (hashed then over the longer tail, to the message's end) is not saved
+  again. A stock with a line that needs its name in Stock is left there: the roll is saved, and the done screen says it once
+  (`data-mc-stock-left`), never listing the roll twice. **A power back sent on its own** ("POWER IN 10:52AM") is a row of its own,
+  ticked with the cut it closes and saved with it; with a cut saved in an earlier check and still open that day, it closes that
+  cut (`mcCutBefore`); with no cut before it, stored or sent, it is not offered (*No cut before it to close*). It had been listed
+  as a message with nothing in it, and the cut saved still open. P289.
 - **Messages** (msgview.js, a top-bar tool, the owner's; `?tab=pageMessages`): the list by day with its verdict; one message is its
   reader's check, its questions, each line beside what was read from it, its kind set by hand (a lesson for the sorter), its text edited
   and read again with what moved; *Read every message again* lists what the reader as it is now reads differently, writing nothing.

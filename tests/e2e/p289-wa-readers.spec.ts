@@ -67,47 +67,47 @@ async function roll(page: Page, text: string, sentOn: string, sentAt: number) {
 test.describe('P289: the WhatsApp readers against the owner’s export', () => {
   test('pickling: sent after midnight, where a load goes, a second client mid-message, a part’s own client, its own time, sizes joined by "="', async ({ page }) => {
     await load(page);
-    // Sent at 12:12 AM with no date written: the 6:30 PM load is the evening before.
-    let m = await read(page, `${D.dmy}, 12:12 am - Pickler: NOVA CLAMPS\nRING--1000 nos\nPickling time 6:30 pm\nFor vat A2`);
+    // Sent at 12:20 AM with no date written: the 7:15 PM load is the evening before.
+    let m = await read(page, `${D.dmy}, 12:20 am - Pickler: NOVA CLAMPS\nRING--240 nos\nPickling time 7:15 pm\nFor vat A2`);
     expect(m[0].items).toHaveLength(1);
-    expect(m[0].items[0]).toMatchObject({ kind: 'pickled', date: D0.iso, time: '18:30', clientId: 11, part: 'RING', qty: 1000, unit: 'NOS', dest: 'vat-a2' });
+    expect(m[0].items[0]).toMatchObject({ kind: 'pickled', date: D0.iso, time: '19:15', clientId: 11, part: 'RING', qty: 240, unit: 'NOS', dest: 'vat-a2' });
     expect(m[0].items[0].codes).toContain('amber:evebefore');
     expect(m[0].items[0].codes).not.toContain('amber:later');
     // A date written in the message is the message's day, wherever it was sent.
-    m = await read(page, `${D.dmy}, 12:12 am - Pickler: ${D.dmy}\nNOVA CLAMPS\nRING--1000 nos\nPickling time 6:30 pm`);
+    m = await read(page, `${D.dmy}, 12:20 am - Pickler: ${D.dmy}\nNOVA CLAMPS\nRING--240 nos\nPickling time 7:15 pm`);
     expect(m[0].items[0].date).toBe(D.iso);
 
     // "For Barrel" under the pickling time is where the loads above it go, never the next block's; "VAT A1 &A2" is a line, not a part.
-    m = await read(page, `${D.dmy}, 10:30 am - Pickler: NOVA CLAMPS\nRING 71×47(30×6)--1600 NOS\nPICKLING TIME 8:30 am\nFor Barrel\n\nDURGA AUTO\n0760--30 nos\nPickling time 9:00 am\nVAT A1 &A2\n\nKESTREL\n4242--50 KG\nPickling time 9:30 am\nFOR VAT A1& A2`);
-    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.dest])).toEqual([[11, 'RING 71X47(30X6)', 1600, 'barrel'], [12, '0760', 30, 'vat-a1'], [13, '4242', 50, 'vat-a1']]);
+    m = await read(page, `${D.dmy}, 10:30 am - Pickler: NOVA CLAMPS\nRING 52×64(20×5)--340 NOS\nPICKLING TIME 7:40 am\nFor Barrel\n\nDURGA AUTO\n7313--45 nos\nPickling time 8:10 am\nVAT A1 &A2\n\nKESTREL\n7314--26 KG\nPickling time 8:50 am\nFOR VAT A1& A2`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.dest])).toEqual([[11, 'RING 52X64(20X5)', 340, 'barrel'], [12, '7313', 45, 'vat-a1'], [13, '7314', 26, 'vat-a1']]);
 
     // A name with no figure between two loads with theirs heads a client's loads of its own: asked when the book has no such client.
-    m = await read(page, `${D.dmy}, 11:02 am - Pickler: KESTREL\n7311--4419---800 nos\nZEPHYR\nHOOK--30 kg\nPickling time 10:30 am\nFor Barrel`);
-    expect(m[0].items.map(i => [i.client, i.clientId, i.part, i.qty, i.unit])).toEqual([['KESTREL', 13, '7311--4419', 800, 'NOS'], ['ZEPHYR', null, 'HOOK', 30, 'KG']]);
+    m = await read(page, `${D.dmy}, 11:02 am - Pickler: KESTREL\n7314--260 nos\nZEPHYR\nHOOK--18 kg\nPickling time 9:50 am\nFor Barrel`);
+    expect(m[0].items.map(i => [i.client, i.clientId, i.part, i.qty, i.unit])).toEqual([['KESTREL', 13, '7314', 260, 'NOS'], ['ZEPHYR', null, 'HOOK', 18, 'KG']]);
     expect(m[0].items[1].codes).toContain('red:client');
-    // A part the client above has sent stays that client's part ("LINER" under NOVA, with a load under it).
-    m = await read(page, `${D.dmy}, 11:02 am - Pickler: NOVA CLAMPS\nCLAMP 123×87(30×6)--615 NOS\nLINER\nCLAMP 93×97(30×6)--300 NOS\nPickling time 10:30 am`, { LINER: 11 });
+    // A part the client above has sent stays that client's part ("SLEEVE" under NOVA, with a load under it).
+    m = await read(page, `${D.dmy}, 11:02 am - Pickler: NOVA CLAMPS\nRING 52×64(20×5)--150 NOS\nSLEEVE\nRING 48×57(20×5)--95 NOS\nPickling time 9:50 am`, { SLEEVE: 11 });
     expect(m[0].items.every(i => i.clientId === 11)).toBe(true);
 
     // A load with no client under an incoming head is the part's own client, never carried from the block above.
-    m = await read(page, `${D.dmy}, 3:00 pm - Pickler: NOVA CLAMPS\nCLAMP 123×87(30×6)--615 NOS\nPICKLING TIME 1:30 PM\n\nINCOMING MATERIAL TIME 2:00PM\n210 CD--94 KG\n60 CD--66KG`, { '210 CD': 14, '60 CD': 14 });
+    m = await read(page, `${D.dmy}, 3:40 pm - Pickler: NOVA CLAMPS\nRING 52×64(20×5)--150 NOS\nPICKLING TIME 12:40 PM\n\nINCOMING MATERIAL TIME 3:20PM\n210 CD--41 KG\n60 CD--23KG`, { '210 CD': 14, '60 CD': 14 });
     const arrived = m[0].items.filter(i => i.kind === 'arrived');
     expect(arrived.map(i => [i.part, i.clientId])).toEqual([['210 CD', 14], ['60 CD', 14]]);
     expect(arrived[0].codes).not.toContain('amber:carried');
 
     // A time written after the part is the load's own pickling time.
-    m = await read(page, `${D.dmy}, 1:00 pm - Pickler: NOVA CLAMPS\nRING--200 nos\nPickling time 10:00am\n\nNOVA CLAMPS\nBIG RING--11:00AM`);
-    expect(m[0].items[1]).toMatchObject({ part: 'BIG RING', time: '11:00', qty: null });
+    m = await read(page, `${D.dmy}, 2:00 pm - Pickler: NOVA CLAMPS\nRING--70 nos\nPickling time 12:50pm\n\nNOVA CLAMPS\nBIG RING--1:25PM`);
+    expect(m[0].items[1]).toMatchObject({ part: 'BIG RING', time: '13:25', qty: null });
     expect(m[0].items[1].codes).not.toContain('amber:notime');
 
-    // Sizes joined by "=": "87×83=25×6=400"; and a pickling time with its line before it and a load after it.
-    m = await read(page, `${D.dmy}, 11:31 am - Pickler: VAT A 1 PICKLING TIME 11:00 AM NOVA CLAMP 87×83=25×6=400\n103×89=25×6=400`);
-    expect(m[0].items[0]).toMatchObject({ clientId: 11, part: 'CLAMP 87X83(25X6)', qty: 400, time: '11:00', dest: 'vat-a1' });
-    expect(m[0].items[1]).toMatchObject({ part: '103X89(25X6)', qty: 400 });
+    // Sizes joined by "=": "52×64=20×5=120"; and a pickling time with its line before it and a load after it.
+    m = await read(page, `${D.dmy}, 3:05 pm - Pickler: VAT A 2 PICKLING TIME 2:40 PM NOVA RING 52×64=20×5=120\n48×57=20×5=75`);
+    expect(m[0].items[0]).toMatchObject({ clientId: 11, part: 'RING 52X64(20X5)', qty: 120, time: '14:40', dest: 'vat-a2' });
+    expect(m[0].items[1]).toMatchObject({ part: '48X57(20X5)', qty: 75 });
     expect(m[0].notes).not.toContain('A pickling time with nothing listed above it');
     // A line written before the load or after a figure with no unit is where it is going, never part of the load.
-    m = await read(page, `${D.dmy}, 12:31 pm - Pickler: VAT A 1 NOVA CLAMP 73×88=25×6=860 NOS\n71×81=30×6=410 VAT A 2\nPICKLING TIME 12:00 PM`);
-    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.dest])).toEqual([[11, 'CLAMP 73X88(25X6)', 860, 'vat-a1'], [11, '71X81(30X6)', 410, 'vat-a2']]);
+    m = await read(page, `${D.dmy}, 3:31 pm - Pickler: VAT A 2 NOVA RING 52×64=20×5=120 NOS\n47×53=20×5=90 VAT A 1\nPICKLING TIME 3:10 PM`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.dest])).toEqual([[11, 'RING 52X64(20X5)', 120, 'vat-a2'], [11, '47X53(20X5)', 90, 'vat-a1']]);
   });
 
   test('the review’s cases: a line for the block under, a weight with decimals, an unmarked time after midnight, a list that writes its times under', async ({ page }) => {
@@ -118,12 +118,12 @@ test.describe('P289: the WhatsApp readers against the owner’s export', () => {
     // "HOOK--12.50" is 12.5 kg, never a time.
     m = await read(page, `${D.dmy}, 11:30 am - Pickler: KESTREL\nHOOK--12.50\nPickling time 10:30 am`);
     expect(m[0].items[0]).toMatchObject({ part: 'HOOK', qty: 12.5, unit: 'KG', time: '10:30' });
-    // Sent at 12:12 AM, "11:30" with no AM or PM is the evening's 11:30 the day before.
-    m = await read(page, `${D.dmy}, 12:12 am - Pickler: NOVA CLAMPS\nRING--500 nos\nPickling time 11:30`);
-    expect(m[0].items[0]).toMatchObject({ date: D0.iso, time: '23:30' });
+    // Sent at 12:20 AM, "10:45" with no AM or PM is the evening's 10:45 the day before.
+    m = await read(page, `${D.dmy}, 12:20 am - Pickler: NOVA CLAMPS\nRING--130 nos\nPickling time 10:45`);
+    expect(m[0].items[0]).toMatchObject({ date: D0.iso, time: '22:45' });
     // A list that writes each unload time under its batch keeps doing so, the first batch loaded the night before.
-    m = await read(page, `${D.dmy}, 3:09 pm - Supervisor: ${D.dmy}/ BERRAL PRODUCTION\n9:00 AM UNLOAD\nNOVA CLAMP 200 NOS\n10:30 AM UNLOAD\nKESTREL 300 KG\n12:00 PM UNLOAD\nDURGA 50 KG 1:00 PM UNLOAD`);
-    expect(m[0].items.map(i => [i.clientId, i.qty, i.to])).toEqual([[11, 200, '10:30'], [13, 300, '12:00'], [12, 50, '13:00']]);
+    m = await read(page, `${D.dmy}, 3:09 pm - Supervisor: ${D.dmy}/ BERRAL PRODUCTION\n8:40 AM UNLOAD\nNOVA CLAMP 115 NOS\n10:05 AM UNLOAD\nKESTREL 47 KG\n11:50 AM UNLOAD\nDURGA 29 KG 1:35 PM UNLOAD`);
+    expect(m[0].items.map(i => [i.clientId, i.qty, i.to])).toEqual([[11, 115, '10:05'], [13, 47, '11:50'], [12, 29, '13:35']]);
     // "EXTRA5 PM TO 6 AM": a span with no hours, kept and asked, as with a space.
     const r = await roll(page, `${D.dmy}/ OUT TIME\n----8:00 PM----\n1) ALFA\nEXTRA5 PM TO 6 AM`, D.iso, 600);
     expect(r.issues.some(i => /writes times, not hours/.test(i))).toBe(true);
@@ -131,15 +131,15 @@ test.describe('P289: the WhatsApp readers against the owner’s export', () => {
 
   test('a numbered barrel list: its numbers are no part, a time alone heads the batches under it', async ({ page }) => {
     await load(page);
-    const m = await read(page, `${D.dmy}, 3:09 pm - Supervisor: ${D.dmy}/ BERRAL UPDATED
-1) UNLOAD TIME 9:30 AM GENERAL 60 CD  73 KG
-2) 10:30 AM UNLOAD
-NOVA CLAMP 200 NOS
-3) 11:30 AM UNLOAD
-KESTREL 120 KG
-4) 1:00 PM UNLOAD DURGA 7577-300 NOS`);
+    const m = await read(page, `${D.dmy}, 4:05 pm - Supervisor: ${D.dmy}/ BERRAL UPDATED
+1) UNLOAD TIME 8:50 AM GENERAL 60 CD 38 KG
+2) 11:10 AM UNLOAD
+NOVA CLAMP 85 NOS
+3) 12:20 PM UNLOAD
+KESTREL 64 KG
+4) 2:20 PM UNLOAD DURGA 7577-140 NOS`);
     expect(m[0].kind).toBe('production');
-    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.to])).toEqual([[14, '60 CD', 73, '09:30'], [11, 'CLAMP', 200, '10:30'], [13, '', 120, '11:30'], [12, '7577', 300, '13:00']]);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.to])).toEqual([[14, '60 CD', 38, '08:50'], [11, 'CLAMP', 85, '11:10'], [13, '', 64, '12:20'], [12, '7577', 140, '14:20']]);
     expect(m[0].items.some(i => /^\d\)/.test(i.part || ''))).toBe(false);
   });
 
@@ -161,8 +161,8 @@ EXTRA6 HOURS
 ------------------
 CHEMICAL USE CHEMICAL STOCK
 ${D.dmy}/
-1) A SOLLT 48-4=44 LTR
-2) HCL 440-100=340 LTR
+1) A SOLLT 30-2=28 LTR
+2) HCL 260-40=220 LTR
 ------------------
 --8:00 PM TO 6:00 AM-
 ------NIGHT HOLD------
@@ -171,7 +171,7 @@ ${D.dmy}/
 2) ECHO
 EXTRA 20 HOURS
 ------WORK-----
-GENERAL 210 CD 2000 NOS`, D.iso, 600);
+GENERAL RING 260 NOS`, D.iso, 600);
     const day = r.days.find(x => x.d === D.iso)!;
     expect(r.issues.filter(i => i.startsWith('red:'))).toEqual([]);
     expect(r.issues.some(i => i.startsWith('amber:Bravo Munda is named twice'))).toBe(true);
@@ -180,7 +180,7 @@ GENERAL 210 CD 2000 NOS`, D.iso, 600);
     // EXTRA6 is 6 hours on the 6 AM block; the night under the stock is read, out at 6 AM the next day, with its 20 hours.
     expect(day.extra).toContain('block|6|06:00|08:30|Bravo+Charlie');
     expect(day.extra.some(x => x.startsWith('block|20|20:00|06:00|Charlie+Echo'))).toBe(true);
-    // "GENERAL 210 CD 2000 NOS" under the work is a note, never a slot heading.
+    // "GENERAL RING 260 NOS" under the work is a note, never a slot heading.
     expect(r.lines[r.lines.length - 1]).toBe('note:');
   });
 
@@ -188,9 +188,9 @@ GENERAL 210 CD 2000 NOS`, D.iso, 600);
     await load(page);
     const wa = (at: string, who: string, text: string) => `${D.dmy}, ${at} - ${who}: ${text}`;
     const chat = [
-      wa('11:24 am', 'Supervisor', `${D.dmy}/ IN TIME\n-------8:30 AM-----\n----VAT 1-----\n01) ALFA\n02) ECHO\n---GATE---\n03) FOXTROT 7:00AM\n------------------\nCHEMICAL USE CHEMICAL STOCK\n------------------\n1) A SOLLT 48-4=44 LTR\n2) HCL 440-100=340 LTR`),
-      wa('12:49 pm', 'Pickler', 'Power cut 12:48 pm'),
-      wa('1:00 pm', 'Pickler', 'POWER IN 12:55PM'),
+      wa('11:24 am', 'Supervisor', `${D.dmy}/ IN TIME\n-------8:30 AM-----\n----VAT 1-----\n01) ALFA\n02) ECHO\n---GATE---\n03) FOXTROT 7:00AM\n------------------\nCHEMICAL USE CHEMICAL STOCK\n------------------\n1) A SOLLT 30-2=28 LTR\n2) HCL 260-40=220 LTR`),
+      wa('10:41 am', 'Pickler', 'Power cut 10:40 am'),
+      wa('10:53 am', 'Pickler', 'POWER IN 10:52AM'),
     ].join('\n');
     await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(chat)}), 'zip', 'IMP-P289'); saveState(); mcOpen({ importId: 'IMP-P289' }); })()`);
     await expect(page.locator('[data-mc]')).toBeVisible();
@@ -210,7 +210,7 @@ GENERAL 210 CD 2000 NOS`, D.iso, 600);
         status: S.messages.map(function(m) { return m.kind + ':' + m.status; }).sort(),
       };
     })()`) as any;
-    expect(got.cuts).toEqual([[D.iso, '12:48', '12:55', false]]);
+    expect(got.cuts).toEqual([[D.iso, '10:40', '10:52', false]]);
     expect(got.stock.length).toBeGreaterThanOrEqual(2);
     expect(got.stock.every((x: any) => x[2] === D.iso)).toBe(true);
     expect(got.status).toEqual(['in:saved', 'power:saved', 'power:saved']);
@@ -219,27 +219,38 @@ GENERAL 210 CD 2000 NOS`, D.iso, 600);
     await load(page);
     const wa = (at: string, who: string, text: string) => `${D.dmy}, ${at} - ${who}: ${text}`;
     // No cut before it, stored or sent: listed, not offered.
-    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(wa('1:00 pm', 'Pickler', 'POWER IN 12:55PM'))}), 'zip', 'IMP-A'); saveState(); mcOpen({ importId: 'IMP-A' }); })()`);
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(wa('10:53 am', 'Pickler', 'POWER IN 10:52AM'))}), 'zip', 'IMP-A'); saveState(); mcOpen({ importId: 'IMP-A' }); })()`);
     await expect(page.locator('[data-mc]')).toBeVisible();
     expect(await ev(page, `_mc.read ? Object.keys(_mc.read).map(function(k){ var r = _mc.read[k]; return r.kind + ':' + r.tickable + ':' + (r.blocked || ''); }) : []`)).toEqual(['power:false:No cut before it to close: open it in Messages.']);
     await ev(page, `mcClose ? mcClose() : null`);
     // A cut stored open that day: the power back sent on its own closes it.
-    await ev(page, `(function(){ S.production.entries.push({ id: 'PE-CUT', kind: 'downtime', date: ${JSON.stringify(D.iso)}, time: '12:48', to: null, downtime: { open: true }, src: 'paste', basis: 'relay', pasteId: 'PP-CUT', raw: 'Power cut 12:48 pm' }); S.production.pastes.push({ id: 'PP-CUT', at: 1, day: ${JSON.stringify(D.iso)}, kind: 'power', text: 'Power cut 12:48 pm' }); S.messages = []; saveState(); })()`);
-    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(wa('1:00 pm', 'Pickler', 'POWER IN 12:55PM'))}), 'zip', 'IMP-B'); saveState(); mcOpen({ importId: 'IMP-B' }); })()`);
+    await ev(page, `(function(){ S.production.entries.push({ id: 'PE-CUT', kind: 'downtime', date: ${JSON.stringify(D.iso)}, time: '10:40', to: null, downtime: { open: true }, src: 'paste', basis: 'relay', pasteId: 'PP-CUT', raw: 'Power cut 10:40 am' }); S.production.pastes.push({ id: 'PP-CUT', at: 1, day: ${JSON.stringify(D.iso)}, kind: 'power', text: 'Power cut 10:40 am' }); S.messages = []; saveState(); })()`);
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(wa('10:53 am', 'Pickler', 'POWER IN 10:52AM'))}), 'zip', 'IMP-B'); saveState(); mcOpen({ importId: 'IMP-B' }); })()`);
     await page.locator(`[data-action="invMsgMcGroup"][data-key="g:${D.iso}:power"]`).click();
     await page.locator('[data-action="invMsgMcSave"]').click();
     await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('1');
-    expect(await ev(page, `(function(){ var c = S.production.entries.find(function(e){ return e.id === 'PE-CUT'; }); return [c.to, c.downtime.open]; })()`)).toEqual(['12:55', false]);
+    expect(await ev(page, `(function(){ var c = S.production.entries.find(function(e){ return e.id === 'PE-CUT'; }); return [c.to, c.downtime.open]; })()`)).toEqual(['10:52', false]);
   });
 
   test('a roll’s stock saved before through Read in Stock, the night under it in its tail, is not saved again', async ({ page }) => {
     await load(page);
-    const text = `${D.dmy}/ IN TIME\n-------8:30 AM-----\n----VAT 1-----\n01) ALFA\n------------------\nCHEMICAL USE CHEMICAL STOCK\n1) A SOLLT 48-4=44 LTR\n2) HCL 440-100=340 LTR\n--8:00 PM TO 6:00 AM-\n------NIGHT HOLD------\n1) ECHO\nEXTRA 10 HOURS`;
+    const text = `${D.dmy}/ IN TIME\n-------8:30 AM-----\n----VAT 1-----\n01) ALFA\n------------------\nCHEMICAL USE CHEMICAL STOCK\n1) A SOLLT 30-2=28 LTR\n2) HCL 260-40=220 LTR\n--8:00 PM TO 6:00 AM-\n------NIGHT HOLD------\n1) ECHO\nEXTRA 10 HOURS`;
     // The stock as Read in Stock saved it before 25 Nov 2026: its tail ran to the message's end.
-    await ev(page, `(function(){ var full = relayStockTail(${JSON.stringify(text)}, true); S.stock = S.stock || {}; S.stock.pastes = [{ id: 'SP-OLD', hash: stockHash(full), text: full }]; S.stock.entries = [{ id: 'SE-OLD', pasteId: 'SP-OLD', itemId: 'X', kind: 'count', qty: 44, date: ${JSON.stringify(D.iso)} }]; saveState(); })()`);
+    await ev(page, `(function(){ var full = relayStockTail(${JSON.stringify(text)}, true); S.stock = S.stock || {}; S.stock.pastes = [{ id: 'SP-OLD', hash: stockHash(full), text: full }]; S.stock.entries = [{ id: 'SE-OLD', pasteId: 'SP-OLD', itemId: 'X', kind: 'count', qty: 28, date: ${JSON.stringify(D.iso)} }]; saveState(); })()`);
     await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(`${D.dmy}, 11:24 am - Supervisor: ` + text)}), 'zip', 'IMP-S'); saveState(); mcOpen({ importId: 'IMP-S' }); })()`);
     await page.locator('[data-action="invMsgMcSave"]').click();
     await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('1');
     expect(await ev(page, `S.stock.entries.length`)).toBe(1);
+  });
+
+  test('a roll whose stock cannot be saved: the roll is saved, its stock said once and left to Stock', async ({ page }) => {
+    await load(page);
+    const text = `${D.dmy}/ IN TIME\n-------8:30 AM-----\n----VAT 1-----\n01) ALFA\n------------------\nCHEMICAL USE CHEMICAL STOCK\n1) 30-2=28 LTR\n2) 260-40=220 LTR`;
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(`${D.dmy}, 11:24 am - Supervisor: ` + text)}), 'zip', 'IMP-L'); saveState(); mcOpen({ importId: 'IMP-L' }); })()`);
+    await page.locator('[data-action="invMsgMcSave"]').click();
+    await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('1');
+    await expect(page.locator('#mcDoneTiles [data-tile="left"] .inv-tile-value')).toHaveText('0');
+    await expect(page.locator('[data-mc-stock-left]')).toContainText('1 roll saved without its chemical stock');
+    expect(await ev(page, `(S.stock.entries || []).length`)).toBe(0);
   });
 });

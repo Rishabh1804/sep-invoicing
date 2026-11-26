@@ -339,6 +339,15 @@ function relaySplit(text) {
    own test of that head had read such a roll while this did not, so Add and Paste message said no roll was found, or sent
    the whole paste to Production and the attendance was never read (QA3-5). Now the two agree by construction. */
 var RELAY_ROLL_HEAD_RE = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i;
+/* The supervisor's day on the lines (26 Nov 2026), production and never a roll: 'opening' for "OPENING TIME … VAT A 1" heading a
+   message with counts, 'barrel' for "BERRAL OUT TIME …" / "IN TIME …" with counts; else ''. One rule for relayKind and prodKind. */
+function relayIsLineDay(text) {
+  var t = String(text || ''), head = t.split('\n').slice(0, 2).join(' ');
+  if (!/\d\s*(?:nos|pcs|kgs?)\b/i.test(t)) return '';
+  if (/^\s*-*\s*opening\s*-*\s*time/i.test(head)) return 'opening';
+  if (/^\s*-*\s*b[ae]r+[ae]*l+\.?[\s-]+(?:out|in)\s*-*\s*time/im.test(t)) return 'barrel';
+  return '';
+}
 function relayKind(text) {
   if (typeof CK_HEAD_RE !== 'undefined' && CK_HEAD_RE.test(String(text || '').split('\n')[0])) return 'checkin';
   var head = String(text || '').split('\n').slice(0, 2).join(' ');
@@ -350,7 +359,7 @@ function relayKind(text) {
   var io = head.match(/\b(in|out)\s*-*\s*time(?![a-z])/i);
   // "BERRAL OUT TIME 8:50 AM … 310 NOS" (the supervisor, 26 Nov 2026): a barrel's out and in, or a line of work with its count, is
   // production, never a roll; read as the out-time roll, its batches were lost.
-  if (io && (/^\s*[-\s]*(?:b[ae]r+[ae]*l+|vat)\b/i.test(head) || /\d\s*(?:nos|no|pcs|kgs?)\b/i.test(head))) io = null;
+  if (io && relayIsLineDay(text)) io = null;
   if (io && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(head)) return io[1].toLowerCase();
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';

@@ -67,7 +67,7 @@ function prodKind(text) {
   if (rk === 'stock') return 'stock';
   // The supervisor's day on the lines (26 Nov 2026): "OPENING TIME 7:10 AM … VAT A 1", its work with counts; and the barrel's
   // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM".
-  if ((/opening\s*-*\s*time/i.test(t) || /^\s*-*\s*b[ae]r+[ae]*l+\.?\s+(?:out|in)\s*-*\s*time/im.test(t)) && /\d\s*(?:nos|no|pcs|kgs?)\b/i.test(t)) return 'production';
+  if (relayIsLineDay(t)) return 'production';
   if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t) && !PROD_CHEM_IN_RE.test(head)) return 'pickling';
   if (PROD_LIST_HEAD_RE.test(head) || /^\s*b[ae]r+[ae]*l+\.?\s*production/im.test(t)) return 'production';
   // Before power: a slot log may carry a power cut among its slots, and read as power alone its slots were lost.
@@ -208,12 +208,6 @@ function prodReadItem(line, idx) {
     // "KHURANA INDUSTRY", "SIYA ENTERPRISES": what is left is the rest of the firm's name, not a part.
     while (rest.length && (PROD_FIRM_RE.test(rest[0]) || PROD_NAME_NOISE[rest[0].toUpperCase().replace(/[^A-Z]/g, '')]) && !/\d/.test(rest[0])) { out.client += ' ' + rest[0]; rest = rest.slice(1); }
     partText = rest.join(' ').replace(/^[\s\-_,]+/, '');
-  }
-  // "DELTA 310 NOS ANCHOR BKT" (the supervisor, 26 Nov 2026): with nothing before the count but the client, a part written after
-  // it is the part. It had been a load with no part.
-  if (!partText.trim() && got && toks.length) {
-    var afterQ = s.slice(toks[0].end, toks[1] ? toks[1].at : s.length).replace(/^[\s\-_,]+|[\s\-_,+]+$/g, '');
-    if (/^[A-Za-z]/.test(afterQ) && !lineGauge(afterQ.replace(/\(?\d{2}\s*X\s*\d\)?/i, '')) !== false && !(idx && prodMatchClient(afterQ, idx))) partText = afterQ;
   }
   var g = lineGauge(partText);
   // "MEHTA CLAMP 2700 NOS 25×6": a gauge written after the count is the part's, as one written before it is.
@@ -500,19 +494,18 @@ var PROD_CLOCK_RE = /\b(\d{1,2}\s*[:.]\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[
 function prodIsBatchList(lines) {
   var dashed = lines.some(function(l) { return /^\s*-{6,}\s*$/.test(l); });
   var unload = lines.some(function(l) { return PROD_UNLOAD_RE.test(l); });
-  var withFigure = lines.some(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kg|nos|no)\b/i.test(l); });
+  var withFigure = lines.some(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kgs?|nos|no|pcs)\b/i.test(l); });
   return unload && (dashed || withFigure);
 }
-function parseBarrelBatches(msg, ctx, lines) {
+function parseBarrelBatches(msg, ctx, lines, opts) {
   var items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, power = {};
   var pending = [], loading = null, skip = -1, headUn = null;
   // Times written over their batches, or under them: a numbered list writes them over, and so does one whose last unload
   // time alone on its line has a batch written under it. A list that writes them under ends on its last unload.
   var aloneUn = function(l) { var c = prodUnnumber(l).trim(); return PROD_UNLOAD_RE.test(c) && PROD_CLOCK_RE.test(c) && !/\d\s*(kg|kgs|nos|no|pcs)\b/i.test(c); };
   var timesFirst = lines.some(function(l) { return /^\s*\(?\d{1,2}\s*\)/.test(l) && PROD_UNLOAD_RE.test(l); });
-  // A list whose first unload writes its time before its figures ("UNLOAD TIME 8:50 AM DELTA 310 NOS") writes them over.
-  var firstUn = lines.find(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kg|kgs|nos|no|pcs)\b/i.test(l); });
-  if (firstUn) { var fc = PROD_CLOCK_RE.exec(firstUn), fq = /\d+(?:\.\d+)?\s*(kg|kgs|nos|no|pcs)\b/i.exec(firstUn); if (fc && fq && fc.index < fq.index) timesFirst = true; }
+  // The barrel's out and in ("BERRAL OUT TIME 8:50 AM DELTA 310 NOS", read through parseProductionList) write their times over.
+  if (opts && opts.timesFirst) timesFirst = true;
   if (!timesFirst) {
     var lastAlone = -1;
     lines.forEach(function(l, k) { if (aloneUn(l)) lastAlone = k; });
@@ -561,6 +554,8 @@ function parseBarrelBatches(msg, ctx, lines) {
       notes.push({ n: n, raw: raw, text: 'Loaded at ' + loading + (rest ? ': ' + rest : '') + '. Counted when it is unloaded' });
       return;
     }
+    // A later out ("BERRAL OUT TIME …" after an IN) ends what was loaded: its batches are unloaded again.
+    if (loading && PROD_UNLOAD_RE.test(core)) { loading = null; pending = []; }
     if (loading) { notes.push({ n: n, raw: raw, text: 'Loaded at ' + loading + ': counted when it is unloaded' }); return; }
     var un = null, text = core;
     if (PROD_UNLOAD_RE.test(core)) {
@@ -647,6 +642,12 @@ function parseBarrelBatches(msg, ctx, lines) {
             recs.push(nr);
             return;
           }
+          // "DELTA 310 NOS ANCHOR BKT": with nothing between the client and its count, a part written after the count is the part
+          // (not a line, a rework or a barrel word).
+          if (!it.part && it.clientId != null && it.qty != null) {
+            var aq = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*(.*)$/i.exec(c), w = aq ? aq[1].replace(PROD_LINE_END_RE, '').replace(/\b(?:re[-\s]*\w+|done|b[ae]r+[ae]*l+s?)\b/gi, '').replace(/\s+/g, ' ').trim() : '';
+            if (/^[A-Za-z]/.test(w) && !prodMatchClient(w, ctx.clients)) { it.part = w; it.gauge = it.gauge || lineGauge(w); }
+          }
           recs.push(record(it, raw, n));
         });
       }
@@ -655,11 +656,11 @@ function parseBarrelBatches(msg, ctx, lines) {
     // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
     // "60 CD 27 KG 3 HOL 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
     var tailC = text && /\d\s*(?:nos|no|pcs|kgs?)\b\.?\s+([A-Za-z][A-Za-z .&]{2,})$/i.exec(text), tailHit = tailC ? prodMatchClient(tailC[1].trim(), ctx.clients) : null;
-    if (tailHit) group = { client: tailC[1].trim(), clientId: tailHit.id, clientName: tailHit.name, how: tailHit.how };
     if (tailHit) recs.forEach(function(r) {
       if (r.clientId != null && !r._carried) return;
-      r.clientId = tailHit.id; r.clientName = tailHit.name; r.client = tailC[1].trim();
-      r.issues = r.issues.filter(function(x) { return x.code !== 'client'; });
+      r.clientId = tailHit.id; r.clientName = tailHit.name; r.client = tailC[1].trim(); r.clientHow = tailHit.how || '';
+      r.issues = r.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
+      if (tailHit.how === 'read-as') r.issues.push({ tone: 'amber', code: 'readas', text: '"' + r.client + '" read as ' + tailHit.name + '.' });
       if (r.part && r.part.toUpperCase().endsWith(tailC[1].trim().toUpperCase())) r.part = r.part.slice(0, -tailC[1].trim().length).trim();
     });
     recs.forEach(function(r) { delete r._carried; });
@@ -675,13 +676,14 @@ function parseBarrelBatches(msg, ctx, lines) {
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 function parseProductionList(msg, ctx) {
-  if (/opening\s*-*\s*time/i.test(msg.text || '')) return parseVatOpening(msg, ctx);
+  if (relayIsLineDay(msg.text) === 'opening') return parseVatOpening(msg, ctx);
   // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM …" (the supervisor, 26 Nov 2026): out is the unload, in the load, read as
   // the batch list reads UNLOAD and LOADING.
-  if (/^\s*-*\s*b[ae]r+[ae]*l+\.?\s+(?:out|in)\s*-*\s*time/im.test(msg.text || '')) {
+  if (relayIsLineDay(msg.text) === 'barrel') {
     msg = Object.assign({}, msg, { text: String(msg.text).split('\n').map(function(l) {
-      return l.replace(/^\s*-*\s*b[ae]r+[ae]*l+\.?\s+(?=(?:out|in)\s*-*\s*time)/i, '').replace(/^\s*out\s*-*\s*time\b/i, 'UNLOAD TIME').replace(/^\s*in\s*-*\s*time\b/i, 'LOADING TIME');
+      return l.replace(/^\s*-*\s*b[ae]r+[ae]*l+\.?[\s-]+(?=(?:out|in)\s*-*\s*time)/i, '').replace(/^\s*out\s*-*\s*time\b/i, 'UNLOAD TIME').replace(/^\s*in\s*-*\s*time\b/i, 'LOADING TIME');
     }).join('\n') });
+    return parseBarrelBatches(msg, ctx, String(msg.text).split('\n'), { timesFirst: true });
   }
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
@@ -745,15 +747,19 @@ function parseProductionList(msg, ctx) {
    load is a run on its line, from the line's opening (or its own time), basis relay; a load with no line written is asked. */
 function parseVatOpening(msg, ctx) {
   var lines = String(msg.text || '').split('\n'), items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
-  var line = null, start = null, group = null, family = null;
+  var line = null, start = null, group = null, family = null, power = {};
   var CLOCK = '(\\d{1,2}\\s*[:.]\\s*\\d{2}\\s*(?:[ap]\\.?\\s?m\\.?)?|\\d{1,2}\\s*[ap]\\.?\\s?m\\.?)';
   lines.forEach(function(raw, i) {
     var n = i + 1, bare = raw.trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '');
     if (!bare) return;
+    var dm = bare.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
+    if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; return; }
+    if (prodIsPowerLine(bare)) { prodPowerStep(power, bare, raw, n, date, msg.sentAt, items, notes); return; }
     var lt = bare.match(new RegExp('\\b(' + PROD_LINE_TOKEN + ')\\b', 'i'));
     if (lt && prodLineOfToken(lt[1])) {
       var nl = prodLineOfToken(lt[1]);
-      if (nl !== line) { group = null; family = null; start = null; }
+      // Moving from one written line to the next starts afresh; the first line written keeps an opening time read above it.
+      if (line && nl !== line) { group = null; family = null; start = null; }
       line = nl; bare = bare.replace(lt[0], ' ');
     }
     var om = bare.match(new RegExp('opening\\s*-*\\s*time\\s*[-:]*\\s*' + CLOCK, 'i'));
@@ -772,7 +778,9 @@ function parseVatOpening(msg, ctx) {
     if (!chunks.length) {
       var h = prodReadItem(bare, ctx.clients);
       if (h.clientId != null) { group = { client: h.client, clientId: h.clientId, clientName: h.clientName, how: h.clientHow }; family = h.part || null; }
-      else if (/^[A-Za-z][A-Za-z .-]*$/.test(bare)) family = bare;
+      else if (/^[A-Za-z][A-Za-z.-]*$/.test(bare)) family = bare;
+      // Two words or more naming nobody the book holds ("ZEPHYR CLAMP"): a client of its own, asked, never the client above.
+      else if (/^[A-Za-z][A-Za-z .-]*$/.test(bare)) { var w0 = bare.split(/\s+/)[0]; group = { client: w0, clientId: null, clientName: '', how: 'unknown' }; family = bare.slice(w0.length).trim() || null; }
       else notes.push({ n: n, raw: raw, text: 'Not read' });
       return;
     }
@@ -789,7 +797,8 @@ function parseVatOpening(msg, ctx) {
       items.push(rec);
     });
   });
-  if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the message: read as ' + date + '.' }); });
+  if (noDate) items.forEach(function(it) { if (it.kind !== 'downtime') it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the message: read as ' + date + '.' }); });
+  prodPowerEnd(power, date, items);
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 

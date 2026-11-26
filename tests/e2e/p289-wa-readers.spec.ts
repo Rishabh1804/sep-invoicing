@@ -272,6 +272,17 @@ GENERAL RING 260 NOS`, D.iso, 600);
     expect(await ev(page, `msgSort({ text: ${JSON.stringify(brl.replace(/^.*?Supervisor: /, ''))} }).kind`)).toBe('production');
     m = await read(page, brl);
     expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.unit, i.to])).toEqual([[12, 'ANCHOR BKT', 310, 'NOS', '08:50'], [14, '60 CD', 27, 'KG', '08:50'], [14, '3 HOL', 19, 'KG', '08:50']]);
+    expect(m[0].notes.length).toBeGreaterThan(0);
     expect(m[0].notes.every(n => /^Loaded at 9:05 AM/.test(n))).toBe(true);
+
+    // The review's cases: figures under the out, KGS, an out after an in, an unknown client's loads, an opening time over its line.
+    m = await read(page, `${D.dmy}, 11:00 am - Supervisor: BERRAL OUT TIME 8:50 AM\nDURGA AUTO 310 NOS\nIN TIME 9:05 AM\nNOVA 240 NOS\nBERRAL OUT TIME 10:30 AM KESTREL 45 KGS`);
+    expect(m[0].items.map(i => [i.clientId, i.qty, i.unit, i.to])).toEqual([[12, 310, 'NOS', '08:50'], [13, 45, 'KG', '10:30']]);
+    m = await read(page, `${D.dmy}, 11:00 am - Pickler: NOVA CLAMPS\nRING--774 NOS VAT A2\nPICKLING TIME 9:40 AM`);
+    expect(m[0].items[0]).toMatchObject({ part: 'RING', qty: 774, dest: 'vat-a2' });
+    m = await read(page, `${D.dmy}, 10:10 am - Supervisor: OPENING TIME 7:10 AM\nVAT A1\nNOVA RING\n52×64(20×5)=120 NOS\nZEPHYR CLAMP\n61×70(25×5)=88 NOS`);
+    expect(m[0].items.map(i => [i.time, i.clientId, i.client, i.part, i.qty])).toEqual([['07:10', 11, 'NOVA', 'RING 52X64(20X5)', 120], ['07:10', null, 'ZEPHYR', 'CLAMP 61X70(25X5)', 88]]);
+    // An undated roll whose head says "NO EXTRA" is still a roll.
+    expect(await ev(page, `relayKind('IN TIME 7:00 NO EXTRA\\n1) ALFA')`)).toBe('in');
   });
 });

@@ -310,6 +310,18 @@ GENERAL RING 260 NOS`, D.iso, 600);
     // Written the old way, the loads above a time are still that time's, and a figure after a figure stays with its load.
     m = await read(page, `${D.dmy}, 11:30 am - Pickler: NOVA CLAMPS\nRING--240 NOS 12 KG\nBOLT--80 NOS\nPICKLING TIME 10:00 AM\nDURGA AUTO\n7313--45 nos\nPICKLING TIME 11:00 AM`);
     expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time])).toEqual([[11, 'RING', 240, '10:00'], [11, 'BOLT', 80, '10:00'], [12, '7313', 45, '11:00']]);
+    // The review's cases: a time with a load of its own, then a time with none and nothing under it, closes the loads between.
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: NOVA CLAMPS\nPICKLING TIME 9:00 AM RING 50 NOS\nHOOK 40 NOS\nPICKLING TIME 10:00 AM`);
+    expect(m[0].items.map(i => [i.part, i.qty, i.time])).toEqual([['RING', 50, '09:00'], ['HOOK', 40, '10:00']]);
+    expect(m[0].notes).toEqual([]);
+    m = await read(page, `${D.dmy}, 3:31 pm - Pickler: VAT A 2 PICKLING TIME 2:40 PM NOVA RING 52×64=20×5=120\nDURGA AUTO\n7313--45 nos\nPICKLING TIME 3:10 PM`);
+    expect(m[0].items.map(i => [i.clientId, i.qty, i.time, i.dest])).toEqual([[11, 120, '14:40', 'vat-a2'], [12, 45, '15:10', null]]);
+    // A line after a figure is that load's; "+", "/" and "," join, never make a load; a word between the time and its clock with no
+    // client is no family.
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: NOVA CLAMPS\nRING 180 NOS VAT A2 HOOK 40 NOS VAT A1\nBOLT 100 NOS + 50 NOS\nPIN 60 NOS / 2 KG\nRING 52×64 100 NOS, 48×57 80 NOS\nPICKLING TIME 9:00 AM`);
+    expect(m[0].items.map(i => [i.part, i.qty, i.dest])).toEqual([['RING', 180, 'vat-a2'], ['HOOK', 40, 'vat-a1'], ['BOLT', 100, null], ['PIN', 60, null], ['RING 52X64', 100, null], ['48X57', 80, null]]);
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: NOVA CLAMPS\nPICKLING TIME AT 9:40 AM 52×64(20×5) 100 NOS`);
+    expect(m[0].items.map(i => [i.part, i.time])).toEqual([['52X64(20X5)', '09:40']]);
   });
 
   test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {
@@ -325,6 +337,14 @@ VAT A 1 USE ZINK 60 KG
       ['ZINK', 40, 'kg', 'vat-a2', ''], ['ZINK', 60, 'kg', 'vat-a1', ''], ['106 SOLLT', 20, 'kg', 'vat-a1', ''],
       ['CYNEDE', 4, 'kg', 'vat-a1', 'amber:usebath'], ['16 SOLLT', 5, 'kg', 'vat-a2', 'amber:usebath'], ['BRIGHTNER', 3, 'L', 'vat-a2', '']]);
     expect(r.unread).toEqual([]);
+    // A figure with no name of its own stays with the item before it; an add or a balance is not a use; a time of day is no name.
+    const r2 = await ev(page, `parseStockMessage(${JSON.stringify(`CHEMICAL USE ${D.dmy}
+ZINK USE VAT A1 30 KG + VAT A2 20 KG = 50 KG
+ZINK USE VAT A1 40 KG VAT A2 30 KG
+ZINK ADD 50 KG
+ZINK AVAILABLE 210 KG
+BRIGHTNER NIGHT USE 2 LTR MORNING USE 2 LTR`)}).lines.map(function(l){ return [l.name, l.A, l.U, l.C]; })`);
+    expect(r2).toEqual([['ZINK', null, 50, null], ['ZINK', null, 70, null], ['ZINK', 50, null, null], ['ZINK', null, null, 210], ['BRIGHTNER', null, 4, null]]);
     // A numbered stock message is read as it was.
     const n = await ev(page, `parseStockMessage('1) BRIGHTNER 80 LTR use 5 LTR available 75 LTR').lines.length`);
     expect(n).toBe(1);

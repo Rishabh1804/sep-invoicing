@@ -105,7 +105,10 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   follows; a figure after a figure ("240 NOS 12 KG") stays with its load. Before the time, a client heads the loads under it ("NOVA
   PICKLING TIME 11:40 AM") and a load is one of its own, its figure the one after the clock ("DURGA 77 CD PICKLING TIME 4:40 PM 400
   NOS"); between the time and its clock, a client and a family ("PICKLING TIME NOVA RING 1:00 PM 40×57(20×5)60 NOS"); after the clock
-  with no figure, a line and a client ("PICKLING TIME 3:40 PM VAT A 1 DURGA"). Loads written before a time on their own line, where
-  the time has none of its own, are that time's ("… HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM"). "PICKLING TIMES" is the time. Set
+  with no figure, a line and a client ("PICKLING TIME 3:40 PM VAT A 1 DURGA"); a word there with no client is no family. A time with
+  no loads of its own takes the loads a time above heads: those on its own line ("… HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM"), or,
+  with nothing written under it, all of them ("PICKLING TIME 9:00 AM RING 50 NOS / HOOK 40 NOS / PICKLING TIME 10:00 AM": HOOK at
+  10:00). A line after a figure is that load's ("RING 180 NOS VAT A2 HOOK 40 NOS"), and "+", "/" or "," before a figure join it to
+  its load. "PICKLING TIMES" is the time. Set
   against every paste and every message of the export: eleven reads changed, each a load that had been dropped, timeless or run
   together, none that had been right.

@@ -263,13 +263,17 @@ function prodPickSegments(text) {
       PROD_FIG_UNIT_RE.lastIndex = 0;
       while ((m = PROD_FIG_UNIT_RE.exec(line))) {
         var rest = line.slice(m.index + m[0].length);
-        if (!rest.trim() || /^\s*[-–=,(]*\s*\d+(?:\.\d+)?\s*(?:nos|no|pcs|pc|kgs?|k)\b/i.test(rest)) continue;
-        if (/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(rest) || prodIsTimeLine(rest)) cuts.push(m.index + m[0].length);
+        if (!rest.trim() || /^\s*[-–=,(+\/&]*\s*\d+(?:\.\d+)?\s*(?:nos|no|pcs|pc|kgs?|k)\b/i.test(rest)) continue;
+        if (!/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(rest) && !prodIsTimeLine(rest)) continue;
+        // "RING 180 NOS VAT A2 HOOK 40 NOS": the line after a figure is that load's, and the cut falls after it.
+        var tl = rest.match(new RegExp('^[\\s,(–-]*(' + PROD_LINE_TOKEN + ')\\)?[\\s.,]*(?=\\S)', 'i'));
+        // Before a pickling time it is the time's: "… 300 NOS VAT A2 PICKLING TIME 9:05 AM".
+        cuts.push(m.index + m[0].length + (tl && prodLineOfToken(tl[1]) && !prodIsTimeLine(rest.slice(tl[0].length)) ? tl[0].length : 0));
       }
     }
     if (!cuts.length) { out.push({ t: raw, n: i + 1 }); return; }
     var at = 0;
-    cuts.concat([line.length]).forEach(function(c) { var seg = line.slice(at, c).trim(); at = c; if (seg) out.push({ t: seg, n: i + 1 }); });
+    cuts.concat([line.length]).forEach(function(c) { var seg = line.slice(at, c).replace(/^[\s,;&+\/]+/, '').trim(); at = c; if (seg) out.push({ t: seg, n: i + 1 }); });
   });
   return out;
 }
@@ -370,7 +374,8 @@ function parsePickling(msg, ctx) {
       if (tMid && mode !== 'arrived') {
         var mi = prodReadItem(tMid, ctx.clients);
         if (mi.clientId != null) headGroup = mkGroup(mi);
-        if (mi.part && mi.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(mi.part)) midFamily = mi.part;
+        // A family only with its client ("NOVA RING"): "PICKLING TIME AT 9:40 AM" names none.
+        if (mi.clientId != null && mi.part && mi.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(mi.part)) midFamily = mi.part;
       }
       var tTail = tAfter.replace(/^[\s.:*-]*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
       var tIt = mode !== 'arrived' && /[A-Za-z0-9]/.test(tTail) ? prodReadItem(tTail, ctx.clients) : null;
@@ -380,17 +385,25 @@ function parsePickling(msg, ctx) {
         if (tlm && prodLineOfToken(tlm[1])) { blockDest = prodLineOfToken(tlm[1]); tRest = tRest.slice(tlm[0].length); }
         var tri = /[A-Za-z]/.test(tRest) ? prodReadItem(tRest, ctx.clients) : null;
         if (tri && tri.clientId != null) headGroup = mkGroup(tri);
-        if (tri && tri.part && /^[A-Za-z][A-Za-z .]*$/.test(tri.part)) midFamily = tri.part;
+        if (tri && tri.clientId != null && tri.part && /^[A-Za-z][A-Za-z .]*$/.test(tri.part)) midFamily = tri.part;
         tIt = null;
       }
-      // "RING 140 nos HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM" under a time that heads its loads: loads written before a time on
-      // their own line, where that time has none of its own, are that time's loads and go where it says.
+      // A time with no loads of its own, under loads a time above heads: those on its own line are its loads ("RING 140 nos HOOK 60 NOS
+      // VAT A2 PICKLING TIME 9:05 AM"); with nothing written under it before the next time, all of them are ("PICKLING TIME 9:00 AM RING
+      // 50 NOS / HOOK 40 NOS / PICKLING TIME 10:00 AM": HOOK at 10:00, as the loads above a time always were). They go where it says.
       if (!headIt && !headGroup && !midFamily && !(tIt && tIt.qty != null) && mode !== 'arrived') {
-        pendingParts.forEach(function(x) {
-          if (!x._head || x.n !== n) return;
+        var heads = pendingParts.filter(function(x) { return x._head; }), mine = heads.filter(function(x) { return x.n === n; }), follows = false;
+        for (var j = i + 1; j < lines.length && !follows; j++) {
+          var lj = lines[j].trim();
+          if (prodIsTimeLine(lj) || prodIsIncomingLine(lj)) break;
+          if (/[A-Za-z]/.test(lj) && !prodDestOfLine(lj) && !prodIsPowerLine(lj) || /\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(lj)) follows = true;
+        }
+        var claim = mine.length ? mine : follows ? [] : heads;
+        claim.forEach(function(x) {
           delete x._head; delete x.ownTime;
           if (x._headDest) { delete x.dest; delete x._headDest; }
         });
+        if (claim.length && !tLine) blockDest = null;
       }
       var above = pendingParts.filter(function(x) { return !x._head; }).length;
       if (headIt) {

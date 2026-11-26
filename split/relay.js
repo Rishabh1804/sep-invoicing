@@ -348,6 +348,9 @@ function relayKind(text) {
   // A chemical delivery: "14/10/26/ <supplier> TO SOMA HCL 600 LTR" (stock.js, stockParseDelivery).
   if (/\bTO\s+SOMA\b/i.test(head)) return 'stock';
   var io = head.match(/\b(in|out)\s*-*\s*time(?![a-z])/i);
+  // "BERRAL OUT TIME 8:50 AM … 310 NOS" (the supervisor, 26 Nov 2026): a barrel's out and in, or a line of work with its count, is
+  // production, never a roll; read as the out-time roll, its batches were lost.
+  if (io && (/^\s*[-\s]*(?:b[ae]r+[ae]*l+|vat)\b/i.test(head) || /\d\s*(?:nos|no|pcs|kgs?)\b/i.test(head))) io = null;
   if (io && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(head)) return io[1].toLowerCase();
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';

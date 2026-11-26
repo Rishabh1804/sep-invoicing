@@ -253,4 +253,25 @@ GENERAL RING 260 NOS`, D.iso, 600);
     await expect(page.locator('[data-mc-stock-left]')).toContainText('1 roll saved without its chemical stock');
     expect(await ev(page, `(S.stock.entries || []).length`)).toBe(0);
   });
+
+  test('the supervisor’s day on the lines (26 Nov 2026): an opening time a line, several sizes a line, a load’s own time, rounds said; the barrel’s out and in', async ({ page }) => {
+    await load(page);
+    const vat = `${D.dmy}, 10:10 am - Supervisor: OPENING TIME 7:10 AM PICKLING VAT A 1\nNOVA RING\n52×64(20×5)=120 NOS 48×57=(20×5)=75 NOS 47×53(20×5) 90 NOS \nKESTREL L BKT TIMING 9:05 AM 140NOS \n61×70(25×5)=88 NOS 58×66(25×5) 64 NOS SLEEVE 1 ROUND\n12 MINUTE\n------------------------------------\n\n-----VAT A 2-----\nOPENING TIME 9:40 AM DURGA AUTO \n7313- Z BKT 520 NOS 1ROUND 20 MINUTE`;
+    expect(await ev(page, `msgSort({ text: ${JSON.stringify(vat.replace(/^.*?Supervisor: /, ''))} }).kind`)).toBe('production');
+    let m = await read(page, vat);
+    expect(m[0].kind).toBe('production');
+    expect(m[0].items.map(i => [i.kind, i.dest || null, i.time, i.clientId, i.part, i.qty])).toEqual([
+      ['plated', null, '07:10', 11, 'RING 52X64(20X5)', 120], ['plated', null, '07:10', 11, 'RING 48X57(20X5)', 75], ['plated', null, '07:10', 11, 'RING 47X53(20X5)', 90],
+      ['plated', null, '09:05', 13, 'L BKT', 140], ['plated', null, '07:10', 11, 'SLEEVE 61X70(25X5)', 88], ['plated', null, '07:10', 11, 'SLEEVE 58X66(25X5)', 64],
+      ['plated', null, '09:40', 12, '7313- Z BKT', 520]]);
+    expect(await ev(page, `parseProdPaste(${JSON.stringify(vat)}, prodCtx())[0].read.items.map(function(i){ return i.line; })`)).toEqual(['vat-a1', 'vat-a1', 'vat-a1', 'vat-a1', 'vat-a1', 'vat-a1', 'vat-a2']);
+    expect(m[0].notes).toEqual(['A round takes 12 minutes on VAT A1: said, not counted', 'A round takes 20 minutes on VAT A2: said, not counted']);
+
+    // The barrel's out is its unload, its in the load (counted when it comes out); a client after the figures is that line's.
+    const brl = `${D.dmy}, 10:19 am - Supervisor: BERRAL OUT TIME 8:50 AM DURGA AUTO 310 NOS ANCHOR BKT \n60 CD 27 KG 3 HOL 19 KG GENERAL\nIN TIME 9:05 AM\nNOVA C RING 240 NOS 2 BERRAL KESTREL 35 KG`;
+    expect(await ev(page, `msgSort({ text: ${JSON.stringify(brl.replace(/^.*?Supervisor: /, ''))} }).kind`)).toBe('production');
+    m = await read(page, brl);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.unit, i.to])).toEqual([[12, 'ANCHOR BKT', 310, 'NOS', '08:50'], [14, '60 CD', 27, 'KG', '08:50'], [14, '3 HOL', 19, 'KG', '08:50']]);
+    expect(m[0].notes.every(n => /^Loaded at 9:05 AM/.test(n))).toBe(true);
+  });
 });

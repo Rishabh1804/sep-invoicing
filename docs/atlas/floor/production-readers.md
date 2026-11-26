@@ -4,7 +4,7 @@ domain: floor
 modules: [split/prodparse.js]
 specs: []
 tests: [P189, P220, P222, P264, P277, P289]
-updated: 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+updated: 2026-11-26 (the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -88,3 +88,12 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   (`prodUnnumber`). In a list that writes its times over its batches (a numbered list, or one whose last unload time alone on its
   line has a batch written under it), an unload time alone with nothing above it waiting is the time of the batches under it, up
   to the next unload; a list that writes each time under its batch reads as before. "BERRAL UPDATED" is the list's heading.
+- **The supervisor's day on the lines** (26 Nov 2026; `parseVatOpening`): "OPENING TIME 7:10 AM PICKLING VAT A 1" heads a line's work
+  from when it opened; a client alone heads the lines under it with its part's family; a line holds several loads, each a size
+  and its count ("52×64(20×5)=120 NOS 48×57=(20×5)=75 NOS"); a client written with its own load and "TIMING 9:05 AM" is that load's
+  alone; a word after the last count is that line's family; "1 ROUND 12 MINUTE" is said, never counted. It had been sorted as no
+  report and nothing read. **The barrel's out and in** ("BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM"): out is the unload, in the
+  load, read as the batch list reads them; it had been sorted as the out-time roll (`relayKind` now leaves a barrel's or a line's
+  head, or a head with a count, to production). In a list whose first unload writes its time before its figures, that time heads
+  the lines under it; a client written after a line's last figure ("… 19 KG GENERAL") is that line's; a part written after the
+  count ("DELTA 310 NOS ANCHOR BKT") is the part.

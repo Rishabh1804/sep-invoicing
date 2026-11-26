@@ -65,6 +65,9 @@ function prodKind(text) {
   // "28/5/26/ in time6:00 am morning ot": the roll's own dated head, even with no space before the time.
   if (rk === 'in' || rk === 'out' || /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i.test(t)) return 'roll';
   if (rk === 'stock') return 'stock';
+  // The supervisor's day on the lines (26 Nov 2026): "OPENING TIME 7:10 AM … VAT A 1", its work with counts; and the barrel's
+  // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM".
+  if ((/opening\s*-*\s*time/i.test(t) || /^\s*-*\s*b[ae]r+[ae]*l+\.?\s+(?:out|in)\s*-*\s*time/im.test(t)) && /\d\s*(?:nos|no|pcs|kgs?)\b/i.test(t)) return 'production';
   if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t) && !PROD_CHEM_IN_RE.test(head)) return 'pickling';
   if (PROD_LIST_HEAD_RE.test(head) || /^\s*b[ae]r+[ae]*l+\.?\s*production/im.test(t)) return 'production';
   // Before power: a slot log may carry a power cut among its slots, and read as power alone its slots were lost.
@@ -205,6 +208,12 @@ function prodReadItem(line, idx) {
     // "KHURANA INDUSTRY", "SIYA ENTERPRISES": what is left is the rest of the firm's name, not a part.
     while (rest.length && (PROD_FIRM_RE.test(rest[0]) || PROD_NAME_NOISE[rest[0].toUpperCase().replace(/[^A-Z]/g, '')]) && !/\d/.test(rest[0])) { out.client += ' ' + rest[0]; rest = rest.slice(1); }
     partText = rest.join(' ').replace(/^[\s\-_,]+/, '');
+  }
+  // "DELTA 310 NOS ANCHOR BKT" (the supervisor, 26 Nov 2026): with nothing before the count but the client, a part written after
+  // it is the part. It had been a load with no part.
+  if (!partText.trim() && got && toks.length) {
+    var afterQ = s.slice(toks[0].end, toks[1] ? toks[1].at : s.length).replace(/^[\s\-_,]+|[\s\-_,+]+$/g, '');
+    if (/^[A-Za-z]/.test(afterQ) && !lineGauge(afterQ.replace(/\(?\d{2}\s*X\s*\d\)?/i, '')) !== false && !(idx && prodMatchClient(afterQ, idx))) partText = afterQ;
   }
   var g = lineGauge(partText);
   // "MEHTA CLAMP 2700 NOS 25×6": a gauge written after the count is the part's, as one written before it is.
@@ -501,6 +510,9 @@ function parseBarrelBatches(msg, ctx, lines) {
   // time alone on its line has a batch written under it. A list that writes them under ends on its last unload.
   var aloneUn = function(l) { var c = prodUnnumber(l).trim(); return PROD_UNLOAD_RE.test(c) && PROD_CLOCK_RE.test(c) && !/\d\s*(kg|kgs|nos|no|pcs)\b/i.test(c); };
   var timesFirst = lines.some(function(l) { return /^\s*\(?\d{1,2}\s*\)/.test(l) && PROD_UNLOAD_RE.test(l); });
+  // A list whose first unload writes its time before its figures ("UNLOAD TIME 8:50 AM DELTA 310 NOS") writes them over.
+  var firstUn = lines.find(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kg|kgs|nos|no|pcs)\b/i.test(l); });
+  if (firstUn) { var fc = PROD_CLOCK_RE.exec(firstUn), fq = /\d+(?:\.\d+)?\s*(kg|kgs|nos|no|pcs)\b/i.exec(firstUn); if (fc && fq && fc.index < fq.index) timesFirst = true; }
   if (!timesFirst) {
     var lastAlone = -1;
     lines.forEach(function(l, k) { if (aloneUn(l)) lastAlone = k; });
@@ -524,6 +536,7 @@ function parseBarrelBatches(msg, ctx, lines) {
   };
   var record = function(it, raw, n, noGroup) {
     var rec = prodItemRecord(it, it.clientId != null || noGroup ? null : group, raw, n, date, false);
+    if (it.clientId == null && !noGroup && group) rec._carried = true;
     rec.kind = 'plated'; rec.line = 'barrel'; rec.lineSrc = 'written'; rec.slot = 'day'; rec.basis = 'relay';
     if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
     return rec;
@@ -640,8 +653,19 @@ function parseBarrelBatches(msg, ctx, lines) {
     }
     // "2) 11:10 AM UNLOAD" over "DELTA RING 85 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
     // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
+    // "60 CD 27 KG 3 HOL 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
+    var tailC = text && /\d\s*(?:nos|no|pcs|kgs?)\b\.?\s+([A-Za-z][A-Za-z .&]{2,})$/i.exec(text), tailHit = tailC ? prodMatchClient(tailC[1].trim(), ctx.clients) : null;
+    if (tailHit) group = { client: tailC[1].trim(), clientId: tailHit.id, clientName: tailHit.name, how: tailHit.how };
+    if (tailHit) recs.forEach(function(r) {
+      if (r.clientId != null && !r._carried) return;
+      r.clientId = tailHit.id; r.clientName = tailHit.name; r.client = tailC[1].trim();
+      r.issues = r.issues.filter(function(x) { return x.code !== 'client'; });
+      if (r.part && r.part.toUpperCase().endsWith(tailC[1].trim().toUpperCase())) r.part = r.part.slice(0, -tailC[1].trim().length).trim();
+    });
+    recs.forEach(function(r) { delete r._carried; });
     if (timesFirst && un && !recs.length && !pending.length && un.min != null) { headUn = un; return; }
-    if (un) { headUn = null; close(pending.concat(recs), un); pending = []; }
+    // In a list that writes its times over its batches, a time with batches on its own line heads the lines under it too.
+    if (un) { headUn = timesFirst && un.min != null ? un : null; close(pending.concat(recs), un); pending = []; }
     else if (headUn) close(recs, headUn);
     else pending = pending.concat(recs);
     recs.forEach(function(r) { items.push(r); });
@@ -651,6 +675,14 @@ function parseBarrelBatches(msg, ctx, lines) {
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 function parseProductionList(msg, ctx) {
+  if (/opening\s*-*\s*time/i.test(msg.text || '')) return parseVatOpening(msg, ctx);
+  // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM …" (the supervisor, 26 Nov 2026): out is the unload, in the load, read as
+  // the batch list reads UNLOAD and LOADING.
+  if (/^\s*-*\s*b[ae]r+[ae]*l+\.?\s+(?:out|in)\s*-*\s*time/im.test(msg.text || '')) {
+    msg = Object.assign({}, msg, { text: String(msg.text).split('\n').map(function(l) {
+      return l.replace(/^\s*-*\s*b[ae]r+[ae]*l+\.?\s+(?=(?:out|in)\s*-*\s*time)/i, '').replace(/^\s*out\s*-*\s*time\b/i, 'UNLOAD TIME').replace(/^\s*in\s*-*\s*time\b/i, 'LOADING TIME');
+    }).join('\n') });
+  }
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
   // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read. A count of barrels is a figure
@@ -702,6 +734,62 @@ function parseProductionList(msg, ctx) {
   });
   if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the list: read as ' + date + '.' }); });
   prodPowerEnd(power, date, items);
+  return { items: items, notes: notes, date: date, noDate: noDate };
+}
+
+/* ---------- The supervisor's day on the lines (26 Nov 2026) ----------
+   "OPENING TIME 7:10 AM PICKLING VAT A 1" heads a line's work from when it opened; a client written alone ("NOVA RING") heads the
+   lines under it, with its part's family; a line holds several loads, each a size and its count ("52×64(20×5)=120 NOS 48×57=(20×5)=75
+   NOS"), a client written with its own load ("KILO L BKT TIMING 9:05 AM 140NOS") is that load's alone, with its own time, and a word
+   after the last count is the family of that line's sizes. "1 ROUND 12 MINUTE" is how long a round takes: said, never counted. Every
+   load is a run on its line, from the line's opening (or its own time), basis relay; a load with no line written is asked. */
+function parseVatOpening(msg, ctx) {
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
+  var line = null, start = null, group = null, family = null;
+  var CLOCK = '(\\d{1,2}\\s*[:.]\\s*\\d{2}\\s*(?:[ap]\\.?\\s?m\\.?)?|\\d{1,2}\\s*[ap]\\.?\\s?m\\.?)';
+  lines.forEach(function(raw, i) {
+    var n = i + 1, bare = raw.trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '');
+    if (!bare) return;
+    var lt = bare.match(new RegExp('\\b(' + PROD_LINE_TOKEN + ')\\b', 'i'));
+    if (lt && prodLineOfToken(lt[1])) {
+      var nl = prodLineOfToken(lt[1]);
+      if (nl !== line) { group = null; family = null; start = null; }
+      line = nl; bare = bare.replace(lt[0], ' ');
+    }
+    var om = bare.match(new RegExp('opening\\s*-*\\s*time\\s*[-:]*\\s*' + CLOCK, 'i'));
+    if (om) { start = prodTimeOf(om[1], msg.sentAt); bare = bare.replace(om[0], ' '); }
+    bare = bare.replace(/\bpickling\b/i, ' ');
+    var rd = bare.match(/(\d+)\s*rounds?\b(?:\s*(\d+)\s*min\w*)?|\b(\d+)\s*min(?:ute)?s?\b/i);
+    if (rd && (rd[2] || rd[3])) notes.push({ n: n, raw: raw, text: 'A round takes ' + (rd[2] || rd[3]) + ' minutes on ' + (line ? PROD_LINE_LABEL[line] : 'the line') + ': said, not counted' });
+    if (rd) bare = bare.replace(rd[0], ' ');
+    var own = null, tm = bare.match(new RegExp('\\btim(?:e|ing)\\s*[-:]*\\s*' + CLOCK, 'i'));
+    if (tm) { own = prodTimeOf(tm[1], msg.sentAt); bare = bare.replace(tm[0], ' '); }
+    bare = bare.replace(/[×✕]/g, 'X').replace(/(\d)\s*=\s*\(/g, '$1(').replace(/\)\s*=\s*(\d)/g, ') $1').replace(/\s+/g, ' ').trim();
+    if (!bare) return;
+    var re = /(\d+(?:\.\d+)?)\s*(nos|no|pcs|kgs?)\b\.?/gi, m, from = 0, chunks = [];
+    while ((m = re.exec(bare))) { if (/X\s*$/i.test(bare.slice(0, m.index))) continue; chunks.push(bare.slice(from, m.index + m[0].length).trim()); from = m.index + m[0].length; }
+    var tail = bare.slice(from).trim();
+    if (!chunks.length) {
+      var h = prodReadItem(bare, ctx.clients);
+      if (h.clientId != null) { group = { client: h.client, clientId: h.clientId, clientName: h.clientName, how: h.clientHow }; family = h.part || null; }
+      else if (/^[A-Za-z][A-Za-z .-]*$/.test(bare)) family = bare;
+      else notes.push({ n: n, raw: raw, text: 'Not read' });
+      return;
+    }
+    var lineFamily = /^[A-Za-z][A-Za-z .-]*$/.test(tail) && !prodMatchClient(tail, ctx.clients) ? tail : family;
+    chunks.forEach(function(c) {
+      var it = prodReadItem(c, ctx.clients);
+      if (lineFamily && /^\d/.test(it.part || '')) it.part = lineFamily + ' ' + it.part;
+      var rec = prodItemRecord(it, it.clientId != null ? null : group, raw, n, date, false);
+      var at = own || start;
+      rec.kind = 'plated'; rec.line = line; rec.lineSrc = line ? 'written' : null; rec.slot = 'day'; rec.basis = 'relay';
+      rec.time = at && at.min != null ? prodHhmm(at.min) : null;
+      if (at && at.issue) rec.issues.push(at.issue);
+      if (!line) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line.' });
+      items.push(rec);
+    });
+  });
+  if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the message: read as ' + date + '.' }); });
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 

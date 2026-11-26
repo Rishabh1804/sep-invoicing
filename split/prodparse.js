@@ -247,13 +247,43 @@ function prodDestOfLine(line) {
   if ((l === 'barrel' || /^A\s?[12]$/i.test(m[2].trim())) && !m[1] && !m[3]) return null;
   return l;
 }
+/* The pickling message's lines as the reader takes them (26 Nov 2026). A time with its clock on the line under it ("VAT 2 PICKLING
+   TIME / 4:10 PM") is one line. A line holding several loads ("RING 52×64(20×5)=150 NOS 48×57(20×5)90 NOS PICKLING TIME …") is cut
+   after each load's figure where a load or a pickling time follows: it had been read as one load, its parts run together. A figure
+   after a figure ("240 NOS 12 KG") stays with its load, and a line after the figure ("180 NOS VAT A2") is where it goes. */
+var PROD_CLOCK_ONLY_RE = /^\s*(?:\d{1,2}\s*[:.]\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[ap]\.?\s?m\.?)\s*$/i;
+var PROD_FIG_UNIT_RE = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|pc|kgs|kg)\b\.?/gi;
+function prodPickSegments(text) {
+  var out = [];
+  String(text || '').split('\n').forEach(function(raw, i) {
+    var prev = out[out.length - 1];
+    if (prev && prev.n === i && prodIsTimeLine(prev.t) && !/\d/.test(prev.t.replace(/^.*?t\w*me/i, '')) && PROD_CLOCK_ONLY_RE.test(raw)) { prev.t += ' ' + raw.trim(); return; }
+    var line = raw, cuts = [], m;
+    if (!prodIsIncomingLine(line) && !prodIsPowerLine(line)) {
+      PROD_FIG_UNIT_RE.lastIndex = 0;
+      while ((m = PROD_FIG_UNIT_RE.exec(line))) {
+        var rest = line.slice(m.index + m[0].length);
+        if (!rest.trim() || /^\s*[-–=,(]*\s*\d+(?:\.\d+)?\s*(?:nos|no|pcs|pc|kgs?|k)\b/i.test(rest)) continue;
+        if (/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(rest) || prodIsTimeLine(rest)) cuts.push(m.index + m[0].length);
+      }
+    }
+    if (!cuts.length) { out.push({ t: raw, n: i + 1 }); return; }
+    var at = 0;
+    cuts.concat([line.length]).forEach(function(c) { var seg = line.slice(at, c).trim(); at = c; if (seg) out.push({ t: seg, n: i + 1 }); });
+  });
+  return out;
+}
 function parsePickling(msg, ctx) {
-  var lines = String(msg.text || '').split('\n'), items = [], notes = [], blockDest = null;
+  var segs = prodPickSegments(msg.text), lines = segs.map(function(x) { return x.t; }), items = [], notes = [], blockDest = null;
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
   var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, carriedGroup = false, pendingParts = [], family = null, arrivedAt = null, power = {};
   // The loads the last pickling time closed, and whether that time was the line just read: "PICKLING TIME 9:40 / For Barrel"
   // is where those loads are going (owner, 25 Nov 2026). It had gone to the next block's loads.
   var lastFlushed = [], afterTime = false, dateWritten = false;
+  // A pickling time with nothing listed above it heads the loads under it (26 Nov 2026: "VAT 2 PICKLING TIME 4:10 PM / 52×64(20×5)
+  // =150 NOS"; "NOVA PICKLING TIME 11:40 AM / 48×57…"): each takes it as its own time, until another time, an incoming block or a
+  // line heading. Under a time that closed loads above it, the loads under it wait for the next time, as before.
+  var headT = null, headNote = null;
   // A line that is only a figure and its unit ("1000 NOS"): the quantity of the load written above it, never a part.
   var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
   // Sent after midnight with no date written, a load pickled in the evening is the evening before ("RING--240 nos /
@@ -271,7 +301,7 @@ function parsePickling(msg, ctx) {
     pendingParts.forEach(function(it) {
       it.kind = kind;
       var tt = it.ownTime || t;
-      delete it.ownTime;
+      delete it.ownTime; delete it._head; delete it._headDest;
       if (tt) { it.time = prodHhmm(tt.min); if (tt.issue) it.issues.push(tt.issue); dayOf(it, tt.min, tt); }
       if (kind === 'pickled' && !it.dest && blockDest) it.dest = blockDest;
       if (kind !== 'pickled') delete it.dest;
@@ -288,7 +318,7 @@ function parsePickling(msg, ctx) {
     flush(mode, mode === 'arrived' ? arrivedAt : null);
   };
   lines.forEach(function(raw, i) {
-    var line = raw.trim(), n = i + 1;
+    var line = raw.trim(), n = segs[i].n;
     if (!line) return;
     var wasAfterTime = afterTime;
     afterTime = false;
@@ -306,6 +336,7 @@ function parsePickling(msg, ctx) {
     if (prodIsPowerLine(line)) { prodPowerStep(power, line, raw, n, date, msg.sentAt, items, notes); return; }
     if (prodIsIncomingLine(line)) {
       flushOpen();
+      headT = null; headNote = null;
       mode = 'arrived';
       var afterHead = line.replace(/^.*?(t\w*me|rime)/i, '');
       arrivedAt = prodTimeOf(afterHead, msg.sentAt);
@@ -315,20 +346,63 @@ function parsePickling(msg, ctx) {
       return;
     }
     if (prodIsTimeLine(line)) {
-      var t = prodTimeOf(line.replace(/^.*?t\w*me/i, ''), msg.sentAt);
+      var tAfter = line.replace(/^.*?t\w*me(?:s\b)?/i, ''), tMid = '';
+      // "PICKLING TIME NOVA CLAMP 3:00 PM 52×64(20×5)70 NOS" (26 Nov 2026): a name between the time's words and its clock is the
+      // client of the loads under it, and a family their sizes take. It had been read into the part with the clock.
+      var tck = PROD_CLOCK_RE.exec(tAfter);
+      if (tck && /[A-Za-z]/.test(tAfter.slice(0, tck.index))) { tMid = tAfter.slice(0, tck.index).replace(/^[\s.:*-]+|[\s.:*-]+$/g, ''); tAfter = tAfter.slice(tck.index); }
+      var t = prodTimeOf(tAfter, msg.sentAt);
       var re = /\bre[-\s]*p/i.test(line);
       // "VAT A 2 PICKLING TIME 2:40 PM 52×64=20×5=120" (owner, 25 Nov 2026): the line written before the time is where the loads
       // are going, and a load written after the time is one of them. The whole line had been a time with nothing above it.
       var tHead = (/^(.*?)p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.exec(line) || [])[1] || '';
       var tLine = tHead.trim() ? prodDestOfLine(tHead) || prodLineOfToken(tHead.replace(/[\s:*-]+$/, '')) : null;
       if (tLine && mode !== 'arrived') blockDest = tLine;
-      var tTail = line.replace(/^.*?t\w*me/i, '').replace(/^[\s.:*-]*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
-      if (mode !== 'arrived' && /[A-Za-z0-9]/.test(tTail)) {
-        var tIt = prodReadItem(tTail, ctx.clients);
-        if (tIt.qty != null) {
-          if (tIt.clientId != null) group = { client: tIt.client, clientId: tIt.clientId, clientName: tIt.clientName, how: tIt.clientHow };
-          pendingParts.push(prodItemRecord(tIt, tIt.clientId != null ? null : group || null, raw, n, date, noDate));
-        }
+      // "NOVA PICKLING TIME 11:40 AM": a client before the time heads the loads under it. "DURGA 77 CD PICKLING TIME 3:00 PM 400 NOS":
+      // a load before the time is one of its loads, its figure the one after the clock (26 Nov 2026).
+      var headGroup = null, headIt = null, midFamily = null, pushedAt = false;
+      var mkGroup = function(r) { return { client: r.client, clientId: r.clientId, clientName: r.clientName, how: r.clientHow }; };
+      if (!tLine && mode !== 'arrived' && /[A-Za-z]/.test(tHead)) {
+        var hi = prodReadItem(tHead.replace(/[\s:*-]+$/, ''), ctx.clients);
+        if (hi.clientId != null && !hi.part && hi.qty == null) headGroup = mkGroup(hi);
+        else if (hi.part && /\d/.test(tHead)) headIt = hi;
+      }
+      if (tMid && mode !== 'arrived') {
+        var mi = prodReadItem(tMid, ctx.clients);
+        if (mi.clientId != null) headGroup = mkGroup(mi);
+        if (mi.part && mi.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(mi.part)) midFamily = mi.part;
+      }
+      var tTail = tAfter.replace(/^[\s.:*-]*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
+      var tIt = mode !== 'arrived' && /[A-Za-z0-9]/.test(tTail) ? prodReadItem(tTail, ctx.clients) : null;
+      // "PICKLING TIME 3:40 PM VAT A 1 NOVA" (26 Nov 2026): after the clock with no figure, the line the loads go to and their client.
+      if (tIt && tIt.qty == null) {
+        var tRest = tTail, tlm = tRest.match(new RegExp('^[\\s:*-]*(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i'));
+        if (tlm && prodLineOfToken(tlm[1])) { blockDest = prodLineOfToken(tlm[1]); tRest = tRest.slice(tlm[0].length); }
+        var tri = /[A-Za-z]/.test(tRest) ? prodReadItem(tRest, ctx.clients) : null;
+        if (tri && tri.clientId != null) headGroup = mkGroup(tri);
+        if (tri && tri.part && /^[A-Za-z][A-Za-z .]*$/.test(tri.part)) midFamily = tri.part;
+        tIt = null;
+      }
+      // "RING 140 nos HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM" under a time that heads its loads: loads written before a time on
+      // their own line, where that time has none of its own, are that time's loads and go where it says.
+      if (!headIt && !headGroup && !midFamily && !(tIt && tIt.qty != null) && mode !== 'arrived') {
+        pendingParts.forEach(function(x) {
+          if (!x._head || x.n !== n) return;
+          delete x._head; delete x.ownTime;
+          if (x._headDest) { delete x.dest; delete x._headDest; }
+        });
+      }
+      var above = pendingParts.filter(function(x) { return !x._head; }).length;
+      if (headIt) {
+        if (tIt && tIt.qty != null && !tIt.part) { headIt.qty = tIt.qty; headIt.unit = tIt.unit; headIt.qtySrc = tIt.qtySrc; tIt = null; }
+        var hRec = prodItemRecord(headIt, headIt.clientId != null ? null : headGroup || group || null, raw, n, date, noDate);
+        if (blockDest) hRec.dest = blockDest;
+        pendingParts.push(hRec); pushedAt = true;
+      }
+      if (tIt && tIt.qty != null) {
+        if (midFamily && /^\d/.test(tIt.part)) tIt.part = midFamily + ' ' + tIt.part;
+        if (tIt.clientId != null) group = mkGroup(tIt);
+        pendingParts.push(prodItemRecord(tIt, tIt.clientId != null ? null : headGroup || group || null, raw, n, date, noDate)); pushedAt = true;
       }
       if (mode === 'arrived') {
         // "Incoming … / parts / And Pickling Time 9:00" — the same material arrived and went in.
@@ -337,12 +411,17 @@ function parsePickling(msg, ctx) {
         flush('pickled', t);
         arrived.forEach(function(it) { it.kind = 'arrived'; it.time = prodHhmm(arrivedAt && arrivedAt.min); if (arrivedAt && arrivedAt.issue) it.issues.push(arrivedAt.issue); items.push(it); });
         mode = 'pickled';
+        above = 1;
       } else {
         if (re) pendingParts.forEach(function(it) { it.rework = true; });
-        if (!pendingParts.length) notes.push({ n: n, raw: raw, text: 'A pickling time with nothing listed above it' });
+        headNote = null;
+        if (!above && !pushedAt) { headNote = { n: n, raw: raw, text: 'A pickling time with nothing listed above it' }; notes.push(headNote); }
         flush('pickled', t);
       }
-      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false; blockDest = null;
+      var headClient = headIt && headIt.clientId != null ? mkGroup(headIt) : null;
+      lastGroup = headClient || group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false;
+      if (!above && t && t.min != null) { headT = t; group = headGroup; family = midFamily; }
+      else { headT = null; headNote = null; blockDest = null; }
       afterTime = true;
       return;
     }
@@ -354,6 +433,7 @@ function parsePickling(msg, ctx) {
       // Loads that already have their line ("FOR VAT A1" above them) leave this one to the block under it.
       if (openDest.length) openDest.forEach(function(x) { x.dest = dl; });
       else blockDest = dl;
+      headT = null; headNote = null;
       return;
     }
     if (!/[A-Za-z0-9]/.test(line)) return;
@@ -403,6 +483,11 @@ function parsePickling(msg, ctx) {
     if (ownTime) rec.ownTime = ownTime;
     if (leadDest) rec.dest = leadDest;
     if (reworkOn) rec.rework = true;
+    if (headT && !ownTime) {
+      rec.ownTime = headT; rec._head = true;
+      if (!rec.dest && blockDest) { rec.dest = blockDest; rec._headDest = true; }
+      if (headNote) { notes.splice(notes.indexOf(headNote), 1); headNote = null; }
+    }
     // "…-774 NOS VAT A2": the line written after the load's figure is where that load is going.
     if (it.qty != null) {
       var em = line.match(PROD_LINE_END_RE), el = em && /\d\s*(nos|no|pcs|pc|kgs?|k)\b|\d\s*$/i.test(line.slice(0, em.index)) ? prodLineOfToken(em[1]) : null;

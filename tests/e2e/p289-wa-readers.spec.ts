@@ -285,4 +285,48 @@ GENERAL RING 260 NOS`, D.iso, 600);
     // An undated roll whose head says "NO EXTRA" is still a roll.
     expect(await ev(page, `relayKind('IN TIME 7:00 NO EXTRA\\n1) ALFA')`)).toBe('in');
   });
+
+  test('the pickling hand’s afternoon (26 Nov 2026): a time heading the loads under it, several loads a line, a client and family between the time and its clock', async ({ page }) => {
+    await load(page);
+    // A time with nothing listed above it heads the loads under it; its clock may be on the next line. A load before a time on the
+    // same line, its figure after the clock, is that time's.
+    let m = await read(page, `${D.dmy}, 5:00 pm - Pickler: VAT 2 PICKLING TIME\n4:10 PM\n52×64(20×5) =150 NOS DURGA 77 CD  PICKLING TIME 4:40 PM 400 NOS\n--------VAT A 1-----------\nNOVA PICKLING TIME 11:40 AM\n48×57(20×5)=120 NOS 44×57(20×5)90 NOS PICKLING TIME NOVA RING 1:00 PM 40×57(20×5)60 NOS 36×57(20×5)=75 NOS`);
+    expect(m[0].kind).toBe('pickling');
+    expect(m[0].items.map(i => [i.clientId ?? null, i.part, i.qty, i.time, i.dest])).toEqual([
+      [null, '52X64(20X5)', 150, '16:10', 'vat-a2'], [12, '77 CD', 400, '16:40', 'vat-a2'],
+      [11, '48X57(20X5)', 120, '11:40', 'vat-a1'], [11, '44X57(20X5)', 90, '11:40', 'vat-a1'],
+      [11, 'RING 40X57(20X5)', 60, '13:00', 'vat-a1'], [11, 'RING 36X57(20X5)', 75, '13:00', 'vat-a1']]);
+    expect(m[0].items[0].codes).toContain('red:client');
+    expect(m[0].notes).not.toContain('A pickling time with nothing listed above it');
+    // Loads before a time on their own line, that time with none of its own, are its loads; "TIMES" is the time; a line and a client
+    // after the clock head the loads under it.
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: BARREL PICKLING TIME 9:20 AM\nRING 52×64=20×5=210 NOS\nKESTREL 7314 140 nos HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM`);
+    expect(m[0].items.map(i => [i.clientId ?? null, i.part, i.qty, i.time, i.dest])).toEqual([
+      [null, 'RING 52X64(20X5)', 210, '09:20', 'barrel'], [13, '7314', 140, '09:05', 'vat-a2'], [13, 'HOOK', 60, '09:05', 'vat-a2']]);
+    m = await read(page, `${D.dmy}, 4:00 pm - Pickler: PICKLING TIME 3:40 PM VAT A 1 DURGA\n7313--95 NOS`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time, i.dest])).toEqual([[12, '7313', 95, '15:40', 'vat-a1']]);
+    m = await read(page, `${D.dmy}, 10:00 am - Pickler: PICKLING TIMES 8:45 AM\nNOVA CLAMPS\nRING--100 NOS`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time])).toEqual([[11, 'RING', 100, '08:45']]);
+    // Written the old way, the loads above a time are still that time's, and a figure after a figure stays with its load.
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: NOVA CLAMPS\nRING--240 NOS 12 KG\nBOLT--80 NOS\nPICKLING TIME 10:00 AM\nDURGA AUTO\n7313--45 nos\nPICKLING TIME 11:00 AM`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time])).toEqual([[11, 'RING', 240, '10:00'], [11, 'BOLT', 80, '10:00'], [12, '7313', 45, '11:00']]);
+  });
+
+  test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {
+    await load(page);
+    const r = await ev(page, `(function(){ var p = parseStockMessage(${JSON.stringify(`CHEMICAL USE  &  ZINK USE ${D.dmy}/
+VAT A 2 ZINK USE 40 KG
+VAT A 1 USE ZINK 60 KG
+106 SOLLT USE VAT A 1 20KG CYNEDE 4 KG
+16 SOLLT 5 KG VAT A 2 BRIGHTNER 1+2= 3 LTR`)});
+      return { to: p.to, lines: p.lines.map(function(l){ return [l.name, l.U, l.unit, stockBathsIn(l.raw).join(','), l.issues.map(function(i){ return i.level + ':' + i.code; }).join(',')]; }), unread: p.unread }; })()`) as any;
+    expect(r.to).toBe(D.iso);
+    expect(r.lines).toEqual([
+      ['ZINK', 40, 'kg', 'vat-a2', ''], ['ZINK', 60, 'kg', 'vat-a1', ''], ['106 SOLLT', 20, 'kg', 'vat-a1', ''],
+      ['CYNEDE', 4, 'kg', 'vat-a1', 'amber:usebath'], ['16 SOLLT', 5, 'kg', 'vat-a2', 'amber:usebath'], ['BRIGHTNER', 3, 'L', 'vat-a2', '']]);
+    expect(r.unread).toEqual([]);
+    // A numbered stock message is read as it was.
+    const n = await ev(page, `parseStockMessage('1) BRIGHTNER 80 LTR use 5 LTR available 75 LTR').lines.length`);
+    expect(n).toBe(1);
+  });
 });

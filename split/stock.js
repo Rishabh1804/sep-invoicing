@@ -450,12 +450,40 @@ function parseStockMessage(text) {
   dates.sort();
   if (dates.length) { out.from = dates[0]; out.to = dates[dates.length - 1]; }
   else if (out.sentOn) { out.from = out.to = out.sentOn; }
+  if (!out.lines.length && /\bUSED?\b/i.test(lines.join(' '))) stockUseLines(out);
   out.lines.forEach(function(l) {
     var p = parseStockLine(l.raw.replace(/\n/g, ' '));
     for (var k in p) l[k] = p[k];
     l.key = stockKey(l.name);
+    if (l.bathFromLine) l.issues.push({ level: 'amber', code: 'usebath', text: 'No bath written by this use: ' + l.bathFromLine + ', the one its line names.' });
   });
   return out;
+}
+/* "CHEMICAL USE & ZINK USE 01/01/26 / VAT A 2 ZINK USE 40 KG / 106 SOLLT USE VAT A 1 20KG CYNEDE 4 KG" (26 Nov 2026): a use
+   message with no numbered lines, one use or more to a line, each ending on its figure. Each is read as a numbered line is
+   ("ZINK use VAT A2 40 KG"); a use with no bath of its own takes the one bath its line names, and says so. The message had
+   been refused whole: "No numbered stock lines found". */
+var STOCK_USE_FIG_RE = new RegExp('(\\d+(?:\\.\\d+)?(?:\\s*\\+\\s*\\d+(?:\\.\\d+)?)*(?:\\s*=\\s*\\d+(?:\\.\\d+)?)?)\\s*(' + Object.keys(STOCK_UNITS).join('|') + ')\\b\\.?', 'gi');
+var STOCK_BATH_NAME_RE = /\bVAT\s*A[12]\b|\bV?A[12]\b|\bB[AE]R+[AE]*L+S?\b/gi;
+function stockUseLines(out) {
+  var used = [], label = { 'vat-a1': 'VAT A1', 'vat-a2': 'VAT A2', barrel: 'BARREL' };
+  out.header.forEach(function(h) {
+    var line = stockFoldAreas(h.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/g, ' ')), chunks = [], at = 0, m;
+    STOCK_USE_FIG_RE.lastIndex = 0;
+    while ((m = STOCK_USE_FIG_RE.exec(line))) { chunks.push({ text: line.slice(at, m.index), fig: m[1].replace(/\s+/g, ''), unit: m[2] }); at = m.index + m[0].length; }
+    if (!chunks.length) return;
+    used.push(h);
+    var baths = stockBathsIn(line);
+    chunks.forEach(function(c) {
+      var own = stockBathsIn(c.text)[0] || null, bath = own || (baths.length === 1 ? baths[0] : null);
+      var name = c.text.replace(STOCK_BATH_NAME_RE, ' ').replace(/\bUSED?\b/gi, ' ').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+      var l = { n: out.lines.length + 1, raw: (name || '') + ' use ' + (bath ? label[bath] + ' ' : '') + c.fig + ' ' + c.unit, from: h };
+      if (bath && !own) l.bathFromLine = label[bath];
+      out.lines.push(l);
+    });
+    if (line.slice(at).replace(/[^A-Za-z0-9]+/g, '')) out.unread.push(line.slice(at).trim());
+  });
+  out.unread = out.unread.filter(function(u) { return used.indexOf(u) < 0; });
 }
 
 /* ---------- The store and the replay ---------- */

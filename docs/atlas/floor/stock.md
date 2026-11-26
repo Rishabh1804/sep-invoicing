@@ -3,8 +3,8 @@ subject: "Stock"
 domain: floor
 modules: [split/cost.js, split/stock.js]
 specs: []
-tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P289]
+updated: 2026-11-26 (a use message with no numbers: P289); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### Stock
@@ -22,6 +22,10 @@ levels could not have caught what the first real message carried — *nitric aci
 lines, wrapped lines, the shop's spellings (`SOLLT`, `ZINK`, `CYNEDE`, `BRIGHTNER` — `stockKey`), and
 three arithmetic shapes: `opening − used = left`, `add received + opening = total − used = left`, and
 `rate × days = used`. Tested on the 22 and 24 Sep messages: all 30 lines read, before any screen existed.
+**A use message with no numbers** (26 Nov 2026, `stockUseLines`): "CHEMICAL USE & ZINK USE / VAT A 2 ZINK USE 40 KG / 106 SOLLT
+USE VAT A 1 20KG CYNEDE 4 KG" has one use or more to a line, each ending on its figure. Where a message has no numbered line and
+says *use*, each is read as a numbered line would be ("ZINK use VAT A2 40 KG"); a use with no bath of its own takes the one bath its
+line names, said amber (`usebath`). It had been refused whole, "No numbered stock lines found". A numbered message reads as before.
 **Before anything is saved, every line is shown with the text it came from and what was read:**
 
 - 🔴 **Needs you** — the message contradicts itself. Pick *the working*, *the figure written*, or save

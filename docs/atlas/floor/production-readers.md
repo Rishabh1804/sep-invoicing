@@ -4,7 +4,7 @@ domain: floor
 modules: [split/prodparse.js]
 specs: []
 tests: [P189, P220, P222, P264, P277, P289]
-updated: 2026-11-26 (the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+updated: 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -97,3 +97,15 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   head, or a head with a count, to production). In a list whose first unload writes its time before its figures, that time heads
   the lines under it; a client written after a line's last figure ("… 19 KG GENERAL") is that line's; a part written after the
   count ("DELTA 310 NOS ANCHOR BKT") is the part.
+- **The pickling hand's times written over their loads** (26 Nov 2026; `parsePickling`, `prodPickSegments`). A pickling time with
+  nothing listed above it heads the loads under it ("VAT 2 PICKLING TIME / 4:10 PM / 52×64(20×5)=150 NOS"): each takes it as its own
+  time and the line written with it, up to the next time, an incoming block or a line heading. Under a time that closed loads above
+  it, the loads under it wait for the next time, as they always did. The clock may sit on the line under the time. A line holding
+  several loads ("48×57(20×5)=120 NOS 44×57(20×5)90 NOS PICKLING TIME …") is cut after each load's figure where another load or a time
+  follows; a figure after a figure ("240 NOS 12 KG") stays with its load. Before the time, a client heads the loads under it ("NOVA
+  PICKLING TIME 11:40 AM") and a load is one of its own, its figure the one after the clock ("DURGA 77 CD PICKLING TIME 4:40 PM 400
+  NOS"); between the time and its clock, a client and a family ("PICKLING TIME NOVA RING 1:00 PM 40×57(20×5)60 NOS"); after the clock
+  with no figure, a line and a client ("PICKLING TIME 3:40 PM VAT A 1 DURGA"). Loads written before a time on their own line, where
+  the time has none of its own, are that time's ("… HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM"). "PICKLING TIMES" is the time. Set
+  against every paste and every message of the export: eleven reads changed, each a load that had been dropped, timeless or run
+  together, none that had been right.

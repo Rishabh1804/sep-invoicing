@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="6529e7b0">
+<meta name="app-build" content="b0f970a5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -44224,7 +44224,8 @@ function relayIsLineDay(text) {
   if (/^\s*-*\s*opening\s*-*\s*time/i.test(head)) return 'opening';
   if (/^\s*-*\s*b[ae]r+[ae]*l+\.?[\s-]+(?:out|in)\s*-*\s*time/im.test(t)) return 'barrel';
   // "---01/01/26/ NIGHT WORK--- / NOVA RING 300 NOS …" (27 Nov 2026): the night's work on the lines, its counts under its head.
-  if (RELAY_NIGHT_WORK_RE.test((t.split('\n').filter(function(l) { return l.trim(); })[0] || ''))) return 'night';
+  // A roll under a night head ("NIGHT WORK / 01/01/26 OUT TIME 6:00 AM / …") stays a roll.
+  if (RELAY_NIGHT_WORK_RE.test((t.split('\n').filter(function(l) { return l.trim(); })[0] || '')) && !/(?:^|\n)[\s\d\/.-]*(?:in|out)\s*-*\s*time/i.test(t)) return 'night';
   return '';
 }
 function relayKind(text) {
@@ -49569,7 +49570,7 @@ function prodKind(text) {
   if (/^\s*-*\s*(production|work)\s*-*\s*$/im.test(t)) return 'production';
   // "KESTREL / BOLT--800 NOS / FOR BARREL" (27 Nov 2026): loads and the line they go to with no pickling time written is the
   // pickling hand's, its time asked. It had been sorted as no report.
-  if (/\d\s*(?:nos|no|pcs|kgs?)\b/i.test(t) && t.split('\n').some(function(l) { return /^\s*[\-*]*\s*(?:for|to)\b/i.test(l) && prodDestOfLine(l); })) return 'pickling';
+  if (/\d\s*(?:nos|no|pcs|kgs?)\b/i.test(t) && !PROD_CHEM_IN_RE.test(t) && t.split('\n').some(function(l) { return /^\s*[\-*]*\s*(?:for|to)\b/i.test(l) && prodDestOfLine(l); })) return 'pickling';
   return 'other';
 }
 
@@ -50350,19 +50351,23 @@ function parseProductionList(msg, ctx) {
 function parseVatOpening(msg, ctx, opts) {
   opts = opts || {};
   var lines = String(msg.text || '').split('\n'), items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
-  var line = null, start = null, group = null, family = null, power = {}, carry = null;
-  // "NOVA RING 300 NOS DURGA 77 CD / 2400 NOS" (27 Nov 2026): a load after the line's last count, its figure on the line under it.
-  // Unmet, it is kept as a load with no figure, asked; it had been dropped.
-  var push = function(it, raw, n, at) {
-    var rec = prodItemRecord(it, it.clientId != null ? null : group, raw, n, date, false);
-    rec.kind = 'plated'; rec.line = line; rec.lineSrc = line ? 'written' : null; rec.slot = opts.night ? 'ot' : 'day'; rec.basis = 'relay';
+  var line = null, start = null, group = null, family = null, power = {}, carry = null, night = !!opts.night;
+  // "NOVA RING 300 NOS DURGA 77 CD / 2400 NOS" (27 Nov 2026): a load after the line's last count whose figure is the bare count on the
+  // line under it. It had been dropped. It keeps the line and client it was written under.
+  var push = function(it, raw, n, at, on) {
+    on = on || { line: line, group: group };
+    var rec = prodItemRecord(it, it.clientId != null ? null : on.group, raw, n, date, false);
+    rec.kind = 'plated'; rec.line = on.line; rec.lineSrc = on.line ? 'written' : null; rec.slot = night ? 'ot' : 'day'; rec.basis = 'relay';
     rec.time = at && at.min != null ? prodHhmm(at.min) : null;
     if (at && at.issue) rec.issues.push(at.issue);
-    if (opts.night) rec.issues.push({ tone: 'info', code: 'night', text: 'Night work: the night of ' + date + ', overtime.' });
-    if (!line) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line.' });
+    if (night) rec.issues.push({ tone: 'info', code: 'night', text: 'Night work: the night of ' + date + ', overtime.' });
+    if (!on.line) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line.' });
     items.push(rec);
   };
-  var dropCarry = function() { if (carry) { push(prodReadItem(carry.text, ctx.clients), carry.raw, carry.n, carry.at); carry = null; } };
+  var bareCountNext = function(i) {
+    var nx = lines.slice(i + 1).find(function(l) { return l.trim(); }) || '';
+    return /^[\s\-_=*.•]*\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b/i.test(nx);
+  };
   var CLOCK = '(\\d{1,2}\\s*[:.]\\s*\\d{2}\\s*(?:[ap]\\.?\\s?m\\.?)?|\\d{1,2}\\s*[ap]\\.?\\s?m\\.?)';
   lines.forEach(function(raw, i) {
     var n = i + 1, bare = raw.trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '');
@@ -50370,7 +50375,8 @@ function parseVatOpening(msg, ctx, opts) {
     var dm = bare.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
     if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; return; }
     var nh = bare.match(/^(?:(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*)?night\s*work$/i);
-    if (nh) { if (nh[1] && isoFromDmy(nh[1], nh[2], nh[3])) { date = isoFromDmy(nh[1], nh[2], nh[3]); noDate = false; } return; }
+    // A night head, at the top or under a day's work: what follows is the night's.
+    if (nh) { night = true; if (nh[1] && isoFromDmy(nh[1], nh[2], nh[3])) { date = isoFromDmy(nh[1], nh[2], nh[3]); noDate = false; } return; }
     if (prodIsPowerLine(bare)) { prodPowerStep(power, bare, raw, n, date, msg.sentAt, items, notes); return; }
     var lt = bare.match(new RegExp('\\b(' + PROD_LINE_TOKEN + ')\\b', 'i'));
     if (lt && prodLineOfToken(lt[1])) {
@@ -50392,10 +50398,11 @@ function parseVatOpening(msg, ctx, opts) {
     var re = /(\d+(?:\.\d+)?)\s*(nos|no|pcs|kgs?)\b\.?/gi, m, from = 0, chunks = [];
     while ((m = re.exec(bare))) { if (/X\s*$/i.test(bare.slice(0, m.index))) continue; chunks.push(bare.slice(from, m.index + m[0].length).trim()); from = m.index + m[0].length; }
     var tail = bare.slice(from).trim();
-    if (carry) {
-      if (chunks.length && !prodReadItem(chunks[0], null).part) { chunks[0] = carry.text + ' ' + chunks[0]; carry = null; }
-      else dropCarry();
+    if (carry && chunks.length && !prodReadItem(chunks[0], null).part) {
+      var ci = prodReadItem(carry.text + ' ' + chunks.shift(), ctx.clients);
+      push(ci, carry.raw + '\n' + raw, carry.n, carry.at, carry.on);
     }
+    carry = null;
     if (!chunks.length) {
       var h = prodReadItem(bare, ctx.clients);
       if (h.clientId != null) { group = { client: h.client, clientId: h.clientId, clientName: h.clientName, how: h.clientHow }; family = h.part || null; }
@@ -50411,9 +50418,8 @@ function parseVatOpening(msg, ctx, opts) {
       if (lineFamily && /^\d/.test(it.part || '')) it.part = lineFamily + ' ' + it.part;
       push(it, raw, n, own || start);
     });
-    if (tail && /\d/.test(tail)) carry = { text: tail, raw: raw, n: n, at: own || start };
+    if (tail && /\d/.test(tail) && bareCountNext(i)) carry = { text: tail, raw: raw, n: n, at: own || start, on: { line: line, group: group } };
   });
-  dropCarry();
   if (noDate) items.forEach(function(it) { if (it.kind !== 'downtime') it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the message: read as ' + date + '.' }); });
   prodPowerEnd(power, date, items);
   return { items: items, notes: notes, date: date, noDate: noDate };

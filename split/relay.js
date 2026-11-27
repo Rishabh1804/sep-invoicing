@@ -348,7 +348,8 @@ function relayIsLineDay(text) {
   if (/^\s*-*\s*opening\s*-*\s*time/i.test(head)) return 'opening';
   if (/^\s*-*\s*b[ae]r+[ae]*l+\.?[\s-]+(?:out|in)\s*-*\s*time/im.test(t)) return 'barrel';
   // "---01/01/26/ NIGHT WORK--- / NOVA RING 300 NOS …" (27 Nov 2026): the night's work on the lines, its counts under its head.
-  if (RELAY_NIGHT_WORK_RE.test((t.split('\n').filter(function(l) { return l.trim(); })[0] || ''))) return 'night';
+  // A roll under a night head ("NIGHT WORK / 01/01/26 OUT TIME 6:00 AM / …") stays a roll.
+  if (RELAY_NIGHT_WORK_RE.test((t.split('\n').filter(function(l) { return l.trim(); })[0] || '')) && !/(?:^|\n)[\s\d\/.-]*(?:in|out)\s*-*\s*time/i.test(t)) return 'night';
   return '';
 }
 function relayKind(text) {

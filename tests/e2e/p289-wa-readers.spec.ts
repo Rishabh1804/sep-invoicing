@@ -346,6 +346,19 @@ GENERAL RING 260 NOS`, D.iso, 600);
     expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.date])).toEqual([[11, 'RING', 300, D0.iso], [12, '77 CD', 2400, D0.iso]]);
     expect(m[0].items.every(i => i.codes.includes('amber:noline'))).toBe(true);
     expect(await ev(page, `parseProdPaste(${JSON.stringify(`${D.dmy}, 10:26 am - Supervisor: ${nw}`)}, prodCtx())[0].read.items.map(function(i){ return [i.kind, i.line, i.slot]; })`)).toEqual([['plated', null, 'ot'], ['plated', null, 'ot']]);
+    // The review's cases. Words after a line's last count with no bare count under them are no load; a load carried to the count
+    // under it keeps the line it was written under; a night head under a day's work makes what follows the night's.
+    const lines = (t: string) => ev(page, `parseProdPaste(${JSON.stringify(`${D.dmy}, 10:10 am - Supervisor: ${t}`)}, prodCtx())[0].read.items.map(function(i){ return [i.clientId, i.part, i.qty, i.line, i.slot]; })`);
+    expect(await lines('OPENING TIME 7:10 AM VAT A 1\nNOVA RING 300 NOS 2ND ROUND\nNOVA BOLT 100 NOS AT 9:05 AM')).toEqual([[11, 'RING', 300, 'vat-a1', 'day'], [11, 'BOLT', 100, 'vat-a1', 'day']]);
+    expect(await lines('OPENING TIME 7:10 AM VAT A 1\nNOVA RING 300 NOS DURGA 77 CD\n2400 NOS\nOPENING TIME 8:00 AM VAT A 2\nKESTREL BOLT 200 NOS')).toEqual([[11, 'RING', 300, 'vat-a1', 'day'], [12, '77 CD', 2400, 'vat-a1', 'day'], [13, 'BOLT', 200, 'vat-a2', 'day']]);
+    expect(await lines('OPENING TIME 7:10 AM VAT A 1\nNOVA RING 300 NOS\nNIGHT WORK\nDURGA HOOK 200 NOS')).toEqual([[11, 'RING', 300, 'vat-a1', 'day'], [12, 'HOOK', 200, 'vat-a1', 'ot']]);
+    // A roll under a night head stays a roll; a chemical sent to a line is no pickling load.
+    expect(await ev(page, `msgSort({ text: ${JSON.stringify(`NIGHT WORK
+${D.dmy} OUT TIME 6:00 AM
+ALFA
+BRAVO
+NOVA RING 300 NOS`)} }).kind`)).toBe('out');
+    expect(await ev(page, `msgSort({ text: ${JSON.stringify('ZINC 20 KG\nTO VAT A2')} }).kind`)).not.toBe('pickling');
   });
 
   test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {

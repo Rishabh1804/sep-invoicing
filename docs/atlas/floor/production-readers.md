@@ -117,5 +117,7 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   line they go to with no pickling time ("KESTREL / BOLT--800 NOS / FOR BARREL") are the pickling hand's, the time asked (`prodKind`);
   they had been sorted as no report. **The night's work** ("---01/01/26/ NIGHT WORK--- / NOVA RING 300 NOS DURGA 77 CD / 2400 NOS",
   `relayIsLineDay` 'night', read by `parseVatOpening`): plated on the night of the date in its head, overtime, the line asked (the
-  owner: it runs on a VAT line, not always the same); a load after a line's last count takes the figure on the line under it, or is
-  kept with no figure and asked. Set against every paste and export message: nothing read before reads differently.
+  owner: it runs on a VAT line, not always the same); a load after a line's last count takes the bare count on the line under it and
+  keeps the line it was written under (words there with no count under them are no load); a night head under a day's work makes what
+  follows the night's. A roll under a night head stays a roll, and a chemical sent to a line is no pickling load. Set against every
+  paste and export message: nothing read before reads differently.

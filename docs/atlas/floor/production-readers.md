@@ -4,7 +4,7 @@ domain: floor
 modules: [split/prodparse.js]
 specs: []
 tests: [P189, P220, P222, P264, P277, P289]
-updated: 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+updated: 2026-11-27 (a line under each load, loads with no time, the night's work: P289); 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -112,3 +112,10 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   its load. "PICKLING TIMES" is the time. Set
   against every paste and every message of the export: eleven reads changed, each a load that had been dropped, timeless or run
   together, none that had been right.
+- **27 Nov 2026.** A line written under loads with none above them is theirs ("DURGA / 7313--40 kg / For VAT A2 / 7314--25 kg / For
+  Barrel / Pickling time 9:40"): each had gone to the last line written; a line written above a block still heads it. Loads and the
+  line they go to with no pickling time ("KESTREL / BOLT--800 NOS / FOR BARREL") are the pickling hand's, the time asked (`prodKind`);
+  they had been sorted as no report. **The night's work** ("---01/01/26/ NIGHT WORK--- / NOVA RING 300 NOS DURGA 77 CD / 2400 NOS",
+  `relayIsLineDay` 'night', read by `parseVatOpening`): plated on the night of the date in its head, overtime, the line asked (the
+  owner: it runs on a VAT line, not always the same); a load after a line's last count takes the figure on the line under it, or is
+  kept with no figure and asked. Set against every paste and export message: nothing read before reads differently.

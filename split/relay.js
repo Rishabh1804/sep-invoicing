@@ -341,11 +341,14 @@ function relaySplit(text) {
 var RELAY_ROLL_HEAD_RE = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i;
 /* The supervisor's day on the lines (26 Nov 2026), production and never a roll: 'opening' for "OPENING TIME … VAT A 1" heading a
    message with counts, 'barrel' for "BERRAL OUT TIME …" / "IN TIME …" with counts; else ''. One rule for relayKind and prodKind. */
+var RELAY_NIGHT_WORK_RE = /^[\s\-_=*.]*(?:\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*)?night\s*work[\s\-_=*.]*$/i;
 function relayIsLineDay(text) {
   var t = String(text || ''), head = t.split('\n').slice(0, 2).join(' ');
   if (!/\d\s*(?:nos|pcs|kgs?)\b/i.test(t)) return '';
   if (/^\s*-*\s*opening\s*-*\s*time/i.test(head)) return 'opening';
   if (/^\s*-*\s*b[ae]r+[ae]*l+\.?[\s-]+(?:out|in)\s*-*\s*time/im.test(t)) return 'barrel';
+  // "---01/01/26/ NIGHT WORK--- / NOVA RING 300 NOS …" (27 Nov 2026): the night's work on the lines, its counts under its head.
+  if (RELAY_NIGHT_WORK_RE.test((t.split('\n').filter(function(l) { return l.trim(); })[0] || ''))) return 'night';
   return '';
 }
 function relayKind(text) {

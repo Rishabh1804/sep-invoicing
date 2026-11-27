@@ -324,6 +324,30 @@ GENERAL RING 260 NOS`, D.iso, 600);
     expect(m[0].items.map(i => [i.part, i.time])).toEqual([['52X64(20X5)', '09:40']]);
   });
 
+  test('the floor on 27 Nov 2026: a line written under each load, loads and their line with no time, the night’s work', async ({ page }) => {
+    await load(page);
+    // A line written under loads with none above them is theirs; one written above a block still heads it.
+    let m = await read(page, `${D.dmy}, 10:00 am - Pickler: DURGA AUTO\n7313--40 kg\nFor VAT A2\n7314--25 kg\nFor Barrel\nPickling time 9:40 am`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time, i.dest])).toEqual([[12, '7313', 40, '09:40', 'vat-a2'], [12, '7314', 25, '09:40', 'barrel']]);
+    m = await read(page, `${D.dmy}, 11:30 am - Pickler: FOR VAT A1\nNOVA CLAMPS\nBOLT--400 NOS\nFOR VAT A2\nRING--300 NOS\nPICKLING TIME 10:00 AM`);
+    expect(m[0].items.map(i => [i.part, i.dest])).toEqual([['BOLT', 'vat-a1'], ['RING', 'vat-a2']]);
+    // Loads and the line they go to, no pickling time: the pickling hand's, its time asked.
+    const nt = 'KESTREL\nBOLT--800 NOS\nHOOK--90 NOS\nFOR BARREL';
+    expect(await ev(page, `msgSort({ text: ${JSON.stringify(nt)} }).kind`)).toBe('pickling');
+    m = await read(page, `${D.dmy}, 11:00 am - Pickler: ${nt}`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.dest])).toEqual([[13, 'BOLT', 800, 'barrel'], [13, 'HOOK', 90, 'barrel']]);
+    expect(m[0].items.every(i => i.codes.includes('amber:notime'))).toBe(true);
+    // The night's work under its dated head: the night's date, overtime, the line asked; a load after the last count takes the
+    // figure on the line under it.
+    const nw = `---${D0.dmy}/ NIGHT WORK---\n\nNOVA RING 300 NOS DURGA 77 CD  \n2400 NOS`;
+    expect(await ev(page, `msgSort({ text: ${JSON.stringify(nw)} }).kind`)).toBe('production');
+    m = await read(page, `${D.dmy}, 10:26 am - Supervisor: ${nw}`);
+    expect(m[0].kind).toBe('production');
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.date])).toEqual([[11, 'RING', 300, D0.iso], [12, '77 CD', 2400, D0.iso]]);
+    expect(m[0].items.every(i => i.codes.includes('amber:noline'))).toBe(true);
+    expect(await ev(page, `parseProdPaste(${JSON.stringify(`${D.dmy}, 10:26 am - Supervisor: ${nw}`)}, prodCtx())[0].read.items.map(function(i){ return [i.kind, i.line, i.slot]; })`)).toEqual([['plated', null, 'ot'], ['plated', null, 'ot']]);
+  });
+
   test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {
     await load(page);
     const r = await ev(page, `(function(){ var p = parseStockMessage(${JSON.stringify(`CHEMICAL USE  &  ZINK USE ${D.dmy}/

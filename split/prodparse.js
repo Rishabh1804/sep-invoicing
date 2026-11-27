@@ -74,6 +74,9 @@ function prodKind(text) {
   if (prodIsRunLog(t)) return 'runs';
   if (/p[ao]w[ae]r\s*(cut|cat|cute|in|out|no)|pawar\s*cut|single\s*ph[ae]se/i.test(t)) return 'power';
   if (/^\s*-*\s*(production|work)\s*-*\s*$/im.test(t)) return 'production';
+  // "KESTREL / BOLT--800 NOS / FOR BARREL" (27 Nov 2026): loads and the line they go to with no pickling time written is the
+  // pickling hand's, its time asked. It had been sorted as no report.
+  if (/\d\s*(?:nos|no|pcs|kgs?)\b/i.test(t) && t.split('\n').some(function(l) { return /^\s*[\-*]*\s*(?:for|to)\b/i.test(l) && prodDestOfLine(l); })) return 'pickling';
   return 'other';
 }
 
@@ -445,7 +448,14 @@ function parsePickling(msg, ctx) {
       var openDest = wasAfterTime && !pendingParts.length ? lastFlushed.filter(function(x) { return x.kind === 'pickled' && !x.dest; }) : [];
       // Loads that already have their line ("FOR VAT A1" above them) leave this one to the block under it.
       if (openDest.length) openDest.forEach(function(x) { x.dest = dl; });
-      else blockDest = dl;
+      else {
+        // "DURGA / 7313--40 kg / For VAT A2 / 7314--25 kg / For Barrel / Pickling time 9:40" (27 Nov 2026): a line written under loads
+        // with none above them is theirs; each had gone to the last line written. Loads under a line written above them keep that
+        // one, and the new line heads the loads below, as it always did.
+        var open = pendingParts.filter(function(x) { return !x.dest; });
+        open.forEach(function(x) { x.dest = blockDest || dl; });
+        blockDest = open.length && !blockDest ? null : dl;
+      }
       headT = null; headNote = null;
       return;
     }
@@ -775,6 +785,7 @@ function parseBarrelBatches(msg, ctx, lines, opts) {
 }
 function parseProductionList(msg, ctx) {
   if (relayIsLineDay(msg.text) === 'opening') return parseVatOpening(msg, ctx);
+  if (relayIsLineDay(msg.text) === 'night') return parseVatOpening(msg, ctx, { night: true });
   // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM …" (the supervisor, 26 Nov 2026): out is the unload, in the load, read as
   // the batch list reads UNLOAD and LOADING.
   if (relayIsLineDay(msg.text) === 'barrel') {
@@ -843,15 +854,30 @@ function parseProductionList(msg, ctx) {
    NOS"), a client written with its own load ("KILO L BKT TIMING 9:05 AM 140NOS") is that load's alone, with its own time, and a word
    after the last count is the family of that line's sizes. "1 ROUND 12 MINUTE" is how long a round takes: said, never counted. Every
    load is a run on its line, from the line's opening (or its own time), basis relay; a load with no line written is asked. */
-function parseVatOpening(msg, ctx) {
+function parseVatOpening(msg, ctx, opts) {
+  opts = opts || {};
   var lines = String(msg.text || '').split('\n'), items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
-  var line = null, start = null, group = null, family = null, power = {};
+  var line = null, start = null, group = null, family = null, power = {}, carry = null;
+  // "NOVA RING 300 NOS DURGA 77 CD / 2400 NOS" (27 Nov 2026): a load after the line's last count, its figure on the line under it.
+  // Unmet, it is kept as a load with no figure, asked; it had been dropped.
+  var push = function(it, raw, n, at) {
+    var rec = prodItemRecord(it, it.clientId != null ? null : group, raw, n, date, false);
+    rec.kind = 'plated'; rec.line = line; rec.lineSrc = line ? 'written' : null; rec.slot = opts.night ? 'ot' : 'day'; rec.basis = 'relay';
+    rec.time = at && at.min != null ? prodHhmm(at.min) : null;
+    if (at && at.issue) rec.issues.push(at.issue);
+    if (opts.night) rec.issues.push({ tone: 'info', code: 'night', text: 'Night work: the night of ' + date + ', overtime.' });
+    if (!line) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line.' });
+    items.push(rec);
+  };
+  var dropCarry = function() { if (carry) { push(prodReadItem(carry.text, ctx.clients), carry.raw, carry.n, carry.at); carry = null; } };
   var CLOCK = '(\\d{1,2}\\s*[:.]\\s*\\d{2}\\s*(?:[ap]\\.?\\s?m\\.?)?|\\d{1,2}\\s*[ap]\\.?\\s?m\\.?)';
   lines.forEach(function(raw, i) {
     var n = i + 1, bare = raw.trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '');
     if (!bare) return;
     var dm = bare.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
     if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; return; }
+    var nh = bare.match(/^(?:(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*)?night\s*work$/i);
+    if (nh) { if (nh[1] && isoFromDmy(nh[1], nh[2], nh[3])) { date = isoFromDmy(nh[1], nh[2], nh[3]); noDate = false; } return; }
     if (prodIsPowerLine(bare)) { prodPowerStep(power, bare, raw, n, date, msg.sentAt, items, notes); return; }
     var lt = bare.match(new RegExp('\\b(' + PROD_LINE_TOKEN + ')\\b', 'i'));
     if (lt && prodLineOfToken(lt[1])) {
@@ -873,6 +899,10 @@ function parseVatOpening(msg, ctx) {
     var re = /(\d+(?:\.\d+)?)\s*(nos|no|pcs|kgs?)\b\.?/gi, m, from = 0, chunks = [];
     while ((m = re.exec(bare))) { if (/X\s*$/i.test(bare.slice(0, m.index))) continue; chunks.push(bare.slice(from, m.index + m[0].length).trim()); from = m.index + m[0].length; }
     var tail = bare.slice(from).trim();
+    if (carry) {
+      if (chunks.length && !prodReadItem(chunks[0], null).part) { chunks[0] = carry.text + ' ' + chunks[0]; carry = null; }
+      else dropCarry();
+    }
     if (!chunks.length) {
       var h = prodReadItem(bare, ctx.clients);
       if (h.clientId != null) { group = { client: h.client, clientId: h.clientId, clientName: h.clientName, how: h.clientHow }; family = h.part || null; }
@@ -886,15 +916,11 @@ function parseVatOpening(msg, ctx) {
     chunks.forEach(function(c) {
       var it = prodReadItem(c, ctx.clients);
       if (lineFamily && /^\d/.test(it.part || '')) it.part = lineFamily + ' ' + it.part;
-      var rec = prodItemRecord(it, it.clientId != null ? null : group, raw, n, date, false);
-      var at = own || start;
-      rec.kind = 'plated'; rec.line = line; rec.lineSrc = line ? 'written' : null; rec.slot = 'day'; rec.basis = 'relay';
-      rec.time = at && at.min != null ? prodHhmm(at.min) : null;
-      if (at && at.issue) rec.issues.push(at.issue);
-      if (!line) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line.' });
-      items.push(rec);
+      push(it, raw, n, own || start);
     });
+    if (tail && /\d/.test(tail)) carry = { text: tail, raw: raw, n: n, at: own || start };
   });
+  dropCarry();
   if (noDate) items.forEach(function(it) { if (it.kind !== 'downtime') it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the message: read as ' + date + '.' }); });
   prodPowerEnd(power, date, items);
   return { items: items, notes: notes, date: date, noDate: noDate };

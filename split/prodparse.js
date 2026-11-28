@@ -13,7 +13,7 @@
 
 /* The WhatsApp header, with the post time (RELAY_WA_RE drops it, and attendance depends on its groups). */
 var PROD_WA_RE = /^\s*\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp]\.?[Mm]\.?)?\]?\s*(?:-\s*)?([^:]{1,40}):\s?(.*)$/;
-var PROD_LIST_HEAD_RE = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*(?:ka\s+update\s+)?b[ae]r+[ae]*l+\.?\s*(?:production|update)/i;
+var PROD_LIST_HEAD_RE = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*(?:ka\s+update\s+)?b[ae]r+[ae]*l+\.?\s*(?:production|updated?)/i;
 var PROD_FIRM_RE = /\b(ENTERPRISES?|INDUSTR(Y|IES)|AUTO|PRESS|METALS?|ENGG|ENGINEER(S|ING)?|CORPORATION|PVT|LTD|CO\.)\b/i;
 var PROD_UNIT_OF = { NO: 'NOS', NOS: 'NOS', MOS: 'NOS', PC: 'NOS', PCS: 'NOS', PIECE: 'NOS', PIECES: 'NOS', KG: 'KG', KGS: 'KG', K: 'KG', KY: 'KG', BAG: 'BAG', BAGS: 'BAG' };
 var PROD_QTY_TOKEN_RE = /(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*)\s*(nos|no|mos|pcs|pc|pieces|piece|kgs|kg|ky|k|bags|bag)\b\.?/gi;
@@ -65,12 +65,18 @@ function prodKind(text) {
   // "28/5/26/ in time6:00 am morning ot": the roll's own dated head, even with no space before the time.
   if (rk === 'in' || rk === 'out' || /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i.test(t)) return 'roll';
   if (rk === 'stock') return 'stock';
+  // The supervisor's day on the lines (26 Nov 2026): "OPENING TIME 7:10 AM … VAT A 1", its work with counts; and the barrel's
+  // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM".
+  if (relayIsLineDay(t)) return 'production';
   if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t) && !PROD_CHEM_IN_RE.test(head)) return 'pickling';
   if (PROD_LIST_HEAD_RE.test(head) || /^\s*b[ae]r+[ae]*l+\.?\s*production/im.test(t)) return 'production';
   // Before power: a slot log may carry a power cut among its slots, and read as power alone its slots were lost.
   if (prodIsRunLog(t)) return 'runs';
   if (/p[ao]w[ae]r\s*(cut|cat|cute|in|out|no)|pawar\s*cut|single\s*ph[ae]se/i.test(t)) return 'power';
   if (/^\s*-*\s*(production|work)\s*-*\s*$/im.test(t)) return 'production';
+  // "KESTREL / BOLT--800 NOS / FOR BARREL" (27 Nov 2026): loads and the line they go to with no pickling time written is the
+  // pickling hand's, its time asked. It had been sorted as no report.
+  if (/\d\s*(?:nos|no|pcs|kgs?)\b/i.test(t) && !PROD_CHEM_IN_RE.test(t) && t.split('\n').some(function(l) { return /^\s*[\-*]*\s*(?:for|to)\b/i.test(l) && prodDestOfLine(l); })) return 'pickling';
   return 'other';
 }
 
@@ -157,6 +163,11 @@ function prodMatchClient(written, idx) {
 function prodReadItem(line, idx) {
   var raw = String(line || '');
   var s = raw.replace(/[×✕]/g, 'X').replace(/(\d),(\d{3})\b/g, '$1$2').replace(/^[\s\-_=*•.]+/, '').trim();
+  // "52×64=20×5=120 NOS", "48×57=20×5=75" (the supervisor's roll and the pickling hand, Nov 2026): the size, its gauge and the
+  // figure joined by "=", read as "52×64(20×5)--120 NOS". The gauge had been read into the part and the count lost or misread.
+  s = s.replace(/(\d{2,3}\s*X\s*\d{2,3})\s*=\s*(\d{2}\s*X\s*\d{1,2})\s*=\s*(\d+(?:\.\d+)?)/i, '$1($2)--$3');
+  // "52+10×64=(20×5)=120 NOS", "48×57=(20×5)75 NOS" (28 Nov 2026): an "=" before the gauge's bracket is no part of the size.
+  s = s.replace(/(\d)\s*=\s*\(/g, '$1(').replace(/\)\s*=\s*(?=\d)/g, ') ');
   var out = { part: '', gauge: '', qty: null, unit: null, qty2: null, unit2: null, qtySrc: null, rework: false, dots: false };
   if (/\bre[-\s]*(work|pickl|plat)/i.test(s)) out.rework = true;
   var toks = [], m;
@@ -177,7 +188,8 @@ function prodReadItem(line, idx) {
     out.unit = t.unit;
     if (toks[1]) { out.qty2 = parseFloat(toks[1].num); out.unit2 = toks[1].unit; }
   } else {
-    var tail = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|_{2}|=)\s*(\d+(?:\.\d+)?)\s*$/.exec(s);
+    // "47×53=20×5=90 VAT A 1": the line written after a figure with no unit is not the figure's (parsePickling takes it as the line).
+    var tail = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|_{2}|=)\s*(\d+(?:\.\d+)?)\s*$/.exec(s.replace(PROD_LINE_END_RE, ''));
     // No unit written: a figure with decimals is weighed ("188CD-45.240"), a whole one counted. Said on the review.
     if (tail) { partText = tail[1]; out.qty = parseFloat(tail[2]); out.qtySrc = 'written'; out.unit = /\.\d/.test(tail[2]) ? 'KG' : 'NOS'; out.unitGuess = true; }
     else if (/\.{3,}\s*$/.test(s)) { partText = s.replace(/\.{3,}\s*$/, ''); out.dots = true; }
@@ -211,6 +223,10 @@ function prodReadItem(line, idx) {
 }
 /* The part with its gauge text taken out, so a floor line and a challan line key alike: "CLAMP 165X83(40X6)" and
    "CLAMP165X83 (40×6)" are one part at one gauge. */
+/* A list's own numbering at a line's head ("1) ", "01)", "07);", "(3) ", "2. " before a word): never a client, a part or a figure. */
+function prodUnnumber(line) {
+  return String(line || '').replace(/^\s*\(?\d{1,2}\s*\)\s*[;:.,]?\s*/, '').replace(/^\s*\d{1,2}\s*\.\s+(?=[A-Za-z])/, '');
+}
 function prodPartBase(part) {
   return String(part || '').replace(/[×✕]/g, 'X').replace(/\(\s*\d{2}\s*X\s*\d\s*\)|(?:^|[^0-9A-Z])\d{2}\s*X\s*\d(?![0-9X])/gi, ' ')
     .replace(/\((NT|UT)\)/gi, ' ').trim();
@@ -226,7 +242,9 @@ function prodIsPowerLine(s) { return /p[ao]w[ae]r|pawar|single\s*ph[ae]se/i.test
    stays a barrel note, as it was read before: only "for" or "ke liye" makes the barrel a load's line. */
 var _prodDestRe = null;   // built on first use: PROD_LINE_TOKEN is declared further down this file
 function prodDestOfLine(line) {
-  if (!_prodDestRe) _prodDestRe = new RegExp('^[\\s\\-*]*(for|to|->|→)?\\s*(' + PROD_LINE_TOKEN + '|A\\s?[12])\\s*(ke\\s*liye|ka|me|mein|line)?[\\s.:*-]*$', 'i');
+  // "VAT A1 &A2", "FOR VAT A1& A2" (owner's export, 25 Nov 2026): a load going to two lines is going to the first written, and
+  // the line is never a part. It had been saved as a part named "VAT A1 &A2", with no figure.
+  if (!_prodDestRe) _prodDestRe = new RegExp('^[\\s\\-*]*(for|to|->|→)?\\s*(' + PROD_LINE_TOKEN + '|A\\s?[12])(?:\\s*(?:&|\\+|,|and)\\s*(?:' + PROD_LINE_TOKEN + '|A?\\s?[12]))?\\s*(ke\\s*liye|ka|me|mein|line)?[\\s.:*-]*$', 'i');
   var m = String(line || '').match(_prodDestRe);
   if (!m) return null;
   var l = prodLineOfToken(m[2]);
@@ -234,14 +252,76 @@ function prodDestOfLine(line) {
   if ((l === 'barrel' || /^A\s?[12]$/i.test(m[2].trim())) && !m[1] && !m[3]) return null;
   return l;
 }
+/* The pickling message's lines as the reader takes them (26 Nov 2026). A time with its clock on the line under it ("VAT 2 PICKLING
+   TIME / 4:10 PM") is one line. A line holding several loads ("RING 52×64(20×5)=150 NOS 48×57(20×5)90 NOS PICKLING TIME …") is cut
+   after each load's figure where a load or a pickling time follows: it had been read as one load, its parts run together. A figure
+   after a figure ("240 NOS 12 KG") stays with its load, and a line after the figure ("180 NOS VAT A2") is where it goes. */
+var PROD_CLOCK_ONLY_RE = /^\s*(?:\d{1,2}\s*[:.]\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[ap]\.?\s?m\.?)\s*$/i;
+var PROD_FIG_UNIT_RE = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|pc|kgs|kg)\b\.?/gi;
+function prodPickSegments(text) {
+  var out = [];
+  String(text || '').split('\n').forEach(function(raw, i) {
+    var prev = out[out.length - 1];
+    if (prev && prev.n === i && prodIsTimeLine(prev.t) && !/\d/.test(prev.t.replace(/^.*?t\w*me/i, '')) && PROD_CLOCK_ONLY_RE.test(raw)) { prev.t += ' ' + raw.trim(); return; }
+    var segs = prodIsIncomingLine(raw) || prodIsPowerLine(raw) ? [raw] : prodLoadCuts(raw);
+    if (segs.length < 2) { out.push({ t: raw, n: i + 1 }); return; }
+    segs.forEach(function(seg) { out.push({ t: seg, n: i + 1 }); });
+  });
+  return out;
+}
+/* A line of several loads cut after each load's figure, where another load or a pickling time follows (the pickling hand's lines
+   and a roll's work, 26–28 Nov 2026). One load, or a line that is not one, is returned whole. */
+function prodLoadCuts(line) {
+  var cuts = [], m;
+  PROD_FIG_UNIT_RE.lastIndex = 0;
+  while ((m = PROD_FIG_UNIT_RE.exec(line))) {
+    var rest = line.slice(m.index + m[0].length);
+    if (!rest.trim() || /^\s*[-–=,(+\/&]*\s*\d+(?:\.\d+)?\s*(?:nos|no|pcs|pc|kgs?|k)\b/i.test(rest)) continue;
+    if (!/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(rest) && !prodIsTimeLine(rest)) continue;
+    // "RING 180 NOS VAT A2 HOOK 40 NOS": the line after a figure is that load's, and the cut falls after it.
+    var tl = rest.match(new RegExp('^[\\s,(–-]*(' + PROD_LINE_TOKEN + ')\\)?[\\s.,]*(?=\\S)', 'i'));
+    // Before a pickling time it is the time's: "… 300 NOS VAT A2 PICKLING TIME 9:05 AM".
+    cuts.push(m.index + m[0].length + (tl && prodLineOfToken(tl[1]) && !prodIsTimeLine(rest.slice(tl[0].length)) ? tl[0].length : 0));
+  }
+  if (!cuts.length) return [line];
+  var out = [], at = 0;
+  cuts.concat([line.length]).forEach(function(c) { var seg = line.slice(at, c).replace(/^[\s,;&+\/]+/, '').trim(); at = c; if (seg) out.push(seg); });
+  return out;
+}
 function parsePickling(msg, ctx) {
-  var lines = String(msg.text || '').split('\n'), items = [], notes = [], blockDest = null;
+  var segs = prodPickSegments(msg.text), lines = segs.map(function(x) { return x.t; }), items = [], notes = [], blockDest = null;
   var date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
   var mode = 'pickled', reworkOn = false, group = null, lastGroup = null, carriedGroup = false, pendingParts = [], family = null, arrivedAt = null, power = {};
+  // The loads the last pickling time closed, and whether that time was the line just read: "PICKLING TIME 9:40 / For Barrel"
+  // is where those loads are going (owner, 25 Nov 2026). It had gone to the next block's loads.
+  var lastFlushed = [], afterTime = false, dateWritten = false;
+  // A pickling time with nothing listed above it heads the loads under it (26 Nov 2026: "VAT 2 PICKLING TIME 4:10 PM / 52×64(20×5)
+  // =150 NOS"; "NOVA PICKLING TIME 11:40 AM / 48×57…"): each takes it as its own time, until another time, an incoming block or a
+  // line heading. Under a time that closed loads above it, the loads under it wait for the next time, as before.
+  var headT = null, headNote = null;
   // A line that is only a figure and its unit ("1000 NOS"): the quantity of the load written above it, never a part.
   var bareQty = function(l) { var r = prodReadItem(l || '', null); return !r.part && r.qty != null; };
+  // Sent after midnight with no date written, a load pickled in the evening is the evening before ("RING--240 nos /
+  // Pickling time 7:15 pm", sent at 12:20 AM; owner, 25 Nov 2026): it had been dated the day it was sent.
+  var dayOf = function(it, min, tt) {
+    if (dateWritten || !msg.sentOn || msg.sentAt == null || msg.sentAt >= PROD_REG_DAY_START || min == null || min <= msg.sentAt + 30) return;
+    // "Pickling time 10:45" with no AM or PM, sent at 12:20 AM: the evening's 10:45, as the day before is.
+    if (tt && tt.issue && tt.issue.code === 'meridiem' && min < 720) { min += 720; it.time = prodHhmm(min); it.issues = it.issues.filter(function(x) { return x.code !== 'meridiem'; }); }
+    it.date = isoAddDays(msg.sentOn, -1);
+    it.issues = it.issues.filter(function(x) { return x.code !== 'later' && x.code !== 'nodate'; });
+    it.issues.push({ tone: 'amber', code: 'evebefore', text: 'Sent at ' + relayClockLabel(msg.sentAt) + ' with no date: ' + relayClockLabel(min) + ' is read as the evening before, ' + it.date + '.' });
+  };
   var flush = function(kind, t) {
-    pendingParts.forEach(function(it) { it.kind = kind; if (t) { it.time = prodHhmm(t.min); if (t.issue) it.issues.push(t.issue); } if (kind === 'pickled' && !it.dest && blockDest) it.dest = blockDest; if (kind !== 'pickled') delete it.dest; items.push(it); });
+    lastFlushed = [];
+    pendingParts.forEach(function(it) {
+      it.kind = kind;
+      var tt = it.ownTime || t;
+      delete it.ownTime; delete it._head; delete it._headDest;
+      if (tt) { it.time = prodHhmm(tt.min); if (tt.issue) it.issues.push(tt.issue); dayOf(it, tt.min, tt); }
+      if (kind === 'pickled' && !it.dest && blockDest) it.dest = blockDest;
+      if (kind !== 'pickled') delete it.dest;
+      items.push(it); lastFlushed.push(it);
+    });
     pendingParts = [];
   };
   // What is still listed when the message ends or a new incoming block begins: arrived at its own block's time, or
@@ -249,26 +329,29 @@ function parsePickling(msg, ctx) {
   // time at all, so material that arrived at 8:45 read as arriving at no time once a second block followed.
   var flushOpen = function() {
     if (!pendingParts.length) return;
-    pendingParts.forEach(function(it) { if (mode !== 'arrived' || !arrivedAt || arrivedAt.min == null) it.issues.push({ tone: 'amber', code: 'notime', text: mode === 'arrived' ? 'Arrived: no time written.' : 'No pickling time written under it.' }); });
+    pendingParts.forEach(function(it) { if (!it.ownTime && (mode !== 'arrived' || !arrivedAt || arrivedAt.min == null)) it.issues.push({ tone: 'amber', code: 'notime', text: mode === 'arrived' ? 'Arrived: no time written.' : 'No pickling time written under it.' }); });
     flush(mode, mode === 'arrived' ? arrivedAt : null);
   };
   lines.forEach(function(raw, i) {
-    var line = raw.trim(), n = i + 1;
+    var line = raw.trim(), n = segs[i].n;
     if (!line) return;
+    var wasAfterTime = afterTime;
+    afterTime = false;
     var dm = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/);
-    if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; line = line.slice(dm[0].length).trim(); if (!line) return; }
+    if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; dateWritten = true; line = line.slice(dm[0].length).trim(); if (!line) return; }
     // A date written with dots or dashes ("22.09.26") is the date as well; one with no year ("16/9") names no day a load
     // can take, and is listed. Any other line of figures is a load ("8201/8202", "4706-615", "0760--45"): those were
     // dropped unseen with the dates (P127).
     var dd = line.match(/^(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?:\s*[.\-\/]\s*(\d{2,4}))?\s*[.\-\/]?$/);
     if (dd && isoFromDmy(dd[1], dd[2], dd[3] || 2000)) {
-      if (dd[3]) { date = isoFromDmy(dd[1], dd[2], dd[3]); noDate = false; }
+      if (dd[3]) { date = isoFromDmy(dd[1], dd[2], dd[3]); noDate = false; dateWritten = true; }
       else notes.push({ n: n, raw: raw, text: 'A date with no year: the loads keep the message’s date' });
       return;
     }
     if (prodIsPowerLine(line)) { prodPowerStep(power, line, raw, n, date, msg.sentAt, items, notes); return; }
     if (prodIsIncomingLine(line)) {
       flushOpen();
+      headT = null; headNote = null;
       mode = 'arrived';
       var afterHead = line.replace(/^.*?(t\w*me|rime)/i, '');
       arrivedAt = prodTimeOf(afterHead, msg.sentAt);
@@ -278,8 +361,85 @@ function parsePickling(msg, ctx) {
       return;
     }
     if (prodIsTimeLine(line)) {
-      var t = prodTimeOf(line.replace(/^.*?t\w*me/i, ''), msg.sentAt);
+      var tAfter = line.replace(/^.*?t\w*me(?:s\b)?/i, ''), tMid = '';
+      // "PICKLING TIME NOVA CLAMP 3:00 PM 52×64(20×5)70 NOS" (26 Nov 2026): a name between the time's words and its clock is the
+      // client of the loads under it, and a family their sizes take. It had been read into the part with the clock.
+      var tck = PROD_CLOCK_RE.exec(tAfter);
+      if (tck && /[A-Za-z]/.test(tAfter.slice(0, tck.index))) { tMid = tAfter.slice(0, tck.index).replace(/^[\s.:*-]+|[\s.:*-]+$/g, ''); tAfter = tAfter.slice(tck.index); }
+      var t = prodTimeOf(tAfter, msg.sentAt);
       var re = /\bre[-\s]*p/i.test(line);
+      // "VAT A 2 PICKLING TIME 2:40 PM 52×64=20×5=120" (owner, 25 Nov 2026): the line written before the time is where the loads
+      // are going, and a load written after the time is one of them. The whole line had been a time with nothing above it.
+      var tHead = (/^(.*?)p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me/i.exec(line) || [])[1] || '';
+      var tLine = tHead.trim() ? prodDestOfLine(tHead) || prodLineOfToken(tHead.replace(/[\s:*-]+$/, '')) : null;
+      if (tLine && mode !== 'arrived') blockDest = tLine;
+      // "NOVA PICKLING TIME 11:40 AM": a client before the time heads the loads under it. "DURGA 77 CD PICKLING TIME 3:00 PM 400 NOS":
+      // a load before the time is one of its loads, its figure the one after the clock (26 Nov 2026).
+      var headGroup = null, headIt = null, midFamily = null, pushedAt = false;
+      var mkGroup = function(r) { return { client: r.client, clientId: r.clientId, clientName: r.clientName, how: r.clientHow }; };
+      if (!tLine && mode !== 'arrived' && /[A-Za-z]/.test(tHead)) {
+        var hi = prodReadItem(tHead.replace(/[\s:*-]+$/, ''), ctx.clients);
+        if (hi.clientId != null && !hi.part && hi.qty == null) headGroup = mkGroup(hi);
+        else if (hi.part && /\d/.test(tHead)) headIt = hi;
+      }
+      // "PICKLING TIME VAT A1 10:05 AM …" (28 Nov 2026): a line between the time's words and its clock is where the loads go.
+      var mlm = tMid.match(new RegExp('^[\\s:*-]*(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i'));
+      if (mlm && prodLineOfToken(mlm[1]) && mode !== 'arrived') { blockDest = prodLineOfToken(mlm[1]); tMid = tMid.slice(mlm[0].length).trim(); }
+      if (tMid && mode !== 'arrived') {
+        var mi = prodReadItem(tMid, ctx.clients);
+        if (mi.clientId != null) headGroup = mkGroup(mi);
+        // A family only with its client ("NOVA RING"): "PICKLING TIME AT 9:40 AM" names none.
+        if (mi.clientId != null && mi.part && mi.qty == null && /^[A-Za-z][A-Za-z .]*$/.test(mi.part)) midFamily = mi.part;
+      }
+      var tTail = tAfter.replace(/^[\s.:*-]*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
+      // "PICKLING TIME 7:50 AM VAT A 1 RING 52×64=20×5=120 NOS" (28 Nov 2026): a line after the clock is where the loads go, the load
+      // after it one of them. The line had been read into the part, and the loads under it sent to the next line written.
+      var alm = mode !== 'arrived' ? tTail.match(new RegExp('^[\\s:*-]*(?:(?:for|to)\\s+)?(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i')) : null;
+      if (alm && prodLineOfToken(alm[1])) { blockDest = prodLineOfToken(alm[1]); tTail = tTail.slice(alm[0].length).trim(); }
+      var tIt = mode !== 'arrived' && /[A-Za-z0-9]/.test(tTail) ? prodReadItem(tTail, ctx.clients) : null;
+      // "… 52×64(20×5)=230 NOS NOVA": a client written after the load's count is its client.
+      if (tIt && tIt.qty != null && tIt.clientId == null) {
+        var ac = tTail.match(/\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*([A-Za-z][A-Za-z .&]*)$/i), acl = ac ? prodMatchClient(ac[1].trim(), ctx.clients) : null;
+        if (acl && acl.how !== 'read-as') { tIt.client = ac[1].trim(); tIt.clientId = acl.id; tIt.clientName = acl.name; tIt.clientHow = acl.how; }
+      }
+      // "PICKLING TIME 3:40 PM VAT A 1 NOVA" (26 Nov 2026): after the clock with no figure, the line the loads go to and their client.
+      if (tIt && tIt.qty == null) {
+        var tRest = tTail, tlm = tRest.match(new RegExp('^[\\s:*-]*(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i'));
+        if (tlm && prodLineOfToken(tlm[1])) { blockDest = prodLineOfToken(tlm[1]); tRest = tRest.slice(tlm[0].length); }
+        var tri = /[A-Za-z]/.test(tRest) ? prodReadItem(tRest, ctx.clients) : null;
+        if (tri && tri.clientId != null) headGroup = mkGroup(tri);
+        if (tri && tri.clientId != null && tri.part && /^[A-Za-z][A-Za-z .]*$/.test(tri.part)) midFamily = tri.part;
+        tIt = null;
+      }
+      // A time with no loads of its own, under loads a time above heads: those on its own line are its loads ("RING 140 nos HOOK 60 NOS
+      // VAT A2 PICKLING TIME 9:05 AM"); with nothing written under it before the next time, all of them are ("PICKLING TIME 9:00 AM RING
+      // 50 NOS / HOOK 40 NOS / PICKLING TIME 10:00 AM": HOOK at 10:00, as the loads above a time always were). They go where it says.
+      if (!headIt && !headGroup && !midFamily && !(tIt && tIt.qty != null) && mode !== 'arrived') {
+        var heads = pendingParts.filter(function(x) { return x._head; }), mine = heads.filter(function(x) { return x.n === n; }), follows = false;
+        for (var j = i + 1; j < lines.length && !follows; j++) {
+          var lj = lines[j].trim();
+          if (prodIsTimeLine(lj) || prodIsIncomingLine(lj)) break;
+          if (/[A-Za-z]/.test(lj) && !prodDestOfLine(lj) && !prodIsPowerLine(lj) || /\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(lj)) follows = true;
+        }
+        var claim = mine.length ? mine : follows ? [] : heads;
+        claim.forEach(function(x) {
+          delete x._head; delete x.ownTime;
+          if (x._headDest) { delete x.dest; delete x._headDest; }
+        });
+        if (claim.length && !tLine) blockDest = null;
+      }
+      var above = pendingParts.filter(function(x) { return !x._head; }).length;
+      if (headIt) {
+        if (tIt && tIt.qty != null && !tIt.part) { headIt.qty = tIt.qty; headIt.unit = tIt.unit; headIt.qtySrc = tIt.qtySrc; tIt = null; }
+        var hRec = prodItemRecord(headIt, headIt.clientId != null ? null : headGroup || group || null, raw, n, date, noDate);
+        if (blockDest) hRec.dest = blockDest;
+        pendingParts.push(hRec); pushedAt = true;
+      }
+      if (tIt && tIt.qty != null) {
+        if (midFamily && /^\d/.test(tIt.part)) tIt.part = midFamily + ' ' + tIt.part;
+        if (tIt.clientId != null) group = mkGroup(tIt);
+        pendingParts.push(prodItemRecord(tIt, tIt.clientId != null ? null : headGroup || group || null, raw, n, date, noDate)); pushedAt = true;
+      }
       if (mode === 'arrived') {
         // "Incoming … / parts / And Pickling Time 9:00" — the same material arrived and went in.
         var arrived = pendingParts.map(function(it) { return Object.assign({}, it, { issues: it.issues.slice() }); });
@@ -287,21 +447,50 @@ function parsePickling(msg, ctx) {
         flush('pickled', t);
         arrived.forEach(function(it) { it.kind = 'arrived'; it.time = prodHhmm(arrivedAt && arrivedAt.min); if (arrivedAt && arrivedAt.issue) it.issues.push(arrivedAt.issue); items.push(it); });
         mode = 'pickled';
+        above = 1;
       } else {
         if (re) pendingParts.forEach(function(it) { it.rework = true; });
-        if (!pendingParts.length) notes.push({ n: n, raw: raw, text: 'A pickling time with nothing listed above it' });
+        headNote = null;
+        if (!above && !pushedAt) { headNote = { n: n, raw: raw, text: 'A pickling time with nothing listed above it', t: t, dest: blockDest || null }; notes.push(headNote); }
         flush('pickled', t);
       }
-      lastGroup = group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false; blockDest = null;
+      var headClient = headIt && headIt.clientId != null ? mkGroup(headIt) : null;
+      lastGroup = headClient || group || lastGroup; group = null; carriedGroup = false; family = null; reworkOn = false;
+      if (!above && t && t.min != null) { headT = t; group = headGroup; family = midFamily; }
+      else { headT = null; headNote = null; blockDest = null; }
+      afterTime = true;
       return;
     }
-    // "FOR VAT A1": where the loads of this block are going.
+    // "FOR VAT A1": where the loads of this block are going; written straight under a pickling time with nothing listed since,
+    // where the loads that time closed are going.
     var dl = prodDestOfLine(line);
-    if (dl) { blockDest = dl; return; }
+    if (dl) {
+      var openDest = wasAfterTime && !pendingParts.length ? lastFlushed.filter(function(x) { return x.kind === 'pickled' && !x.dest; }) : [];
+      // Loads that already have their line ("FOR VAT A1" above them) leave this one to the block under it.
+      if (openDest.length) openDest.forEach(function(x) { x.dest = dl; });
+      else {
+        // "DURGA / 7313--40 kg / For VAT A2 / 7314--25 kg / For Barrel / Pickling time 9:40" (27 Nov 2026): a line written under loads
+        // with none above them is theirs; each had gone to the last line written. Loads under a line written above them keep that
+        // one, and the new line heads the loads below, as it always did.
+        var open = pendingParts.filter(function(x) { return !x.dest; });
+        open.forEach(function(x) { x.dest = blockDest || dl; });
+        blockDest = open.length && !blockDest ? null : dl;
+      }
+      if (headNote) headNote.dest = dl;
+      headT = null; headNote = null;
+      return;
+    }
     if (!/[A-Za-z0-9]/.test(line)) return;
     // "RE-PICKLING" on a line of its own marks the loads of this group as rework, above it and below it.
     if (/^\s*re[-\s]*(work|pickl\w*|plat\w*)\s*$/i.test(line)) { pendingParts.forEach(function(x) { x.rework = true; }); reworkOn = true; return; }
     if (/^\s*b[ae]r+[ae]*l+\.?\s*(production)?\s*$/i.test(line) || /unlo?a?d|lo?a?ding/i.test(line)) { notes.push({ n: n, raw: raw, text: 'A barrel note, not a pickling load; not read' }); return; }
+    // "BIG RING--1:25PM": a time written after the part is the load's own pickling time, never part of its name.
+    // "VAT A 2 NOVA RING 52×64=20×5=120 NOS": a line written before the load is where it is going (owner, 25 Nov 2026).
+    var leadDest = null, lead = line.match(new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\s*[-–:]*\\s+(?=[A-Za-z0-9])', 'i'));
+    if (lead && prodLineOfToken(lead[1]) && /\d/.test(line.slice(lead[0].length))) { leadDest = prodLineOfToken(lead[1]); line = line.slice(lead[0].length).trim(); }
+    // A time needs its colon or its AM/PM: "HOOK--12.50" is 12.5 kg, never 12:50.
+    var ownTime = null, otm = /^(.*?[A-Za-z0-9)\]])\s*(?:-{1,3}|–|—|,)\s*(\d{1,2}\s*:\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[:.]\s*\d{2}\s*[ap]\.?\s?m\.?|\d{1,2}\s*[ap]\.?\s?m\.?)\s*$/i.exec(line);
+    if (otm && !/\d\s*(nos|no|pcs|pc|kgs?|k)\b/i.test(otm[1])) { ownTime = prodTimeOf(otm[2], msg.sentAt); line = otm[1].trim(); }
     var it = prodReadItem(line, ctx.clients);
     var clientLine = !it.part && it.qty == null && it.clientId != null;
     var firmy = it.qty == null && !it.clientId && PROD_FIRM_RE.test(line) && !/\d/.test(line);
@@ -309,7 +498,14 @@ function parsePickling(msg, ctx) {
     // ("BIG LINER / Pickling time 10:30": no client written, no quantity), which was taken as a client and lost. So is one
     // with only its figure under it ("LINER / 1000 NOS"): the figure is the load's.
     var below = (lines.slice(i + 1).find(function(l) { return l.trim(); }) || '').trim();
-    if (clientLine || firmy || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && below && !prodIsTimeLine(below) && !bareQty(below))) {
+    // "DELTA / 7314--260 nos / KILO / HOOK--18 kg" (owner, 25 Nov 2026): a name with no figure, between a load with its figure
+    // and another under it, heads a client's loads of its own, unless it is a part the client above has sent. It had been read
+    // as the first client's part, and the 18 kg booked to that client.
+    var lastLoad = pendingParts[pendingParts.length - 1];
+    var midName = !!group && it.qty == null && !it.clientId && !ownTime && /^[A-Za-z][A-Za-z .&]*$/.test(line) && !!lastLoad && lastLoad.qty != null &&
+      !!below && !prodIsTimeLine(below) && !bareQty(below) && /^[A-Za-z]/.test(below) && prodReadItem(below, null).qty != null &&
+      !(ctx.partOwners && group.clientId != null && String(ctx.partOwners[rateKey(prodPartBase(line))]) === String(group.clientId));
+    if (clientLine || firmy || midName || (!group && it.qty == null && !it.clientId && /^[A-Za-z]/.test(line) && !/\d/.test(line) && below && !prodIsTimeLine(below) && !bareQty(below))) {
       group = { client: it.client || line, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '', how: it.clientHow || (firmy ? 'firm' : 'first') };
       carriedGroup = false; family = null;
       return;
@@ -317,7 +513,10 @@ function parsePickling(msg, ctx) {
     if (it.clientId != null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; carriedGroup = false; }
     // A part under a second pickling time with no client written again: the client above it, said so on every load it is
     // carried to (the check then takes a pick on such a load as that load's own, and never learns the name from it).
-    if (!group && lastGroup) { group = lastGroup; carriedGroup = true; }
+    // Not where the part has only ever come from another client ("INCOMING MATERIAL TIME 3:20PM / 210 CD--41 KG" under another
+    // client's block; owner, 25 Nov 2026): that load is left for prodOwnerFill to read as the part's own client, said so.
+    var owner = !group && lastGroup && it.clientId == null && it.part && ctx.partOwners ? ctx.partOwners[rateKey(prodPartBase(it.part))] : null;
+    if (!group && lastGroup && !(owner != null && String(owner) !== String(lastGroup.clientId))) { group = lastGroup; carriedGroup = true; }
     if (!it.part && it.qty != null && pendingParts.length && pendingParts[pendingParts.length - 1].qty == null) {
       var last = pendingParts[pendingParts.length - 1];
       last.qty = it.qty; last.unit = it.unit; last.qtySrc = it.qtySrc; last.raw += '\n' + raw;
@@ -325,10 +524,17 @@ function parsePickling(msg, ctx) {
     }
     if (family && /^\d/.test(it.part)) it.part = family + ' ' + it.part;
     var rec = prodItemRecord(it, group, raw, n, date, noDate);
+    if (ownTime) rec.ownTime = ownTime;
+    if (leadDest) rec.dest = leadDest;
     if (reworkOn) rec.rework = true;
+    if (headT && !ownTime) {
+      rec.ownTime = headT; rec._head = true;
+      if (!rec.dest && blockDest) { rec.dest = blockDest; rec._headDest = true; }
+      if (headNote) { notes.splice(notes.indexOf(headNote), 1); headNote = null; }
+    }
     // "…-774 NOS VAT A2": the line written after the load's figure is where that load is going.
     if (it.qty != null) {
-      var em = line.match(PROD_LINE_END_RE), el = em && /\d\s*(nos|no|pcs|pc|kgs?|k)\b/i.test(line.slice(0, em.index)) ? prodLineOfToken(em[1]) : null;
+      var em = line.match(PROD_LINE_END_RE), el = em && /\d\s*(nos|no|pcs|pc|kgs?|k)\b|\d\s*$/i.test(line.slice(0, em.index)) ? prodLineOfToken(em[1]) : null;
       if (el) rec.dest = el;
     }
     if (carriedGroup) rec.issues.push({ tone: 'amber', code: 'carried', text: 'No client written for this load: ' + (group.clientName || group.client) + ', from the load above.' });
@@ -417,12 +623,26 @@ var PROD_CLOCK_RE = /\b(\d{1,2}\s*[:.]\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[
 function prodIsBatchList(lines) {
   var dashed = lines.some(function(l) { return /^\s*-{6,}\s*$/.test(l); });
   var unload = lines.some(function(l) { return PROD_UNLOAD_RE.test(l); });
-  var withFigure = lines.some(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kg|nos|no)\b/i.test(l); });
+  var withFigure = lines.some(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kgs?|nos|no|pcs)\b/i.test(l); });
   return unload && (dashed || withFigure);
 }
-function parseBarrelBatches(msg, ctx, lines) {
+function parseBarrelBatches(msg, ctx, lines, opts) {
   var items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, power = {};
-  var pending = [], loading = null, skip = -1;
+  var pending = [], loading = null, skip = -1, headUn = null;
+  // Times written over their batches, or under them: a numbered list writes them over, and so does one whose last unload
+  // time alone on its line has a batch written under it. A list that writes them under ends on its last unload.
+  var aloneUn = function(l) { var c = prodUnnumber(l).trim(); return PROD_UNLOAD_RE.test(c) && PROD_CLOCK_RE.test(c) && !/\d\s*(kg|kgs|nos|no|pcs)\b/i.test(c); };
+  var timesFirst = lines.some(function(l) { return /^\s*\(?\d{1,2}\s*\)/.test(l) && PROD_UNLOAD_RE.test(l); });
+  // The barrel's out and in ("BERRAL OUT TIME 8:50 AM DELTA 310 NOS", read through parseProductionList) write their times over.
+  if (opts && opts.timesFirst) timesFirst = true;
+  if (!timesFirst) {
+    var lastAlone = -1;
+    lines.forEach(function(l, k) { if (aloneUn(l)) lastAlone = k; });
+    if (lastAlone >= 0) {
+      var after = lines.slice(lastAlone + 1).map(function(l) { return l.trim(); }).filter(Boolean)[0] || '';
+      timesFirst = !!after && !PROD_UNLOAD_RE.test(after) && !PROD_LOADING_RE.test(after) && /\d\s*(kg|kgs|nos|no|pcs)\b/i.test(after);
+    }
+  }
   var clockOf = function(s) {
     var m = PROD_CLOCK_RE.exec(s);
     if (!m) return null;
@@ -438,6 +658,7 @@ function parseBarrelBatches(msg, ctx, lines) {
   };
   var record = function(it, raw, n, noGroup) {
     var rec = prodItemRecord(it, it.clientId != null || noGroup ? null : group, raw, n, date, false);
+    if (it.clientId == null && !noGroup && group) rec._carried = true;
     rec.kind = 'plated'; rec.line = 'barrel'; rec.lineSrc = 'written'; rec.slot = 'day'; rec.basis = 'relay';
     if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
     return rec;
@@ -448,8 +669,9 @@ function parseBarrelBatches(msg, ctx, lines) {
     if (!line) return;
     var hm = line.match(PROD_LIST_HEAD_RE);
     if (hm) { if (isoFromDmy(hm[1], hm[2], hm[3])) { date = isoFromDmy(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); }
-    var core = line.replace(/^[\s\-–—_=*.]+|[\s\-–—_=*.]+$/g, '');
-    if (!core) { pending = []; loading = null; return; }
+    // "1) UNLOAD TIME 8:50 AM …", "4) 2:20 PM UNLOAD …" (owner, 25 Nov 2026): a batch's number is not its client or its part.
+    var core = prodUnnumber(line).replace(/^[\s\-–—_=*.]+|[\s\-–—_=*.]+$/g, '');
+    if (!core) { pending = []; loading = null; headUn = null; return; }
     if (/^(and|end)$/i.test(core) || /^b[ae]r+[ae]*l+\.?\s*production$/i.test(core)) return;
     var dm = core.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
     if (dm) { if (isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; } return; }
@@ -461,6 +683,8 @@ function parseBarrelBatches(msg, ctx, lines) {
       notes.push({ n: n, raw: raw, text: 'Loaded at ' + loading + (rest ? ': ' + rest : '') + '. Counted when it is unloaded' });
       return;
     }
+    // A later out ("BERRAL OUT TIME …" after an IN) ends what was loaded: its batches are unloaded again.
+    if (loading && PROD_UNLOAD_RE.test(core)) { loading = null; pending = []; }
     if (loading) { notes.push({ n: n, raw: raw, text: 'Loaded at ' + loading + ': counted when it is unloaded' }); return; }
     var un = null, text = core;
     if (PROD_UNLOAD_RE.test(core)) {
@@ -547,11 +771,32 @@ function parseBarrelBatches(msg, ctx, lines) {
             recs.push(nr);
             return;
           }
+          // "DELTA 310 NOS ANCHOR BKT": with nothing between the client and its count, a part written after the count is the part
+          // (not a line, a rework or a barrel word).
+          if (!it.part && it.clientId != null && it.qty != null) {
+            var aq = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*(.*)$/i.exec(c), w = aq ? aq[1].replace(PROD_LINE_END_RE, '').replace(/\b(?:re[-\s]*\w+|done|b[ae]r+[ae]*l+s?)\b/gi, '').replace(/\s+/g, ' ').trim() : '';
+            if (/^[A-Za-z]/.test(w) && !prodMatchClient(w, ctx.clients)) { it.part = w; it.gauge = it.gauge || lineGauge(w); }
+          }
           recs.push(record(it, raw, n));
         });
       }
     }
-    if (un) { close(pending.concat(recs), un); pending = []; }
+    // "2) 11:10 AM UNLOAD" over "DELTA RING 85 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
+    // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
+    // "60 CD 27 KG 3 HOL 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
+    var tailC = text && /\d\s*(?:nos|no|pcs|kgs?)\b\.?\s+([A-Za-z][A-Za-z .&]{2,})$/i.exec(text), tailHit = tailC ? prodMatchClient(tailC[1].trim(), ctx.clients) : null;
+    if (tailHit) recs.forEach(function(r) {
+      if (r.clientId != null && !r._carried) return;
+      r.clientId = tailHit.id; r.clientName = tailHit.name; r.client = tailC[1].trim(); r.clientHow = tailHit.how || '';
+      r.issues = r.issues.filter(function(x) { return x.code !== 'client' && x.code !== 'readas'; });
+      if (tailHit.how === 'read-as') r.issues.push({ tone: 'amber', code: 'readas', text: '"' + r.client + '" read as ' + tailHit.name + '.' });
+      if (r.part && r.part.toUpperCase().endsWith(tailC[1].trim().toUpperCase())) r.part = r.part.slice(0, -tailC[1].trim().length).trim();
+    });
+    recs.forEach(function(r) { delete r._carried; });
+    if (timesFirst && un && !recs.length && !pending.length && un.min != null) { headUn = un; return; }
+    // In a list that writes its times over its batches, a time with batches on its own line heads the lines under it too.
+    if (un) { headUn = timesFirst && un.min != null ? un : null; close(pending.concat(recs), un); pending = []; }
+    else if (headUn) close(recs, headUn);
     else pending = pending.concat(recs);
     recs.forEach(function(r) { items.push(r); });
   });
@@ -560,6 +805,16 @@ function parseBarrelBatches(msg, ctx, lines) {
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 function parseProductionList(msg, ctx) {
+  if (relayIsLineDay(msg.text) === 'opening') return parseVatOpening(msg, ctx);
+  if (relayIsLineDay(msg.text) === 'night') return parseVatOpening(msg, ctx, { night: true });
+  // "BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM …" (the supervisor, 26 Nov 2026): out is the unload, in the load, read as
+  // the batch list reads UNLOAD and LOADING.
+  if (relayIsLineDay(msg.text) === 'barrel') {
+    msg = Object.assign({}, msg, { text: String(msg.text).split('\n').map(function(l) {
+      return l.replace(/^\s*-*\s*b[ae]r+[ae]*l+\.?[\s-]+(?=(?:out|in)\s*-*\s*time)/i, '').replace(/^\s*out\s*-*\s*time\b/i, 'UNLOAD TIME').replace(/^\s*in\s*-*\s*time\b/i, 'LOADING TIME');
+    }).join('\n') });
+    return parseBarrelBatches(msg, ctx, String(msg.text).split('\n'), { timesFirst: true });
+  }
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
   // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read. A count of barrels is a figure
@@ -610,6 +865,89 @@ function parseProductionList(msg, ctx) {
     items.push(rec);
   });
   if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the list: read as ' + date + '.' }); });
+  prodPowerEnd(power, date, items);
+  return { items: items, notes: notes, date: date, noDate: noDate };
+}
+
+/* ---------- The supervisor's day on the lines (26 Nov 2026) ----------
+   "OPENING TIME 7:10 AM PICKLING VAT A 1" heads a line's work from when it opened; a client written alone ("NOVA RING") heads the
+   lines under it, with its part's family; a line holds several loads, each a size and its count ("52×64(20×5)=120 NOS 48×57=(20×5)=75
+   NOS"), a client written with its own load ("KILO L BKT TIMING 9:05 AM 140NOS") is that load's alone, with its own time, and a word
+   after the last count is the family of that line's sizes. "1 ROUND 12 MINUTE" is how long a round takes: said, never counted. Every
+   load is a run on its line, from the line's opening (or its own time), basis relay; a load with no line written is asked. */
+function parseVatOpening(msg, ctx, opts) {
+  opts = opts || {};
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn;
+  var line = null, start = null, group = null, family = null, power = {}, carry = null, night = !!opts.night;
+  // "NOVA RING 300 NOS DURGA 77 CD / 2400 NOS" (27 Nov 2026): a load after the line's last count whose figure is the bare count on the
+  // line under it. It had been dropped. It keeps the line and client it was written under.
+  var push = function(it, raw, n, at, on) {
+    on = on || { line: line, group: group };
+    var rec = prodItemRecord(it, it.clientId != null ? null : on.group, raw, n, date, false);
+    rec.kind = 'plated'; rec.line = on.line; rec.lineSrc = on.line ? 'written' : null; rec.slot = night ? 'ot' : 'day'; rec.basis = 'relay';
+    rec.time = at && at.min != null ? prodHhmm(at.min) : null;
+    if (at && at.issue) rec.issues.push(at.issue);
+    if (night) rec.issues.push({ tone: 'info', code: 'night', text: 'Night work: the night of ' + date + ', overtime.' });
+    if (!on.line) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line.' });
+    items.push(rec);
+  };
+  var bareCountNext = function(i) {
+    var nx = lines.slice(i + 1).find(function(l) { return l.trim(); }) || '';
+    return /^[\s\-_=*.•]*\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b/i.test(nx);
+  };
+  var CLOCK = '(\\d{1,2}\\s*[:.]\\s*\\d{2}\\s*(?:[ap]\\.?\\s?m\\.?)?|\\d{1,2}\\s*[ap]\\.?\\s?m\\.?)';
+  lines.forEach(function(raw, i) {
+    var n = i + 1, bare = raw.trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '');
+    if (!bare) return;
+    var dm = bare.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
+    if (dm && isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; return; }
+    var nh = bare.match(/^(?:(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*\s*)?night\s*work$/i);
+    // A night head, at the top or under a day's work: what follows is the night's.
+    if (nh) { night = true; if (nh[1] && isoFromDmy(nh[1], nh[2], nh[3])) { date = isoFromDmy(nh[1], nh[2], nh[3]); noDate = false; } return; }
+    if (prodIsPowerLine(bare)) { prodPowerStep(power, bare, raw, n, date, msg.sentAt, items, notes); return; }
+    var lt = bare.match(new RegExp('\\b(' + PROD_LINE_TOKEN + ')\\b', 'i'));
+    if (lt && prodLineOfToken(lt[1])) {
+      var nl = prodLineOfToken(lt[1]);
+      // Moving from one written line to the next starts afresh; the first line written keeps an opening time read above it.
+      if (line && nl !== line) { group = null; family = null; start = null; }
+      line = nl; bare = bare.replace(lt[0], ' ');
+    }
+    var om = bare.match(new RegExp('opening\\s*-*\\s*time\\s*[-:]*\\s*' + CLOCK, 'i'));
+    if (om) { start = prodTimeOf(om[1], msg.sentAt); bare = bare.replace(om[0], ' '); }
+    bare = bare.replace(/\bpickling\b/i, ' ');
+    var rd = bare.match(/(\d+)\s*rounds?\b(?:\s*(\d+)\s*min\w*)?|\b(\d+)\s*min(?:ute)?s?\b/i);
+    if (rd && (rd[2] || rd[3])) notes.push({ n: n, raw: raw, text: 'A round takes ' + (rd[2] || rd[3]) + ' minutes on ' + (line ? PROD_LINE_LABEL[line] : 'the line') + ': said, not counted' });
+    if (rd) bare = bare.replace(rd[0], ' ');
+    var own = null, tm = bare.match(new RegExp('\\btim(?:e|ing)\\s*[-:]*\\s*' + CLOCK, 'i'));
+    if (tm) { own = prodTimeOf(tm[1], msg.sentAt); bare = bare.replace(tm[0], ' '); }
+    bare = bare.replace(/[×✕]/g, 'X').replace(/(\d)\s*=\s*\(/g, '$1(').replace(/\)\s*=\s*(\d)/g, ') $1').replace(/\s+/g, ' ').trim();
+    if (!bare) return;
+    var re = /(\d+(?:\.\d+)?)\s*(nos|no|pcs|kgs?)\b\.?/gi, m, from = 0, chunks = [];
+    while ((m = re.exec(bare))) { if (/X\s*$/i.test(bare.slice(0, m.index))) continue; chunks.push(bare.slice(from, m.index + m[0].length).trim()); from = m.index + m[0].length; }
+    var tail = bare.slice(from).trim();
+    if (carry && chunks.length && !prodReadItem(chunks[0], null).part) {
+      var ci = prodReadItem(carry.text + ' ' + chunks.shift(), ctx.clients);
+      push(ci, carry.raw + '\n' + raw, carry.n, carry.at, carry.on);
+    }
+    carry = null;
+    if (!chunks.length) {
+      var h = prodReadItem(bare, ctx.clients);
+      if (h.clientId != null) { group = { client: h.client, clientId: h.clientId, clientName: h.clientName, how: h.clientHow }; family = h.part || null; }
+      else if (/^[A-Za-z][A-Za-z.-]*$/.test(bare)) family = bare;
+      // Two words or more naming nobody the book holds ("ZEPHYR CLAMP"): a client of its own, asked, never the client above.
+      else if (/^[A-Za-z][A-Za-z .-]*$/.test(bare)) { var w0 = bare.split(/\s+/)[0]; group = { client: w0, clientId: null, clientName: '', how: 'unknown' }; family = bare.slice(w0.length).trim() || null; }
+      else notes.push({ n: n, raw: raw, text: 'Not read' });
+      return;
+    }
+    var lineFamily = /^[A-Za-z][A-Za-z .-]*$/.test(tail) && !prodMatchClient(tail, ctx.clients) ? tail : family;
+    chunks.forEach(function(c) {
+      var it = prodReadItem(c, ctx.clients);
+      if (lineFamily && /^\d/.test(it.part || '')) it.part = lineFamily + ' ' + it.part;
+      push(it, raw, n, own || start);
+    });
+    if (tail && /\d/.test(tail) && bareCountNext(i)) carry = { text: tail, raw: raw, n: n, at: own || start, on: { line: line, group: group } };
+  });
+  if (noDate) items.forEach(function(it) { if (it.kind !== 'downtime') it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the message: read as ' + date + '.' }); });
   prodPowerEnd(power, date, items);
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
@@ -776,8 +1114,8 @@ function prodFromRoll(msg, ctx) {
   // or "----work----" head and sometimes straight under the line it ran on ("---hold night-6:00am--- / crew /
   // Beta press material / VAT A 2 / 9301-540 nos"): a line with a quantity under a slot is that slot's production
   // either way, and a client named on a line of its own is the client of the lines under it.
-  var from = null, to = null, hint = null, inProd = false, group = null, pending = null;
-  rr.lines.forEach(function(ln) {
+  var from = null, to = null, hint = null, inProd = false, group = null, pending = null, family = null;
+  rr.lines.forEach(function(ln, li) {
     if (ln.role !== 'note') pending = null;
     if (ln.role === 'head') {
       // A second day's heading inside the roll ("22/09/26/ Sunday", read by the relay as a new day): the work under it
@@ -785,11 +1123,11 @@ function prodFromRoll(msg, ctx) {
       var dd = ln.raw.replace(/^[\s\-_=*.•]+/, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
       if (dd && isoFromDmy(dd[1], dd[2], dd[3])) {
         prodPowerEnd(power, date, items);
-        date = isoFromDmy(dd[1], dd[2], dd[3]); from = null; to = null; hint = null; inProd = false; group = null;
+        date = isoFromDmy(dd[1], dd[2], dd[3]); from = null; to = null; hint = null; inProd = false; group = null; family = null;
         return;
       }
       if (ln.read === 'Production notes') {
-        inProd = true; group = null;
+        inProd = true; group = null; family = null;
         var pa = relayHeaderAreas(ln.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
         if (pa.length) hint = pa[0];
         return;
@@ -803,7 +1141,7 @@ function prodFromRoll(msg, ctx) {
         // the night hold. Read here from the out time alone, the night's work ran to 6 AM from nowhere, dated as a morning.
         if (ln.slotFrom != null) from = ln.slotFrom;
         if (ln.slotTo != null) to = ln.slotTo;
-        hint = null; inProd = false; group = null;
+        hint = null; inProd = false; group = null; family = null;
         return;
       }
       var areas = relayHeaderAreas(ln.raw).filter(function(a) { return PROD_LINES.indexOf(a) >= 0; });
@@ -811,34 +1149,65 @@ function prodFromRoll(msg, ctx) {
       return;
     }
     if (ln.role !== 'note') return;
-    var line = ln.raw.trim();
-    if (prodIsPowerLine(line)) { prodPowerStep(power, line, ln.raw, ln.n, date, null, items, notes); return; }
-    if (/no\s*work/i.test(line)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
+    // The chemical stock written into the roll is Stock's (relayStockTail): its lines had been read as fifteen loads (27 Nov 2026).
+    if (/^(?:Chemical stock|The chemical stock starts)/.test(ln.read || '')) return;
+    var whole = ln.raw.trim();
+    if (prodIsPowerLine(whole)) { prodPowerStep(power, whole, ln.raw, ln.n, date, null, items, notes); return; }
+    if (/no\s*work/i.test(whole)) { notes.push({ n: ln.n, raw: ln.raw, text: 'No work in this block' }); return; }
+    // "NOVA RING / 52×64(20×5)=120 NOS 48×57(20×5)=75 NOS" (28 Nov 2026): a client and a family over sizes heads them, and a line of
+    // several loads is each of them. The family had been saved as a load with no figure and the second load lost.
+    var nextNote = (rr.lines.slice(li + 1).find(function(x) { return x.role === 'note'; }) || {}).raw || '';
+    var segs = prodLoadCuts(whole), lineOwn = null;
+    segs.forEach(function(line, si) { prodRollItem(line, si); });
+    function prodRollItem(line, si) {
+    // "VAT 2---NOVA RING 240 NOS", "BARREL-- KESTREL 77 CD 45 KG" (8 Oct 2026, found reading saved rolls again): the line written before
+    // a load is its line, never part of its name.
+    var lineOwnHint = null, llm = line.match(new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\s*[-–:]+\\s*(?=\\S)', 'i'));
+    if (llm && prodLineOfToken(llm[1])) { lineOwnHint = prodLineOfToken(llm[1]); line = line.slice(llm[0].length); }
     var it = prodReadItem(line, ctx.clients);
+    // A family over sizes only when the line under it is a size ("52×64…", "84+10×94…"), never a figure ("1200+240 NOS").
+    if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+(?:\s*\+\s*\d+)?\s*X\s*\d/.test(nextNote.replace(/[×✕xX]/g, 'X'))) {
+      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = it.part;
+      return;
+    }
+    // A load naming its own client leaves the family above; on a line of several loads, the first one's client and family are the
+    // rest's ("NOVA RING 52×64(20×5)=120 NOS 48×57(20×5)=75 NOS").
+    if (it.clientId != null) family = null;
+    if (si === 0 && segs.length > 1 && it.qty != null) {
+      var fw = (it.part || '').match(/^([A-Za-z][A-Za-z .]*?)\s+\d/);
+      lineOwn = { group: it.clientId != null ? { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow } : null, family: fw ? fw[1] : null };
+    } else if (si > 0 && lineOwn) {
+      if (it.clientId == null && lineOwn.group) { it.client = lineOwn.group.client; it.clientId = lineOwn.group.clientId; it.clientName = lineOwn.group.clientName; it.clientHow = lineOwn.group.how; }
+      if (lineOwn.family && /^\d/.test(it.part || '')) it.part = lineOwn.family + ' ' + it.part;
+    }
+    if (family && it.qty != null && /^\d/.test(it.part || '')) it.part = family + ' ' + it.part;
     // "Beta press material", "Nova ka maal": the client of the lines below.
     if (it.clientId != null && it.qty == null && (!it.part || /^(material|maal|mal|ka\s*maal|others?|work|ka)$/i.test(it.part.trim()))) {
-      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null;
       return;
     }
     // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
     if (it.qty != null && !it.part && it.clientId == null && pending) {
-      var joined = prodReadItem(pending.raw.trim() + ' ' + line, ctx.clients);
+      var joined = prodReadItem((pending.text || pending.raw).trim() + ' ' + line, ctx.clients);
       if (joined.qty != null) {
+        lineOwnHint = lineOwnHint || pending.hint || null;
         if (pending.rec) items.splice(items.indexOf(pending.rec), 1);   // the part line, saved empty inside a block, is this one
         it = joined; it.rawJoined = pending.raw + '\n' + ln.raw; pending = null;
       }
     }
     if (it.qty == null) {
-      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n };
+      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n, text: line, hint: lineOwnHint };
       if (!(inProd && (it.part || it.clientId != null))) { notes.push({ n: ln.n, raw: ln.raw, text: 'Not read as production' }); return; }
     } else pending = null;
     var rec = prodItemRecord(it, it.clientId == null ? group : null, it.rawJoined || ln.raw, ln.n, date, !rr.date && !msg.sentOn);
-    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = hint;
+    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = lineOwnHint || hint;
     rec.time = prodHhmm(from); rec.to = prodHhmm(to);
-    rec.issues.push(hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
+    rec.issues.push(lineOwnHint ? { tone: 'amber', code: 'linehint', text: 'Line written before the load: ' + PROD_LINE_LABEL[lineOwnHint] + '. Confirm it.' }
+      : hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
       : { tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line, or leave it unknown.' });
     items.push(rec);
     if (it.qty == null && pending) pending.rec = rec;
+    }
   });
   prodPowerEnd(power, date, items);
   // The roll's own day: the same roll reposted days later is still the one roll (parseProdPaste).
@@ -961,7 +1330,42 @@ function parseProdPaste(text, ctx) {
     return m;
   });
   prodPairPower(msgs);
+  prodPairTimeAlone(msgs);
   return msgs;
+}
+/* "Pickling time 9:15 am / For Vat A1" sent alone (27 Nov 2026) after "INCOMING MATERIAL TIME 8:50 AM / …" from the same hand that
+   day: the loads that arrived and are pickled in no message here went in at that time, to that line, said amber for the owner to
+   confirm. The message had been refused as one with nothing in it, and the loads were never pickled. */
+function prodPairTimeAlone(msgs) {
+  // By part and figure: a pickling message with no client written still pickles the load (the client is asked there).
+  var key = function(it) { return [rateKey(prodPartBase(it.part || '')), it.qty].join('|'); };
+  var stored = typeof prodData === 'function' && typeof S !== 'undefined' && S && S.production ? prodData().entries.filter(function(e) { return e.kind === 'pickled' && !e.voidedAt; }) : [];
+  msgs.forEach(function(m, mi) {
+    if (m.kind !== 'pickling' || m.read.items.length) return;
+    var nt = (m.read.notes || []).find(function(x) { return x.t && x.t.min != null && x.text === 'A pickling time with nothing listed above it'; });
+    if (!nt) return;
+    for (var j = mi - 1; j >= 0; j--) {
+      var pm = msgs[j];
+      if (pm.sentOn !== m.sentOn || (pm.sentBy || '') !== (m.sentBy || '')) continue;
+      var arrived = pm.read.items.filter(function(it) { return it.kind === 'arrived'; });
+      if (!arrived.length) continue;
+      var pickled = {};
+      msgs.forEach(function(x) { x.read.items.forEach(function(it) { if (it.kind === 'pickled') pickled[key(it)] = true; }); });
+      // And what is saved pickled that day already (a message saved in an earlier check).
+      stored.forEach(function(e) { if (e.date === m.sentOn || e.date === m.read.date) pickled[key(e)] = true; });
+      var take = arrived.filter(function(it) { return !pickled[key(it)]; });
+      if (!take.length) return;
+      m.read.items = take.map(function(it) {
+        var c = Object.assign({}, it, { kind: 'pickled', time: prodHhmm(nt.t.min), dest: nt.dest || null, raw: nt.raw, n: nt.n });
+        c.issues = it.issues.filter(function(x) { return ['later', 'meridiem', 'notime', 'time'].indexOf(x.code) < 0; });
+        if (nt.t.issue) c.issues.push(nt.t.issue);
+        c.issues.push({ tone: 'amber', code: 'fromabove', text: 'Arrived at ' + (it.time ? relayClockLabel(relayParseHhmm(it.time)) : 'a time not written') + ' (the message above): read as pickled at ' + relayClockLabel(nt.t.min) + '. Confirm it.' });
+        return c;
+      });
+      m.read.notes = m.read.notes.filter(function(x) { return x !== nt; });
+      return;
+    }
+  });
 }
 /* What makes two messages the same message: the day it reports and its words. The text alone refused the pickling
    hand's "NOVA CLAMPS / CLAMP(40×6) / Pickling time 9:00AM" on every day after the first it was sent, and the load was

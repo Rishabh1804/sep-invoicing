@@ -10,7 +10,7 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 **Older session closes are in `docs/sessions/` by month** (`2026-09.md`, `2026-10.md`, `2026-11.md`), moved word for word on 11 Nov 2026.
 At a close, the new entry replaces the one below, which moves to the top of its month's file. Subjects are looked up through `docs/atlas/INDEX.md`.
 
-## Session close, 23 Nov 2026, the second: the sheets to photograph (#215); a sheet photographed again (draft, not merged) (read this first)
+## Session close, 23 Nov 2026, the second: the sheets to photograph (#215); a sheet photographed again (#216, merged) (read this first)
 
 - **What shipped, merged on the owner's word**:
   - **#215** (`a41ddba`): **the sheets to photograph as they fill** (P287; `docs/atlas/floor/entry-faces.md`). Production → More →
@@ -18,7 +18,7 @@ At a close, the new entry replaces the one below, which moves to the top of its 
     the page), a strip of half hours to tick when the photo is sent, numbered rows that run on to a spare page 2, and the rule for
     a wrong row. Two sheets join the four: the stop sheet for the whole plant, and the attendance sheet. Coded, the attendance
     sheet lists the hands on the floor only, less the ones named in the dialog as away for the run, and names nobody of the shop.
-- **Built, pushed as a draft, not merged** (the next session's first act is its CI and the owner's word): **a coded sheet
+- **Merged after the close on the owner's word** (#216, `ff837c2`; this line corrected 25 Nov 2026, it had said *a draft, not merged*): **a coded sheet
   photographed again replaces its earlier reading** (P288; `docs/atlas/platform/messages-and-photos.md`). The register reader
   gives back the code (`reg-c3`); a VAT sheet's day and line are the code's; a later photo of the same sheet voids the earlier
   reading's entries with the reason and saves the page as it stands, so it counts once; the check says the rows new since and a
@@ -37,9 +37,8 @@ At a close, the new entry replaces the one below, which moves to the top of its 
 **Opening prompt for the next session** (copy as it is):
 
 ```
-SEP Invoicing, session B. Last close (23 Nov 2026, the second): #215 merged, the sheets to photograph as they fill (P287). A
-draft PR holds P288: a coded sheet photographed again replaces its earlier reading. First: its CI, then the owner's word to
-merge. The owner is away 24 Nov to 6 Dec and reads the floor from photos of the sheets; the first real photo is the first test
+SEP Invoicing, session B. Last close (23 Nov 2026, the second): #215 merged, the sheets to photograph as they fill (P287), and
+#216, a coded sheet photographed again replaces its earlier reading (P288). The owner is away 24 Nov to 6 Dec and reads the floor from photos of the sheets; the first real photo is the first test
 of the reader's prompt for a printed sheet (reg-c3): correct it from what the check shows. Then, in his order: the one drop
 sorted by code and the strip's ticks; the barrel, pickling and stop readers; challans from photos; the attendance check. The
 route: CLAUDE.md → docs/atlas/INDEX.md → a domain README → a topic → code, spec, tests.

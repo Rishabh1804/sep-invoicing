@@ -98,6 +98,20 @@ function mcReadRoll(rec, o) {
   if (!(S.staff || []).length) o.blocked = 'Add the roster first: People → Roster.';
   else if (!days.length) o.blocked = 'No date to put it on: open it in its review.';
   o.review = 'roll';
+  // The chemical stock written into the roll (owner, 25 Nov 2026): read as Stock reads it, and saved with the roll.
+  var tail = relayStockTail(rec.text);
+  if (tail) {
+    var sp = mcRollStockParse(rec, o.day);
+    o.stock = sp.lines.length ? sp : null;
+    if (o.stock) o.what.push('Chemical stock: ' + todoPlural(sp.lines.length, 'line') + ', saved with the roll');
+  }
+  // The work written under the roll (owner, 28 Nov 2026): read as Production reads a pasted roll, and saved with it. A question
+  // in it leaves the work to its review; the roll is still saved. It had never been saved from here.
+  var wk = mcRollWork(rec);
+  if (wk.n) {
+    o.work = wk.n;
+    o.what.push('Work: ' + todoPlural(wk.n, 'load') + (wk.red ? ', a question needs you: saved without it, open it in Messages' : ', saved with the roll'));
+  }
   days.forEach(function(iso) {
     var d = r.days[iso], c = { P: 0, H: 0, A: 0 };
     Object.keys(d.people || {}).forEach(function(id) { var st = d.people[id].st; c[st] = (c[st] || 0) + 1; });
@@ -109,11 +123,52 @@ function mcReadRoll(rec, o) {
     o.what.push(t.join(' · '));
   });
 }
+/* A roll's work as Production reads it: the loads not saved before, and whether one needs a question answered. */
+function mcRollWork(rec) {
+  var msgs = parseProdPaste(mcWaText(rec), prodCtx()), rv = { msgs: msgs, choices: {} }, res = prodReviewResolve(rv);
+  var n = res.rows.filter(function(row) { return !row.m.dup && !row.twin && row.it.kind === 'plated'; }).length;
+  return { n: n, red: res.red > 0, rv: rv, res: res };
+}
+/* A cut a power back sent on its own can close: one stored and still open that day, or one in a message of the same day sent
+   before it and not saved yet (the two are saved together). */
+function mcCutBefore(rec, day, backMin) {
+  if (prodData().entries.some(function(e) { var at = relayParseHhmm(e.time); return e.kind === 'downtime' && !e.voidedAt && e.date === day && e.downtime && e.downtime.open && at != null && at <= backMin; })) return true;
+  var mine = mcMin(rec);
+  return msgStore().some(function(m) {
+    if (m === rec || m.sentOn !== rec.sentOn || m.status === 'saved' || (mcMin(m) || 0) > (mine || 0)) return false;
+    return /p[ao]w[ae]r\s*(cut|cat|off|gone)|light\s*cut/i.test(String(m.text || ''));
+  });
+}
+/* A pickling time sent alone, read with the same hand's messages of that day (prodPairTimeAlone): the loads it pickles, or none. */
+function mcTimeAlone(rec, m) {
+  if (!m || m.kind !== 'pickling' || m.read.items.length || !(m.read.notes || []).some(function(x) { return x.t && x.text === 'A pickling time with nothing listed above it'; })) return;
+  var ctx = msgStore().filter(function(x) { return x.sentOn === rec.sentOn && (x.sentBy || '') === (rec.sentBy || '') && mcKindOf(x) === 'pickling'; })
+    .sort(function(a, b) { return (mcMin(a) || 0) - (mcMin(b) || 0); });
+  if (ctx.indexOf(rec) < 0) return;
+  var all = parseProdPaste(ctx.map(mcWaText).join('\n'), prodCtx()), mine = mcMin(rec);
+  // This message among the day's, found by when it was sent and its words (a message can read as two, or as none).
+  var hit = all.filter(function(x) { return x.sentAt === mine && x.text === m.text; })[0];
+  if (!hit || !hit.read.items.length) return;
+  m.read.items = hit.read.items;
+  m.read.notes = hit.read.notes;
+}
 function mcReadProd(rec, o) {
   var msgs = parseProdPaste(mcWaText(rec), prodCtx()), items = 0;
+  if (msgs.length === 1) mcTimeAlone(rec, msgs[0]);
   o.review = 'prod';
   msgs.forEach(function(m) { items += m.read.items.length; });
   o.key = msgs.map(function(m) { return m.hash; }).join('|');
+  // "POWER IN 10:52AM" sent on its own after "Power cut 10:40 am" (owner, 25 Nov 2026): the power back closes the cut sent
+  // before it, so it is ticked and saved with it. Blocked as a message with nothing in it, the cut had been saved still open.
+  var backs = [];
+  msgs.forEach(function(m) { (m.read.notes || []).forEach(function(nt) { if (nt.powerIn && nt.powerIn.min != null) backs.push(nt.powerIn.min); }); });
+  if (!items && backs.length) {
+    o.day = msgs[0].read.date || o.day;
+    if (!mcCutBefore(rec, o.day, backs[0])) { o.blocked = 'No cut before it to close: open it in Messages.'; return; }
+    o.what = backs.map(function(min) { return 'Power back ' + relayClockLabel(min) + ': the end of the cut sent before it'; });
+    o.sum = { clients: [], NOS: 0, KG: 0 };
+    return;
+  }
   if (!items) { o.blocked = 'Its reader found no load, run or cut in it: open it in Messages.'; return; }
   o.day = msgs[0].read.date || o.day;
   var res = prodReviewResolve({ msgs: msgs, choices: {} }), saving = 0;
@@ -140,6 +195,12 @@ function mcStockParse(rec) {
   var text = mcWaText(rec), parsed = parseStockMessage(text);
   parsed.text = text;
   if (!parsed.to) { parsed.from = parsed.to = rec.sentOn || localDateStr(); parsed.noDate = true; }
+  return parsed;
+}
+/* The stock under a roll, as Stock's check reads it: on the roll's day where it writes none of its own. */
+function mcRollStockParse(rec, day) {
+  var parsed = mcStockParse(Object.assign({}, rec, { text: relayStockTail(rec.text) }));
+  if (parsed.noDate && day) parsed.from = parsed.to = day;
   return parsed;
 }
 function mcReadStock(rec, o) {
@@ -554,6 +615,7 @@ async function mcSave() {
       msgs.length += mine;
     });
     msgs = parseProdPaste(prod.map(function(r) { return mcWaText(r.rec); }).join('\n'), prodCtx());
+    spans.forEach(function(sp) { if (sp.to - sp.from === 1) mcTimeAlone(sp.r.rec, msgs[sp.from]); });
     var rv = { msgs: msgs, choices: {} }, res = prodReviewResolve(rv);
     if (res.red) {
       // A question only the whole set raises: that message is left to its review, and the rest read again.
@@ -574,14 +636,52 @@ async function mcSave() {
     prodData().entries.slice(before).forEach(function(e) { day(e.date).prod++; });
     spans.forEach(function(sp) {
       var ids = [];
-      for (var i = sp.from; i < sp.to; i++) if (done.pasteIds[i]) ids.push(done.pasteIds[i]);
+      for (var i = sp.from; i < sp.to; i++) {
+        if (done.pasteIds[i]) ids.push(done.pasteIds[i]);
+        // A power back alone saves nothing of its own: it is saved with the cut it closed in this batch.
+        else (msgs[i].read.notes || []).forEach(function(nt) { if (nt.closes && done.pasteIds[nt.closes.mi] && ids.indexOf(done.pasteIds[nt.closes.mi]) < 0) ids.push(done.pasteIds[nt.closes.mi]); });
+      }
+      // A power back alone whose cut was saved in an earlier check: the stored cut, still open that day, is closed here.
+      if (!ids.length) for (var j = sp.from; j < sp.to; j++) (msgs[j].read.notes || []).forEach(function(nt) {
+        if (!nt.powerIn || nt.powerIn.min == null || nt.closes) return;
+        var cut = prodData().entries.filter(function(e) { var at = relayParseHhmm(e.time); return e.kind === 'downtime' && !e.voidedAt && e.date === nt.powerIn.date && e.downtime && e.downtime.open && at != null && at <= nt.powerIn.min; }).pop();
+        if (!cut) return;
+        cut.to = prodHhmm(nt.powerIn.min); cut.downtime = Object.assign({}, cut.downtime, { open: false }); cut.raw = (cut.raw ? cut.raw + '\n' : '') + nt.raw;
+        cut.closedAt = Date.now();
+        if (cut.pasteId && ids.indexOf(cut.pasteId) < 0) ids.push(cut.pasteId);
+        day(cut.date).prod++;
+      });
       if (ids.length) { ids.forEach(function(pid) { msgMarkSaved(sp.r.id, 'production.pastes', pid); }); out.saved.push(sp.r); }
       else out.skipped.push({ r: sp.r, why: 'Saved before' });
     });
     break;
   }
 
-  // 3. Stock, a message at a time, as Stock's paste check saves one.
+  // 3. Stock, a message at a time, as Stock's paste check saves one; then the stock written into a roll saved above.
+  rolls.filter(function(r) { return r.stock && out.saved.indexOf(r) >= 0; }).sort(chrono).forEach(function(r) {
+    var parsed = mcRollStockParse(r.rec, r.day), res = resolveStockParse(parsed, {});
+    // Saved before through Read in Stock, when the tail ran to the message's end (the night under it included): not again.
+    var full = relayStockTail(r.rec.text, true), st0 = stockData(), fh = stockHash(full);
+    if (res.dup || (full !== relayStockTail(r.rec.text) && st0.pastes.some(function(p) { return p.hash === fh && st0.entries.some(function(e) { return e.pasteId === p.id && !e.voided; }); }))) return;
+    var st = stockData(), before = st.entries.length;
+    var made = stockCommitPaste(parsed, res, { sentBy: parsed.sentBy, by: stockBy(), choices: {} });
+    // The roll is saved; its stock waits in Stock (Read in Stock), said on the roll's line rather than listed twice.
+    if (!made.entries) { r.stockLeft = true; out.stockLeft = (out.stockLeft || 0) + 1; return; }
+    st.entries.slice(before).forEach(function(e) { day(e.date).stock++; });
+    msgMarkSaved(r.id, 'stock.pastes', st.pastes[st.pastes.length - 1].id);
+  });
+  // The work written into a roll saved above, as Production saves a pasted roll's work.
+  rolls.filter(function(r) { return r.work && out.saved.indexOf(r) >= 0; }).sort(chrono).forEach(function(r) {
+    var w = mcRollWork(r.rec);
+    if (!w.n) return;
+    if (w.red) { r.workLeft = true; out.workLeft = (out.workLeft || 0) + 1; return; }
+    // The work's loads only: a cut written in the roll is the power messages' to save, never a second cut beside theirs.
+    var plated = Object.assign({}, w.res, { rows: w.res.rows.filter(function(row) { return row.it.kind === 'plated'; }) });
+    var before = prodData().entries.length, done = prodSaveCore(w.rv, plated, stockBy());
+    if (done.n || done.closed) prodTouch();
+    prodData().entries.slice(before).forEach(function(e) { day(e.date).prod++; });
+    Object.keys(done.pasteIds || {}).forEach(function(k) { if (done.pasteIds[k]) msgMarkSaved(r.id, 'production.pastes', done.pasteIds[k]); });
+  });
   go.filter(function(r) { return r.kind === 'stock'; }).sort(chrono).forEach(function(r) {
     var parsed = mcStockParse(r.rec);
     if (!parsed.lines.length) { out.left.push({ r: r, why: 'No stock lines read' }); return; }
@@ -621,6 +721,8 @@ function mcDoneHtml() {
     '<div class="inv-tile inv-tile-ok" data-tile="saved"><div class="inv-tile-label">Saved</div><div class="inv-tile-value">' + o.saved.length + '</div></div>' +
     '<div class="inv-tile" data-tile="skipped"><div class="inv-tile-label">Left out</div><div class="inv-tile-value">' + o.skipped.length + '</div></div>' +
     '<div class="inv-tile' + (o.left.length ? ' inv-tile-warning' : '') + '" data-tile="left"><div class="inv-tile-label">To look at</div><div class="inv-tile-value">' + o.left.length + '</div></div></div>';
+  if (o.workLeft) h += '<div class="inv-note" data-mc-work-left>' + escHtml(todoPlural(o.workLeft, 'roll') + ' saved without ' + (o.workLeft === 1 ? 'its' : 'their') + ' work: a load needs a question answered. Open the roll in Messages.') + '</div>';
+  if (o.stockLeft) h += '<div class="inv-note" data-mc-stock-left>' + escHtml(todoPlural(o.stockLeft, 'roll') + ' saved without ' + (o.stockLeft === 1 ? 'its' : 'their') + ' chemical stock: a line needs its name. Open the roll in Messages and Read in Stock.') + '</div>';
   var days = Object.keys(o.days).sort();
   if (days.length) {
     h += '<div class="inv-panel inv-panel-flush" id="mcDoneDays"><div class="inv-panel-head"><span class="inv-panel-title">What changed</span></div>';

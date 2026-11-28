@@ -25,7 +25,7 @@ const CLIENTS = [
   { id: 11, name: 'NOVA CLAMPS PVT. LTD.', billingMode: 'piece', gstType: 'intra', gstin: '', address: '' },
   { id: 12, name: 'DURGA AUTO', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' },
   { id: 13, name: 'KESTREL INDUSTRIES', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' },
-  { id: 14, name: 'GENERAL FORGE CORPORATION', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' },
+  { id: 14, name: 'ORBIT FORGE CORPORATION', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' },
 ];
 const STAFF = [
   { id: 1, name: 'Alfa Oraon', comp: 'monthly', dayRate: 520, area: 'vat-a1', onFloor: true, active: true },
@@ -132,7 +132,7 @@ test.describe('P289: the WhatsApp readers against the owner’s export', () => {
   test('a numbered barrel list: its numbers are no part, a time alone heads the batches under it', async ({ page }) => {
     await load(page);
     const m = await read(page, `${D.dmy}, 4:05 pm - Supervisor: ${D.dmy}/ BERRAL UPDATED
-1) UNLOAD TIME 8:50 AM GENERAL 60 CD 38 KG
+1) UNLOAD TIME 8:50 AM ORBIT 60 CD 38 KG
 2) 11:10 AM UNLOAD
 NOVA CLAMP 85 NOS
 3) 12:20 PM UNLOAD
@@ -171,7 +171,7 @@ ${D.dmy}/
 2) ECHO
 EXTRA 20 HOURS
 ------WORK-----
-GENERAL RING 260 NOS`, D.iso, 600);
+EVENING RING 260 NOS`, D.iso, 600);
     const day = r.days.find(x => x.d === D.iso)!;
     expect(r.issues.filter(i => i.startsWith('red:'))).toEqual([]);
     expect(r.issues.some(i => i.startsWith('amber:Bravo Munda is named twice'))).toBe(true);
@@ -180,7 +180,7 @@ GENERAL RING 260 NOS`, D.iso, 600);
     // EXTRA6 is 6 hours on the 6 AM block; the night under the stock is read, out at 6 AM the next day, with its 20 hours.
     expect(day.extra).toContain('block|6|06:00|08:30|Bravo+Charlie');
     expect(day.extra.some(x => x.startsWith('block|20|20:00|06:00|Charlie+Echo'))).toBe(true);
-    // "GENERAL RING 260 NOS" under the work is a note, never a slot heading.
+    // "EVENING RING 260 NOS" under the work is a note, never a slot heading.
     expect(r.lines[r.lines.length - 1]).toBe('note:');
   });
 
@@ -268,10 +268,10 @@ GENERAL RING 260 NOS`, D.iso, 600);
     expect(m[0].notes).toEqual(['A round takes 12 minutes on VAT A1: said, not counted', 'A round takes 20 minutes on VAT A2: said, not counted']);
 
     // The barrel's out is its unload, its in the load (counted when it comes out); a client after the figures is that line's.
-    const brl = `${D.dmy}, 10:19 am - Supervisor: BERRAL OUT TIME 8:50 AM DURGA AUTO 310 NOS ANCHOR BKT \n60 CD 27 KG 3 HOL 19 KG GENERAL\nIN TIME 9:05 AM\nNOVA C RING 240 NOS 2 BERRAL KESTREL 35 KG`;
+    const brl = `${D.dmy}, 10:19 am - Supervisor: BERRAL OUT TIME 8:50 AM DURGA AUTO 310 NOS FLAT BKT \n60 CD 27 KG 4 PIN 19 KG ORBIT\nIN TIME 9:05 AM\nNOVA C RING 240 NOS 2 BERRAL KESTREL 35 KG`;
     expect(await ev(page, `msgSort({ text: ${JSON.stringify(brl.replace(/^.*?Supervisor: /, ''))} }).kind`)).toBe('production');
     m = await read(page, brl);
-    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.unit, i.to])).toEqual([[12, 'ANCHOR BKT', 310, 'NOS', '08:50'], [14, '60 CD', 27, 'KG', '08:50'], [14, '3 HOL', 19, 'KG', '08:50']]);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.unit, i.to])).toEqual([[12, 'FLAT BKT', 310, 'NOS', '08:50'], [14, '60 CD', 27, 'KG', '08:50'], [14, '4 PIN', 19, 'KG', '08:50']]);
     expect(m[0].notes.length).toBeGreaterThan(0);
     expect(m[0].notes.every(n => /^Loaded at 9:05 AM/.test(n))).toBe(true);
 

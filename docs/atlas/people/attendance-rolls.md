@@ -202,4 +202,4 @@ From every roll in the group's export (P289; the production side is `docs/atlas/
   the roster); "EXTRA16 HOURS" is 16 hours, and "EXTRA5 PM TO 6 AM" a span with no hours, as with a space.
 - **A hand named twice under one heading** is said, amber: one of the two may be someone else (a 6 AM block of four named one hand
   twice, and the fourth was booked to 8:30).
-- **A line with a count or a weight** ("GENERAL RING 260 NOS") is never a slot heading, wherever it stands.
+- **A line with a count or a weight** ("EVENING RING 260 NOS") is never a slot heading, wherever it stands.

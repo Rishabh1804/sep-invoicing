@@ -32,6 +32,13 @@ test.describe('P290: a cash client, never invoiced', () => {
     // Never offered for an invoice: the client search finds the other, and a form set to it by any road does not save.
     expect(await ev(page, `(function(){ invoiceForm.clientId = 2; return validateInvoiceKeyed().map(function(e){ return e.key + ':' + e.text; }); })()`))
       .toContain('client:This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it');
+    // An invoice raised before the client was ticked still takes its edit and its reissue.
+    expect(await ev(page, `(function(){ invoiceForm.clientId = 2; invoiceForm.editingId = 'INV-OLD'; var a = validateInvoiceKeyed().some(function(e){ return /pays in cash/.test(e.text); });
+      invoiceForm.editingId = null; invoiceForm.reissue = { displayNumber: 'X/1' }; var b = validateInvoiceKeyed().some(function(e){ return /pays in cash/.test(e.text); }); invoiceForm.reissue = null; return [a, b]; })()`)).toEqual([false, false]);
+    // Its pickled loads are never "with no open challan", and a challan photo is never read as its.
+    expect(await ev(page, `prodLoadNoChallan({ id: 'P1', kind: 'pickled', date: isoAddDays(localDateStr(), -5), clientId: 2, part: 'HOOK', qty: 60, unit: 'KG' })`)).toBe(false);
+    expect(await ev(page, `prodLoadNoChallan({ id: 'P2', kind: 'pickled', date: isoAddDays(localDateStr(), -5), clientId: 1, part: 'HOOK', qty: 60, unit: 'KG' })`)).toBe(true);
+    expect(await ev(page, `_scanFindClient('KILO TRADERS')`)).toBe(null);
     // Read on the floor: the pickling hand's load is its, asked nothing.
     const m = await ev(page, `parseProdPaste(${JSON.stringify('01/01/2026, 10:29 am - Pickler: KILO TRADERS\nHOOK--60 Kg\nPickling time 10:00 am\nFor Barrel')}, prodCtx())[0].read.items.map(function(i){ return [i.clientId, i.part, i.qty, i.issues.filter(function(x){ return x.tone === 'red'; }).length]; })`);
     expect(m).toEqual([[2, 'HOOK', 60, 0]]);

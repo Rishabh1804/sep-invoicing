@@ -59,5 +59,7 @@ data: 20 `weight`, 1 `piece` (SSS Mehta), 1 `nos_to_weight`.
 so they don't have any GST filing or registration"*). *Cash, no invoice* ticked on a client's card (`cashOnly`) keeps the client in
 the master, so the floor's readers resolve its name and its work is counted, and leaves it out of every road to a tax invoice: the
 invoice's client search and the challan's (`create.js`, `im-form.js`) never offer it, and an invoice form set to it by any other road
-does not save (`validateInvoiceKeyed`). With no invoice it reaches no GSTR-1 export and no receivable. The list says *Cash, no
-invoice* where the GSTIN stands. Unticked, it is a client like any other. P290.
+does not save (`validateInvoiceKeyed`); a challan photo is never read as its (`_scanFindClient`). Its pickled loads are never "with
+no open challan" and its plating never "not invoiced" (`prodLoadNoChallan`, `prodPlatedUnbilled`). A new invoice only: one raised
+before it was ticked stays, in GSTR-1 and the receivables, and takes its edit, correction and reissue as before; its challans
+open then stay listed. The list says *Cash, no invoice* where the GSTIN stands. Unticked, it is a client like any other. P290.

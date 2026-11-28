@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="9513cf69">
+<meta name="app-build" content="d5a982f7">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -14654,7 +14654,8 @@ function validateInvoiceKeyed() {
   if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
   else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
-  else if (S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
+  // A new invoice only: an invoice raised before the client was ticked still takes its correction, its edit and its reissue.
+  else if (!invoiceForm.editingId && !invoiceForm.reissue && S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
   if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
   if (!invoiceForm.date) add('Enter invoice date', 'date');
   if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');
@@ -58991,6 +58992,8 @@ TODO_RULE_FNS.prodPlatedUnbilled = function() {
   plant.rows.forEach(function(x) {
     if (x.platedNotInvoiced <= 0) return;
     var cid = x.r.m.clientId;
+    // A cash client is never invoiced: what it has plated is never "not invoiced".
+    if ((S.clients || []).some(function(c) { return String(c.id) === String(cid) && c.cashOnly; })) return;
     // What is still open on a line is its latest plating: invoicing takes the oldest first. The age is that plating's,
     // and only what was captured here counts, never the imported history. It was aged from the part's oldest plating
     // in 45 days (billed or not) and counted the whole line, the history's share included.
@@ -59031,6 +59034,8 @@ function prodLoadNoChallan(e, idx, today) {
   if (e.kind !== 'pickled' || e.voidedAt || e.src === 'import' || e.rework || (idx || prodIndex()).replaced[e.id]) return false;
   if (e.date < isoAddDays(today, -30) || prodWorkingDaysBetween(e.date, today) < 1) return false;
   if (e.clientId == null) return true;
+  // A cash client's material comes with no challan (clients.js, cashOnly): its loads are never "with no open challan".
+  if ((S.clients || []).some(function(c) { return String(c.id) === String(e.clientId) && c.cashOnly; })) return false;
   var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
   return !(S.incomingMaterial || []).some(function(m) {
     if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > isoAddDays(e.date, 1)) return false;
@@ -85192,6 +85197,8 @@ function _scanFindClient(name) {
   if (key.length < 5) return null;
   var exact = null, near = [];
   (S.clients || []).forEach(function(c) {
+    // A cash client sends no challan to invoice from (clients.js, cashOnly): a photo is never read as its challan.
+    if (c.cashOnly) return;
     var ck = rateKey(c.name);
     if (!ck) return;
     if (ck === key) exact = c;

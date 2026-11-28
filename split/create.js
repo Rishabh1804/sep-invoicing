@@ -824,7 +824,8 @@ function validateInvoiceKeyed() {
   if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
   else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
-  else if (S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
+  // A new invoice only: an invoice raised before the client was ticked still takes its correction, its edit and its reissue.
+  else if (!invoiceForm.editingId && !invoiceForm.reissue && S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
   if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
   if (!invoiceForm.date) add('Enter invoice date', 'date');
   if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');

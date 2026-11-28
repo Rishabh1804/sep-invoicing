@@ -144,12 +144,13 @@ function mcTimeAlone(rec, m) {
   if (!m || m.kind !== 'pickling' || m.read.items.length || !(m.read.notes || []).some(function(x) { return x.t && x.text === 'A pickling time with nothing listed above it'; })) return;
   var ctx = msgStore().filter(function(x) { return x.sentOn === rec.sentOn && (x.sentBy || '') === (rec.sentBy || '') && mcKindOf(x) === 'pickling'; })
     .sort(function(a, b) { return (mcMin(a) || 0) - (mcMin(b) || 0); });
-  var at = ctx.indexOf(rec);
-  if (at < 0) return;
-  var all = parseProdPaste(ctx.map(mcWaText).join('\n'), prodCtx());
-  if (all.length !== ctx.length || !all[at].read.items.length) return;
-  m.read.items = all[at].read.items;
-  m.read.notes = all[at].read.notes;
+  if (ctx.indexOf(rec) < 0) return;
+  var all = parseProdPaste(ctx.map(mcWaText).join('\n'), prodCtx()), mine = mcMin(rec);
+  // This message among the day's, found by when it was sent and its words (a message can read as two, or as none).
+  var hit = all.filter(function(x) { return x.sentAt === mine && x.text === m.text; })[0];
+  if (!hit || !hit.read.items.length) return;
+  m.read.items = hit.read.items;
+  m.read.notes = hit.read.notes;
 }
 function mcReadProd(rec, o) {
   var msgs = parseProdPaste(mcWaText(rec), prodCtx()), items = 0;
@@ -674,7 +675,9 @@ async function mcSave() {
     var w = mcRollWork(r.rec);
     if (!w.n) return;
     if (w.red) { r.workLeft = true; out.workLeft = (out.workLeft || 0) + 1; return; }
-    var before = prodData().entries.length, done = prodSaveCore(w.rv, w.res, stockBy());
+    // The work's loads only: a cut written in the roll is the power messages' to save, never a second cut beside theirs.
+    var plated = Object.assign({}, w.res, { rows: w.res.rows.filter(function(row) { return row.it.kind === 'plated'; }) });
+    var before = prodData().entries.length, done = prodSaveCore(w.rv, plated, stockBy());
     if (done.n || done.closed) prodTouch();
     prodData().entries.slice(before).forEach(function(e) { day(e.date).prod++; });
     Object.keys(done.pasteIds || {}).forEach(function(k) { if (done.pasteIds[k]) msgMarkSaved(r.id, 'production.pastes', done.pasteIds[k]); });

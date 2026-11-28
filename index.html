@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="4c8960b1">
+<meta name="app-build" content="e881e778">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -47812,12 +47812,13 @@ function mcTimeAlone(rec, m) {
   if (!m || m.kind !== 'pickling' || m.read.items.length || !(m.read.notes || []).some(function(x) { return x.t && x.text === 'A pickling time with nothing listed above it'; })) return;
   var ctx = msgStore().filter(function(x) { return x.sentOn === rec.sentOn && (x.sentBy || '') === (rec.sentBy || '') && mcKindOf(x) === 'pickling'; })
     .sort(function(a, b) { return (mcMin(a) || 0) - (mcMin(b) || 0); });
-  var at = ctx.indexOf(rec);
-  if (at < 0) return;
-  var all = parseProdPaste(ctx.map(mcWaText).join('\n'), prodCtx());
-  if (all.length !== ctx.length || !all[at].read.items.length) return;
-  m.read.items = all[at].read.items;
-  m.read.notes = all[at].read.notes;
+  if (ctx.indexOf(rec) < 0) return;
+  var all = parseProdPaste(ctx.map(mcWaText).join('\n'), prodCtx()), mine = mcMin(rec);
+  // This message among the day's, found by when it was sent and its words (a message can read as two, or as none).
+  var hit = all.filter(function(x) { return x.sentAt === mine && x.text === m.text; })[0];
+  if (!hit || !hit.read.items.length) return;
+  m.read.items = hit.read.items;
+  m.read.notes = hit.read.notes;
 }
 function mcReadProd(rec, o) {
   var msgs = parseProdPaste(mcWaText(rec), prodCtx()), items = 0;
@@ -48342,7 +48343,9 @@ async function mcSave() {
     var w = mcRollWork(r.rec);
     if (!w.n) return;
     if (w.red) { r.workLeft = true; out.workLeft = (out.workLeft || 0) + 1; return; }
-    var before = prodData().entries.length, done = prodSaveCore(w.rv, w.res, stockBy());
+    // The work's loads only: a cut written in the roll is the power messages' to save, never a second cut beside theirs.
+    var plated = Object.assign({}, w.res, { rows: w.res.rows.filter(function(row) { return row.it.kind === 'plated'; }) });
+    var before = prodData().entries.length, done = prodSaveCore(w.rv, plated, stockBy());
     if (done.n || done.closed) prodTouch();
     prodData().entries.slice(before).forEach(function(e) { day(e.date).prod++; });
     Object.keys(done.pasteIds || {}).forEach(function(k) { if (done.pasteIds[k]) msgMarkSaved(r.id, 'production.pastes', done.pasteIds[k]); });
@@ -49926,13 +49929,13 @@ function parsePickling(msg, ctx) {
       var tTail = tAfter.replace(/^[\s.:*-]*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
       // "PICKLING TIME 7:50 AM VAT A 1 RING 52×64=20×5=120 NOS" (28 Nov 2026): a line after the clock is where the loads go, the load
       // after it one of them. The line had been read into the part, and the loads under it sent to the next line written.
-      var alm = mode !== 'arrived' ? tTail.match(new RegExp('^[\\s:*-]*(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i')) : null;
+      var alm = mode !== 'arrived' ? tTail.match(new RegExp('^[\\s:*-]*(?:(?:for|to)\\s+)?(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i')) : null;
       if (alm && prodLineOfToken(alm[1])) { blockDest = prodLineOfToken(alm[1]); tTail = tTail.slice(alm[0].length).trim(); }
       var tIt = mode !== 'arrived' && /[A-Za-z0-9]/.test(tTail) ? prodReadItem(tTail, ctx.clients) : null;
       // "… 52×64(20×5)=230 NOS NOVA": a client written after the load's count is its client.
       if (tIt && tIt.qty != null && tIt.clientId == null) {
         var ac = tTail.match(/\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*([A-Za-z][A-Za-z .&]*)$/i), acl = ac ? prodMatchClient(ac[1].trim(), ctx.clients) : null;
-        if (acl) { tIt.client = ac[1].trim(); tIt.clientId = acl.id; tIt.clientName = acl.name; tIt.clientHow = acl.how; }
+        if (acl && acl.how !== 'read-as') { tIt.client = ac[1].trim(); tIt.clientId = acl.id; tIt.clientName = acl.name; tIt.clientHow = acl.how; }
       }
       // "PICKLING TIME 3:40 PM VAT A 1 NOVA" (26 Nov 2026): after the clock with no figure, the line the loads go to and their client.
       if (tIt && tIt.qty == null) {
@@ -50689,18 +50692,29 @@ function prodFromRoll(msg, ctx) {
     // "NOVA RING / 52×64(20×5)=120 NOS 48×57(20×5)=75 NOS" (28 Nov 2026): a client and a family over sizes heads them, and a line of
     // several loads is each of them. The family had been saved as a load with no figure and the second load lost.
     var nextNote = (rr.lines.slice(li + 1).find(function(x) { return x.role === 'note'; }) || {}).raw || '';
-    var segs = prodLoadCuts(whole);
-    segs.forEach(function(line) { prodRollItem(line); });
-    function prodRollItem(line) {
+    var segs = prodLoadCuts(whole), lineOwn = null;
+    segs.forEach(function(line, si) { prodRollItem(line, si); });
+    function prodRollItem(line, si) {
     var it = prodReadItem(line, ctx.clients);
-    if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+\s*(?:[×xX+]|\d*\s*[×xX])/.test(nextNote.replace(/[×✕]/g, 'X'))) {
+    // A family over sizes only when the line under it is a size ("52×64…", "84+10×94…"), never a figure ("1200+240 NOS").
+    if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+(?:\s*\+\s*\d+)?\s*X\s*\d/.test(nextNote.replace(/[×✕xX]/g, 'X'))) {
       group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = it.part;
       return;
+    }
+    // A load naming its own client leaves the family above; on a line of several loads, the first one's client and family are the
+    // rest's ("NOVA RING 52×64(20×5)=120 NOS 48×57(20×5)=75 NOS").
+    if (it.clientId != null) family = null;
+    if (si === 0 && segs.length > 1 && it.qty != null) {
+      var fw = (it.part || '').match(/^([A-Za-z][A-Za-z .]*?)\s+\d/);
+      lineOwn = { group: it.clientId != null ? { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow } : null, family: fw ? fw[1] : null };
+    } else if (si > 0 && lineOwn) {
+      if (it.clientId == null && lineOwn.group) { it.client = lineOwn.group.client; it.clientId = lineOwn.group.clientId; it.clientName = lineOwn.group.clientName; it.clientHow = lineOwn.group.how; }
+      if (lineOwn.family && /^\d/.test(it.part || '')) it.part = lineOwn.family + ' ' + it.part;
     }
     if (family && it.qty != null && /^\d/.test(it.part || '')) it.part = family + ' ' + it.part;
     // "Beta press material", "Nova ka maal": the client of the lines below.
     if (it.clientId != null && it.qty == null && (!it.part || /^(material|maal|mal|ka\s*maal|others?|work|ka)$/i.test(it.part.trim()))) {
-      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null;
       return;
     }
     // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
@@ -50852,7 +50866,9 @@ function parseProdPaste(text, ctx) {
    day: the loads that arrived and are pickled in no message here went in at that time, to that line, said amber for the owner to
    confirm. The message had been refused as one with nothing in it, and the loads were never pickled. */
 function prodPairTimeAlone(msgs) {
-  var key = function(it) { return [it.clientId, rateKey(prodPartBase(it.part || '')), it.qty].join('|'); };
+  // By part and figure: a pickling message with no client written still pickles the load (the client is asked there).
+  var key = function(it) { return [rateKey(prodPartBase(it.part || '')), it.qty].join('|'); };
+  var stored = typeof prodData === 'function' && typeof S !== 'undefined' && S && S.production ? prodData().entries.filter(function(e) { return e.kind === 'pickled' && !e.voidedAt; }) : [];
   msgs.forEach(function(m, mi) {
     if (m.kind !== 'pickling' || m.read.items.length) return;
     var nt = (m.read.notes || []).find(function(x) { return x.t && x.t.min != null && x.text === 'A pickling time with nothing listed above it'; });
@@ -50864,6 +50880,8 @@ function prodPairTimeAlone(msgs) {
       if (!arrived.length) continue;
       var pickled = {};
       msgs.forEach(function(x) { x.read.items.forEach(function(it) { if (it.kind === 'pickled') pickled[key(it)] = true; }); });
+      // And what is saved pickled that day already (a message saved in an earlier check).
+      stored.forEach(function(e) { if (e.date === m.sentOn || e.date === m.read.date) pickled[key(e)] = true; });
       var take = arrived.filter(function(it) { return !pickled[key(it)]; });
       if (!take.length) return;
       m.read.items = take.map(function(it) {
@@ -63026,10 +63044,11 @@ function prodReviewResolve(rvIn) {
         if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
       } else row.clientId = it.clientId;
       var lc = ch['line' + key];
-      // A line written over the work (the night's work under "VAT A 1", 27 Nov 2026) is kept; a roll's work with none is asked.
-      if (it.lineHint !== undefined || (it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot' && !(it.lineSrc === 'written' && it.line))) {
+      // A line written over the work (the night's work under "VAT A 1", 27 Nov 2026) is kept unless the owner picks another; a roll's
+      // work with none is asked.
+      if (it.lineHint !== undefined || (it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot')) {
         if (lc !== undefined) { row.issues = row.issues.filter(function(x) { return x.code !== 'linehint' && x.code !== 'noline'; }); row.line = lc || null; }
-        else row.line = null;
+        else row.line = it.lineSrc === 'written' && it.line ? it.line : null;
       } else row.line = it.line || null;
       // Entered on a face already (faces.js): left out, as a message saved before is.
       row.twin = !m.dup ? prodFaceTwin(it, row.clientId) : null;

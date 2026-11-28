@@ -394,13 +394,13 @@ function parsePickling(msg, ctx) {
       var tTail = tAfter.replace(/^[\s.:*-]*\d{1,2}\s*(?:[:.]\s*\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?)?/i, '').trim();
       // "PICKLING TIME 7:50 AM VAT A 1 RING 52×64=20×5=120 NOS" (28 Nov 2026): a line after the clock is where the loads go, the load
       // after it one of them. The line had been read into the part, and the loads under it sent to the next line written.
-      var alm = mode !== 'arrived' ? tTail.match(new RegExp('^[\\s:*-]*(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i')) : null;
+      var alm = mode !== 'arrived' ? tTail.match(new RegExp('^[\\s:*-]*(?:(?:for|to)\\s+)?(' + PROD_LINE_TOKEN + ')\\b[\\s:*-]*', 'i')) : null;
       if (alm && prodLineOfToken(alm[1])) { blockDest = prodLineOfToken(alm[1]); tTail = tTail.slice(alm[0].length).trim(); }
       var tIt = mode !== 'arrived' && /[A-Za-z0-9]/.test(tTail) ? prodReadItem(tTail, ctx.clients) : null;
       // "… 52×64(20×5)=230 NOS NOVA": a client written after the load's count is its client.
       if (tIt && tIt.qty != null && tIt.clientId == null) {
         var ac = tTail.match(/\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*([A-Za-z][A-Za-z .&]*)$/i), acl = ac ? prodMatchClient(ac[1].trim(), ctx.clients) : null;
-        if (acl) { tIt.client = ac[1].trim(); tIt.clientId = acl.id; tIt.clientName = acl.name; tIt.clientHow = acl.how; }
+        if (acl && acl.how !== 'read-as') { tIt.client = ac[1].trim(); tIt.clientId = acl.id; tIt.clientName = acl.name; tIt.clientHow = acl.how; }
       }
       // "PICKLING TIME 3:40 PM VAT A 1 NOVA" (26 Nov 2026): after the clock with no figure, the line the loads go to and their client.
       if (tIt && tIt.qty == null) {
@@ -1157,18 +1157,29 @@ function prodFromRoll(msg, ctx) {
     // "NOVA RING / 52×64(20×5)=120 NOS 48×57(20×5)=75 NOS" (28 Nov 2026): a client and a family over sizes heads them, and a line of
     // several loads is each of them. The family had been saved as a load with no figure and the second load lost.
     var nextNote = (rr.lines.slice(li + 1).find(function(x) { return x.role === 'note'; }) || {}).raw || '';
-    var segs = prodLoadCuts(whole);
-    segs.forEach(function(line) { prodRollItem(line); });
-    function prodRollItem(line) {
+    var segs = prodLoadCuts(whole), lineOwn = null;
+    segs.forEach(function(line, si) { prodRollItem(line, si); });
+    function prodRollItem(line, si) {
     var it = prodReadItem(line, ctx.clients);
-    if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+\s*(?:[×xX+]|\d*\s*[×xX])/.test(nextNote.replace(/[×✕]/g, 'X'))) {
+    // A family over sizes only when the line under it is a size ("52×64…", "84+10×94…"), never a figure ("1200+240 NOS").
+    if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+(?:\s*\+\s*\d+)?\s*X\s*\d/.test(nextNote.replace(/[×✕xX]/g, 'X'))) {
       group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = it.part;
       return;
+    }
+    // A load naming its own client leaves the family above; on a line of several loads, the first one's client and family are the
+    // rest's ("NOVA RING 52×64(20×5)=120 NOS 48×57(20×5)=75 NOS").
+    if (it.clientId != null) family = null;
+    if (si === 0 && segs.length > 1 && it.qty != null) {
+      var fw = (it.part || '').match(/^([A-Za-z][A-Za-z .]*?)\s+\d/);
+      lineOwn = { group: it.clientId != null ? { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow } : null, family: fw ? fw[1] : null };
+    } else if (si > 0 && lineOwn) {
+      if (it.clientId == null && lineOwn.group) { it.client = lineOwn.group.client; it.clientId = lineOwn.group.clientId; it.clientName = lineOwn.group.clientName; it.clientHow = lineOwn.group.how; }
+      if (lineOwn.family && /^\d/.test(it.part || '')) it.part = lineOwn.family + ' ' + it.part;
     }
     if (family && it.qty != null && /^\d/.test(it.part || '')) it.part = family + ' ' + it.part;
     // "Beta press material", "Nova ka maal": the client of the lines below.
     if (it.clientId != null && it.qty == null && (!it.part || /^(material|maal|mal|ka\s*maal|others?|work|ka)$/i.test(it.part.trim()))) {
-      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+      group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; family = null;
       return;
     }
     // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
@@ -1320,7 +1331,9 @@ function parseProdPaste(text, ctx) {
    day: the loads that arrived and are pickled in no message here went in at that time, to that line, said amber for the owner to
    confirm. The message had been refused as one with nothing in it, and the loads were never pickled. */
 function prodPairTimeAlone(msgs) {
-  var key = function(it) { return [it.clientId, rateKey(prodPartBase(it.part || '')), it.qty].join('|'); };
+  // By part and figure: a pickling message with no client written still pickles the load (the client is asked there).
+  var key = function(it) { return [rateKey(prodPartBase(it.part || '')), it.qty].join('|'); };
+  var stored = typeof prodData === 'function' && typeof S !== 'undefined' && S && S.production ? prodData().entries.filter(function(e) { return e.kind === 'pickled' && !e.voidedAt; }) : [];
   msgs.forEach(function(m, mi) {
     if (m.kind !== 'pickling' || m.read.items.length) return;
     var nt = (m.read.notes || []).find(function(x) { return x.t && x.t.min != null && x.text === 'A pickling time with nothing listed above it'; });
@@ -1332,6 +1345,8 @@ function prodPairTimeAlone(msgs) {
       if (!arrived.length) continue;
       var pickled = {};
       msgs.forEach(function(x) { x.read.items.forEach(function(it) { if (it.kind === 'pickled') pickled[key(it)] = true; }); });
+      // And what is saved pickled that day already (a message saved in an earlier check).
+      stored.forEach(function(e) { if (e.date === m.sentOn || e.date === m.read.date) pickled[key(e)] = true; });
       var take = arrived.filter(function(it) { return !pickled[key(it)]; });
       if (!take.length) return;
       m.read.items = take.map(function(it) {

@@ -402,6 +402,47 @@ NOVA RING 300 NOS`)} }).kind`)).toBe('out');
     expect(got.status).toEqual(['in:saved', 'pickling:saved', 'pickling:saved', 'pickling:saved']);
   });
 
+  test('the fifth review’s cases (28 Nov 2026): a roll’s family and client, a figure under a family, a time alone by part, a roll’s cut, a line picked', async ({ page }) => {
+    await load(page);
+    const work = (w: string) => ev(page, `parseProdPaste(${JSON.stringify(`${D.dmy}, 9:18 am - Supervisor: ${D.dmy}/ IN TIME
+-------6:00 AM------
+1) ALFA
+------WORK-------
+${w}`)}, prodCtx())[0].read.items.filter(function(i){ return i.kind === 'plated'; }).map(function(i){ return [i.clientId, i.part, i.qty]; })`);
+    // A family stops at the next client; a figure under a family is its load; a line of two loads gives the second its client and family.
+    expect(await work('NOVA RING\n52×64(20×5)=120 NOS\nDURGA\n7313-400 NOS')).toEqual([[11, 'RING 52X64(20X5)', 120], [12, '7313', 400]]);
+    expect(await work('NOVA CLAMP\n1200+240 NOS')).toEqual([[11, 'CLAMP', 1440]]);
+    expect(await work('NOVA RING 52×64(20×5)=120 NOS 48×57=(20×5)=75 NOS')).toEqual([[11, 'RING 52X64(20X5)', 120], [11, 'RING 48X57(20X5)', 75]]);
+    // A word after a count is a client only by its own name, never a piece of one.
+    let m = await read(page, `${D.dmy}, 9:10 am - Pickler: PICKLING TIME 9:00 AM RING 120 NOS CLAMPS`);
+    expect(m[0].items[0].clientId ?? null).toBe(null);
+    // A time sent alone pickles by part and figure: a load pickled in a message with no client written is not pickled again; the line
+    // may follow the clock on its line.
+    const paste = [`${D.dmy}, 9:00 am - Pickler: INCOMING MATERIAL TIME 8:50 AM\nNOVA CLAMPS\nRING--200 NOS\nBOLT--100 NOS`,
+      `${D.dmy}, 9:20 am - Pickler: Pickling time 9:15 am FOR VAT A1`,
+      `${D.dmy}, 9:40 am - Pickler: BOLT--100 NOS\nPICKLING TIME 9:35 AM\nFOR BARREL`].join('\n');
+    m = await read(page, paste);
+    expect(m[1].items.map(i => [i.part, i.qty, i.time, i.dest, i.codes.includes('amber:fromabove')])).toEqual([['RING', 200, '09:15', 'vat-a1', true]]);
+    // A line picked on a night's work written under its line is the one saved.
+    const nw = `${D.dmy}, 10:26 am - Supervisor: ---${D0.dmy}/ NIGHT WORK---\nVAT A 1\nNOVA RING 300 NOS`;
+    expect(await ev(page, `(function(){ var rv = { msgs: parseProdPaste(${JSON.stringify(nw)}, prodCtx()), choices: {} }; var a = prodReviewResolve(rv).rows[0].line; rv.choices['line0:0'] = 'vat-a2'; return [a, prodReviewResolve(rv).rows[0].line]; })()`)).toEqual(['vat-a1', 'vat-a2']);
+    // A cut written in a roll's work is not saved from the roll: the power messages save it.
+    const wa = (at: string, who: string, text: string) => `${D.dmy}, ${at} - ${who}: ${text}`;
+    const chat = [
+      wa('7:05 am', 'Pickler', 'Power cut 7:00 am'),
+      wa('7:35 am', 'Pickler', 'POWER IN 7:30AM'),
+      wa('9:18 am', 'Supervisor', `${D.dmy}/ IN TIME\n-------6:00 AM------\n1) ALFA\n2) BRAVO\n------WORK-------\nPOWER CUT 7:00 AM TO 7:30 AM\nNOVA RING 300 NOS`),
+    ].join('\n');
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(chat)}), 'zip', 'IMP-P289c'); saveState(); mcOpen({ importId: 'IMP-P289c' }); })()`);
+    await expect(page.locator('[data-mc]')).toBeVisible();
+    await ev(page, `(function(){ mcShown().forEach(function(r) { if (r.tickable) _mc.tick[r.id] = true; }); mcRedraw(); })()`);
+    await page.locator('[data-action="invMsgMcSave"]').click();
+    await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('3');
+    const got = await ev(page, `S.production.entries.map(function(e){ return [e.kind, e.time || null, e.to || null]; }).sort()`) as any;
+    expect(got.filter((x: any) => x[0] === 'downtime')).toEqual([['downtime', '07:00', '07:30']]);
+    expect(got.filter((x: any) => x[0] === 'plated').length).toBe(1);
+  });
+
   test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {
     await load(page);
     const r = await ev(page, `(function(){ var p = parseStockMessage(${JSON.stringify(`CHEMICAL USE  &  ZINK USE ${D.dmy}/

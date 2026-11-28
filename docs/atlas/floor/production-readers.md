@@ -133,7 +133,11 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   missed*, `prodMissedFind`, `prodMissedAdd`). Every saved paste is read again by the reader as it is now; where it reads more loads
   than were saved from it, those with no saved entry of the same kind, part and figure (then of the same kind and figure, so an entry
   named by hand is still that load) are listed by message beside what was saved, and added with one tap under the paste they came
-  from (`addedLater`). A voided entry counts as saved; a load with a question is left to a paste in Production. Read against the
+  from (`addedLater`). A voided entry counts as saved; a message voided and saved again is one message; a load entered on a face is
+  never offered; a load with a question is left to a paste in Production; where a saved entry matches nothing the reader now reads
+  (one load now read as two), nothing is offered and the message is listed to check by hand. The message's own WhatsApp line comes
+  from Messages where it is there (the minute it was sent, which times and the evening-before rule turn on); each load's warnings are
+  shown before it is added. Read against the
   book of 23 Nov: seven loads in five messages (two rolls' second loads, 9 Oct and 4 Nov; an 8 Oct roll's two loads written after
   their line, "VAT 2---…"; three 20 Nov pickling loads). A line written before a load in a roll's work is that load's line, never part
   of its name (`prodFromRoll`).

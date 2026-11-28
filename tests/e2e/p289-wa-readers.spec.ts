@@ -462,6 +462,22 @@ ${w}`)}, prodCtx())[0].read.items.filter(function(i){ return i.kind === 'plated'
     const got = await ev(page, `S.production.entries.map(function(e){ return [e.part, e.qty, e.pasteId, !!e.addedLater]; })`);
     expect(got).toEqual([['CLAMP', 480, 'PPA', false], ['R-200 (named by hand)', 200, 'PPB', false], ['RING', 90, 'PPA', true]]);
     expect(await ev(page, `S.production.pastes.length`)).toBe(2);
+    // The review's cases. A message voided and saved again is one message; one that now reads differently from what was saved (one
+    // load now two) offers nothing to add; a load entered on a face is never offered.
+    const r2 = await ev(page, `(function(){
+      var p = prodData(), at = ${at};
+      var e = function(id, part, qty, pid, extra) { return Object.assign({ id: id, kind: 'pickled', date: ${JSON.stringify(D.iso)}, time: '09:00', clientId: 11, client: 'NOVA', part: part, qty: qty, unit: 'NOS', basis: 'pickling', pasteId: pid, at: at, by: 'Owner' }, extra || {}); };
+      var ps = function(id, hash, text) { return { id: id, at: at, by: 'Owner', sentBy: 'Pickler', sentOn: ${JSON.stringify(D.iso)}, day: ${JSON.stringify(D.iso)}, kind: 'pickling', hash: hash, text: text }; };
+      p.pastes.push(ps('PPC', 'h3', 'NOVA CLAMPS\\nPIN--40 NOS\\nPICKLING TIME 9:00 AM'), ps('PPD', 'h3', 'NOVA CLAMPS\\nPIN--40 NOS\\nPICKLING TIME 9:00 AM'),
+        ps('PPE', 'h4', 'NOVA CLAMPS\\nSTUD--1200+240 NOS\\nNUT--50 NOS\\nPICKLING TIME 9:00 AM'));
+      p.entries.push(e('E3', 'PIN', 40, 'PPC', { voidedAt: at }), e('E4', 'PIN', 40, 'PPD'), e('E5', 'STUD', 1300, 'PPE'));
+      return prodMissedFind().map(function(x){ return [x.paste.id, x.changed, x.missed.map(function(i){ return i.part + ' ' + i.qty; })]; });
+    })()`);
+    expect(r2.filter((x: any) => ['PPC', 'PPD'].includes(x[0]))).toEqual([]);
+    expect(r2.filter((x: any) => x[0] === 'PPE')).toEqual([['PPE', true, ['STUD 1440', 'NUT 50']]]);
+    await ev(page, `prodMissedOpen()`);
+    await expect(page.locator('[data-prod-missed="PPE"] [data-prod-missed-changed]')).toBeVisible();
+    await expect(page.locator('[data-action="invProdMissedAdd"][data-id="PPE"]')).toHaveCount(0);
     // A roll's work: the line written before a load is its line, never part of its name.
     const w = await ev(page, `parseProdPaste(${JSON.stringify(`${D.dmy}, 9:18 am - Supervisor: ${D.dmy}/ IN TIME
 -------6:00 AM------

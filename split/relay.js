@@ -656,8 +656,8 @@ function parseRelayRoll(text, roster, sentOn, opts) {
       if (headK && headK.slot && (headK.night || (headK.start != null && headK.end != null)) &&
           relayKey(words.slice(0, hit.used).join('')) !== relayKey(hit.w.name)) hit = null;
     }
-    // "GENERAL RING 260 NOS" (as a roll of 23 Nov 2026 wrote a client's work) is work, not the general shift's heading: a line with a
-    // count or a weight heads nothing, wherever it stands. It had closed the night above it as an 8:30-to-5 slot.
+    // "EVENING RING 260 NOS" (a client's work, its name a slot word) is work, not a slot's heading: a line with a
+    // count or a weight heads nothing, wherever it stands. It had closed the night above it as a slot of its own.
     var isHeaderish = !numbered && !hit && !/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(bare) && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {

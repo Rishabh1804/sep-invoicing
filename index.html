@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="1bc39ce0">
+<meta name="app-build" content="228ce80a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -44532,8 +44532,8 @@ function parseRelayRoll(text, roster, sentOn, opts) {
       if (headK && headK.slot && (headK.night || (headK.start != null && headK.end != null)) &&
           relayKey(words.slice(0, hit.used).join('')) !== relayKey(hit.w.name)) hit = null;
     }
-    // "GENERAL RING 260 NOS" (as a roll of 23 Nov 2026 wrote a client's work) is work, not the general shift's heading: a line with a
-    // count or a weight heads nothing, wherever it stands. It had closed the night above it as an 8:30-to-5 slot.
+    // "EVENING RING 260 NOS" (a client's work, its name a slot word) is work, not a slot's heading: a line with a
+    // count or a weight heads nothing, wherever it stands. It had closed the night above it as a slot of its own.
     var isHeaderish = !numbered && !hit && !/\d\s*(?:nos|no|pcs|pc|kgs?)\b/i.test(bare) && relaySlotOrArea(bare);
 
     if (!hit && !numbered && isHeaderish) {
@@ -50306,7 +50306,7 @@ function parseBarrelBatches(msg, ctx, lines, opts) {
             recs.push(nr);
             return;
           }
-          // "DELTA 310 NOS ANCHOR BKT": with nothing between the client and its count, a part written after the count is the part
+          // "DELTA 310 NOS FLAT BKT": with nothing between the client and its count, a part written after the count is the part
           // (not a line, a rework or a barrel word).
           if (!it.part && it.clientId != null && it.qty != null) {
             var aq = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*(.*)$/i.exec(c), w = aq ? aq[1].replace(PROD_LINE_END_RE, '').replace(/\b(?:re[-\s]*\w+|done|b[ae]r+[ae]*l+s?)\b/gi, '').replace(/\s+/g, ' ').trim() : '';
@@ -50318,7 +50318,7 @@ function parseBarrelBatches(msg, ctx, lines, opts) {
     }
     // "2) 11:10 AM UNLOAD" over "DELTA RING 85 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
     // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
-    // "60 CD 27 KG 3 HOL 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
+    // "60 CD 27 KG 4 PIN 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
     var tailC = text && /\d\s*(?:nos|no|pcs|kgs?)\b\.?\s+([A-Za-z][A-Za-z .&]{2,})$/i.exec(text), tailHit = tailC ? prodMatchClient(tailC[1].trim(), ctx.clients) : null;
     if (tailHit) recs.forEach(function(r) {
       if (r.clientId != null && !r._carried) return;

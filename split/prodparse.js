@@ -771,7 +771,7 @@ function parseBarrelBatches(msg, ctx, lines, opts) {
             recs.push(nr);
             return;
           }
-          // "DELTA 310 NOS ANCHOR BKT": with nothing between the client and its count, a part written after the count is the part
+          // "DELTA 310 NOS FLAT BKT": with nothing between the client and its count, a part written after the count is the part
           // (not a line, a rework or a barrel word).
           if (!it.part && it.clientId != null && it.qty != null) {
             var aq = /\d+(?:\.\d+)?\s*(?:nos|no|pcs|kgs?)\b\.?\s*(.*)$/i.exec(c), w = aq ? aq[1].replace(PROD_LINE_END_RE, '').replace(/\b(?:re[-\s]*\w+|done|b[ae]r+[ae]*l+s?)\b/gi, '').replace(/\s+/g, ' ').trim() : '';
@@ -783,7 +783,7 @@ function parseBarrelBatches(msg, ctx, lines, opts) {
     }
     // "2) 11:10 AM UNLOAD" over "DELTA RING 85 NOS" (owner, 25 Nov 2026): an unload time alone on its line with nothing above
     // it waiting is the time of the batches written under it, up to the next unload. Those had taken the next batch's time.
-    // "60 CD 27 KG 3 HOL 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
+    // "60 CD 27 KG 4 PIN 19 KG DELTA": a client written after the last figure is the client of the line's batches that name none.
     var tailC = text && /\d\s*(?:nos|no|pcs|kgs?)\b\.?\s+([A-Za-z][A-Za-z .&]{2,})$/i.exec(text), tailHit = tailC ? prodMatchClient(tailC[1].trim(), ctx.clients) : null;
     if (tailHit) recs.forEach(function(r) {
       if (r.clientId != null && !r._carried) return;

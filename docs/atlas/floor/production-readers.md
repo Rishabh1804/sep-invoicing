@@ -95,8 +95,8 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   report and nothing read. **The barrel's out and in** ("BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM"): out is the unload, in the
   load, read as the batch list reads them; it had been sorted as the out-time roll (`relayKind` now leaves a barrel's or a line's
   head, or a head with a count, to production). In a list whose first unload writes its time before its figures, that time heads
-  the lines under it; a client written after a line's last figure ("… 19 KG GENERAL") is that line's; a part written after the
-  count ("DELTA 310 NOS ANCHOR BKT") is the part.
+  the lines under it; a client written after a line's last figure ("… 19 KG DELTA") is that line's; a part written after the
+  count ("DELTA 310 NOS FLAT BKT") is the part.
 - **The pickling hand's times written over their loads** (26 Nov 2026; `parsePickling`, `prodPickSegments`). A pickling time with
   nothing listed above it heads the loads under it ("VAT 2 PICKLING TIME / 4:10 PM / 52×64(20×5)=150 NOS"): each takes it as its own
   time and the line written with it, up to the next time, an incoming block or a line heading. Under a time that closed loads above

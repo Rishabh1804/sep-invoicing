@@ -1928,6 +1928,8 @@ TODO_RULE_FNS.prodPlatedUnbilled = function() {
   plant.rows.forEach(function(x) {
     if (x.platedNotInvoiced <= 0) return;
     var cid = x.r.m.clientId;
+    // A client set not invoiced (clients.js, noInvoice): what it has plated is never "not invoiced".
+    if ((S.clients || []).some(function(c) { return String(c.id) === String(cid) && c.noInvoice; })) return;
     // What is still open on a line is its latest plating: invoicing takes the oldest first. The age is that plating's,
     // and only what was captured here counts, never the imported history. It was aged from the part's oldest plating
     // in 45 days (billed or not) and counted the whole line, the history's share included.
@@ -1968,6 +1970,8 @@ function prodLoadNoChallan(e, idx, today) {
   if (e.kind !== 'pickled' || e.voidedAt || e.src === 'import' || e.rework || (idx || prodIndex()).replaced[e.id]) return false;
   if (e.date < isoAddDays(today, -30) || prodWorkingDaysBetween(e.date, today) < 1) return false;
   if (e.clientId == null) return true;
+  // A client set not invoiced (clients.js, noInvoice) sends no challan: its loads are never "with no open challan".
+  if ((S.clients || []).some(function(c) { return String(c.id) === String(e.clientId) && c.noInvoice; })) return false;
   var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
   return !(S.incomingMaterial || []).some(function(m) {
     if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > isoAddDays(e.date, 1)) return false;

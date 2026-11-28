@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="1bc39ce0">
+<meta name="app-build" content="758d64d2">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -11750,7 +11750,7 @@ function renderClientList(filter) {
           ' data-action="invSelectClientRow" data-id="' + id + '">' +
           // The name is a real button, so the row opens from the keyboard.
           '<td class="inv-col-grow" title="' + escHtml(c.name) + '"><button class="inv-btn-link" data-action="invSelectClientRow" data-id="' + id + '">' + escHtml(c.name) + '</button></td>' +
-          '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
+          '<td class="inv-id inv-col-opt2">' + escHtml(c.noInvoice ? 'Not invoiced' : c.gstin || '') + '</td>' +
           '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
           // Its worst flag where it has one (TM5d), else whether it is active.
@@ -11762,7 +11762,7 @@ function renderClientList(filter) {
   el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
     const r = _clientRateNow(c);
     // Two facts (§3b-11): who it is to GST, and how it is billed with its overrides beside the mode.
-    const meta = [c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+    const meta = [c.noInvoice ? 'Not invoiced' : c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
@@ -11863,6 +11863,9 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) + _clientFlowFieldsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
+    // A client not invoiced through the app: its work is read and counted on the floor, and it is never offered for an invoice or a
+    // challan.
+    '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditNoInvoice"' + (c.noInvoice ? ' checked' : '') + '> Not invoiced in the app</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
     (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
@@ -12004,7 +12007,8 @@ function _readClientForm(excludeId) {
     payTermsDays: terms === '' ? undefined : Math.round(+terms),
     turnaroundDays: turn === '' ? undefined : Math.round(+turn),
     turnaroundParts: turnParts.length ? turnParts : undefined,
-    isActive: document.getElementById('ceditActive').checked
+    isActive: document.getElementById('ceditActive').checked,
+    noInvoice: (document.getElementById('ceditNoInvoice') || {}).checked ? true : undefined
   };
 }
 
@@ -14166,7 +14170,8 @@ function renderCreateForm() {
       const q = cs.value.toLowerCase();
       const res = document.getElementById('invClientResults');
       const matches = q.length < 1 ? [] :
-        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
+        // A client set not invoiced (clients.js, noInvoice): never offered here.
+        S.clients.filter(c => c.isActive && !c.noInvoice && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
         res.classList.add('inv-hidden');
@@ -14649,6 +14654,8 @@ function validateInvoiceKeyed() {
   if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
   else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
+  // A new invoice only: an invoice raised before the client was ticked still takes its correction, its edit and its reissue.
+  else if (!invoiceForm.editingId && !invoiceForm.reissue && S.clients.some(c => c.id === invoiceForm.clientId && c.noInvoice)) add('This client is set Not invoiced in the app: untick it in its client card to invoice it', 'client');
   if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
   if (!invoiceForm.date) add('Enter invoice date', 'date');
   if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');
@@ -59584,6 +59591,8 @@ TODO_RULE_FNS.prodPlatedUnbilled = function() {
   plant.rows.forEach(function(x) {
     if (x.platedNotInvoiced <= 0) return;
     var cid = x.r.m.clientId;
+    // A client set not invoiced (clients.js, noInvoice): what it has plated is never "not invoiced".
+    if ((S.clients || []).some(function(c) { return String(c.id) === String(cid) && c.noInvoice; })) return;
     // What is still open on a line is its latest plating: invoicing takes the oldest first. The age is that plating's,
     // and only what was captured here counts, never the imported history. It was aged from the part's oldest plating
     // in 45 days (billed or not) and counted the whole line, the history's share included.
@@ -59624,6 +59633,8 @@ function prodLoadNoChallan(e, idx, today) {
   if (e.kind !== 'pickled' || e.voidedAt || e.src === 'import' || e.rework || (idx || prodIndex()).replaced[e.id]) return false;
   if (e.date < isoAddDays(today, -30) || prodWorkingDaysBetween(e.date, today) < 1) return false;
   if (e.clientId == null) return true;
+  // A client set not invoiced (clients.js, noInvoice) sends no challan: its loads are never "with no open challan".
+  if ((S.clients || []).some(function(c) { return String(c.id) === String(e.clientId) && c.noInvoice; })) return false;
   var k = prodEntryKey(e), fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
   return !(S.incomingMaterial || []).some(function(m) {
     if (String(m.clientId) !== String(e.clientId) || (m.challanDate || '') > isoAddDays(e.date, 1)) return false;
@@ -84241,7 +84252,8 @@ function renderChallanClientResults(query) {
   var input = document.getElementById('imChallanClientSearch');
   if (!res) return;
   var q = (query || '').trim().toLowerCase();
-  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && clientMatchesQuery(c, q); }).slice(0, 8);
+  // A client set not invoiced (clients.js, noInvoice) sends no challan to invoice from: not offered for a challan.
+  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && !c.noInvoice && clientMatchesQuery(c, q); }).slice(0, 8);
 
   acReset();
   if (matches.length === 0) {
@@ -85896,6 +85908,8 @@ function _scanFindClient(name) {
   if (key.length < 5) return null;
   var exact = null, near = [];
   (S.clients || []).forEach(function(c) {
+    // A client set not invoiced (clients.js, noInvoice) sends no challan: a photo is never read as its challan.
+    if (c.noInvoice) return;
     var ck = rateKey(c.name);
     if (!ck) return;
     if (ck === key) exact = c;

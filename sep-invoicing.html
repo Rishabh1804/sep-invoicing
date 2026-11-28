@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="e881e778">
+<meta name="app-build" content="2fb79cf1">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -50695,6 +50695,10 @@ function prodFromRoll(msg, ctx) {
     var segs = prodLoadCuts(whole), lineOwn = null;
     segs.forEach(function(line, si) { prodRollItem(line, si); });
     function prodRollItem(line, si) {
+    // "VAT 2---NOVA RING 240 NOS", "BARREL-- KESTREL 77 CD 45 KG" (8 Oct 2026, found reading saved rolls again): the line written before
+    // a load is its line, never part of its name.
+    var lineOwnHint = null, llm = line.match(new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\s*[-–:]+\\s*(?=\\S)', 'i'));
+    if (llm && prodLineOfToken(llm[1])) { lineOwnHint = prodLineOfToken(llm[1]); line = line.slice(llm[0].length); }
     var it = prodReadItem(line, ctx.clients);
     // A family over sizes only when the line under it is a size ("52×64…", "84+10×94…"), never a figure ("1200+240 NOS").
     if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+(?:\s*\+\s*\d+)?\s*X\s*\d/.test(nextNote.replace(/[×✕xX]/g, 'X'))) {
@@ -50719,20 +50723,22 @@ function prodFromRoll(msg, ctx) {
     }
     // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
     if (it.qty != null && !it.part && it.clientId == null && pending) {
-      var joined = prodReadItem(pending.raw.trim() + ' ' + line, ctx.clients);
+      var joined = prodReadItem((pending.text || pending.raw).trim() + ' ' + line, ctx.clients);
       if (joined.qty != null) {
+        lineOwnHint = lineOwnHint || pending.hint || null;
         if (pending.rec) items.splice(items.indexOf(pending.rec), 1);   // the part line, saved empty inside a block, is this one
         it = joined; it.rawJoined = pending.raw + '\n' + ln.raw; pending = null;
       }
     }
     if (it.qty == null) {
-      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n };
+      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n, text: line, hint: lineOwnHint };
       if (!(inProd && (it.part || it.clientId != null))) { notes.push({ n: ln.n, raw: ln.raw, text: 'Not read as production' }); return; }
     } else pending = null;
     var rec = prodItemRecord(it, it.clientId == null ? group : null, it.rawJoined || ln.raw, ln.n, date, !rr.date && !msg.sentOn);
-    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = hint;
+    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = lineOwnHint || hint;
     rec.time = prodHhmm(from); rec.to = prodHhmm(to);
-    rec.issues.push(hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
+    rec.issues.push(lineOwnHint ? { tone: 'amber', code: 'linehint', text: 'Line written before the load: ' + PROD_LINE_LABEL[lineOwnHint] + '. Confirm it.' }
+      : hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
       : { tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line, or leave it unknown.' });
     items.push(rec);
     if (it.qty == null && pending) pending.rec = rec;
@@ -61832,7 +61838,7 @@ function prodToolbarHtml(lead, more, filter) {
   var phone = !_isDesktop;
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
-    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
+    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }, { label: 'Loads the reader missed', action: 'invProdMissed' }].concat(more || []), { icon: phone }) +
     '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
     ((more || []).some(function(m) { return m.action === 'invProdImport'; }) ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
   // Photos waiting to be read (several picked, or a WhatsApp export's): a row, never a callout (the tab map, §3e).
@@ -62824,6 +62830,80 @@ function prodAliasSave(id) {
   closeOverlay();
   renderProduction();
   showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
+}
+
+/* ---------- What a first reading missed (owner, 28 Nov 2026: "Yes, update the reader too") ----------
+   A saved message read again by the reader as it is now: where it now reads more loads than were saved from it, the loads with no
+   saved entry like them (the same kind, part and figure) are listed, by message, beside what was saved; each message's are added
+   with one tap and kept under the paste they came from (`addedLater`). Nothing saved is changed, and a voided entry still counts as
+   one saved: the owner removed it. Only a surplus is offered, so an entry corrected by hand is never offered again as missing. */
+function prodMissedKey(x) { return [x.kind, rateKey(prodPartBase(x.part || '')), Number(x.qty)].join('|'); }
+function prodMissedText(ps) {
+  var day = ps.sentOn || ps.day;
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  // The minute it was sent is not kept with a paste: the minute it was saved, on the same day, else the day's end.
+  var at = ps.at ? new Date(ps.at) : null, min = at && isoOf(at) === day ? at.getHours() * 60 + at.getMinutes() : 23 * 60 + 59;
+  var h = Math.floor(min / 60), clock = ((h % 12) || 12) + ':' + String(min % 60).padStart(2, '0') + ' ' + (h < 12 ? 'am' : 'pm');
+  return day.slice(8, 10) + '/' + day.slice(5, 7) + '/' + day.slice(0, 4) + ', ' + clock + ' - ' + (ps.sentBy || 'Floor') + ': ' + ps.text;
+}
+function prodMissedFind() {
+  var p = prodData(), out = [];
+  p.pastes.forEach(function(ps) {
+    if (!ps.text || ps.kind === 'taught' || ps.kind === 'power') return;
+    var mine = p.entries.filter(function(e) { return e.pasteId === ps.id && e.kind !== 'downtime'; });
+    if (!mine.length) return;
+    var text = prodMissedText(ps);
+    if (!text) return;
+    var msgs = parseProdPaste(text, prodCtx());
+    if (msgs.length !== 1) return;
+    var read = msgs[0].read.items.filter(function(it) { return it.kind !== 'downtime' && it.qty != null; });
+    if (read.length <= mine.length) return;
+    // Matched first by kind, part and figure, then by kind and figure alone (an entry whose part was named by hand is still that load).
+    var left = mine.slice(), take = function(test) { return function(it) { var i = left.findIndex(function(e) { return test(e, it); }); if (i < 0) return true; left.splice(i, 1); return false; }; };
+    var missed = read.filter(take(function(e, it) { return prodMissedKey(e) === prodMissedKey(it); }))
+      .filter(take(function(e, it) { return e.kind === it.kind && Number(e.qty) === Number(it.qty); }));
+    if (missed.length) out.push({ paste: ps, msg: msgs[0], missed: missed, saved: mine });
+  });
+  return out;
+}
+function prodMissedOpen() {
+  var list = prodMissedFind();
+  var body = !list.length ? '<div class="inv-note">The reader reads every saved message as it was saved: nothing was missed.</div>' : list.map(function(x) {
+    var ps = x.paste;
+    return '<div class="inv-panel inv-panel-flush" data-prod-missed="' + escHtml(ps.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' +
+      escHtml(formatDate(ps.sentOn || ps.day) + (ps.sentBy ? ' · ' + ps.sentBy : '')) + '</span></div>' +
+      x.missed.map(function(it) { return '<div class="inv-row" data-prod-missed-load><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mvProdItemText(it)) + '</span></span></div>'; }).join('') +
+      '<div class="inv-panel-body inv-note">' + escHtml('Saved from it: ' + x.saved.map(function(e) { return (e.part || 'no part') + ' ' + prodQtyText(e.qty, e.unit); }).join(', ')) + '</div>' +
+      '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdMissedAdd" data-id="' + escHtml(ps.id) + '">' +
+      escHtml('Add ' + (x.missed.length === 1 ? 'this load' : 'these ' + x.missed.length + ' loads')) + '</button></div></div>';
+  }).join('');
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodMissedT" data-prod-missed-dialog>' +
+    dialogHeadHtml('<span id="prodMissedT">Loads the reader missed</span>') + '<div class="inv-dialog-body">' +
+    (list.length ? '<div class="inv-note inv-mb-8">The reader as it is now reads these in saved messages, and nothing saved from them is like them. Check each against what was saved before adding it.</div>' : '') +
+    body + '</div></div>', { replace: !!document.querySelector('[data-prod-missed-dialog]') });
+}
+async function prodMissedAdd(id) {
+  var x = prodMissedFind().filter(function(y) { return y.paste.id === id; })[0];
+  if (!x) { showToast('Nothing missed in that message now', 'error'); return; }
+  if (!grdOk('floor') && !(await guardAsk('floor', 'add the loads a reading missed'))) return;
+  var m = x.msg;
+  m.read.items = x.missed;
+  var rv = { msgs: [m], choices: {} }, res = prodReviewResolve(rv);
+  m.dup = false;
+  if (res.rows.some(function(r) { return r.issues.some(function(i) { return i.tone === 'red'; }); })) {
+    showToast('A load needs a question answered: paste the message in Production to add it', 'error');
+    return;
+  }
+  var p = prodData(), before = p.entries.length, done = prodSaveCore(rv, res, stockBy()), at = Date.now();
+  // Kept under the paste they came from: the second paste record the save made is not kept.
+  var made = done.pasteIds[0];
+  p.entries.slice(before).forEach(function(e) { e.pasteId = id; e.addedLater = at; });
+  if (made) p.pastes = p.pastes.filter(function(ps) { return ps.id !== made; });
+  prodTouch();
+  saveState();
+  showToast('Added ' + todoPlural(p.entries.length - before, 'load'), 'success');
+  prodMissedOpen();
+  renderProduction();
 }
 
 /* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
@@ -63896,6 +63976,8 @@ function prodAction(action, btn) {
       return true;
     }
     case 'invProdPaste': prodSetView('paste'); return true;
+    case 'invProdMissed': prodMissedOpen(); return true;
+    case 'invProdMissedAdd': prodMissedAdd(btn.dataset.id); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
     case 'invProdTeachAdd': _prodTeach.msgs[+btn.dataset.mi].rows.push(Object.assign(prodTeachRow(null), { on: true })); renderProduction(); return true;

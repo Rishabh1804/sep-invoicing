@@ -4,7 +4,7 @@ domain: floor
 modules: [split/prodparse.js]
 specs: []
 tests: [P189, P220, P222, P264, P277, P289]
-updated: 2026-11-28 (a line before or after the clock, a roll's work, a time sent alone: P289); 2026-11-27 (a line under each load, loads with no time, the night's work: P289); 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+updated: 2026-11-28 (a line before or after the clock, a roll's work, a time sent alone, the loads a first reading missed: P289); 2026-11-27 (a line under each load, loads with no time, the night's work: P289); 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -129,3 +129,11 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   gauge's bracket ("52+10×64=(20×5)") is no part of the size. A written line over a night's work is kept when it is saved. **A pickling
   time sent alone** takes the same hand's loads that arrived that day and that no message pickles (`prodPairTimeAlone`), amber. Set
   against the corpus: four reads changed, each a correction (two loads a roll had lost, two time lines' client and line).
+- **The loads a first reading missed** (the owner, 28 Nov 2026: *"Yes, update the reader too"*; Production → More → *Loads the reader
+  missed*, `prodMissedFind`, `prodMissedAdd`). Every saved paste is read again by the reader as it is now; where it reads more loads
+  than were saved from it, those with no saved entry of the same kind, part and figure (then of the same kind and figure, so an entry
+  named by hand is still that load) are listed by message beside what was saved, and added with one tap under the paste they came
+  from (`addedLater`). A voided entry counts as saved; a load with a question is left to a paste in Production. Read against the
+  book of 23 Nov: seven loads in five messages (two rolls' second loads, 9 Oct and 4 Nov; an 8 Oct roll's two loads written after
+  their line, "VAT 2---…"; three 20 Nov pickling loads). A line written before a load in a roll's work is that load's line, never part
+  of its name (`prodFromRoll`).

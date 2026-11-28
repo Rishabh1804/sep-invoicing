@@ -443,6 +443,35 @@ ${w}`)}, prodCtx())[0].read.items.filter(function(i){ return i.kind === 'plated'
     expect(got.filter((x: any) => x[0] === 'plated').length).toBe(1);
   });
 
+  test('the loads a first reading missed (28 Nov 2026): listed beside what was saved, added with one tap, an entry named by hand never offered again', async ({ page }) => {
+    const roll = `${D.dmy}/ IN TIME\n-------6:00 AM------\n1) ALFA\n------WORK-------\nNOVA CLAMP 480 NOS RING 90 NOS`;
+    const pick = 'NOVA CLAMPS\nRING--200 NOS\nBOLT--100 NOS\nPICKLING TIME 9:00 AM';
+    const at = new Date(D.iso + 'T10:00:00').getTime();
+    const ent = (id: string, kind: string, part: string, qty: number, pasteId: string) => ({ id, kind, date: D.iso, time: '09:00', clientId: 11, client: 'NOVA', part, qty, unit: 'NOS', basis: 'relay', slot: 'ot', pasteId, at, by: 'Owner' });
+    await loadAppWithState(page, { ...emptyState(), clients: CLIENTS, staff: STAFF, attendance: {}, incomingMaterial: noSeedIM(),
+      production: { entries: [ent('E1', 'plated', 'CLAMP', 480, 'PPA'), ent('E2', 'pickled', 'R-200 (named by hand)', 200, 'PPB')],
+        pastes: [{ id: 'PPA', at, by: 'Owner', sentBy: 'Supervisor', sentOn: D.iso, day: D.iso, kind: 'roll', hash: 'h1', text: roll },
+          { id: 'PPB', at, by: 'Owner', sentBy: 'Pickler', sentOn: D.iso, day: D.iso, kind: 'pickling', hash: 'h2', text: pick }] } } as unknown as SepState);
+    // Read again: the roll's second load and the pickling message's BOLT are missed; the RING saved under another name is not.
+    const found = await ev(page, `prodMissedFind().map(function(x){ return [x.paste.id, x.missed.map(function(i){ return i.part + ' ' + i.qty; })]; })`);
+    expect(found).toEqual([['PPA', ['RING 90']], ['PPB', ['BOLT 100']]]);
+    await ev(page, `prodMissedOpen()`);
+    await expect(page.locator('[data-prod-missed="PPA"]')).toContainText('Saved from it: CLAMP 480');
+    await page.locator('[data-action="invProdMissedAdd"][data-id="PPA"]').click();
+    await expect(page.locator('[data-prod-missed="PPA"]')).toHaveCount(0);
+    const got = await ev(page, `S.production.entries.map(function(e){ return [e.part, e.qty, e.pasteId, !!e.addedLater]; })`);
+    expect(got).toEqual([['CLAMP', 480, 'PPA', false], ['R-200 (named by hand)', 200, 'PPB', false], ['RING', 90, 'PPA', true]]);
+    expect(await ev(page, `S.production.pastes.length`)).toBe(2);
+    // A roll's work: the line written before a load is its line, never part of its name.
+    const w = await ev(page, `parseProdPaste(${JSON.stringify(`${D.dmy}, 9:18 am - Supervisor: ${D.dmy}/ IN TIME
+-------6:00 AM------
+1) ALFA
+------WORK-------
+VAT 2---NOVA RING 240 NOS
+BARREL-- KESTREL 77 CD 45 KG`)}, prodCtx())[0].read.items.map(function(i){ return [i.clientId, i.part, i.qty, i.lineHint]; })`);
+    expect(w).toEqual([[11, 'RING', 240, 'vat-a2'], [13, '77 CD', 45, 'barrel']]);
+  });
+
   test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {
     await load(page);
     const r = await ev(page, `(function(){ var p = parseStockMessage(${JSON.stringify(`CHEMICAL USE  &  ZINK USE ${D.dmy}/

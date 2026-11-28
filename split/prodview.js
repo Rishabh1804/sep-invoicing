@@ -41,7 +41,7 @@ function prodToolbarHtml(lead, more, filter) {
   var phone = !_isDesktop;
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
-    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
+    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }, { label: 'Loads the reader missed', action: 'invProdMissed' }].concat(more || []), { icon: phone }) +
     '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
     ((more || []).some(function(m) { return m.action === 'invProdImport'; }) ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
   // Photos waiting to be read (several picked, or a WhatsApp export's): a row, never a callout (the tab map, §3e).
@@ -1033,6 +1033,80 @@ function prodAliasSave(id) {
   closeOverlay();
   renderProduction();
   showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
+}
+
+/* ---------- What a first reading missed (owner, 28 Nov 2026: "Yes, update the reader too") ----------
+   A saved message read again by the reader as it is now: where it now reads more loads than were saved from it, the loads with no
+   saved entry like them (the same kind, part and figure) are listed, by message, beside what was saved; each message's are added
+   with one tap and kept under the paste they came from (`addedLater`). Nothing saved is changed, and a voided entry still counts as
+   one saved: the owner removed it. Only a surplus is offered, so an entry corrected by hand is never offered again as missing. */
+function prodMissedKey(x) { return [x.kind, rateKey(prodPartBase(x.part || '')), Number(x.qty)].join('|'); }
+function prodMissedText(ps) {
+  var day = ps.sentOn || ps.day;
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  // The minute it was sent is not kept with a paste: the minute it was saved, on the same day, else the day's end.
+  var at = ps.at ? new Date(ps.at) : null, min = at && isoOf(at) === day ? at.getHours() * 60 + at.getMinutes() : 23 * 60 + 59;
+  var h = Math.floor(min / 60), clock = ((h % 12) || 12) + ':' + String(min % 60).padStart(2, '0') + ' ' + (h < 12 ? 'am' : 'pm');
+  return day.slice(8, 10) + '/' + day.slice(5, 7) + '/' + day.slice(0, 4) + ', ' + clock + ' - ' + (ps.sentBy || 'Floor') + ': ' + ps.text;
+}
+function prodMissedFind() {
+  var p = prodData(), out = [];
+  p.pastes.forEach(function(ps) {
+    if (!ps.text || ps.kind === 'taught' || ps.kind === 'power') return;
+    var mine = p.entries.filter(function(e) { return e.pasteId === ps.id && e.kind !== 'downtime'; });
+    if (!mine.length) return;
+    var text = prodMissedText(ps);
+    if (!text) return;
+    var msgs = parseProdPaste(text, prodCtx());
+    if (msgs.length !== 1) return;
+    var read = msgs[0].read.items.filter(function(it) { return it.kind !== 'downtime' && it.qty != null; });
+    if (read.length <= mine.length) return;
+    // Matched first by kind, part and figure, then by kind and figure alone (an entry whose part was named by hand is still that load).
+    var left = mine.slice(), take = function(test) { return function(it) { var i = left.findIndex(function(e) { return test(e, it); }); if (i < 0) return true; left.splice(i, 1); return false; }; };
+    var missed = read.filter(take(function(e, it) { return prodMissedKey(e) === prodMissedKey(it); }))
+      .filter(take(function(e, it) { return e.kind === it.kind && Number(e.qty) === Number(it.qty); }));
+    if (missed.length) out.push({ paste: ps, msg: msgs[0], missed: missed, saved: mine });
+  });
+  return out;
+}
+function prodMissedOpen() {
+  var list = prodMissedFind();
+  var body = !list.length ? '<div class="inv-note">The reader reads every saved message as it was saved: nothing was missed.</div>' : list.map(function(x) {
+    var ps = x.paste;
+    return '<div class="inv-panel inv-panel-flush" data-prod-missed="' + escHtml(ps.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' +
+      escHtml(formatDate(ps.sentOn || ps.day) + (ps.sentBy ? ' · ' + ps.sentBy : '')) + '</span></div>' +
+      x.missed.map(function(it) { return '<div class="inv-row" data-prod-missed-load><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mvProdItemText(it)) + '</span></span></div>'; }).join('') +
+      '<div class="inv-panel-body inv-note">' + escHtml('Saved from it: ' + x.saved.map(function(e) { return (e.part || 'no part') + ' ' + prodQtyText(e.qty, e.unit); }).join(', ')) + '</div>' +
+      '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdMissedAdd" data-id="' + escHtml(ps.id) + '">' +
+      escHtml('Add ' + (x.missed.length === 1 ? 'this load' : 'these ' + x.missed.length + ' loads')) + '</button></div></div>';
+  }).join('');
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodMissedT" data-prod-missed-dialog>' +
+    dialogHeadHtml('<span id="prodMissedT">Loads the reader missed</span>') + '<div class="inv-dialog-body">' +
+    (list.length ? '<div class="inv-note inv-mb-8">The reader as it is now reads these in saved messages, and nothing saved from them is like them. Check each against what was saved before adding it.</div>' : '') +
+    body + '</div></div>', { replace: !!document.querySelector('[data-prod-missed-dialog]') });
+}
+async function prodMissedAdd(id) {
+  var x = prodMissedFind().filter(function(y) { return y.paste.id === id; })[0];
+  if (!x) { showToast('Nothing missed in that message now', 'error'); return; }
+  if (!grdOk('floor') && !(await guardAsk('floor', 'add the loads a reading missed'))) return;
+  var m = x.msg;
+  m.read.items = x.missed;
+  var rv = { msgs: [m], choices: {} }, res = prodReviewResolve(rv);
+  m.dup = false;
+  if (res.rows.some(function(r) { return r.issues.some(function(i) { return i.tone === 'red'; }); })) {
+    showToast('A load needs a question answered: paste the message in Production to add it', 'error');
+    return;
+  }
+  var p = prodData(), before = p.entries.length, done = prodSaveCore(rv, res, stockBy()), at = Date.now();
+  // Kept under the paste they came from: the second paste record the save made is not kept.
+  var made = done.pasteIds[0];
+  p.entries.slice(before).forEach(function(e) { e.pasteId = id; e.addedLater = at; });
+  if (made) p.pastes = p.pastes.filter(function(ps) { return ps.id !== made; });
+  prodTouch();
+  saveState();
+  showToast('Added ' + todoPlural(p.entries.length - before, 'load'), 'success');
+  prodMissedOpen();
+  renderProduction();
 }
 
 /* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
@@ -2105,6 +2179,8 @@ function prodAction(action, btn) {
       return true;
     }
     case 'invProdPaste': prodSetView('paste'); return true;
+    case 'invProdMissed': prodMissedOpen(); return true;
+    case 'invProdMissedAdd': prodMissedAdd(btn.dataset.id); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
     case 'invProdTeachAdd': _prodTeach.msgs[+btn.dataset.mi].rows.push(Object.assign(prodTeachRow(null), { on: true })); renderProduction(); return true;

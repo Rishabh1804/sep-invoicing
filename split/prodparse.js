@@ -1160,6 +1160,10 @@ function prodFromRoll(msg, ctx) {
     var segs = prodLoadCuts(whole), lineOwn = null;
     segs.forEach(function(line, si) { prodRollItem(line, si); });
     function prodRollItem(line, si) {
+    // "VAT 2---NOVA RING 240 NOS", "BARREL-- KESTREL 77 CD 45 KG" (8 Oct 2026, found reading saved rolls again): the line written before
+    // a load is its line, never part of its name.
+    var lineOwnHint = null, llm = line.match(new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\s*[-–:]+\\s*(?=\\S)', 'i'));
+    if (llm && prodLineOfToken(llm[1])) { lineOwnHint = prodLineOfToken(llm[1]); line = line.slice(llm[0].length); }
     var it = prodReadItem(line, ctx.clients);
     // A family over sizes only when the line under it is a size ("52×64…", "84+10×94…"), never a figure ("1200+240 NOS").
     if (segs.length === 1 && it.clientId != null && it.qty == null && it.part && /^[A-Za-z][A-Za-z .]*$/.test(it.part) && /^\s*\(?\d+(?:\s*\+\s*\d+)?\s*X\s*\d/.test(nextNote.replace(/[×✕xX]/g, 'X'))) {
@@ -1184,20 +1188,22 @@ function prodFromRoll(msg, ctx) {
     }
     // "NOVA CLAMP / 1240 NOS": the figure on the line below the part it counts.
     if (it.qty != null && !it.part && it.clientId == null && pending) {
-      var joined = prodReadItem(pending.raw.trim() + ' ' + line, ctx.clients);
+      var joined = prodReadItem((pending.text || pending.raw).trim() + ' ' + line, ctx.clients);
       if (joined.qty != null) {
+        lineOwnHint = lineOwnHint || pending.hint || null;
         if (pending.rec) items.splice(items.indexOf(pending.rec), 1);   // the part line, saved empty inside a block, is this one
         it = joined; it.rawJoined = pending.raw + '\n' + ln.raw; pending = null;
       }
     }
     if (it.qty == null) {
-      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n };
+      if (it.part || it.clientId != null) pending = { raw: ln.raw, n: ln.n, text: line, hint: lineOwnHint };
       if (!(inProd && (it.part || it.clientId != null))) { notes.push({ n: ln.n, raw: ln.raw, text: 'Not read as production' }); return; }
     } else pending = null;
     var rec = prodItemRecord(it, it.clientId == null ? group : null, it.rawJoined || ln.raw, ln.n, date, !rr.date && !msg.sentOn);
-    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = hint;
+    rec.kind = 'plated'; rec.slot = 'ot'; rec.basis = 'relay'; rec.line = null; rec.lineHint = lineOwnHint || hint;
     rec.time = prodHhmm(from); rec.to = prodHhmm(to);
-    rec.issues.push(hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
+    rec.issues.push(lineOwnHint ? { tone: 'amber', code: 'linehint', text: 'Line written before the load: ' + PROD_LINE_LABEL[lineOwnHint] + '. Confirm it.' }
+      : hint ? { tone: 'amber', code: 'linehint', text: 'Line read from the header above: ' + PROD_LINE_LABEL[hint] + '. Confirm it.' }
       : { tone: 'amber', code: 'noline', text: 'No line written above this work. Pick the line, or leave it unknown.' });
     items.push(rec);
     if (it.qty == null && pending) pending.rec = rec;

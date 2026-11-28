@@ -15,8 +15,8 @@ function _scanFindClient(name) {
   if (key.length < 5) return null;
   var exact = null, near = [];
   (S.clients || []).forEach(function(c) {
-    // A cash client sends no challan to invoice from (clients.js, cashOnly): a photo is never read as its challan.
-    if (c.cashOnly) return;
+    // A client set not invoiced (clients.js, noInvoice) sends no challan: a photo is never read as its challan.
+    if (c.noInvoice) return;
     var ck = rateKey(c.name);
     if (!ck) return;
     if (ck === key) exact = c;

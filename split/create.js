@@ -340,8 +340,8 @@ function renderCreateForm() {
       const q = cs.value.toLowerCase();
       const res = document.getElementById('invClientResults');
       const matches = q.length < 1 ? [] :
-        // A cash client is never invoiced (clients.js, cashOnly): never offered here.
-        S.clients.filter(c => c.isActive && !c.cashOnly && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
+        // A client set not invoiced (clients.js, noInvoice): never offered here.
+        S.clients.filter(c => c.isActive && !c.noInvoice && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
         res.classList.add('inv-hidden');
@@ -825,7 +825,7 @@ function validateInvoiceKeyed() {
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
   else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
   // A new invoice only: an invoice raised before the client was ticked still takes its correction, its edit and its reissue.
-  else if (!invoiceForm.editingId && !invoiceForm.reissue && S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
+  else if (!invoiceForm.editingId && !invoiceForm.reissue && S.clients.some(c => c.id === invoiceForm.clientId && c.noInvoice)) add('This client is set Not invoiced in the app: untick it in its client card to invoice it', 'client');
   if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
   if (!invoiceForm.date) add('Enter invoice date', 'date');
   if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');

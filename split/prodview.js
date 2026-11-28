@@ -41,7 +41,7 @@ function prodToolbarHtml(lead, more, filter) {
   var phone = !_isDesktop;
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
-    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
+    (filter || '') + uiToolbarMoreHtml([{ label: 'Read register photo', action: 'invProdPhoto' }, { label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }, { label: 'Loads the reader missed', action: 'invProdMissed' }].concat(more || []), { icon: phone }) +
     '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
     ((more || []).some(function(m) { return m.action === 'invProdImport'; }) ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
   // Photos waiting to be read (several picked, or a WhatsApp export's): a row, never a callout (the tab map, §3e).
@@ -1035,6 +1035,114 @@ function prodAliasSave(id) {
   showToast('“' + e.part + '” is read as ' + sel.value + ' from now on');
 }
 
+/* ---------- What a first reading missed (owner, 28 Nov 2026: "Yes, update the reader too") ----------
+   A saved message read again by the reader as it is now: where it now reads more loads than were saved from it, the loads with no
+   saved entry like them (the same kind, part and figure) are listed, by message, beside what was saved; each message's are added
+   with one tap and kept under the paste they came from (`addedLater`). Nothing saved is changed, and a voided entry still counts as
+   one saved: the owner removed it. Only a surplus is offered, so an entry corrected by hand is never offered again as missing. */
+function prodMissedKey(x) { return [x.kind, rateKey(prodPartBase(x.part || '')), Number(x.qty), x.unit || ''].join('|'); }
+/* The paste as its message was sent: its WhatsApp line from Messages where the message is there (the minute it was sent, which the
+   readers' times and the evening-before rule turn on), else rebuilt from the paste, the minute it was saved standing for it. */
+function prodMissedText(ps) {
+  var rec = typeof msgStore === 'function' ? msgStore().filter(function(m) { return String(m.text || '').trim() === String(ps.text).trim(); })[0] : null;
+  if (rec && typeof mcWaText === 'function') return { text: mcWaText(rec), exact: true };
+  var day = ps.sentOn || ps.day;
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  var at = ps.at ? new Date(ps.at) : null, min = at && isoOf(at) === day ? at.getHours() * 60 + at.getMinutes() : 23 * 60 + 59;
+  var h = Math.floor(min / 60), clock = ((h % 12) || 12) + ':' + String(min % 60).padStart(2, '0') + ' ' + (h < 12 ? 'am' : 'pm');
+  return { text: day.slice(8, 10) + '/' + day.slice(5, 7) + '/' + day.slice(0, 4) + ', ' + clock + ' - ' + (ps.sentBy || 'Floor') + ': ' + ps.text, exact: false };
+}
+function prodMissedFind() {
+  var p = prodData(), out = [], byHash = {}, order = [];
+  // A message saved twice (voided and saved again) is one message: read once, against the copy that holds the most of it.
+  p.pastes.forEach(function(ps) {
+    if (!ps.text || ps.kind === 'taught' || ps.kind === 'power') return;
+    var h = ps.hash || ps.id;
+    if (!byHash[h]) { byHash[h] = []; order.push(h); }
+    byHash[h].push(ps);
+  });
+  order.forEach(function(h) {
+    var best = null;
+    byHash[h].forEach(function(ps) {
+      var mine = p.entries.filter(function(e) { return e.pasteId === ps.id && e.kind !== 'downtime'; });
+      if (mine.length && (!best || mine.length >= best.mine.length)) best = { ps: ps, mine: mine };
+    });
+    if (!best) return;
+    var ps = best.ps, mine = best.mine, src = prodMissedText(ps);
+    if (!src) return;
+    var msgs = parseProdPaste(src.text, prodCtx());
+    if (msgs.length !== 1) return;
+    var read = msgs[0].read.items.filter(function(it) { return it.kind !== 'downtime' && it.qty != null; });
+    if (read.length <= mine.length) return;
+    // Matched first by kind, part, figure and unit, then by kind, figure and unit alone (an entry whose part was named by hand is still
+    // that load). A load entered on a face already is never offered.
+    var left = mine.slice(), take = function(test) { return function(it) { var i = left.findIndex(function(e) { return test(e, it); }); if (i < 0) return true; left.splice(i, 1); return false; }; };
+    var missed = read.filter(take(function(e, it) { return prodMissedKey(e) === prodMissedKey(it); }))
+      .filter(take(function(e, it) { return e.kind === it.kind && Number(e.qty) === Number(it.qty) && (e.unit || '') === (it.unit || ''); }))
+      .filter(function(it) { return !prodFaceTwin(it, it.clientId); });
+    if (!missed.length) return;
+    // A saved entry the reading now matches nowhere (one load of 1,440 now read as 1,200 and 240): the reading changed its shape, so
+    // nothing is offered to add; it is listed to be checked by hand.
+    out.push({ paste: ps, msg: msgs[0], missed: missed, saved: mine, changed: left.length > 0, exact: src.exact });
+  });
+  return out;
+}
+function prodMissedOpen() {
+  var list = prodMissedFind();
+  var body = !list.length ? '<div class="inv-note">The reader reads every saved message as it was saved: nothing was missed.</div>' : list.map(function(x) {
+    var ps = x.paste;
+    return '<div class="inv-panel inv-panel-flush" data-prod-missed="' + escHtml(ps.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' +
+      escHtml(formatDate(ps.sentOn || ps.day) + (ps.sentBy ? ' · ' + ps.sentBy : '')) + '</span></div>' +
+      x.missed.map(function(it) {
+        var said = (it.issues || []).filter(function(i) { return i.tone === 'red' || i.tone === 'amber'; }).map(function(i) { return i.text; });
+        return '<div class="inv-row inv-row-2" data-prod-missed-load><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mvProdItemText(it)) + '</span>' +
+          (said.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(said.join(' ')) + '</span>' : '') + '</span></div>';
+      }).join('') +
+      '<div class="inv-panel-body inv-note">' + escHtml('Saved from it: ' + x.saved.map(function(e) { return (e.part || 'no part') + ' ' + prodQtyText(e.qty, e.unit) + (e.voidedAt ? ' (voided)' : ''); }).join(', ')) +
+      (x.exact ? '' : ' The minute it was sent is not known: check the times.') + '</div>' +
+      (x.changed ? '<div class="inv-panel-body inv-note" data-prod-missed-changed>It now reads differently from what was saved: check it by hand, nothing is added from here.</div>'
+        : '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdMissedAdd" data-id="' + escHtml(ps.id) + '">' +
+          escHtml('Add ' + (x.missed.length === 1 ? 'this load' : 'these ' + x.missed.length + ' loads')) + '</button></div>') + '</div>';
+  }).join('');
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodMissedT" data-prod-missed-dialog>' +
+    dialogHeadHtml('<span id="prodMissedT">Loads the reader missed</span>') + '<div class="inv-dialog-body">' +
+    (list.length ? '<div class="inv-note inv-mb-8">The reader as it is now reads these in saved messages, and nothing saved from them is like them. Check each against what was saved before adding it.</div>' : '') +
+    body + '</div></div>', { replace: !!document.querySelector('[data-prod-missed-dialog]') });
+}
+async function prodMissedAdd(id) {
+  var x = prodMissedFind().filter(function(y) { return y.paste.id === id && !y.changed; })[0];
+  if (!x) { showToast('Nothing to add from that message now', 'error'); return; }
+  if (!grdOk('floor') && !(await guardAsk('floor', 'add the loads a reading missed'))) return;
+  var m = x.msg;
+  m.read.items = x.missed;
+  var rv = { msgs: [m], choices: {} }, res = prodReviewResolve(rv);
+  // The message was saved before, so the resolve took it for a copy and checked no row against the faces: this is the save of its
+  // missed loads, and a load entered on a face meanwhile is left out.
+  m.dup = false;
+  var rows = res.rows.filter(function(r) { return !prodFaceTwin(r.it, r.clientId); });
+  if (rows.some(function(r) { return r.issues.some(function(i) { return i.tone === 'red'; }); })) {
+    showToast('A load needs a question answered: paste the message in Production to add it', 'error');
+    return;
+  }
+  if (!rows.length) { showToast('Nothing to add from that message now', 'error'); return; }
+  var p = prodData(), before = p.entries.length, done = prodSaveCore(rv, Object.assign({}, res, { rows: rows }), stockBy()), at = Date.now();
+  // Kept under the paste they came from: the second paste record the save made is not kept, nor the Messages link to it.
+  var made = done.pasteIds[0];
+  p.entries.slice(before).forEach(function(e) { e.pasteId = id; e.addedLater = at; });
+  if (made) {
+    p.pastes = p.pastes.filter(function(ps) { return ps.id !== made; });
+    if (typeof msgStore === 'function') msgStore().forEach(function(r) {
+      (r.saved || []).forEach(function(sv) { if (sv.store === 'production.pastes' && sv.id === made) sv.id = id; });
+      if (r.saved) r.saved = r.saved.filter(function(sv, i, all) { return all.findIndex(function(o) { return o.store === sv.store && o.id === sv.id; }) === i; });
+    });
+  }
+  prodTouch();
+  saveState();
+  showToast('Added ' + todoPlural(p.entries.length - before, 'load'), 'success');
+  prodMissedOpen();
+  renderProduction();
+}
+
 /* A run whose round no gauge rule names: its gauge picked from the client's rules and challans for that kind of part. */
 function prodGaugeOpen(id) {
   var e = prodIndex().byId[id];
@@ -1253,9 +1361,11 @@ function prodReviewResolve(rvIn) {
         if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
       } else row.clientId = it.clientId;
       var lc = ch['line' + key];
+      // A line written over the work (the night's work under "VAT A 1", 27 Nov 2026) is kept unless the owner picks another; a roll's
+      // work with none is asked.
       if (it.lineHint !== undefined || (it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot')) {
         if (lc !== undefined) { row.issues = row.issues.filter(function(x) { return x.code !== 'linehint' && x.code !== 'noline'; }); row.line = lc || null; }
-        else row.line = null;
+        else row.line = it.lineSrc === 'written' && it.line ? it.line : null;
       } else row.line = it.line || null;
       // Entered on a face already (faces.js): left out, as a message saved before is.
       row.twin = !m.dup ? prodFaceTwin(it, row.clientId) : null;
@@ -2103,6 +2213,8 @@ function prodAction(action, btn) {
       return true;
     }
     case 'invProdPaste': prodSetView('paste'); return true;
+    case 'invProdMissed': prodMissedOpen(); return true;
+    case 'invProdMissedAdd': prodMissedAdd(btn.dataset.id); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
     case 'invProdTeachAdd': _prodTeach.msgs[+btn.dataset.mi].rows.push(Object.assign(prodTeachRow(null), { on: true })); renderProduction(); return true;

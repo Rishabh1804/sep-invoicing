@@ -450,12 +450,60 @@ function parseStockMessage(text) {
   dates.sort();
   if (dates.length) { out.from = dates[0]; out.to = dates[dates.length - 1]; }
   else if (out.sentOn) { out.from = out.to = out.sentOn; }
+  if (!out.lines.length && /\bUSED?\b/i.test(lines.join(' '))) stockUseLines(out);
   out.lines.forEach(function(l) {
     var p = parseStockLine(l.raw.replace(/\n/g, ' '));
     for (var k in p) l[k] = p[k];
     l.key = stockKey(l.name);
+    if (l.bathFromLine) l.issues.push({ level: 'amber', code: 'usebath', text: 'No bath written by this use: ' + l.bathFromLine + ', the one its line names.' });
   });
   return out;
+}
+/* "CHEMICAL USE & ZINK USE 01/01/26 / VAT A 2 ZINK USE 40 KG / 106 SOLLT USE VAT A 1 20KG CYNEDE 4 KG" (26 Nov 2026): a use
+   message with no numbered lines, one item or more to a line. Each item is a name and what follows it up to the next name, read as
+   a numbered line is ("ZINK VAT A2 USE 40 KG"); a figure with no name of its own ("… 30 KG + VAT A2 20 KG = 50 KG", "VAT A2 30 KG",
+   "MORNING USE 2 LTR") stays with the item before it. What says no add, use or balance is a use, and a use with no bath of its own
+   takes the one bath its line names, said amber. The message had been refused whole: "No numbered stock lines found". */
+var STOCK_USE_FIG_RE = new RegExp('(\\d+(?:\\.\\d+)?(?:\\s*\\+\\s*\\d+(?:\\.\\d+)?)*(?:\\s*=\\s*\\d+(?:\\.\\d+)?)?)\\s*(' + Object.keys(STOCK_UNITS).join('|') + ')\\b\\.?', 'gi');
+var STOCK_BATH_NAME_RE = /\bVAT\s*A[12]\b|\bV?A[12]\b|\bB[AE]R+[AE]*L+S?\b|\bVAT\b/gi;
+var STOCK_KW_WORD_RE = new RegExp('\\b(?:' + Object.keys(STOCK_KEYWORDS).join('|') + ')\\b', 'gi');
+function stockUseLines(out) {
+  var used = [], label = { 'vat-a1': 'VAT A1', 'vat-a2': 'VAT A2', barrel: 'BARREL' };
+  var nameIn = function(t) {
+    return t.replace(STOCK_BATH_NAME_RE, ' ').replace(STOCK_KW_WORD_RE, ' ').replace(/\b(?:NIGHT|MORNING|EVENING|DAY|NOON|AFTERNOON)\b/gi, ' ')
+      .replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+  out.header.forEach(function(h) {
+    var line = stockFoldAreas(h.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/g, ' ')), groups = [], at = 0, m;
+    STOCK_USE_FIG_RE.lastIndex = 0;
+    while ((m = STOCK_USE_FIG_RE.exec(line))) {
+      var head = line.slice(at, m.index), name = nameIn(head), full = line.slice(at, m.index + m[0].length);
+      at = m.index + m[0].length;
+      if (/[A-Za-z]/.test(name) || !groups.length) groups.push({ name: /[A-Za-z]/.test(name) ? name : '', text: full });
+      else groups[groups.length - 1].text += full;
+    }
+    if (!groups.length) return;
+    used.push(h);
+    var baths = stockBathsIn(line);
+    groups.forEach(function(g) {
+      var body = g.text;
+      g.name.split(' ').forEach(function(w) { if (w) body = body.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), ' '); });
+      body = body.replace(/^[\s,;&+\/-]+/, '').replace(/\s+/g, ' ').trim();
+      // "VAT A2 USE 40 KG": a bath before its use is the use's; read after the name it would be part of it.
+      var bu = body.match(/^((?:(?:VAT\s*A[12]|V?A[12]|B[AE]R+[AE]*L+S?)\s+)+)(USED?)\b/i);
+      if (bu) body = bu[2] + ' ' + bu[1] + body.slice(bu[0].length);
+      var kws = stockTokens(body).filter(function(t) { return t.t === 'kw'; }), own = stockBathsIn(body).length > 0;
+      var lineBath = !own && baths.length === 1 ? label[baths[0]] : null;
+      if (!kws.length) body = 'use ' + (lineBath ? lineBath + ' ' : '') + body;
+      else if (lineBath && kws.some(function(t) { return t.v === 'use'; })) body = body.replace(/\bUSED?\b/i, function(u) { return u + ' ' + lineBath; });
+      else lineBath = null;
+      var l = { n: out.lines.length + 1, raw: (g.name ? g.name + ' ' : '') + body, from: h };
+      if (lineBath) l.bathFromLine = lineBath;
+      out.lines.push(l);
+    });
+    if (line.slice(at).replace(/[^A-Za-z0-9]+/g, '')) out.unread.push(line.slice(at).trim());
+  });
+  out.unread = out.unread.filter(function(u) { return used.indexOf(u) < 0; });
 }
 
 /* ---------- The store and the replay ---------- */

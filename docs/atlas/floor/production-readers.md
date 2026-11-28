@@ -3,8 +3,8 @@ subject: "Production readers: slots as text, the barrel list, the night block"
 domain: floor
 modules: [split/prodparse.js]
 specs: []
-tests: [P189, P220, P222, P264, P277]
-updated: 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+tests: [P189, P220, P222, P264, P277, P289]
+updated: 2026-11-28 (a line before or after the clock, a roll's work, a time sent alone, the loads a first reading missed: P289); 2026-11-27 (a line under each load, loads with no time, the night's work: P289); 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -60,3 +60,84 @@ line was entered by hand on 17 Nov 2026*, the day on this device's clock, never 
 the day before; P277); a header above it that disagrees with the line entered is asked; the message's other lines are read loosely and
 asked. **A message none of whose lines was taught is still not read**, so chatter with a figure in it is never taken for production. The
 readers above run first: a lesson never changes how a roll, a list, a slot log or a pickling message is read.
+
+### The readers set against the owner's export (25 Nov 2026)
+Owner, 25 Nov 2026: *"Re-read the WhatsApp texts and make sure the parser is working as intended. Some numbering styles don't
+work, some text formats are not read properly … I have corrected a lot of those on the earlier parse, manually, compare them and
+see what was causing the issue and add those rules or edit them."* Every production paste the book held was read again and set
+against what was saved from it, and every message of the group's export read (in the codex; nothing of either is here). The
+shapes read wrong now read as corrected (P289; every example below is made up):
+- **Sent before 6 AM with no date written**, a load whose pickling time is more than half an hour after the message is the day
+  before (`dayOf` in `parsePickling`, said amber, `evebefore`); a time with no AM or PM written there is read as the evening's
+  ("Pickling time 10:45", sent at 12:20 AM, is 10:45 PM the day before). It had been dated the day the message was sent.
+- **Where a load is going, written straight under its pickling time** ("PICKLING TIME 9:40 / For Barrel"), is where the loads
+  that time closed go, those of them with no line yet; when they all have theirs, it is the next block's, as a line written above
+  a block always was. A load going to two lines ("VAT A1 &A2", "FOR VAT A1& A2") goes to the first written, and the line is never a
+  part (`prodDestOfLine`); it had been saved as a part with no figure. A line written before a load ("VAT A 2 NOVA RING …", the
+  load's `dest`) or after a figure with no unit ("…=90 VAT A 1") is where that load is going.
+- **A second client named mid-message** with no figure, between a load with its figure and another under it, heads loads of its own,
+  asked where the book has no such client; unless it is a part the client above has sent (`partOwners`). It had been read as the
+  first client's part and the figure booked to that client.
+- **A load with no client under a new block** is not carried from the block above when its part has only ever come from another
+  client: `prodOwnerFill` reads it as that client, amber.
+- **A time after the part** ("BIG RING--1:25PM") is the load's own pickling time. A time needs its colon or its AM/PM: "HOOK--12.50"
+  is 12.5 kg, never 12:50.
+- **Sizes joined by "="** ("52×64=20×5=120 NOS") read as "52×64(20×5)--120 NOS" (`prodReadItem`). A pickling time line with the line
+  before it and a load after it ("VAT A 2 PICKLING TIME 2:40 PM NOVA RING 52×64=20×5=120") gives both.
+- **A numbered barrel list** ("1) UNLOAD TIME 8:50 AM …", "2) 11:10 AM UNLOAD" over its batch): the number is no part
+  (`prodUnnumber`). In a list that writes its times over its batches (a numbered list, or one whose last unload time alone on its
+  line has a batch written under it), an unload time alone with nothing above it waiting is the time of the batches under it, up
+  to the next unload; a list that writes each time under its batch reads as before. "BERRAL UPDATED" is the list's heading.
+- **The supervisor's day on the lines** (26 Nov 2026; `parseVatOpening`): "OPENING TIME 7:10 AM PICKLING VAT A 1" heads a line's work
+  from when it opened; a client alone heads the lines under it with its part's family; a line holds several loads, each a size
+  and its count ("52×64(20×5)=120 NOS 48×57=(20×5)=75 NOS"); a client written with its own load and "TIMING 9:05 AM" is that load's
+  alone; a word after the last count is that line's family; "1 ROUND 12 MINUTE" is said, never counted. It had been sorted as no
+  report and nothing read. **The barrel's out and in** ("BERRAL OUT TIME 8:50 AM …" / "IN TIME 9:05 AM"): out is the unload, in the
+  load, read as the batch list reads them; it had been sorted as the out-time roll (`relayKind` now leaves a barrel's or a line's
+  head, or a head with a count, to production). In a list whose first unload writes its time before its figures, that time heads
+  the lines under it; a client written after a line's last figure ("… 19 KG GENERAL") is that line's; a part written after the
+  count ("DELTA 310 NOS ANCHOR BKT") is the part.
+- **The pickling hand's times written over their loads** (26 Nov 2026; `parsePickling`, `prodPickSegments`). A pickling time with
+  nothing listed above it heads the loads under it ("VAT 2 PICKLING TIME / 4:10 PM / 52×64(20×5)=150 NOS"): each takes it as its own
+  time and the line written with it, up to the next time, an incoming block or a line heading. Under a time that closed loads above
+  it, the loads under it wait for the next time, as they always did. The clock may sit on the line under the time. A line holding
+  several loads ("48×57(20×5)=120 NOS 44×57(20×5)90 NOS PICKLING TIME …") is cut after each load's figure where another load or a time
+  follows; a figure after a figure ("240 NOS 12 KG") stays with its load. Before the time, a client heads the loads under it ("NOVA
+  PICKLING TIME 11:40 AM") and a load is one of its own, its figure the one after the clock ("DURGA 77 CD PICKLING TIME 4:40 PM 400
+  NOS"); between the time and its clock, a client and a family ("PICKLING TIME NOVA RING 1:00 PM 40×57(20×5)60 NOS"); after the clock
+  with no figure, a line and a client ("PICKLING TIME 3:40 PM VAT A 1 DURGA"); a word there with no client is no family. A time with
+  no loads of its own takes the loads a time above heads: those on its own line ("… HOOK 60 NOS VAT A2 PICKLING TIME 9:05 AM"), or,
+  with nothing written under it, all of them ("PICKLING TIME 9:00 AM RING 50 NOS / HOOK 40 NOS / PICKLING TIME 10:00 AM": HOOK at
+  10:00). A line after a figure is that load's ("RING 180 NOS VAT A2 HOOK 40 NOS"), and "+", "/" or "," before a figure join it to
+  its load. "PICKLING TIMES" is the time. Set
+  against every paste and every message of the export: eleven reads changed, each a load that had been dropped, timeless or run
+  together, none that had been right.
+- **27 Nov 2026.** A line written under loads with none above them is theirs ("DURGA / 7313--40 kg / For VAT A2 / 7314--25 kg / For
+  Barrel / Pickling time 9:40"): each had gone to the last line written; a line written above a block still heads it. Loads and the
+  line they go to with no pickling time ("KESTREL / BOLT--800 NOS / FOR BARREL") are the pickling hand's, the time asked (`prodKind`);
+  they had been sorted as no report. **The night's work** ("---01/01/26/ NIGHT WORK--- / NOVA RING 300 NOS DURGA 77 CD / 2400 NOS",
+  `relayIsLineDay` 'night', read by `parseVatOpening`): plated on the night of the date in its head, overtime, the line asked (the
+  owner: it runs on a VAT line, not always the same); a load after a line's last count takes the bare count on the line under it and
+  keeps the line it was written under (words there with no count under them are no load); a night head under a day's work makes what
+  follows the night's. A roll under a night head stays a roll, and a chemical sent to a line is no pickling load. Set against every
+  paste and export message: nothing read before reads differently.
+- **28 Nov 2026.** A line written after the clock or between the time's words and its clock ("PICKLING TIME 7:50 AM VAT A 1 NOVA RING
+  …", "PICKLING TIME VAT A1 10:05 AM …") is where that time's loads go; it had been read into the part, or lost, and the loads under it
+  sent to the next line written. A client after a load's count on the time's line ("… 230 NOS NOVA") is its client. **A roll's work**
+  (`prodFromRoll`): a client and family over sizes ("NOVA RING / 52×64(20×5)=120 NOS …") heads them; a line of several loads is each
+  of them (`prodLoadCuts`, shared with the pickling reader); the chemical stock under the roll is Stock's, never loads. "=" before a
+  gauge's bracket ("52+10×64=(20×5)") is no part of the size. A written line over a night's work is kept when it is saved. **A pickling
+  time sent alone** takes the same hand's loads that arrived that day and that no message pickles (`prodPairTimeAlone`), amber. Set
+  against the corpus: four reads changed, each a correction (two loads a roll had lost, two time lines' client and line).
+- **The loads a first reading missed** (the owner, 28 Nov 2026: *"Yes, update the reader too"*; Production → More → *Loads the reader
+  missed*, `prodMissedFind`, `prodMissedAdd`). Every saved paste is read again by the reader as it is now; where it reads more loads
+  than were saved from it, those with no saved entry of the same kind, part and figure (then of the same kind and figure, so an entry
+  named by hand is still that load) are listed by message beside what was saved, and added with one tap under the paste they came
+  from (`addedLater`). A voided entry counts as saved; a message voided and saved again is one message; a load entered on a face is
+  never offered; a load with a question is left to a paste in Production; where a saved entry matches nothing the reader now reads
+  (one load now read as two), nothing is offered and the message is listed to check by hand. The message's own WhatsApp line comes
+  from Messages where it is there (the minute it was sent, which times and the evening-before rule turn on); each load's warnings are
+  shown before it is added. Read against the
+  book of 23 Nov: seven loads in five messages (two rolls' second loads, 9 Oct and 4 Nov; an 8 Oct roll's two loads written after
+  their line, "VAT 2---…"; three 20 Nov pickling loads). A line written before a load in a roll's work is that load's line, never part
+  of its name (`prodFromRoll`).

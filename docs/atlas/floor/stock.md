@@ -3,8 +3,8 @@ subject: "Stock"
 domain: floor
 modules: [split/cost.js, split/stock.js]
 specs: []
-tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P289]
+updated: 2026-11-26 (a use message with no numbers: P289); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### Stock
@@ -22,6 +22,11 @@ levels could not have caught what the first real message carried — *nitric aci
 lines, wrapped lines, the shop's spellings (`SOLLT`, `ZINK`, `CYNEDE`, `BRIGHTNER` — `stockKey`), and
 three arithmetic shapes: `opening − used = left`, `add received + opening = total − used = left`, and
 `rate × days = used`. Tested on the 22 and 24 Sep messages: all 30 lines read, before any screen existed.
+**A use message with no numbers** (26 Nov 2026, `stockUseLines`): "CHEMICAL USE & ZINK USE / VAT A 2 ZINK USE 40 KG / 106 SOLLT
+USE VAT A 1 20KG CYNEDE 4 KG" has one item or more to a line. Where a message has no numbered line and says *use*, each item (a
+name and what follows it to the next name) is read as a numbered line would be ("ZINK USE VAT A2 40 KG"): a figure with no name of
+its own stays with the item before it ("… 30 KG + VAT A2 20 KG = 50 KG", "MORNING USE 2 LTR"); an add or a balance is read as one;
+what says none of the three is a use, and a use with no bath of its own takes the one bath its line names, said amber (`usebath`). It had been refused whole, "No numbered stock lines found". A numbered message reads as before.
 **Before anything is saved, every line is shown with the text it came from and what was read:**
 
 - 🔴 **Needs you** — the message contradicts itself. Pick *the working*, *the figure written*, or save

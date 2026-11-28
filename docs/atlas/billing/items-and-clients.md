@@ -3,8 +3,8 @@ subject: "Items Master and Client Master"
 domain: billing
 modules: [split/autocomplete.js, split/clients.js, split/items.js]
 specs: []
-tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P290]
+updated: 2026-11-28 (a client not invoiced through the app: P290); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### Items Master
@@ -54,3 +54,11 @@ Skipping costs no tonnage — the line-level route above still weighs those line
 ### Client Master
 22 clients with rate lookup, billing mode assignment, and contact info. Billing modes in live
 data: 20 `weight`, 1 `piece` (SSS Mehta), 1 `nos_to_weight`.
+
+**A client not invoiced through the app** (P290). *Not invoiced in the app* ticked on a client's card (`noInvoice`) keeps the client
+in the master, so the floor's readers resolve its name and its work is counted, and leaves it out of every road to an invoice: the
+invoice's client search and the challan's (`create.js`, `im-form.js`) never offer it, and an invoice form set to it by any other road
+does not save (`validateInvoiceKeyed`); a challan photo is never read as its (`_scanFindClient`). Its pickled loads are never "with
+no open challan" and its plating never "not invoiced" (`prodLoadNoChallan`, `prodPlatedUnbilled`). A new invoice only: one raised
+before it was ticked stays, and takes its edit, correction and reissue as before; its challans open then stay listed. The list says
+*Not invoiced* where the GSTIN stands. Unticked, it is a client like any other. P290.

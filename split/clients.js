@@ -107,7 +107,7 @@ function renderClientList(filter) {
           ' data-action="invSelectClientRow" data-id="' + id + '">' +
           // The name is a real button, so the row opens from the keyboard.
           '<td class="inv-col-grow" title="' + escHtml(c.name) + '"><button class="inv-btn-link" data-action="invSelectClientRow" data-id="' + id + '">' + escHtml(c.name) + '</button></td>' +
-          '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
+          '<td class="inv-id inv-col-opt2">' + escHtml(c.noInvoice ? 'Not invoiced' : c.gstin || '') + '</td>' +
           '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
           // Its worst flag where it has one (TM5d), else whether it is active.
@@ -119,7 +119,7 @@ function renderClientList(filter) {
   el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
     const r = _clientRateNow(c);
     // Two facts (§3b-11): who it is to GST, and how it is billed with its overrides beside the mode.
-    const meta = [c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+    const meta = [c.noInvoice ? 'Not invoiced' : c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
@@ -220,6 +220,9 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) + _clientFlowFieldsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
+    // A client not invoiced through the app: its work is read and counted on the floor, and it is never offered for an invoice or a
+    // challan.
+    '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditNoInvoice"' + (c.noInvoice ? ' checked' : '') + '> Not invoiced in the app</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
     (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
@@ -361,7 +364,8 @@ function _readClientForm(excludeId) {
     payTermsDays: terms === '' ? undefined : Math.round(+terms),
     turnaroundDays: turn === '' ? undefined : Math.round(+turn),
     turnaroundParts: turnParts.length ? turnParts : undefined,
-    isActive: document.getElementById('ceditActive').checked
+    isActive: document.getElementById('ceditActive').checked,
+    noInvoice: (document.getElementById('ceditNoInvoice') || {}).checked ? true : undefined
   };
 }
 

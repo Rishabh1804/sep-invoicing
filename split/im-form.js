@@ -237,7 +237,8 @@ function renderChallanClientResults(query) {
   var input = document.getElementById('imChallanClientSearch');
   if (!res) return;
   var q = (query || '').trim().toLowerCase();
-  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && clientMatchesQuery(c, q); }).slice(0, 8);
+  // A client set not invoiced (clients.js, noInvoice) sends no challan to invoice from: not offered for a challan.
+  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && !c.noInvoice && clientMatchesQuery(c, q); }).slice(0, 8);
 
   acReset();
   if (matches.length === 0) {

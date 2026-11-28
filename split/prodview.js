@@ -1253,7 +1253,8 @@ function prodReviewResolve(rvIn) {
         if (cc === 'asWritten') row.clientId = null; else row.clientId = cc;
       } else row.clientId = it.clientId;
       var lc = ch['line' + key];
-      if (it.lineHint !== undefined || (it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot')) {
+      // A line written over the work (the night's work under "VAT A 1", 27 Nov 2026) is kept; a roll's work with none is asked.
+      if (it.lineHint !== undefined || (it.kind === 'plated' && it.basis === 'relay' && it.slot === 'ot' && !(it.lineSrc === 'written' && it.line))) {
         if (lc !== undefined) { row.issues = row.issues.filter(function(x) { return x.code !== 'linehint' && x.code !== 'noline'; }); row.line = lc || null; }
         else row.line = null;
       } else row.line = it.line || null;

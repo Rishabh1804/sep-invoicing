@@ -4,7 +4,7 @@ domain: platform
 modules: [split/msgconfirm.js, split/msgprofile.js, split/msgstore.js, split/msgview.js, split/photoread.js, split/scanner.js, split/tatarelease.js, split/wazip.js]
 specs: [docs/MESSAGES.md]
 tests: [P253, P256, P257, P263, P288, P289]
-updated: 2026-11-25 (the stock in a roll saved with it, a power back on its own: P289); 2026-11-23 (a coded sheet photographed again replaces its earlier reading, P288); 2026-11-11 (moved verbatim from CLAUDE.md)
+updated: 2026-11-28 (a roll's work saved with it, a pickling time sent alone: P289); 2026-11-25 (the stock in a roll saved with it, a power back on its own: P289); 2026-11-23 (a coded sheet photographed again replaces its earlier reading, P288); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### WhatsApp messages: kept, read, confirmed
@@ -35,6 +35,12 @@ the last message of each kind the book holds). P253–P256.
   ticked with the cut it closes and saved with it; with a cut saved in an earlier check and still open that day, it closes that
   cut (`mcCutBefore`); with no cut before it, stored or sent, it is not offered (*No cut before it to close*). It had been listed
   as a message with nothing in it, and the cut saved still open. P289.
+- **The work written into a roll** (28 Nov 2026; `mcRollWork`) is read as Production reads a pasted roll, said on the roll's row
+  (*Work: N loads, saved with the roll*) and saved with it; a load with a question leaves the work to its review, the roll saved, said
+  once on the done screen (`data-mc-work-left`). It had never been saved from here. **A pickling time sent alone** ("Pickling time
+  9:15 am / For Vat A1", `mcTimeAlone`) is read with the same hand's messages of that day: the loads that arrived and that no message
+  pickles went in at that time, to that line, each said amber to confirm (`prodPairTimeAlone`); it had been refused as a message with
+  nothing in it. P289.
 - **Messages** (msgview.js, a top-bar tool, the owner's; `?tab=pageMessages`): the list by day with its verdict; one message is its
   reader's check, its questions, each line beside what was read from it, its kind set by hand (a lesson for the sorter), its text edited
   and read again with what moved; *Read every message again* lists what the reader as it is now reads differently, writing nothing.

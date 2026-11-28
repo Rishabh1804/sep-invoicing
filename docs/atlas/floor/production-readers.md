@@ -4,7 +4,7 @@ domain: floor
 modules: [split/prodparse.js]
 specs: []
 tests: [P189, P220, P222, P264, P277, P289]
-updated: 2026-11-27 (a line under each load, loads with no time, the night's work: P289); 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
+updated: 2026-11-28 (a line before or after the clock, a roll's work, a time sent alone: P289); 2026-11-27 (a line under each load, loads with no time, the night's work: P289); 2026-11-26 (the pickling hand's times over their loads; the supervisor's day on the lines, the barrel's out and in: P289); 2026-11-25 (the readers set against the owner's export: P289); 2026-11-17 (the day a line was taught is the device's day, written as a date: P277)
 ---
 
 ### Production typed as text, a slot a line
@@ -121,3 +121,11 @@ shapes read wrong now read as corrected (P289; every example below is made up):
   keeps the line it was written under (words there with no count under them are no load); a night head under a day's work makes what
   follows the night's. A roll under a night head stays a roll, and a chemical sent to a line is no pickling load. Set against every
   paste and export message: nothing read before reads differently.
+- **28 Nov 2026.** A line written after the clock or between the time's words and its clock ("PICKLING TIME 7:50 AM VAT A 1 NOVA RING
+  …", "PICKLING TIME VAT A1 10:05 AM …") is where that time's loads go; it had been read into the part, or lost, and the loads under it
+  sent to the next line written. A client after a load's count on the time's line ("… 230 NOS NOVA") is its client. **A roll's work**
+  (`prodFromRoll`): a client and family over sizes ("NOVA RING / 52×64(20×5)=120 NOS …") heads them; a line of several loads is each
+  of them (`prodLoadCuts`, shared with the pickling reader); the chemical stock under the roll is Stock's, never loads. "=" before a
+  gauge's bracket ("52+10×64=(20×5)") is no part of the size. A written line over a night's work is kept when it is saved. **A pickling
+  time sent alone** takes the same hand's loads that arrived that day and that no message pickles (`prodPairTimeAlone`), amber. Set
+  against the corpus: four reads changed, each a correction (two loads a roll had lost, two time lines' client and line).

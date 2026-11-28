@@ -361,6 +361,47 @@ NOVA RING 300 NOS`)} }).kind`)).toBe('out');
     expect(await ev(page, `msgSort({ text: ${JSON.stringify('ZINC 20 KG\nTO VAT A2')} }).kind`)).not.toBe('pickling');
   });
 
+  test('the floor on 28 Nov 2026: a line before or after the clock, a client after the count, a roll’s work read and saved, a time sent alone', async ({ page }) => {
+    await load(page);
+    // A line after the clock is where the loads go, its load and the loads under it; one between the time's words and its clock too;
+    // a client after a load's count is its client.
+    let m = await read(page, `${D.dmy}, 9:33 am - Supervisor: PICKLING TIME 7:50 AM VAT A 1 NOVA RING 52×64=20×5=120 NOS\n48×57(20×5)=75 NOS\n----------------------\nVAT A 2 PICKLING TIME 7:50 AM DURGA 7313-400 NOS\nKESTREL HOOK 500 NOS`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time, i.dest])).toEqual([
+      [11, 'RING 52X64(20X5)', 120, '07:50', 'vat-a1'], [11, '48X57(20X5)', 75, '07:50', 'vat-a1'],
+      [12, '7313', 400, '07:50', 'vat-a2'], [13, 'HOOK', 500, '07:50', 'vat-a2']]);
+    m = await read(page, `${D.dmy}, 9:36 am - Supervisor: PICKLING TIME VAT A1 10:05 AM 52×64(20×5)=230 NOS NOVA`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty, i.time, i.dest])).toEqual([[11, '52X64(20X5)', 230, '10:05', 'vat-a1']]);
+    // A roll's work: a client and family over sizes heads them, two loads on a line are two, the stock under it is no load.
+    const roll = `${D.dmy}/ IN TIME\n-------6:00 AM------\n1) ALFA\n2) BRAVO\n------WORK-------\nNOVA RING\n52×64(20×5)=120 NOS 48×57=(20×5)=75 NOS\n47×53(20×5)=90 NOS\n------------------\nCHEMICAL USE\n1) ZINK 30 KG\n2) HCL 100-20=80 LTR`;
+    m = await read(page, `${D.dmy}, 9:18 am - Supervisor: ${roll}`);
+    expect(m[0].items.map(i => [i.clientId, i.part, i.qty])).toEqual([[11, 'RING 52X64(20X5)', 120], [11, 'RING 48X57(20X5)', 75], [11, 'RING 47X53(20X5)', 90]]);
+    // The messages' check: the roll's work is saved with the roll; a pickling time sent alone pickles the same hand's incoming loads
+    // that no message pickles, to its line, said amber.
+    const wa = (at: string, who: string, text: string) => `${D.dmy}, ${at} - ${who}: ${text}`;
+    const chat = [
+      wa('9:00 am', 'Pickler', 'INCOMING MATERIAL TIME 8:50 AM\nNOVA CLAMPS\nRING--200 NOS\nBOLT--100 NOS'),
+      wa('9:20 am', 'Pickler', 'Pickling time 9:15 am\nFor Vat A1'),
+      wa('9:40 am', 'Pickler', 'NOVA CLAMPS\nBOLT--100 NOS\nPICKLING TIME 9:35 AM\nFOR BARREL'),
+      wa('9:18 am', 'Supervisor', roll),
+    ].join('\n');
+    await ev(page, `(function(){ msgIngest(relaySplit(${JSON.stringify(chat)}), 'zip', 'IMP-P289b'); saveState(); mcOpen({ importId: 'IMP-P289b' }); })()`);
+    await expect(page.locator('[data-mc]')).toBeVisible();
+    await expect(page.locator(`[data-mc-row][data-kind="in"]`)).toContainText('Work: 3 loads, saved with the roll');
+    await ev(page, `(function(){ mcShown().forEach(function(r) { if (r.tickable) _mc.tick[r.id] = true; }); mcRedraw(); })()`);
+    await page.locator('[data-action="invMsgMcSave"]').click();
+    await expect(page.locator('#mcDoneTiles [data-tile="saved"] .inv-tile-value')).toHaveText('4');
+    const got = await ev(page, `(function(){
+      return {
+        pickled: S.production.entries.filter(function(e) { return e.kind === 'pickled'; }).map(function(e) { return [e.part, e.qty, e.time, e.dest || e.line || null]; }).sort(),
+        plated: S.production.entries.filter(function(e) { return e.kind === 'plated'; }).map(function(e) { return [e.part, e.qty]; }).sort(),
+        status: S.messages.map(function(m) { return m.kind + ':' + m.status; }).sort(),
+      };
+    })()`) as any;
+    expect(got.pickled).toEqual([['BOLT', 100, '09:35', 'barrel'], ['RING', 200, '09:15', 'vat-a1']]);
+    expect(got.plated).toEqual([['RING 47X53(20X5)', 90], ['RING 48X57(20X5)', 75], ['RING 52X64(20X5)', 120]]);
+    expect(got.status).toEqual(['in:saved', 'pickling:saved', 'pickling:saved', 'pickling:saved']);
+  });
+
   test('a use message with no numbers (26 Nov 2026): each use a line, read by its bath, one with none of its own taking its line’s', async ({ page }) => {
     await load(page);
     const r = await ev(page, `(function(){ var p = parseStockMessage(${JSON.stringify(`CHEMICAL USE  &  ZINK USE ${D.dmy}/

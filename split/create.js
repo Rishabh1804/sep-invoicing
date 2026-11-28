@@ -340,7 +340,8 @@ function renderCreateForm() {
       const q = cs.value.toLowerCase();
       const res = document.getElementById('invClientResults');
       const matches = q.length < 1 ? [] :
-        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
+        // A cash client is never invoiced (clients.js, cashOnly): never offered here.
+        S.clients.filter(c => c.isActive && !c.cashOnly && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
         res.classList.add('inv-hidden');
@@ -823,6 +824,7 @@ function validateInvoiceKeyed() {
   if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
   else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
+  else if (S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
   if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
   if (!invoiceForm.date) add('Enter invoice date', 'date');
   if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');

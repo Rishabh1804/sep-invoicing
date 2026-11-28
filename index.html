@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="zinc";}})();</script>
-<meta name="app-build" content="f6b4cce7">
+<meta name="app-build" content="9513cf69">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -11750,7 +11750,7 @@ function renderClientList(filter) {
           ' data-action="invSelectClientRow" data-id="' + id + '">' +
           // The name is a real button, so the row opens from the keyboard.
           '<td class="inv-col-grow" title="' + escHtml(c.name) + '"><button class="inv-btn-link" data-action="invSelectClientRow" data-id="' + id + '">' + escHtml(c.name) + '</button></td>' +
-          '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
+          '<td class="inv-id inv-col-opt2">' + escHtml(c.cashOnly ? 'Cash, no invoice' : c.gstin || '') + '</td>' +
           '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
           // Its worst flag where it has one (TM5d), else whether it is active.
@@ -11762,7 +11762,7 @@ function renderClientList(filter) {
   el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
     const r = _clientRateNow(c);
     // Two facts (§3b-11): who it is to GST, and how it is billed with its overrides beside the mode.
-    const meta = [c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+    const meta = [c.cashOnly ? 'Cash, no invoice' : c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
@@ -11863,6 +11863,9 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) + _clientFlowFieldsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
+    // A client who pays in cash and has no GST registration (owner, 28 Nov 2026): its work is read and counted on the floor, and it is
+    // never offered for an invoice or a challan, so it never reaches GSTR-1 or the receivables.
+    '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditCash"' + (c.cashOnly ? ' checked' : '') + '> Cash, no invoice (no GST registration)</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
     (isAdd ? _clientCardHtml('Opening rate', null, '', '<div class="inv-panel-body">' + _clientRateFieldsHtml(true) + '</div>')
       : rates + _pieceRatesEditHtml(c) + _pieceWeightsEditHtml(c)) +
@@ -12004,7 +12007,8 @@ function _readClientForm(excludeId) {
     payTermsDays: terms === '' ? undefined : Math.round(+terms),
     turnaroundDays: turn === '' ? undefined : Math.round(+turn),
     turnaroundParts: turnParts.length ? turnParts : undefined,
-    isActive: document.getElementById('ceditActive').checked
+    isActive: document.getElementById('ceditActive').checked,
+    cashOnly: (document.getElementById('ceditCash') || {}).checked ? true : undefined
   };
 }
 
@@ -14166,7 +14170,8 @@ function renderCreateForm() {
       const q = cs.value.toLowerCase();
       const res = document.getElementById('invClientResults');
       const matches = q.length < 1 ? [] :
-        S.clients.filter(c => c.isActive && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
+        // A cash client is never invoiced (clients.js, cashOnly): never offered here.
+        S.clients.filter(c => c.isActive && !c.cashOnly && (c.name.toLowerCase().includes(q) || (c.gstin||'').toLowerCase().includes(q))).slice(0, 8);
       acReset();
       if (matches.length === 0) {
         res.classList.add('inv-hidden');
@@ -14649,6 +14654,7 @@ function validateInvoiceKeyed() {
   if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
   else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
+  else if (S.clients.some(c => c.id === invoiceForm.clientId && c.cashOnly)) add('This client pays in cash and is never invoiced: untick Cash, no invoice in its client card to invoice it', 'client');
   if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
   if (!invoiceForm.date) add('Enter invoice date', 'date');
   if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');
@@ -83530,7 +83536,8 @@ function renderChallanClientResults(query) {
   var input = document.getElementById('imChallanClientSearch');
   if (!res) return;
   var q = (query || '').trim().toLowerCase();
-  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && clientMatchesQuery(c, q); }).slice(0, 8);
+  // A cash client's material comes with no challan to invoice from (clients.js, cashOnly): not offered for a challan.
+  var matches = q.length < 1 ? [] : S.clients.filter(function(c) { return c.isActive && !c.cashOnly && clientMatchesQuery(c, q); }).slice(0, 8);
 
   acReset();
   if (matches.length === 0) {

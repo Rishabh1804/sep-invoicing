@@ -3,8 +3,8 @@ subject: "Items Master and Client Master"
 domain: billing
 modules: [split/autocomplete.js, split/clients.js, split/items.js]
 specs: []
-tests: []
-updated: 2026-11-11 (moved verbatim from CLAUDE.md)
+tests: [P290]
+updated: 2026-11-28 (a cash client, never invoiced: P290); 2026-11-11 (moved verbatim from CLAUDE.md)
 ---
 
 ### Items Master
@@ -54,3 +54,10 @@ Skipping costs no tonnage — the line-level route above still weighs those line
 ### Client Master
 22 clients with rate lookup, billing mode assignment, and contact info. Billing modes in live
 data: 20 `weight`, 1 `piece` (SSS Mehta), 1 `nos_to_weight`.
+
+**A cash client, never invoiced** (owner, 28 Nov 2026: *"We need to add them as clients, but they pay us via cash, once in 2-3 months,
+so they don't have any GST filing or registration"*). *Cash, no invoice* ticked on a client's card (`cashOnly`) keeps the client in
+the master, so the floor's readers resolve its name and its work is counted, and leaves it out of every road to a tax invoice: the
+invoice's client search and the challan's (`create.js`, `im-form.js`) never offer it, and an invoice form set to it by any other road
+does not save (`validateInvoiceKeyed`). With no invoice it reaches no GSTR-1 export and no receivable. The list says *Cash, no
+invoice* where the GSTIN stands. Unticked, it is a client like any other. P290.
